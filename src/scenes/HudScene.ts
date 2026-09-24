@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import {
+  LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
   configureLogicalCamera,
 } from '../game/layout/Viewport';
@@ -7,7 +8,6 @@ import type {
   CombatState,
 } from '../game/combat/CombatSystem';
 import {
-  WEAPON_DEFINITIONS,
   WEAPON_ORDER,
   type WeaponId,
 } from '../game/combat/WeaponDefinitions';
@@ -19,6 +19,15 @@ import {
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
 } from '../game/ui/HudEvents';
+
+const WEAPON_ICON_TEXTURES:
+  Record<WeaponId, string> = {
+  axe: 'ruinstead-player-axe-v3',
+  sword: 'ruinstead-player-sword-v3',
+  hammer: 'ruinstead-player-hammer-v3',
+  spear: 'ruinstead-player-spear-v3',
+  daggers: 'ruinstead-player-daggers-v3',
+};
 
 type HudSceneData = {
   initialCombatState:
@@ -41,8 +50,6 @@ export class HudScene
     Phaser.GameObjects.Rectangle;
   private healthText?:
     Phaser.GameObjects.Text;
-  private coinText?:
-    Phaser.GameObjects.Text;
   private areaText?:
     Phaser.GameObjects.Text;
   private noticeText?:
@@ -64,11 +71,11 @@ export class HudScene
       >
     > = {};
 
-  private weaponLabels:
+  private weaponIcons:
     Partial<
       Record<
         WeaponId,
-        Phaser.GameObjects.Text
+        Phaser.GameObjects.Image
       >
     > = {};
 
@@ -154,7 +161,7 @@ export class HudScene
         26,
         24,
         276,
-        126,
+        102,
         0x234b2b,
         0.88,
       )
@@ -227,35 +234,14 @@ export class HudScene
       )
       .setOrigin(0.5)
       .setDepth(103);
-
-    this.coinText = this.add
-      .text(
-        43,
-        116,
-        '',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '16px',
-          fontStyle: 'bold',
-          color: '#76501d',
-          backgroundColor:
-            '#fff0a8',
-          padding: {
-            x: 10,
-            y: 5,
-          },
-        },
-      )
-      .setDepth(103);
   }
 
   private createGatheringPanel(): void {
     this.add
       .rectangle(
         26,
-        164,
-        276,
+        140,
+        306,
         118,
         0x234b2b,
         0.88,
@@ -271,7 +257,7 @@ export class HudScene
     this.add
       .text(
         42,
-        176,
+        152,
         'Рюкзак',
         {
           fontFamily:
@@ -286,8 +272,8 @@ export class HudScene
     this.add
       .rectangle(
         42,
-        203,
-        244,
+        179,
+        274,
         20,
         0x283128,
         0.92,
@@ -298,8 +284,8 @@ export class HudScene
     this.backpackFill = this.add
       .rectangle(
         45,
-        206,
-        238,
+        182,
+        268,
         14,
         0x67c96a,
         1,
@@ -309,8 +295,8 @@ export class HudScene
 
     this.backpackText = this.add
       .text(
-        164,
-        213,
+        179,
+        189,
         '',
         {
           fontFamily:
@@ -326,7 +312,7 @@ export class HudScene
     this.carriedText = this.add
       .text(
         42,
-        231,
+        207,
         '',
         {
           fontFamily:
@@ -340,7 +326,7 @@ export class HudScene
     this.storageText = this.add
       .text(
         42,
-        253,
+        229,
         '',
         {
           fontFamily:
@@ -353,16 +339,23 @@ export class HudScene
   }
 
   private createWeaponSelector(): void {
+    const spacing = 72;
+    const y =
+      LOGICAL_HEIGHT - 50;
+    const centerX =
+      LOGICAL_WIDTH / 2;
+    const panelWidth =
+      spacing * 5 + 24;
+
     this.add
       .rectangle(
-        LOGICAL_WIDTH - 435,
-        24,
-        409,
-        116,
-        0x234b2b,
+        centerX,
+        y,
+        panelWidth,
+        72,
+        0x203e27,
         0.9,
       )
-      .setOrigin(0, 0)
       .setStrokeStyle(
         2,
         0xf4f0cf,
@@ -370,75 +363,65 @@ export class HudScene
       )
       .setDepth(100);
 
-    this.add
-      .text(
-        LOGICAL_WIDTH - 421,
-        34,
-        'Оружие',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '15px',
-          fontStyle: 'bold',
-          color: '#fff7d6',
-        },
-      )
-      .setDepth(101);
-
-    const positions:
-      Record<
-        WeaponId,
-        readonly [number, number]
-      > = {
-      axe: [
-        LOGICAL_WIDTH - 365,
-        72,
-      ],
-      sword: [
-        LOGICAL_WIDTH - 242,
-        72,
-      ],
-      hammer: [
-        LOGICAL_WIDTH - 119,
-        72,
-      ],
-      spear: [
-        LOGICAL_WIDTH - 303,
-        116,
-      ],
-      daggers: [
-        LOGICAL_WIDTH - 180,
-        116,
-      ],
-    };
-
     WEAPON_ORDER.forEach(
       (weaponId, index) => {
-        const [
-          x,
-          y,
-        ] =
-          positions[
-            weaponId
-          ];
+        const x =
+          centerX +
+          (
+            index -
+            (WEAPON_ORDER.length - 1) /
+              2
+          ) *
+            spacing;
 
         const button =
-          this.createWeaponButton(
-            x,
-            y,
-            `${index + 1} · ${WEAPON_DEFINITIONS[weaponId].shortName}`,
-            weaponId,
-          );
+          this.add
+            .rectangle(
+              x,
+              y,
+              58,
+              58,
+              0x315f35,
+              0.96,
+            )
+            .setStrokeStyle(
+              2,
+              0xf3f5dd,
+              0.62,
+            )
+            .setDepth(102)
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        const icon =
+          this.add
+            .image(
+              x,
+              y - 1,
+              WEAPON_ICON_TEXTURES[
+                weaponId
+              ],
+            )
+            .setScale(0.62)
+            .setDepth(103);
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            this.game.events.emit(
+              HUD_WEAPON_SELECT_EVENT,
+              weaponId,
+            );
+          },
+        );
 
         this.weaponButtons[
           weaponId
-        ] =
-          button.background;
-
-        this.weaponLabels[
+        ] = button;
+        this.weaponIcons[
           weaponId
-        ] =
-          button.label;
+        ] = icon;
       },
     );
   }
@@ -447,8 +430,8 @@ export class HudScene
     this.add
       .text(
         LOGICAL_WIDTH - 24,
-        154,
-        'Автобой · 1–5 оружие · Space/Shift — рывок',
+        26,
+        '1–5 оружие · Space/Shift — рывок',
         {
           fontFamily:
             'system-ui, sans-serif',
@@ -471,7 +454,7 @@ export class HudScene
       this.add
         .text(
           LOGICAL_WIDTH / 2,
-          205,
+          110,
           '',
           {
             fontFamily:
@@ -491,70 +474,6 @@ export class HudScene
         .setOrigin(0.5)
         .setDepth(180)
         .setAlpha(0);
-  }
-
-  private createWeaponButton(
-    x: number,
-    y: number,
-    label: string,
-    weaponId: WeaponId,
-  ): {
-    background:
-      Phaser.GameObjects.Rectangle;
-    label:
-      Phaser.GameObjects.Text;
-  } {
-    const background =
-      this.add
-        .rectangle(
-          x,
-          y,
-          112,
-          34,
-          0x315f35,
-          0.88,
-        )
-        .setStrokeStyle(
-          2,
-          0xf3f5dd,
-          0.62,
-        )
-        .setDepth(102)
-        .setInteractive({
-          useHandCursor: true,
-        });
-
-    const text =
-      this.add
-        .text(
-          x,
-          y,
-          label,
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '12px',
-            fontStyle: 'bold',
-            color: '#ffffff',
-          },
-        )
-        .setOrigin(0.5)
-        .setDepth(103);
-
-    background.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () => {
-        this.game.events.emit(
-          HUD_WEAPON_SELECT_EVENT,
-          weaponId,
-        );
-      },
-    );
-
-    return {
-      background,
-      label: text,
-    };
   }
 
   private handleGatheringState(
@@ -578,7 +497,7 @@ export class HudScene
 
     this.backpackFill
       ?.setDisplaySize(
-        238 * ratio,
+        268 * ratio,
         14,
       )
       .setFillStyle(
@@ -595,11 +514,11 @@ export class HudScene
     );
 
     this.carriedText?.setText(
-      `С собой: Д ${carried.wood} · К ${carried.stone} · М ${carried.metal}`,
+      `С собой: Д ${carried.wood} · К ${carried.stone} · М ${carried.metal} · ● ${carried.coins}`,
     );
 
     this.storageText?.setText(
-      `Склад: Д ${state.storage.wood} · К ${state.storage.stone} · М ${state.storage.metal}`,
+      `Склад: Д ${state.storage.wood} · К ${state.storage.stone} · М ${state.storage.metal} · ● ${state.storage.coins}`,
     );
   }
 
@@ -623,10 +542,6 @@ export class HudScene
       `HP ${state.health} / ${state.maxHealth}`,
     );
 
-    this.coinText?.setText(
-      `● Монеты: ${state.coins}`,
-    );
-
     for (
       const weaponId of
       WEAPON_ORDER
@@ -645,7 +560,7 @@ export class HudScene
           ? 0x7751a1
           : unlocked
             ? 0x315f35
-            : 0x4b4f4a,
+            : 0x353a37,
         unlocked
           ? 1
           : 0.72,
@@ -654,44 +569,47 @@ export class HudScene
       this.weaponButtons[
         weaponId
       ]?.setStrokeStyle(
-        2,
+        selected
+          ? 4
+          : 2,
         selected
           ? 0xffe590
           : unlocked
             ? 0xf3f5dd
-            : 0x8d948d,
+            : 0x777d78,
         selected
-          ? 0.95
+          ? 1
           : 0.5,
       );
 
-      const index =
-        WEAPON_ORDER.indexOf(
-          weaponId,
-        ) + 1;
-
-      const name =
-        WEAPON_DEFINITIONS[
+      const icon =
+        this.weaponIcons[
           weaponId
-        ].shortName;
+        ];
 
-      this.weaponLabels[
-        weaponId
-      ]?.setText(
-        selected
-          ? `${name} ✓`
-          : unlocked
-            ? `${index} · ${name}`
-            : `${name} · ЗАКР.`,
-      );
+      if (!icon) {
+        continue;
+      }
 
-      this.weaponLabels[
-        weaponId
-      ]?.setColor(
-        unlocked
-          ? '#ffffff'
-          : '#b9bdb8',
-      );
+      icon
+        .setAlpha(
+          unlocked
+            ? 1
+            : 0.24,
+        )
+        .setScale(
+          selected
+            ? 0.7
+            : 0.62,
+        );
+
+      if (unlocked) {
+        icon.clearTint();
+      } else {
+        icon.setTint(
+          0x777777,
+        );
+      }
     }
   }
 
@@ -745,7 +663,7 @@ export class HudScene
               duration: 260,
               onComplete: () => {
                 this.noticeText?.setY(
-                  205,
+                  110,
                 );
               },
             });

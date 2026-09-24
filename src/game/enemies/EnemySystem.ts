@@ -67,6 +67,9 @@ const ELITE_DAMAGE_MULTIPLIER = 1.55;
 const ELITE_DROP_MULTIPLIER = 4;
 const NORMAL_RESPAWN_MS = 30_000;
 const ELITE_RESPAWN_MS = 120_000;
+const RESET_REGEN_MS = 20_000;
+const AGGRO_RETENTION_MULTIPLIER = 2.4;
+const MIN_AGGRO_RETENTION_RANGE = 300;
 
 const DEFINITIONS:
   Record<
@@ -318,6 +321,9 @@ export class EnemyUnit {
     number;
   private nextAttackAt = 0;
   private respawnAt = 0;
+  private regenStartedAt = 0;
+  private regenStartHealth = 0;
+  private wasEngaged = false;
   private _alive = true;
 
   constructor(
@@ -510,6 +516,38 @@ export class EnemyUnit {
     );
   }
 
+  keepsAggro(
+    playerPosition:
+      Phaser.Math.Vector2,
+  ): boolean {
+    if (!this._alive) {
+      return false;
+    }
+
+    const retentionRange =
+      Math.max(
+        MIN_AGGRO_RETENTION_RANGE,
+        this.definition.aggroRange *
+          AGGRO_RETENTION_MULTIPLIER,
+      );
+
+    return (
+      Phaser.Math.Distance.Between(
+        this.sprite.x,
+        this.sprite.y,
+        playerPosition.x,
+        playerPosition.y,
+      ) <= retentionRange
+    );
+  }
+
+  forceDisengage(
+    time: number,
+  ): void {
+    this.wasEngaged = false;
+    this.startResetRegen(time);
+  }
+
   update(
     time: number,
     playerPosition:
@@ -562,6 +600,17 @@ export class EnemyUnit {
       playerSafe ||
       !groupEngaged
     ) {
+      if (this.wasEngaged) {
+        this.startResetRegen(
+          time,
+        );
+      }
+
+      this.wasEngaged = false;
+      this.regenerateAfterReset(
+        time,
+      );
+
       if (distanceToSpawn > 10) {
         this.moveTowards(
           this.spawn,
@@ -577,6 +626,9 @@ export class EnemyUnit {
       );
       return;
     }
+
+    this.wasEngaged = true;
+    this.regenStartedAt = 0;
 
     if (
       distanceToPlayer >
@@ -736,8 +788,82 @@ export class EnemyUnit {
     }
   }
 
+  private startResetRegen(
+    time: number,
+  ): void {
+    if (
+      this.health >=
+      this.maxHealth
+    ) {
+      this.regenStartedAt = 0;
+      return;
+    }
+
+    this.regenStartedAt =
+      time;
+    this.regenStartHealth =
+      this.health;
+  }
+
+  private regenerateAfterReset(
+    time: number,
+  ): void {
+    if (
+      this.health >=
+      this.maxHealth
+    ) {
+      this.health =
+        this.maxHealth;
+      this.regenStartedAt = 0;
+      return;
+    }
+
+    if (
+      this.regenStartedAt <= 0
+    ) {
+      this.startResetRegen(
+        time,
+      );
+    }
+
+    const progress =
+      Phaser.Math.Clamp(
+        (
+          time -
+          this.regenStartedAt
+        ) /
+          RESET_REGEN_MS,
+        0,
+        1,
+      );
+
+    this.health =
+      this.regenStartHealth +
+      (
+        this.maxHealth -
+        this.regenStartHealth
+      ) *
+        progress;
+
+    this.updateHealthBar();
+
+    if (progress >= 1) {
+      this.health =
+        this.maxHealth;
+      this.regenStartedAt = 0;
+      this.healthBack.setVisible(
+        false,
+      );
+      this.healthFill.setVisible(
+        false,
+      );
+    }
+  }
+
   private kill(): void {
     this._alive = false;
+    this.wasEngaged = false;
+    this.regenStartedAt = 0;
     this.respawnAt =
       this.scene.time.now +
       (this.rank === 'elite'
@@ -783,6 +909,8 @@ export class EnemyUnit {
     this.respawnAt = 0;
     this.health =
       this.maxHealth;
+    this.wasEngaged = false;
+    this.regenStartedAt = 0;
     this.nextAttackAt =
       this.scene.time.now + 350;
 
@@ -988,15 +1116,6 @@ export class EnemySystem {
     EnemyUnit[] = [];
   private readonly engagedGroups =
     new Set<string>();
-  private readonly groupMeta =
-    new Map<
-      string,
-      {
-        center:
-          Phaser.Math.Vector2;
-        resetRange: number;
-      }
-    >();
   private playerThreatened = false;
 
   constructor(
@@ -1007,12 +1126,9 @@ export class EnemySystem {
     this.group =
       scene.physics.add.group();
 
-    const spawns =
-      buildSpawns();
-
     for (
       const spawn of
-      spawns
+      buildSpawns()
     ) {
       this.enemies.push(
         new EnemyUnit(
@@ -1022,76 +1138,26 @@ export class EnemySystem {
         ),
       );
     }
-
-    const grouped =
-      new Map<
-        string,
-        {
-          x: number;
-          y: number;
-          count: number;
-          resetRange: number;
-        }
-      >();
-
-    for (
-      const spawn of
-      spawns
-    ) {
-      const existing =
-        grouped.get(
-          spawn.groupId,
-        );
-      const resetRange =
-        DEFINITIONS[
-          spawn.species
-        ].leashRange + 70;
-
-      if (existing) {
-        existing.x += spawn.x;
-        existing.y += spawn.y;
-        existing.count += 1;
-        existing.resetRange =
-          Math.max(
-            existing.resetRange,
-            resetRange,
-          );
-      } else {
-        grouped.set(
-          spawn.groupId,
-          {
-            x: spawn.x,
-            y: spawn.y,
-            count: 1,
-            resetRange,
-          },
-        );
-      }
-    }
-
-    for (
-      const [
-        groupId,
-        meta,
-      ] of grouped
-    ) {
-      this.groupMeta.set(
-        groupId,
-        {
-          center:
-            new Phaser.Math.Vector2(
-              meta.x / meta.count,
-              meta.y / meta.count,
-            ),
-          resetRange:
-            meta.resetRange,
-        },
-      );
-    }
   }
 
   isPlayerThreatened(): boolean {
     return this.playerThreatened;
+  }
+
+  resetCombat(
+    time: number,
+  ): void {
+    this.engagedGroups.clear();
+    this.playerThreatened = false;
+
+    for (
+      const enemy of
+      this.enemies
+    ) {
+      enemy.forceDisengage(
+        time,
+      );
+    }
   }
 
   update(
@@ -1125,29 +1191,28 @@ export class EnemySystem {
     }
 
     if (playerSafe) {
-      this.engagedGroups.clear();
+      this.resetCombat(time);
     } else {
       for (
         const groupId of
         [...this.engagedGroups]
       ) {
-        const meta =
-          this.groupMeta.get(
-            groupId,
+        const groupStillClose =
+          this.enemies.some(
+            (enemy) =>
+              enemy.groupId ===
+                groupId &&
+              enemy.alive &&
+              enemy.keepsAggro(
+                playerPosition,
+              ),
           );
 
         if (
-          !meta ||
           !aliveGroups.has(
             groupId,
           ) ||
-          Phaser.Math.Distance.Between(
-            playerPosition.x,
-            playerPosition.y,
-            meta.center.x,
-            meta.center.y,
-          ) >
-            meta.resetRange
+          !groupStillClose
         ) {
           this.engagedGroups.delete(
             groupId,

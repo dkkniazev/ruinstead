@@ -256,7 +256,6 @@ function ensureWorldTextures(
       scene.make.graphics({
         x: 0,
         y: 0,
-        add: false,
       });
 
     tree.fillStyle(
@@ -313,7 +312,6 @@ function ensureWorldTextures(
       scene.make.graphics({
         x: 0,
         y: 0,
-        add: false,
       });
 
     rock.fillStyle(

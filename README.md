@@ -1290,7 +1290,7 @@ Vertical slice должен быть достаточно качественны
 - [x] MVP определён.
 - [x] Vertical Slice определён.
 - [x] Этапы разработки определены.
-- [ ] Этап 0 — Foundation.
+- [x] Этап 0 — Foundation.
 - [ ] Этап 1 — Movement + Camera + World.
 - [ ] Этап 2 — Combat Vertical Slice.
 - [ ] Этап 3 — Gathering + Backpack + Return.

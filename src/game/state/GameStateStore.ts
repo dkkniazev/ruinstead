@@ -5,9 +5,10 @@ import {
   type BuildingId,
   type GameState,
 } from './GameState';
-
-export const LOCAL_SAVE_KEY = 'ruinstead.save.v1';
-export const LOCAL_SAVE_META_KEY = `${LOCAL_SAVE_KEY}.meta`;
+import {
+  LOCAL_SAVE_KEY,
+  LOCAL_SAVE_META_KEY,
+} from './SaveKeys';
 
 const BUILDING_IDS: BuildingId[] = [
   'forge',
@@ -215,7 +216,6 @@ export class GameStateStore {
           version: next.schemaVersion,
         }),
       );
-      queueYandexCloudSave(next);
     } catch (error) {
       console.warn(
         'Ruinstead local save could not be written.',
@@ -223,6 +223,7 @@ export class GameStateStore {
       );
     }
 
+    queueYandexCloudSave(next);
     return next;
   }
 }

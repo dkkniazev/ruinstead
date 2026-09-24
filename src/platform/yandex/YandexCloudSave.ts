@@ -1,7 +1,7 @@
 import {
   LOCAL_SAVE_KEY,
   LOCAL_SAVE_META_KEY,
-} from '../../game/state/GameStateStore';
+} from '../../game/state/SaveKeys';
 import {
   SAVE_SCHEMA_VERSION,
   type GameState,

@@ -256,6 +256,12 @@ export function sanitizeGameState(value: unknown): GameState {
       bossRespawnAt: numberRecord(
         world?.bossRespawnAt,
       ),
+      discoveredLandmarks:
+        stringArray(
+          world?.discoveredLandmarks,
+          defaults.world
+            .discoveredLandmarks,
+        ),
       playerPosition:
         positionX !== undefined &&
         positionY !== undefined

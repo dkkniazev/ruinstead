@@ -41,21 +41,26 @@ type ResourcePickup = {
 
 const NODE_DEFINITIONS:
   readonly ResourceNodeDefinition[] = [
-  { id: 'wood-1', type: 'wood', x: 1040, y: 560, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-2', type: 'wood', x: 1240, y: 620, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-3', type: 'wood', x: 1400, y: 1120, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-4', type: 'wood', x: 1650, y: 950, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-5', type: 'wood', x: 1870, y: 1360, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-6', type: 'wood', x: 2210, y: 850, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'stone-1', type: 'stone', x: 1160, y: 420, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-2', type: 'stone', x: 1510, y: 720, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-3', type: 'stone', x: 1900, y: 1010, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-4', type: 'stone', x: 2310, y: 1300, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-5', type: 'stone', x: 1980, y: 1460, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'metal-1', type: 'metal', x: 1700, y: 430, durability: 5, dropCount: 2, respawnMs: 90_000 },
-  { id: 'metal-2', type: 'metal', x: 2050, y: 620, durability: 5, dropCount: 2, respawnMs: 90_000 },
-  { id: 'metal-3', type: 'metal', x: 2420, y: 980, durability: 5, dropCount: 2, respawnMs: 90_000 },
-  { id: 'metal-4', type: 'metal', x: 2190, y: 1510, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  // Opushka / goblin territory: abundant wood.
+  { id: 'wood-1', type: 'wood', x: 1030, y: 1080, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-2', type: 'wood', x: 1160, y: 1240, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-3', type: 'wood', x: 1320, y: 690, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-4', type: 'wood', x: 1480, y: 930, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-5', type: 'wood', x: 1740, y: 890, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-6', type: 'wood', x: 2020, y: 920, durability: 3, dropCount: 4, respawnMs: 45_000 },
+
+  // Mid-zone stone pockets.
+  { id: 'stone-1', type: 'stone', x: 1440, y: 520, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-2', type: 'stone', x: 1640, y: 1110, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-3', type: 'stone', x: 1900, y: 820, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-4', type: 'stone', x: 2080, y: 1280, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-5', type: 'stone', x: 2280, y: 930, durability: 4, dropCount: 3, respawnMs: 60_000 },
+
+  // Metal is biased toward the dangerous inner forest, away from boss spawn circles.
+  { id: 'metal-1', type: 'metal', x: 1880, y: 610, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  { id: 'metal-2', type: 'metal', x: 2110, y: 880, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  { id: 'metal-3', type: 'metal', x: 2260, y: 1180, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  { id: 'metal-4', type: 'metal', x: 2050, y: 1490, durability: 5, dropCount: 2, respawnMs: 90_000 },
 ];
 
 const NODE_TEXTURES:

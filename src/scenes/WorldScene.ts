@@ -58,6 +58,10 @@ import {
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import {
+  FOREST_HEART,
+  FOREST_HEART_DISCOVERY_RADIUS,
+} from '../game/world/ForestZone';
+import {
   RETURN_POINT,
   RETURN_RADIUS,
   WORLD_HEIGHT,
@@ -390,6 +394,7 @@ export class WorldScene
 
     this.handleReturnPoint();
     this.updateSettlement();
+    this.updateForestObjective();
     this.handleWeaponKeys();
     this.updateAreaName();
     this.debugOverlay?.update();
@@ -1155,6 +1160,48 @@ export class WorldScene
       HUD_UPGRADE_STATE_EVENT,
       this.upgradeHudState,
     );
+  }
+
+  private updateForestObjective(): void {
+    if (
+      !this.player ||
+      !this.gameState ||
+      this.gameState.world
+        .discoveredLandmarks
+        .includes(
+          'forest-heart',
+        )
+    ) {
+      return;
+    }
+
+    const distance =
+      Phaser.Math.Distance.Between(
+        this.player.position.x,
+        this.player.position.y,
+        FOREST_HEART.x,
+        FOREST_HEART.y,
+      );
+
+    if (
+      distance >
+      FOREST_HEART_DISCOVERY_RADIUS
+    ) {
+      return;
+    }
+
+    this.gameState.world
+      .discoveredLandmarks
+      .push(
+        'forest-heart',
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Открыто: Лесной алтарь · цель первой зоны достигнута',
+    );
+
+    this.saveState();
   }
 
   private handleWeaponKeys(): void {

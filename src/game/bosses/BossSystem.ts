@@ -50,7 +50,7 @@ type BossDefinition = {
   isMain: boolean;
 };
 
-const RESET_REGEN_MS = 20_000;
+const RESET_REGEN_MS = 5_000;
 
 function bossRespawnCooldownMs(
   globalBossIndex: number,

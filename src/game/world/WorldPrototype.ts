@@ -1,4 +1,8 @@
 import Phaser from 'phaser';
+import {
+  FOREST_HEART,
+  FOREST_LANDMARKS,
+} from './ForestZone';
 
 export const WORLD_WIDTH = 2800;
 export const WORLD_HEIGHT = 1800;
@@ -92,6 +96,7 @@ export function createPrototypeWorld(
 
   drawGround(scene);
   drawSettlement(scene);
+  drawForestLandmarks(scene);
   const obstacles =
     createObstacles(scene);
 
@@ -123,11 +128,36 @@ export function getAreaName(
     return 'Руины поселения';
   }
 
-  if (position.x < 1450) {
+  if (position.x < 1100) {
     return 'Опушка';
   }
 
-  return 'Заросший лес';
+  if (position.x < 1500) {
+    return 'Гоблинья поляна';
+  }
+
+  if (
+    position.x < 1880 &&
+    position.y < 900
+  ) {
+    return 'Топь слизней';
+  }
+
+  if (
+    position.x < 2020 &&
+    position.y >= 900
+  ) {
+    return 'Кабаний овраг';
+  }
+
+  if (
+    position.x < 2250 &&
+    position.y < 900
+  ) {
+    return 'Грибная чаща';
+  }
+
+  return 'Сердце леса';
 }
 
 function drawGround(
@@ -224,6 +254,79 @@ function drawGround(
     64,
     0xf4d98f,
     0.72,
+  );
+  ground.strokePath();
+
+  // The first real biome has a readable deep-forest gradient and two side paths.
+  ground.fillStyle(
+    0x3f9f49,
+    0.16,
+  );
+  ground.fillEllipse(
+    2080,
+    930,
+    1320,
+    1540,
+  );
+
+  ground.fillStyle(
+    0x2f8542,
+    0.16,
+  );
+  ground.fillEllipse(
+    2440,
+    980,
+    650,
+    1050,
+  );
+
+  ground.lineStyle(
+    54,
+    0xdfbf70,
+    0.86,
+  );
+  ground.beginPath();
+  ground.moveTo(
+    1430,
+    810,
+  );
+  ground.lineTo(
+    1580,
+    600,
+  );
+  ground.lineTo(
+    1810,
+    480,
+  );
+  ground.strokePath();
+
+  ground.beginPath();
+  ground.moveTo(
+    1510,
+    860,
+  );
+  ground.lineTo(
+    1720,
+    1120,
+  );
+  ground.lineTo(
+    1950,
+    1320,
+  );
+  ground.strokePath();
+
+  ground.beginPath();
+  ground.moveTo(
+    2010,
+    680,
+  );
+  ground.lineTo(
+    2240,
+    790,
+  );
+  ground.lineTo(
+    FOREST_HEART.x,
+    FOREST_HEART.y,
   );
   ground.strokePath();
 
@@ -405,6 +508,184 @@ function drawSettlement(
     )
     .setOrigin(0.5)
     .setDepth(1140);
+}
+
+function drawForestLandmarks(
+  scene: Phaser.Scene,
+): void {
+  const g =
+    scene.add.graphics();
+
+  g.setDepth(-10);
+
+  for (
+    const landmark of
+    FOREST_LANDMARKS
+  ) {
+    if (
+      landmark.id ===
+      'forest-gate'
+    ) {
+      g.fillStyle(
+        0x9d8d69,
+        1,
+      );
+      g.fillRoundedRect(
+        landmark.x - 52,
+        landmark.y - 54,
+        24,
+        92,
+        7,
+      );
+      g.fillRoundedRect(
+        landmark.x + 28,
+        landmark.y - 54,
+        24,
+        92,
+        7,
+      );
+      g.lineStyle(
+        8,
+        0x55733d,
+        0.9,
+      );
+      g.lineBetween(
+        landmark.x - 42,
+        landmark.y - 42,
+        landmark.x + 41,
+        landmark.y - 12,
+      );
+    } else if (
+      landmark.id ===
+      'old-stump'
+    ) {
+      g.fillStyle(
+        0x76502e,
+        1,
+      );
+      g.fillEllipse(
+        landmark.x,
+        landmark.y,
+        112,
+        72,
+      );
+      g.fillStyle(
+        0xbc8950,
+        1,
+      );
+      g.fillEllipse(
+        landmark.x,
+        landmark.y - 14,
+        92,
+        46,
+      );
+      g.lineStyle(
+        4,
+        0x805a34,
+        0.8,
+      );
+      g.strokeCircle(
+        landmark.x,
+        landmark.y - 14,
+        26,
+      );
+    } else if (
+      landmark.id ===
+      'stone-ring'
+    ) {
+      for (
+        let index = 0;
+        index < 7;
+        index += 1
+      ) {
+        const angle =
+          index / 7 *
+          Math.PI *
+          2;
+        g.fillStyle(
+          0x8e9991,
+          1,
+        );
+        g.fillEllipse(
+          landmark.x +
+            Math.cos(angle) *
+              64,
+          landmark.y +
+            Math.sin(angle) *
+              38,
+          30,
+          22,
+        );
+      }
+    } else {
+      g.fillStyle(
+        0x2c704f,
+        0.2,
+      );
+      g.fillCircle(
+        landmark.x,
+        landmark.y,
+        92,
+      );
+      g.fillStyle(
+        0x8b9b82,
+        1,
+      );
+      g.fillRoundedRect(
+        landmark.x - 25,
+        landmark.y - 82,
+        50,
+        124,
+        12,
+      );
+      g.fillStyle(
+        0x75e0a1,
+        1,
+      );
+      g.fillTriangle(
+        landmark.x,
+        landmark.y - 66,
+        landmark.x - 16,
+        landmark.y - 20,
+        landmark.x + 16,
+        landmark.y - 20,
+      );
+      g.lineStyle(
+        5,
+        0xa3f0bc,
+        0.8,
+      );
+      g.strokeCircle(
+        landmark.x,
+        landmark.y - 24,
+        31,
+      );
+    }
+  }
+
+  scene.add
+    .text(
+      FOREST_HEART.x,
+      FOREST_HEART.y + 88,
+      'Лесной алтарь',
+      {
+        fontFamily:
+          'system-ui, sans-serif',
+        fontSize: '18px',
+        fontStyle: 'bold',
+        color: '#e9ffcf',
+        backgroundColor:
+          '#31583dcc',
+        padding: {
+          x: 9,
+          y: 4,
+        },
+      },
+    )
+    .setOrigin(0.5)
+    .setDepth(
+      FOREST_HEART.y + 120,
+    );
 }
 
 function createObstacles(

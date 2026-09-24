@@ -43,12 +43,23 @@ import {
 import {
   canAffordUpgrade,
   getPlayerUpgradeCost,
-  getWeaponDamageMultiplier,
-  getWeaponRarity,
   getWeaponUpgradeCost,
   spendUpgradeCost,
   type PlayerUpgradeId,
 } from '../game/progression/UpgradeBalance';
+import {
+  WEAPON_RARITIES,
+  addWeaponDrop,
+  canFuseWeapon,
+  equipWeaponVariant,
+  fuseWeapon,
+  getEquippedWeaponProfile,
+  getWeaponDamageMultiplier,
+  listOwnedWeaponOptions,
+  upgradeEquippedWeaponLevel,
+  type EquippedWeaponProfile,
+  type WeaponRarityId,
+} from '../game/progression/WeaponInventory';
 import { PlayerController } from '../game/player/PlayerController';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
@@ -81,6 +92,8 @@ import {
   HUD_QUEST_STATE_EVENT,
   HUD_UPGRADE_STATE_EVENT,
   HUD_WEAPON_UPGRADE_EVENT,
+  HUD_WEAPON_VARIANT_SELECT_EVENT,
+  HUD_WEAPON_FUSE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
   type UpgradeHudState,
@@ -482,9 +495,8 @@ export class WorldScene
           maxHealthLevel:
             this.gameState.player
               .maxHealthLevel,
-          weaponLevels:
-            this.gameState.player
-              .weaponLevels,
+          weaponProfiles:
+            this.weaponCombatProfiles,
         },
         this.gameState
           .consumables
@@ -556,6 +568,16 @@ export class WorldScene
     this.game.events.on(
       HUD_WEAPON_UPGRADE_EVENT,
       this.handleWeaponUpgrade,
+      this,
+    );
+    this.game.events.on(
+      HUD_WEAPON_VARIANT_SELECT_EVENT,
+      this.handleWeaponVariantSelect,
+      this,
+    );
+    this.game.events.on(
+      HUD_WEAPON_FUSE_EVENT,
+      this.handleWeaponFuse,
       this,
     );
     this.game.events.on(
@@ -874,6 +896,59 @@ export class WorldScene
     );
   }
 
+  private get weaponCombatProfiles():
+    Record<
+      WeaponId,
+      EquippedWeaponProfile
+    > {
+    const inventory =
+      this.gameState
+        ?.player
+        .weaponInventory;
+
+    const fallback = (
+      weaponId: WeaponId,
+    ): EquippedWeaponProfile => ({
+      weaponId,
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    });
+
+    return {
+      axe: inventory
+        ? getEquippedWeaponProfile(
+            inventory,
+            'axe',
+          )
+        : fallback('axe'),
+      sword: inventory
+        ? getEquippedWeaponProfile(
+            inventory,
+            'sword',
+          )
+        : fallback('sword'),
+      hammer: inventory
+        ? getEquippedWeaponProfile(
+            inventory,
+            'hammer',
+          )
+        : fallback('hammer'),
+      spear: inventory
+        ? getEquippedWeaponProfile(
+            inventory,
+            'spear',
+          )
+        : fallback('spear'),
+      daggers: inventory
+        ? getEquippedWeaponProfile(
+            inventory,
+            'daggers',
+          )
+        : fallback('daggers'),
+    };
+  }
+
   private get upgradeHudState():
     UpgradeHudState {
     const state =
@@ -894,23 +969,69 @@ export class WorldScene
         weaponId,
       unlockedWeaponIds:
         [...unlocked],
-      weaponLevels: {
-        axe:
-          state?.player
-            .weaponLevels.axe ?? 0,
-        sword:
-          state?.player
-            .weaponLevels.sword ?? 0,
-        hammer:
-          state?.player
-            .weaponLevels.hammer ?? 0,
-        spear:
-          state?.player
-            .weaponLevels.spear ?? 0,
-        daggers:
-          state?.player
-            .weaponLevels.daggers ?? 0,
-      },
+      equippedWeapon:
+        (() => {
+          const inventory =
+            state?.player
+              .weaponInventory;
+          const profile =
+            inventory
+              ? getEquippedWeaponProfile(
+                  inventory,
+                  weaponId,
+                )
+              : {
+                  weaponId,
+                  rarity:
+                    'common' as const,
+                  level: 1,
+                  stars: 0,
+                };
+          const options =
+            inventory
+              ? listOwnedWeaponOptions(
+                  inventory,
+                  weaponId,
+                )
+              : [];
+          const owned =
+            options.find(
+              (option) =>
+                option.rarity ===
+                  profile.rarity &&
+                option.stars ===
+                  profile.stars,
+            );
+
+          return (
+            owned ?? {
+              ...profile,
+              count: 0,
+              rarityName:
+                WEAPON_RARITIES[
+                  profile.rarity
+                ].name,
+              rarityColor:
+                WEAPON_RARITIES[
+                  profile.rarity
+                ].color,
+              damageMultiplier:
+                getWeaponDamageMultiplier(
+                  profile.level,
+                  profile.rarity,
+                  profile.stars,
+                ),
+            }
+          );
+        })(),
+      weaponOptions:
+        state
+          ? listOwnedWeaponOptions(
+              state.player
+                .weaponInventory,
+              weaponId,
+            )
+          : [],
       player: {
         maxHealthLevel:
           state?.player
@@ -1514,6 +1635,23 @@ export class WorldScene
         );
     }
 
+    const weaponDrop =
+      addWeaponDrop(
+        this.gameState.player
+          .weaponInventory,
+        event.weaponDrop
+          .weaponId,
+        event.weaponDrop
+          .rarity,
+      );
+
+    this.combat?.unlockWeapon(
+      event.weaponDrop.weaponId,
+    );
+
+    const dropText =
+      `${weaponDrop.rarityName} · ${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Lv.1`;
+
     if (
       event.id ===
         'root-colossus' &&
@@ -1533,13 +1671,9 @@ export class WorldScene
           );
       }
 
-      this.combat?.unlockWeapon(
-        'daggers',
-      );
-
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Сердце корней получено · кинжалы открыты · теперь можно восстановить мост`,
+        `${event.name} повержен! Выпало: ${dropText} · Сердце корней получено · теперь можно восстановить мост`,
       );
     } else if (
       event.id ===
@@ -1574,23 +1708,22 @@ export class WorldScene
           );
       }
 
-      this.combat?.unlockWeapon(
-        'sword',
-      );
       this.stageTwoGateSystem
         ?.unlock();
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Ядро солнца получено · меч открыт · врата в следующую часть мира открыты`,
+        `${event.name} повержен! Выпало: ${dropText} · Ядро солнца получено · врата в следующую часть мира открыты`,
       );
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен · босс возродится позже`,
+        `${event.name} повержен · выпало: ${dropText} · босс возродится позже`,
       );
     }
 
+    this.applyProgression();
+    this.emitProgressionState();
     this.saveState();
   }
 
@@ -1798,15 +1931,16 @@ export class WorldScene
       return;
     }
 
-    const currentLevel =
-      this.gameState.player
-        .weaponLevels[
-          weaponId
-        ];
+    const profile =
+      getEquippedWeaponProfile(
+        this.gameState.player
+          .weaponInventory,
+        weaponId,
+      );
     const cost =
       getWeaponUpgradeCost(
         weaponId,
-        currentLevel,
+        profile.level,
       );
 
     if (
@@ -1819,8 +1953,8 @@ export class WorldScene
       this.game.events.emit(
         HUD_NOTICE_EVENT,
         cost
-          ? 'Не хватает ресурсов для улучшения оружия'
-          : 'Оружие уже максимального уровня',
+          ? 'Не хватает ресурсов для улучшения этого экземпляра оружия'
+          : 'Этот экземпляр оружия уже максимального уровня',
       );
       return;
     }
@@ -1830,36 +1964,165 @@ export class WorldScene
       cost,
     );
 
+    const newLevel =
+      upgradeEquippedWeaponLevel(
+        this.gameState.player
+          .weaponInventory,
+        weaponId,
+      );
+
+    if (!newLevel) {
+      return;
+    }
+
+    // Keep the old family level only as a migration/cache field.
     this.gameState.player
       .weaponLevels[
         weaponId
       ] =
-        currentLevel + 1;
+        newLevel;
 
     this.applyProgression();
 
-    const nextLevel =
-      currentLevel + 1;
-    const previousRarity =
-      getWeaponRarity(
-        currentLevel,
+    const updated =
+      getEquippedWeaponProfile(
+        this.gameState.player
+          .weaponInventory,
+        weaponId,
       );
-    const nextRarity =
-      getWeaponRarity(
-        nextLevel,
-      );
-    const damageMultiplier =
+    const multiplier =
       getWeaponDamageMultiplier(
-        nextLevel,
+        updated.level,
+        updated.rarity,
+        updated.stars,
       );
 
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      previousRarity.id !==
-        nextRarity.id
-        ? `${WEAPON_DEFINITIONS[weaponId].name} возвышен: ${nextRarity.name} · Lv.${nextLevel} · сила урона ×${damageMultiplier.toFixed(2)}`
-        : `${WEAPON_DEFINITIONS[weaponId].name} улучшен до Lv.${nextLevel} · ${nextRarity.name} · сила урона ×${damageMultiplier.toFixed(2)}`,
+      `${WEAPON_DEFINITIONS[weaponId].name} улучшен до Lv.${newLevel} · ${WEAPON_RARITIES[updated.rarity].name} ${'★'.repeat(updated.stars)} · сила ×${multiplier.toFixed(2)}`,
     );
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private handleWeaponVariantSelect(
+    weaponId: WeaponId,
+    rarity: WeaponRarityId,
+    stars: number,
+  ): void {
+    if (
+      !this.gameState ||
+      !equipWeaponVariant(
+        this.gameState.player
+          .weaponInventory,
+        weaponId,
+        rarity,
+        stars,
+      )
+    ) {
+      return;
+    }
+
+    this.combat?.unlockWeapon(
+      weaponId,
+    );
+    this.applyProgression();
+
+    const profile =
+      getEquippedWeaponProfile(
+        this.gameState.player
+          .weaponInventory,
+        weaponId,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Выбрано: ${WEAPON_RARITIES[profile.rarity].name} · ${WEAPON_DEFINITIONS[weaponId].name} Lv.${profile.level} ${'★'.repeat(profile.stars)}`,
+    );
+
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private handleWeaponFuse(
+    weaponId: WeaponId,
+    rarity: WeaponRarityId,
+    stars: number,
+  ): void {
+    if (
+      !this.gameState ||
+      !this.settlementSystem
+        ?.restored
+    ) {
+      return;
+    }
+
+    const options =
+      listOwnedWeaponOptions(
+        this.gameState.player
+          .weaponInventory,
+        weaponId,
+      );
+    const option =
+      options.find(
+        (candidate) =>
+          candidate.rarity ===
+            rarity &&
+          candidate.stars ===
+            stars,
+      );
+
+    if (!option) {
+      return;
+    }
+
+    const profile:
+      EquippedWeaponProfile = {
+      weaponId,
+      rarity,
+      level: option.level,
+      stars,
+    };
+
+    if (
+      !canFuseWeapon(
+        this.gameState.player
+          .weaponInventory,
+        profile,
+      )
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Для слияния нужны два одинаковых оружия той же редкости и той же звёздности',
+      );
+      return;
+    }
+
+    const fused =
+      fuseWeapon(
+        this.gameState.player
+          .weaponInventory,
+        profile,
+      );
+
+    if (!fused) {
+      return;
+    }
+
+    this.applyProgression();
+
+    const multiplier =
+      getWeaponDamageMultiplier(
+        fused.level,
+        fused.rarity,
+        fused.stars,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `${WEAPON_DEFINITIONS[weaponId].name}: ${WEAPON_RARITIES[fused.rarity].name} теперь ${'★'.repeat(fused.stars)} · сила ×${multiplier.toFixed(2)}`,
+    );
+
     this.emitProgressionState();
     this.saveState();
   }
@@ -1884,8 +2147,7 @@ export class WorldScene
     this.combat?.setProgression(
       this.gameState.player
         .maxHealthLevel,
-      this.gameState.player
-        .weaponLevels,
+      this.weaponCombatProfiles,
     );
   }
 
@@ -2394,6 +2656,16 @@ export class WorldScene
     this.game.events.off(
       HUD_WEAPON_UPGRADE_EVENT,
       this.handleWeaponUpgrade,
+      this,
+    );
+    this.game.events.off(
+      HUD_WEAPON_VARIANT_SELECT_EVENT,
+      this.handleWeaponVariantSelect,
+      this,
+    );
+    this.game.events.off(
+      HUD_WEAPON_FUSE_EVENT,
+      this.handleWeaponFuse,
       this,
     );
     this.game.events.off(

@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 4 as const;
+export const SAVE_SCHEMA_VERSION = 5 as const;
 
 export type BuildingId =
   | 'forge'
@@ -26,6 +26,7 @@ export type GameState = {
     wood: number;
     stone: number;
     metal: number;
+    coins: number;
   };
   settlement: {
     level: number;
@@ -78,6 +79,7 @@ export function createDefaultGameState(): GameState {
       wood: 0,
       stone: 0,
       metal: 0,
+      coins: 0,
     },
     settlement: {
       level: 0,

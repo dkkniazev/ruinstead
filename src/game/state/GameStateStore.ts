@@ -7,8 +7,11 @@ import {
 } from './GameState';
 import {
   MAX_PLAYER_UPGRADE_LEVEL,
-  MAX_WEAPON_LEVEL,
 } from '../progression/UpgradeBalance';
+import {
+  MAX_WEAPON_LEVEL,
+  sanitizeWeaponInventory,
+} from '../progression/WeaponInventory';
 import {
   LOCAL_SAVE_KEY,
   LOCAL_SAVE_META_KEY,
@@ -171,6 +174,42 @@ export function sanitizeGameState(value: unknown): GameState {
     asRecord(
       player?.weaponLevels,
     );
+  const weaponInventory =
+    sanitizeWeaponInventory(
+      player?.weaponInventory,
+      {
+        axe:
+          nonNegativeInt(
+            weaponLevels?.axe,
+            1,
+          ),
+        sword:
+          nonNegativeInt(
+            weaponLevels?.sword,
+            1,
+          ),
+        hammer:
+          nonNegativeInt(
+            weaponLevels?.hammer,
+            1,
+          ),
+        spear:
+          nonNegativeInt(
+            weaponLevels?.spear,
+            1,
+          ),
+        daggers:
+          nonNegativeInt(
+            weaponLevels?.daggers,
+            1,
+          ),
+      },
+      stringArray(
+        player?.unlockedWeaponIds,
+        defaults.player
+          .unlockedWeaponIds,
+      ),
+    );
   const settlement = asRecord(root?.settlement);
   const savedBuildings = asRecord(settlement?.buildings);
   const savedRepairStages =
@@ -310,6 +349,7 @@ export function sanitizeGameState(value: unknown): GameState {
           MAX_WEAPON_LEVEL,
         ),
       },
+      weaponInventory,
     },
     backpack: {
       wood: nonNegativeInt(

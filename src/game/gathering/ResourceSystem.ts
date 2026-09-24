@@ -188,44 +188,6 @@ class ResourceNode {
     return true;
   }
 
-  handlePlayerRespawned(
-    playerPosition:
-      Phaser.Math.Vector2,
-  ): void {
-    for (
-      const pickup of
-      this.pickups
-    ) {
-      if (
-        !pickup.deathDrop ||
-        pickup.pickupEnabled
-      ) {
-        continue;
-      }
-
-      const distance =
-        Phaser.Math.Distance.Between(
-          playerPosition.x,
-          playerPosition.y,
-          pickup.sprite.x,
-          pickup.sprite.y,
-        );
-
-      if (
-        distance >
-        PICKUP_MAGNET_RANGE + 24
-      ) {
-        pickup.pickupEnabled =
-          true;
-        pickup.requiresExitAfterRespawn =
-          false;
-      } else {
-        pickup.requiresExitAfterRespawn =
-          true;
-      }
-    }
-  }
-
   destroy(): void {
     this.sprite.destroy();
     this.back.destroy();
@@ -384,6 +346,44 @@ export class ResourceSystem {
       );
 
       slot += 1;
+    }
+  }
+
+  handlePlayerRespawned(
+    playerPosition:
+      Phaser.Math.Vector2,
+  ): void {
+    for (
+      const pickup of
+      this.pickups
+    ) {
+      if (
+        !pickup.deathDrop ||
+        pickup.pickupEnabled
+      ) {
+        continue;
+      }
+
+      const distance =
+        Phaser.Math.Distance.Between(
+          playerPosition.x,
+          playerPosition.y,
+          pickup.sprite.x,
+          pickup.sprite.y,
+        );
+
+      if (
+        distance >
+        PICKUP_MAGNET_RANGE + 24
+      ) {
+        pickup.pickupEnabled =
+          true;
+        pickup.requiresExitAfterRespawn =
+          false;
+      } else {
+        pickup.requiresExitAfterRespawn =
+          true;
+      }
     }
   }
 

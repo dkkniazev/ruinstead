@@ -7,8 +7,8 @@ import {
   type ResourceType,
 } from './ResourceTypes';
 
-const BASE_CAPACITY = 30;
-const CAPACITY_PER_LEVEL = 10;
+const BASE_CAPACITY = 100;
+const CAPACITY_PER_LEVEL = 25;
 
 export type BackpackState = {
   carried: ResourceCounts;
@@ -53,7 +53,9 @@ export class BackpackSystem {
           this.carried,
         ),
       usedCapacity:
-        this.usedCapacity,
+        Math.round(
+          this.usedCapacity * 100,
+        ) / 100,
       capacity:
         this.capacity,
     };
@@ -127,7 +129,11 @@ export class BackpackSystem {
   }
 
   deposit(): ResourceCounts {
-    const deposited =
+    return this.takeAll();
+  }
+
+  takeAll(): ResourceCounts {
+    const taken =
       cloneResourceCounts(
         this.carried,
       );
@@ -139,40 +145,7 @@ export class BackpackSystem {
       this.carried[type] = 0;
     }
 
-    return deposited;
-  }
-
-  loseFraction(
-    fraction: number,
-  ): ResourceCounts {
-    const safeFraction =
-      Math.max(
-        0,
-        Math.min(
-          1,
-          fraction,
-        ),
-      );
-    const lost =
-      emptyResourceCounts();
-
-    for (
-      const type of
-      RESOURCE_TYPES
-    ) {
-      const amount =
-        Math.floor(
-          this.carried[type] *
-            safeFraction,
-        );
-
-      lost[type] =
-        amount;
-      this.carried[type] -=
-        amount;
-    }
-
-    return lost;
+    return taken;
   }
 
   private get remainingCapacity():

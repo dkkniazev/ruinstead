@@ -13,6 +13,10 @@ import type {
 import { CombatAudio } from './CombatAudio';
 import { DropSystem } from './DropSystem';
 import {
+  SETTLEMENT_CENTER,
+  SETTLEMENT_SAFE_RADIUS,
+} from '../world/WorldPrototype';
+import {
   WEAPON_DEFINITIONS,
   isWeaponId,
   type WeaponAttackStyle,
@@ -26,7 +30,6 @@ type CombatTarget =
 export type CombatState = {
   health: number;
   maxHealth: number;
-  coins: number;
   weaponId: WeaponId;
   unlockedWeaponIds: WeaponId[];
 };
@@ -36,7 +39,6 @@ export class CombatSystem {
     100;
   private health =
     this.maxHealth;
-  private coins = 0;
   private weaponId:
     WeaponId = 'axe';
 
@@ -75,23 +77,15 @@ export class CombatSystem {
       readonly unknown[] = [
         'axe',
       ],
-    initialCoins = 0,
+    onCoinsCollected:
+      (value: number) => number,
     private readonly onPlayerDefeated?:
       () => void,
   ) {
     this.drops =
       new DropSystem(
         scene,
-        (value) => {
-          this.coins += value;
-          this.emitState();
-        },
-      );
-
-    this.coins =
-      Math.max(
-        0,
-        Math.floor(initialCoins),
+        onCoinsCollected,
       );
 
     this.unlockedWeapons.clear();
@@ -146,8 +140,6 @@ export class CombatSystem {
         this.health,
       maxHealth:
         this.maxHealth,
-      coins:
-        this.coins,
       weaponId:
         this.weaponId,
       unlockedWeaponIds:
@@ -225,6 +217,21 @@ export class CombatSystem {
       this.regenerateHealth(
         time,
       );
+    }
+
+    const playerPosition =
+      this.player.position;
+    const playerSafe =
+      Phaser.Math.Distance.Between(
+        playerPosition.x,
+        playerPosition.y,
+        SETTLEMENT_CENTER.x,
+        SETTLEMENT_CENTER.y,
+      ) <=
+      SETTLEMENT_SAFE_RADIUS;
+
+    if (playerSafe) {
+      return;
     }
 
     const definition =

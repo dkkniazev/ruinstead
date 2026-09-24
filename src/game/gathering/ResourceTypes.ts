@@ -2,6 +2,7 @@ export const RESOURCE_TYPES = [
   'wood',
   'stone',
   'metal',
+  'coins',
 ] as const;
 
 export type ResourceType =
@@ -11,6 +12,7 @@ export type ResourceCounts = {
   wood: number;
   stone: number;
   metal: number;
+  coins: number;
 };
 
 export type ResourceDefinition = {
@@ -43,6 +45,12 @@ export const RESOURCE_DEFINITIONS:
     shortName: 'М',
     weight: 2,
   },
+  coins: {
+    id: 'coins',
+    name: 'Монеты',
+    shortName: '₽',
+    weight: 0.25,
+  },
 };
 
 export function emptyResourceCounts():
@@ -51,6 +59,7 @@ export function emptyResourceCounts():
     wood: 0,
     stone: 0,
     metal: 0,
+    coins: 0,
   };
 }
 
@@ -61,6 +70,7 @@ export function cloneResourceCounts(
     wood: counts.wood,
     stone: counts.stone,
     metal: counts.metal,
+    coins: counts.coins,
   };
 }
 
@@ -70,6 +80,7 @@ export function totalResourceUnits(
   return (
     counts.wood +
     counts.stone +
-    counts.metal
+    counts.metal +
+    counts.coins
   );
 }

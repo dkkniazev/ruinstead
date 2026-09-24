@@ -1,33 +1,34 @@
 import Phaser from 'phaser';
 import {
+  CombatSystem,
+  type CombatState,
+} from '../game/combat/CombatSystem';
+import {
+  WEAPON_ORDER,
+  type WeaponId,
+} from '../game/combat/WeaponDefinitions';
+import { EnemySystem } from '../game/enemies/EnemySystem';
+import {
   configureLogicalCamera,
 } from '../game/layout/Viewport';
 import { PlayerController } from '../game/player/PlayerController';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
+import { GameStateStore } from '../game/state/GameStateStore';
+import {
+  HUD_AREA_EVENT,
+  HUD_COMBAT_STATE_EVENT,
+  HUD_WEAPON_SELECT_EVENT,
+} from '../game/ui/HudEvents';
 import {
   WORLD_HEIGHT,
   WORLD_WIDTH,
   createPrototypeWorld,
   getAreaName,
 } from '../game/world/WorldPrototype';
-import { GameStateStore } from '../game/state/GameStateStore';
 import {
   markYandexGameReady,
   startYandexGameplay,
 } from '../platform/yandex/YandexPlatform';
-import { EnemySystem } from '../game/enemies/EnemySystem';
-import {
-  CombatSystem,
-  type CombatState,
-} from '../game/combat/CombatSystem';
-import type {
-  WeaponId,
-} from '../game/combat/WeaponDefinitions';
-import {
-  HUD_AREA_EVENT,
-  HUD_COMBAT_STATE_EVENT,
-  HUD_WEAPON_SELECT_EVENT,
-} from '../game/ui/HudEvents';
 
 export class WorldScene
   extends Phaser.Scene {
@@ -45,10 +46,13 @@ export class WorldScene
     DebugOverlay;
   private lastAreaName = '';
 
-  private weaponOneKey?:
-    Phaser.Input.Keyboard.Key;
-  private weaponTwoKey?:
-    Phaser.Input.Keyboard.Key;
+  private weaponKeys:
+    Partial<
+      Record<
+        WeaponId,
+        Phaser.Input.Keyboard.Key
+      >
+    > = {};
 
   constructor() {
     super('WorldScene');
@@ -98,16 +102,12 @@ export class WorldScene
             combatState,
           );
         },
+        state.player.weaponId,
+        state.player
+          .unlockedWeaponIds,
       );
 
-    this.weaponOneKey =
-      this.input.keyboard?.addKey(
-        Phaser.Input.Keyboard.KeyCodes.ONE,
-      );
-    this.weaponTwoKey =
-      this.input.keyboard?.addKey(
-        Phaser.Input.Keyboard.KeyCodes.TWO,
-      );
+    this.createWeaponKeys();
 
     const camera =
       this.cameras.main;
@@ -201,6 +201,34 @@ export class WorldScene
     this.debugOverlay?.update();
   }
 
+  private createWeaponKeys(): void {
+    const keyboard =
+      this.input.keyboard;
+
+    if (!keyboard) {
+      return;
+    }
+
+    const keyCodes = [
+      Phaser.Input.Keyboard.KeyCodes.ONE,
+      Phaser.Input.Keyboard.KeyCodes.TWO,
+      Phaser.Input.Keyboard.KeyCodes.THREE,
+      Phaser.Input.Keyboard.KeyCodes.FOUR,
+      Phaser.Input.Keyboard.KeyCodes.FIVE,
+    ];
+
+    WEAPON_ORDER.forEach(
+      (weaponId, index) => {
+        this.weaponKeys[
+          weaponId
+        ] =
+          keyboard.addKey(
+            keyCodes[index],
+          );
+      },
+    );
+  }
+
   private handleCombatState(
     state: CombatState,
   ): void {
@@ -216,26 +244,25 @@ export class WorldScene
   }
 
   private handleWeaponKeys(): void {
-    if (
-      this.weaponOneKey &&
-      Phaser.Input.Keyboard.JustDown(
-        this.weaponOneKey,
-      )
+    for (
+      const weaponId of
+      WEAPON_ORDER
     ) {
-      this.combat?.setWeapon(
-        'blade',
-      );
-    }
+      const key =
+        this.weaponKeys[
+          weaponId
+        ];
 
-    if (
-      this.weaponTwoKey &&
-      Phaser.Input.Keyboard.JustDown(
-        this.weaponTwoKey,
-      )
-    ) {
-      this.combat?.setWeapon(
-        'bow',
-      );
+      if (
+        key &&
+        Phaser.Input.Keyboard.JustDown(
+          key,
+        )
+      ) {
+        this.combat?.setWeapon(
+          weaponId,
+        );
+      }
     }
   }
 

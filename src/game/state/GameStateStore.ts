@@ -85,9 +85,16 @@ export function sanitizeGameState(value: unknown): GameState {
     schemaVersion: SAVE_SCHEMA_VERSION,
     savedAt: nonNegativeInt(root?.savedAt, defaults.savedAt),
     player: {
-      weaponId: stringValue(
-        player?.weaponId,
-        defaults.player.weaponId,
+      weaponId:
+        player?.weaponId === 'starter-blade'
+          ? 'axe'
+          : stringValue(
+              player?.weaponId,
+              defaults.player.weaponId,
+            ),
+      unlockedWeaponIds: stringArray(
+        player?.unlockedWeaponIds,
+        defaults.player.unlockedWeaponIds,
       ),
       maxHealthLevel: nonNegativeInt(
         player?.maxHealthLevel,

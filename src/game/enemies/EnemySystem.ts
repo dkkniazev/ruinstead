@@ -1,16 +1,35 @@
 import Phaser from 'phaser';
+import type {
+  DamageEffectiveness,
+  DamageProfile,
+} from '../combat/StageCombatProfile';
+import {
+  STAGE_ONE_COMBAT_PROFILE,
+  getStageDamageProfile,
+} from '../combat/StageCombatProfile';
+import type {
+  WeaponId,
+} from '../combat/WeaponDefinitions';
 import {
   SETTLEMENT_CENTER,
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
 
-export type EnemyArchetypeId =
-  | 'melee'
-  | 'fast'
-  | 'tank';
+export type EnemySpeciesId =
+  | 'goblin'
+  | 'slime'
+  | 'boar'
+  | 'mushroom'
+  | 'beetle';
 
-type EnemyDefinition = {
-  id: EnemyArchetypeId;
+export type EnemyRank =
+  | 'normal'
+  | 'elite';
+
+export type EnemyDefinition = {
+  id: EnemySpeciesId;
+  name: string;
+  eliteName: string;
   maxHealth: number;
   moveSpeed: number;
   damage: number;
@@ -20,110 +39,257 @@ type EnemyDefinition = {
   leashRange: number;
   dropCoins: number;
   texture: string;
+  eliteTexture: string;
   bodyRadius: number;
   baselineOffset: number;
 };
 
+type GroupSpawn = {
+  groupId: string;
+  species: EnemySpeciesId;
+  x: number;
+  y: number;
+  rank: EnemyRank;
+};
+
+type HabitatDefinition = {
+  species: EnemySpeciesId;
+  groups: ReadonlyArray<
+    readonly [number, number]
+  >;
+  elites: ReadonlyArray<
+    readonly [number, number]
+  >;
+};
+
+const ELITE_HEALTH_MULTIPLIER = 2.8;
+const ELITE_DAMAGE_MULTIPLIER = 1.55;
+const ELITE_DROP_MULTIPLIER = 4;
+
 const DEFINITIONS:
-  Record<EnemyArchetypeId, EnemyDefinition> = {
-  melee: {
-    id: 'melee',
-    maxHealth: 70,
-    moveSpeed: 105,
-    damage: 12,
-    attackRange: 62,
-    attackCooldownMs: 900,
-    aggroRange: 430,
-    leashRange: 620,
+  Record<
+    EnemySpeciesId,
+    EnemyDefinition
+  > = {
+  goblin: {
+    id: 'goblin',
+    name: 'Гоблин',
+    eliteName: 'Хобгоблин',
+    maxHealth: 72,
+    moveSpeed: 112,
+    damage: 11,
+    attackRange: 60,
+    attackCooldownMs: 880,
+    aggroRange: 145,
+    leashRange: 255,
     dropCoins: 2,
     texture:
-      'ruinstead-enemy-melee',
-    bodyRadius: 24,
-    baselineOffset: 32,
+      'ruinstead-enemy-goblin',
+    eliteTexture:
+      'ruinstead-enemy-hobgoblin',
+    bodyRadius: 22,
+    baselineOffset: 31,
   },
-  fast: {
-    id: 'fast',
-    maxHealth: 42,
-    moveSpeed: 165,
-    damage: 8,
-    attackRange: 55,
-    attackCooldownMs: 720,
-    aggroRange: 470,
-    leashRange: 680,
+  slime: {
+    id: 'slime',
+    name: 'Слизень',
+    eliteName: 'Старший слизень',
+    maxHealth: 58,
+    moveSpeed: 92,
+    damage: 9,
+    attackRange: 54,
+    attackCooldownMs: 760,
+    aggroRange: 140,
+    leashRange: 245,
     dropCoins: 2,
     texture:
-      'ruinstead-enemy-fast',
+      'ruinstead-enemy-slime',
+    eliteTexture:
+      'ruinstead-enemy-elder-slime',
     bodyRadius: 20,
-    baselineOffset: 27,
+    baselineOffset: 25,
   },
-  tank: {
-    id: 'tank',
-    maxHealth: 150,
-    moveSpeed: 68,
-    damage: 20,
-    attackRange: 70,
-    attackCooldownMs: 1250,
-    aggroRange: 390,
-    leashRange: 560,
-    dropCoins: 5,
+  boar: {
+    id: 'boar',
+    name: 'Кабан',
+    eliteName: 'Вожак кабанов',
+    maxHealth: 92,
+    moveSpeed: 142,
+    damage: 14,
+    attackRange: 62,
+    attackCooldownMs: 960,
+    aggroRange: 155,
+    leashRange: 285,
+    dropCoins: 3,
     texture:
-      'ruinstead-enemy-tank',
-    bodyRadius: 30,
-    baselineOffset: 39,
+      'ruinstead-enemy-boar',
+    eliteTexture:
+      'ruinstead-enemy-boar-alpha',
+    bodyRadius: 25,
+    baselineOffset: 30,
+  },
+  mushroom: {
+    id: 'mushroom',
+    name: 'Грибник',
+    eliteName: 'Старший грибник',
+    maxHealth: 76,
+    moveSpeed: 82,
+    damage: 13,
+    attackRange: 62,
+    attackCooldownMs: 1040,
+    aggroRange: 138,
+    leashRange: 240,
+    dropCoins: 3,
+    texture:
+      'ruinstead-enemy-mushroom',
+    eliteTexture:
+      'ruinstead-enemy-elder-mushroom',
+    bodyRadius: 22,
+    baselineOffset: 31,
+  },
+  beetle: {
+    id: 'beetle',
+    name: 'Панцирник',
+    eliteName: 'Матёрый панцирник',
+    maxHealth: 125,
+    moveSpeed: 74,
+    damage: 18,
+    attackRange: 68,
+    attackCooldownMs: 1180,
+    aggroRange: 135,
+    leashRange: 230,
+    dropCoins: 4,
+    texture:
+      'ruinstead-enemy-beetle',
+    eliteTexture:
+      'ruinstead-enemy-beetle-elite',
+    bodyRadius: 28,
+    baselineOffset: 34,
   },
 };
 
-const SPAWNS: ReadonlyArray<{
-  archetype: EnemyArchetypeId;
-  x: number;
-  y: number;
-}> = [
+const HABITATS:
+  readonly HabitatDefinition[] = [
   {
-    archetype: 'melee',
-    x: 1280,
-    y: 760,
+    species: 'goblin',
+    groups: [
+      [1120, 760],
+      [1320, 840],
+      [1160, 1040],
+    ],
+    elites: [
+      [1290, 680],
+      [1410, 980],
+      [1040, 1120],
+    ],
   },
   {
-    archetype: 'fast',
-    x: 1430,
-    y: 980,
+    species: 'slime',
+    groups: [
+      [1450, 390],
+      [1640, 470],
+      [1490, 590],
+    ],
+    elites: [
+      [1350, 500],
+      [1730, 380],
+      [1680, 640],
+    ],
   },
   {
-    archetype: 'melee',
-    x: 1570,
-    y: 610,
+    species: 'boar',
+    groups: [
+      [1540, 1220],
+      [1760, 1320],
+      [1850, 1120],
+    ],
+    elites: [
+      [1450, 1370],
+      [1940, 1280],
+      [1730, 1050],
+    ],
   },
   {
-    archetype: 'tank',
-    x: 1710,
-    y: 850,
+    species: 'mushroom',
+    groups: [
+      [1980, 420],
+      [2200, 500],
+      [2070, 700],
+    ],
+    elites: [
+      [1880, 560],
+      [2320, 390],
+      [2250, 760],
+    ],
   },
   {
-    archetype: 'fast',
-    x: 1870,
-    y: 1080,
-  },
-  {
-    archetype: 'melee',
-    x: 2030,
-    y: 660,
-  },
-  {
-    archetype: 'tank',
-    x: 2200,
-    y: 980,
-  },
-  {
-    archetype: 'fast',
-    x: 1680,
-    y: 1290,
-  },
-  {
-    archetype: 'melee',
-    x: 2150,
-    y: 1350,
+    species: 'beetle',
+    groups: [
+      [2160, 1080],
+      [2390, 1180],
+      [2250, 1390],
+    ],
+    elites: [
+      [2070, 1260],
+      [2520, 1090],
+      [2450, 1450],
+    ],
   },
 ];
+
+const GROUP_MEMBER_OFFSETS:
+  ReadonlyArray<
+    readonly [number, number]
+  > = [
+  [-42, -24],
+  [38, -18],
+  [0, 38],
+];
+
+function buildSpawns():
+  GroupSpawn[] {
+  const spawns:
+    GroupSpawn[] = [];
+
+  for (
+    const habitat of HABITATS
+  ) {
+    habitat.groups.forEach(
+      ([x, y], groupIndex) => {
+        for (
+          const [offsetX, offsetY]
+          of GROUP_MEMBER_OFFSETS
+        ) {
+          spawns.push({
+            groupId:
+              `${habitat.species}-group-${groupIndex + 1}`,
+            species:
+              habitat.species,
+            x: x + offsetX,
+            y: y + offsetY,
+            rank: 'normal',
+          });
+        }
+      },
+    );
+
+    habitat.elites.forEach(
+      ([x, y], eliteIndex) => {
+        spawns.push({
+          groupId:
+            `${habitat.species}-elite-${eliteIndex + 1}`,
+          species:
+            habitat.species,
+          x,
+          y,
+          rank: 'elite',
+        });
+      },
+    );
+  }
+
+  return spawns;
+}
 
 export class EnemyUnit {
   readonly sprite:
@@ -132,51 +298,99 @@ export class EnemyUnit {
     EnemyDefinition;
   readonly spawn:
     Phaser.Math.Vector2;
+  readonly groupId: string;
+  readonly rank: EnemyRank;
 
   private readonly shadow:
     Phaser.GameObjects.Ellipse;
+  private readonly aura?:
+    Phaser.GameObjects.Arc;
   private readonly healthBack:
     Phaser.GameObjects.Rectangle;
   private readonly healthFill:
     Phaser.GameObjects.Rectangle;
 
-  private health: number;
+  private readonly maxHealth:
+    number;
+  private health:
+    number;
   private nextAttackAt = 0;
   private _alive = true;
 
   constructor(
-    private readonly scene: Phaser.Scene,
-    group: Phaser.Physics.Arcade.Group,
-    definition: EnemyDefinition,
-    x: number,
-    y: number,
+    private readonly scene:
+      Phaser.Scene,
+    group:
+      Phaser.Physics.Arcade.Group,
+    spawn: GroupSpawn,
   ) {
     this.definition =
-      definition;
-    this.health =
-      definition.maxHealth;
+      DEFINITIONS[spawn.species];
+    this.groupId =
+      spawn.groupId;
+    this.rank =
+      spawn.rank;
     this.spawn =
       new Phaser.Math.Vector2(
-        x,
-        y,
+        spawn.x,
+        spawn.y,
       );
+
+    const elite =
+      this.rank === 'elite';
+    this.maxHealth =
+      Math.round(
+        this.definition.maxHealth *
+          (elite
+            ? ELITE_HEALTH_MULTIPLIER
+            : 1),
+      );
+    this.health =
+      this.maxHealth;
+
+    const radius =
+      this.definition.bodyRadius *
+      (elite ? 1.2 : 1);
 
     this.shadow = scene.add
       .ellipse(
-        x,
-        y + 24,
-        definition.bodyRadius * 2.25,
-        definition.bodyRadius * 0.82,
+        spawn.x,
+        spawn.y + 24,
+        radius * 2.25,
+        radius * 0.82,
         0x2f662b,
         0.2,
       );
 
+    if (elite) {
+      this.aura = scene.add
+        .circle(
+          spawn.x,
+          spawn.y + 8,
+          radius * 1.35,
+          0xffcf57,
+          0.08,
+        )
+        .setStrokeStyle(
+          3,
+          0xffd86b,
+          0.58,
+        );
+    }
+
     this.sprite =
       group.create(
-        x,
-        y,
-        definition.texture,
+        spawn.x,
+        spawn.y,
+        elite
+          ? this.definition
+              .eliteTexture
+          : this.definition.texture,
       ) as Phaser.Physics.Arcade.Sprite;
+
+    if (elite) {
+      this.sprite.setScale(1.22);
+    }
 
     this.sprite.setCollideWorldBounds(
       true,
@@ -186,39 +400,51 @@ export class EnemyUnit {
       this.sprite.body as
         Phaser.Physics.Arcade.Body;
 
-    body
-      .setCircle(
-        definition.bodyRadius,
-        this.sprite.width / 2 -
-          definition.bodyRadius,
-        this.sprite.height -
-          definition.bodyRadius * 2 -
-          8,
-      );
+    body.setCircle(
+      radius,
+      this.sprite.width / 2 -
+        radius,
+      this.sprite.height -
+        radius * 2 -
+        8,
+    );
+
+    const barWidth =
+      elite ? 64 : 50;
 
     this.healthBack = scene.add
       .rectangle(
-        x - 25,
-        y - 49,
-        50,
-        7,
-        0x2d3027,
-        0.72,
+        spawn.x -
+          barWidth / 2,
+        spawn.y - 49,
+        barWidth,
+        elite ? 9 : 7,
+        elite
+          ? 0x5d4319
+          : 0x2d3027,
+        0.86,
       )
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0.5)
+      .setVisible(false);
 
     this.healthFill = scene.add
       .rectangle(
-        x - 23,
-        y - 49,
-        46,
-        5,
-        0xf05c63,
-        0.95,
+        spawn.x -
+          (barWidth - 4) / 2,
+        spawn.y - 49,
+        barWidth - 4,
+        elite ? 6 : 5,
+        elite
+          ? 0xffc94b
+          : 0xf05c63,
+        0.96,
       )
-      .setOrigin(0, 0.5);
+      .setOrigin(0, 0.5)
+      .setVisible(false);
 
-    this.syncVisuals();
+    this.syncVisuals(
+      false,
+    );
   }
 
   get alive(): boolean {
@@ -233,10 +459,59 @@ export class EnemyUnit {
     );
   }
 
+  get damage():
+    number {
+    return Math.round(
+      this.definition.damage *
+        (this.rank === 'elite'
+          ? ELITE_DAMAGE_MULTIPLIER
+          : 1),
+    );
+  }
+
+  get dropCoins():
+    number {
+    return Math.round(
+      this.definition.dropCoins *
+        (this.rank === 'elite'
+          ? ELITE_DROP_MULTIPLIER
+          : 1),
+    );
+  }
+
+  getDamageProfile(
+    weaponId: WeaponId,
+  ): DamageProfile {
+    return getStageDamageProfile(
+      STAGE_ONE_COMBAT_PROFILE,
+      weaponId,
+    );
+  }
+
+  canTriggerAggro(
+    playerPosition:
+      Phaser.Math.Vector2,
+  ): boolean {
+    if (!this._alive) {
+      return false;
+    }
+
+    return (
+      Phaser.Math.Distance.Between(
+        this.sprite.x,
+        this.sprite.y,
+        playerPosition.x,
+        playerPosition.y,
+      ) <=
+      this.definition.aggroRange
+    );
+  }
+
   update(
     time: number,
     playerPosition:
       Phaser.Math.Vector2,
+    groupEngaged: boolean,
     onPlayerHit:
       (damage: number) => void,
   ): void {
@@ -273,8 +548,7 @@ export class EnemyUnit {
 
     if (
       playerSafe ||
-      distanceToPlayer >
-        this.definition.aggroRange ||
+      !groupEngaged ||
       distanceToSpawn >
         this.definition.leashRange
     ) {
@@ -288,7 +562,9 @@ export class EnemyUnit {
         body.setVelocity(0, 0);
       }
 
-      this.syncVisuals();
+      this.syncVisuals(
+        false,
+      );
       return;
     }
 
@@ -313,13 +589,19 @@ export class EnemyUnit {
             .attackCooldownMs;
 
         onPlayerHit(
-          this.definition.damage,
+          this.damage,
         );
 
         this.scene.tweens.add({
           targets: this.sprite,
-          scaleX: 1.12,
-          scaleY: 0.9,
+          scaleX:
+            this.rank === 'elite'
+              ? 1.34
+              : 1.12,
+          scaleY:
+            this.rank === 'elite'
+              ? 1.08
+              : 0.9,
           duration: 85,
           yoyo: true,
           ease: 'Quad.Out',
@@ -327,11 +609,15 @@ export class EnemyUnit {
       }
     }
 
-    this.syncVisuals();
+    this.syncVisuals(
+      true,
+    );
   }
 
   takeDamage(
     amount: number,
+    effectiveness:
+      DamageEffectiveness,
   ): boolean {
     if (!this._alive) {
       return false;
@@ -344,7 +630,17 @@ export class EnemyUnit {
       );
 
     this.updateHealthBar();
-    this.showDamageNumber(amount);
+    this.showDamageNumber(
+      amount,
+      effectiveness,
+    );
+
+    this.healthBack.setVisible(
+      true,
+    );
+    this.healthFill.setVisible(
+      true,
+    );
 
     this.sprite.setTintFill(
       0xffffff,
@@ -360,10 +656,17 @@ export class EnemyUnit {
     );
 
     if (this.health > 0) {
+      const baseScale =
+        this.rank === 'elite'
+          ? 1.22
+          : 1;
+
       this.scene.tweens.add({
         targets: this.sprite,
-        scaleX: 1.09,
-        scaleY: 0.93,
+        scaleX:
+          baseScale * 1.09,
+        scaleY:
+          baseScale * 0.93,
         duration: 65,
         yoyo: true,
         ease: 'Quad.Out',
@@ -377,6 +680,7 @@ export class EnemyUnit {
   }
 
   destroy(): void {
+    this.aura?.destroy();
     this.shadow.destroy();
     this.healthBack.destroy();
     this.healthFill.destroy();
@@ -439,11 +743,18 @@ export class EnemyUnit {
       false,
     );
 
+    const targets:
+      Phaser.GameObjects.GameObject[] = [
+      this.sprite,
+      this.shadow,
+    ];
+
+    if (this.aura) {
+      targets.push(this.aura);
+    }
+
     this.scene.tweens.add({
-      targets: [
-        this.sprite,
-        this.shadow,
-      ],
+      targets,
       alpha: 0,
       scaleX: 0.72,
       scaleY: 0.72,
@@ -456,33 +767,64 @@ export class EnemyUnit {
     const ratio =
       Phaser.Math.Clamp(
         this.health /
-          this.definition.maxHealth,
+          this.maxHealth,
         0,
         1,
       );
 
+    const width =
+      this.rank === 'elite'
+        ? 60
+        : 46;
+
     this.healthFill.setDisplaySize(
-      46 * ratio,
-      5,
+      width * ratio,
+      this.rank === 'elite'
+        ? 6
+        : 5,
     );
   }
 
   private showDamageNumber(
     amount: number,
+    effectiveness:
+      DamageEffectiveness,
   ): void {
+    const color =
+      effectiveness ===
+      'weakness'
+        ? '#ffd45c'
+        : effectiveness ===
+            'resistance'
+          ? '#aeb8bf'
+          : '#fff3dd';
+
+    const suffix =
+      effectiveness ===
+      'weakness'
+        ? ' ×2'
+        : effectiveness ===
+            'resistance'
+          ? ' ×0.5'
+          : '';
+
     const label =
       this.scene.add
         .text(
           this.sprite.x,
           this.sprite.y - 56,
-          `-${amount}`,
+          `-${amount}${suffix}`,
           {
             fontFamily:
               'system-ui, sans-serif',
-            fontSize: '15px',
+            fontSize:
+              effectiveness ===
+              'weakness'
+                ? '18px'
+                : '15px',
             fontStyle: 'bold',
-            color: '#fff3dd',
-            stroke: '#78383b',
+            color,
+            stroke: '#56323a',
             strokeThickness: 3,
           },
         )
@@ -503,7 +845,9 @@ export class EnemyUnit {
     });
   }
 
-  private syncVisuals(): void {
+  private syncVisuals(
+    engaged: boolean,
+  ): void {
     const baseline =
       this.sprite.y +
       this.definition
@@ -518,21 +862,55 @@ export class EnemyUnit {
         this.sprite.x,
         this.sprite.y + 25,
       )
-      .setDepth(baseline - 2);
+      .setDepth(
+        baseline - 3,
+      );
+
+    this.aura
+      ?.setPosition(
+        this.sprite.x,
+        this.sprite.y + 8,
+      )
+      .setDepth(
+        baseline - 2,
+      );
+
+    const barWidth =
+      this.rank === 'elite'
+        ? 64
+        : 50;
 
     this.healthBack
       .setPosition(
-        this.sprite.x - 25,
+        this.sprite.x -
+          barWidth / 2,
         this.sprite.y - 49,
       )
-      .setDepth(baseline + 80);
+      .setDepth(
+        baseline + 80,
+      );
 
     this.healthFill
       .setPosition(
-        this.sprite.x - 23,
+        this.sprite.x -
+          (barWidth - 4) / 2,
         this.sprite.y - 49,
       )
-      .setDepth(baseline + 81);
+      .setDepth(
+        baseline + 81,
+      );
+
+    const showHealth =
+      engaged ||
+      this.health <
+        this.maxHealth;
+
+    this.healthBack.setVisible(
+      showHealth,
+    );
+    this.healthFill.setVisible(
+      showHealth,
+    );
   }
 }
 
@@ -552,17 +930,14 @@ export class EnemySystem {
       scene.physics.add.group();
 
     for (
-      const spawn of SPAWNS
+      const spawn of
+      buildSpawns()
     ) {
       this.enemies.push(
         new EnemyUnit(
           scene,
           this.group,
-          DEFINITIONS[
-            spawn.archetype
-          ],
-          spawn.x,
-          spawn.y,
+          spawn,
         ),
       );
     }
@@ -575,6 +950,24 @@ export class EnemySystem {
     onPlayerHit:
       (damage: number) => void,
   ): void {
+    const engagedGroups =
+      new Set<string>();
+
+    for (
+      const enemy of
+      this.enemies
+    ) {
+      if (
+        enemy.canTriggerAggro(
+          playerPosition,
+        )
+      ) {
+        engagedGroups.add(
+          enemy.groupId,
+        );
+      }
+    }
+
     for (
       const enemy of
       this.enemies
@@ -582,6 +975,9 @@ export class EnemySystem {
       enemy.update(
         time,
         playerPosition,
+        engagedGroups.has(
+          enemy.groupId,
+        ),
         onPlayerHit,
       );
     }
@@ -642,131 +1038,474 @@ export class EnemySystem {
 function ensureEnemyTextures(
   scene: Phaser.Scene,
 ): void {
-  ensureEnemyTexture(
+  ensureGoblinTexture(
     scene,
-    DEFINITIONS.melee.texture,
-    0x7e4bd4,
-    0xa56df0,
-    54,
+    DEFINITIONS.goblin.texture,
+    false,
   );
-  ensureEnemyTexture(
+  ensureGoblinTexture(
     scene,
-    DEFINITIONS.fast.texture,
-    0x9b4bc7,
-    0xda69df,
-    45,
+    DEFINITIONS.goblin.eliteTexture,
+    true,
   );
-  ensureEnemyTexture(
+
+  ensureSlimeTexture(
     scene,
-    DEFINITIONS.tank.texture,
-    0x6e3cb0,
-    0x9a62d7,
-    68,
+    DEFINITIONS.slime.texture,
+    false,
+  );
+  ensureSlimeTexture(
+    scene,
+    DEFINITIONS.slime.eliteTexture,
+    true,
+  );
+
+  ensureBoarTexture(
+    scene,
+    DEFINITIONS.boar.texture,
+    false,
+  );
+  ensureBoarTexture(
+    scene,
+    DEFINITIONS.boar.eliteTexture,
+    true,
+  );
+
+  ensureMushroomTexture(
+    scene,
+    DEFINITIONS.mushroom.texture,
+    false,
+  );
+  ensureMushroomTexture(
+    scene,
+    DEFINITIONS.mushroom.eliteTexture,
+    true,
+  );
+
+  ensureBeetleTexture(
+    scene,
+    DEFINITIONS.beetle.texture,
+    false,
+  );
+  ensureBeetleTexture(
+    scene,
+    DEFINITIONS.beetle.eliteTexture,
+    true,
   );
 }
 
-function ensureEnemyTexture(
+function createGraphics(
   scene: Phaser.Scene,
-  key: string,
-  baseColor: number,
-  highlightColor: number,
-  size: number,
+):
+  Phaser.GameObjects.Graphics {
+  return scene.make.graphics({
+    x: 0,
+    y: 0,
+  });
+}
+
+function addEyes(
+  graphics:
+    Phaser.GameObjects.Graphics,
+  y: number,
 ): void {
-  if (
-    scene.textures.exists(key)
-  ) {
-    return;
-  }
-
-  const graphics =
-    scene.make.graphics({
-      x: 0,
-      y: 0,
-    });
-
-  const canvasSize =
-    96;
-  const center =
-    canvasSize / 2;
-
-  graphics.fillStyle(
-    0x4d2782,
-    1,
-  );
-  graphics.fillEllipse(
-    center,
-    58,
-    size + 10,
-    size * 0.78,
-  );
-
-  graphics.fillStyle(
-    baseColor,
-    1,
-  );
-  graphics.fillCircle(
-    center,
-    45,
-    size / 2,
-  );
-
-  graphics.fillStyle(
-    highlightColor,
-    0.92,
-  );
-  graphics.fillEllipse(
-    center - size * 0.12,
-    34,
-    size * 0.5,
-    size * 0.34,
-  );
-
   graphics.fillStyle(
     0xffffff,
     1,
   );
   graphics.fillCircle(
-    center - 10,
-    44,
+    42,
+    y,
     7,
   );
   graphics.fillCircle(
-    center + 10,
-    44,
-    7,
-  );
-
-  graphics.fillStyle(
-    0x302047,
-    1,
-  );
-  graphics.fillCircle(
-    center - 9,
-    45,
-    3,
-  );
-  graphics.fillCircle(
-    center + 9,
-    45,
-    3,
-  );
-
-  graphics.fillStyle(
-    0x51306e,
-    1,
-  );
-  graphics.fillRoundedRect(
-    center - 15,
     61,
-    30,
+    y,
     7,
+  );
+
+  graphics.fillStyle(
+    0x24222d,
+    1,
+  );
+  graphics.fillCircle(
+    43,
+    y + 1,
+    3,
+  );
+  graphics.fillCircle(
+    60,
+    y + 1,
+    3,
+  );
+}
+
+function ensureGoblinTexture(
+  scene: Phaser.Scene,
+  key: string,
+  elite: boolean,
+): void {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    createGraphics(scene);
+  const skin =
+    elite
+      ? 0x426f35
+      : 0x6cab4a;
+  const cloth =
+    elite
+      ? 0x6d3340
+      : 0x7a4b8c;
+
+  g.fillStyle(
+    skin,
+    1,
+  );
+  g.fillTriangle(
+    20,
+    38,
+    37,
+    47,
+    28,
+    58,
+  );
+  g.fillTriangle(
+    83,
+    38,
+    66,
+    47,
+    75,
+    58,
+  );
+  g.fillCircle(
+    52,
+    48,
+    elite ? 30 : 26,
+  );
+
+  g.fillStyle(
+    cloth,
+    1,
+  );
+  g.fillRoundedRect(
+    31,
+    67,
+    42,
+    elite ? 28 : 24,
+    10,
+  );
+
+  addEyes(
+    g,
+    47,
+  );
+
+  if (elite) {
+    g.fillStyle(
+      0xead76b,
+      1,
+    );
+    g.fillTriangle(
+      38,
+      20,
+      47,
+      36,
+      32,
+      34,
+    );
+    g.fillTriangle(
+      66,
+      20,
+      72,
+      35,
+      57,
+      36,
+    );
+  }
+
+  g.generateTexture(
+    key,
+    104,
+    112,
+  );
+  g.destroy();
+}
+
+function ensureSlimeTexture(
+  scene: Phaser.Scene,
+  key: string,
+  elite: boolean,
+): void {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    createGraphics(scene);
+
+  g.fillStyle(
+    elite
+      ? 0x3967b8
+      : 0x59a7ef,
+    1,
+  );
+  g.fillEllipse(
+    52,
+    65,
+    elite ? 76 : 66,
+    elite ? 62 : 54,
+  );
+
+  g.fillStyle(
+    elite
+      ? 0x6f92df
+      : 0x86c7ff,
+    0.9,
+  );
+  g.fillEllipse(
+    42,
+    50,
+    32,
+    20,
+  );
+
+  addEyes(
+    g,
+    62,
+  );
+
+  g.generateTexture(
+    key,
+    104,
+    112,
+  );
+  g.destroy();
+}
+
+function ensureBoarTexture(
+  scene: Phaser.Scene,
+  key: string,
+  elite: boolean,
+): void {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    createGraphics(scene);
+
+  g.fillStyle(
+    elite
+      ? 0x6d3b2b
+      : 0x965c3f,
+    1,
+  );
+  g.fillEllipse(
+    50,
+    64,
+    elite ? 82 : 70,
+    elite ? 58 : 50,
+  );
+
+  g.fillStyle(
+    elite
+      ? 0x945340
+      : 0xc17b55,
+    1,
+  );
+  g.fillEllipse(
+    72,
+    66,
+    34,
+    25,
+  );
+
+  g.fillStyle(
+    0xf1e1b8,
+    1,
+  );
+  g.fillTriangle(
+    76,
+    67,
+    91,
+    59,
+    86,
+    73,
+  );
+
+  addEyes(
+    g,
+    54,
+  );
+
+  g.generateTexture(
+    key,
+    104,
+    112,
+  );
+  g.destroy();
+}
+
+function ensureMushroomTexture(
+  scene: Phaser.Scene,
+  key: string,
+  elite: boolean,
+): void {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    createGraphics(scene);
+
+  g.fillStyle(
+    elite
+      ? 0x7040a0
+      : 0x9f62c2,
+    1,
+  );
+  g.fillRoundedRect(
+    41,
+    52,
+    23,
+    43,
+    10,
+  );
+
+  g.fillStyle(
+    elite
+      ? 0xd13e69
+      : 0xee6e7a,
+    1,
+  );
+  g.fillEllipse(
+    52,
+    43,
+    elite ? 82 : 70,
+    elite ? 46 : 40,
+  );
+
+  g.fillStyle(
+    0xffe9ce,
+    0.92,
+  );
+  g.fillCircle(
+    37,
+    37,
+    6,
+  );
+  g.fillCircle(
+    60,
+    31,
+    5,
+  );
+  g.fillCircle(
+    70,
+    45,
     4,
   );
 
-  graphics.generateTexture(
-    key,
-    canvasSize,
-    canvasSize,
+  addEyes(
+    g,
+    70,
   );
-  graphics.destroy();
+
+  g.generateTexture(
+    key,
+    104,
+    112,
+  );
+  g.destroy();
+}
+
+function ensureBeetleTexture(
+  scene: Phaser.Scene,
+  key: string,
+  elite: boolean,
+): void {
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    createGraphics(scene);
+
+  g.lineStyle(
+    5,
+    elite
+      ? 0x263e62
+      : 0x385c77,
+    1,
+  );
+
+  for (
+    const y of
+    [48, 62, 76]
+  ) {
+    g.lineBetween(
+      28,
+      y,
+      12,
+      y - 10,
+    );
+    g.lineBetween(
+      76,
+      y,
+      92,
+      y - 10,
+    );
+  }
+
+  g.fillStyle(
+    elite
+      ? 0x244d72
+      : 0x3a7e9e,
+    1,
+  );
+  g.fillEllipse(
+    52,
+    60,
+    elite ? 72 : 62,
+    elite ? 72 : 62,
+  );
+
+  g.fillStyle(
+    elite
+      ? 0x5b84b0
+      : 0x68abc6,
+    0.92,
+  );
+  g.fillEllipse(
+    42,
+    48,
+    28,
+    38,
+  );
+
+  g.lineStyle(
+    3,
+    0x183049,
+    0.9,
+  );
+  g.lineBetween(
+    52,
+    28,
+    52,
+    91,
+  );
+
+  addEyes(
+    g,
+    42,
+  );
+
+  g.generateTexture(
+    key,
+    104,
+    112,
+  );
+  g.destroy();
 }

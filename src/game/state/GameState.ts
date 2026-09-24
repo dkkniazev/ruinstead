@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 1 as const;
+export const SAVE_SCHEMA_VERSION = 2 as const;
 
 export type BuildingId =
   | 'forge'
@@ -15,6 +15,7 @@ export type GameState = {
   savedAt: number;
   player: {
     weaponId: string;
+    unlockedWeaponIds: string[];
     maxHealthLevel: number;
     damageLevel: number;
     moveSpeedLevel: number;
@@ -54,7 +55,8 @@ export function createDefaultGameState(): GameState {
     schemaVersion: SAVE_SCHEMA_VERSION,
     savedAt: Date.now(),
     player: {
-      weaponId: 'starter-blade',
+      weaponId: 'axe',
+      unlockedWeaponIds: ['axe'],
       maxHealthLevel: 0,
       damageLevel: 0,
       moveSpeedLevel: 0,

@@ -8,6 +8,7 @@ import type {
 } from '../game/combat/CombatSystem';
 import {
   WEAPON_DEFINITIONS,
+  WEAPON_ORDER,
   type WeaponId,
 } from '../game/combat/WeaponDefinitions';
 import {
@@ -213,12 +214,12 @@ export class HudScene
   private createWeaponSelector(): void {
     this.add
       .rectangle(
-        LOGICAL_WIDTH - 176,
+        LOGICAL_WIDTH - 435,
         24,
-        326,
-        70,
+        409,
+        116,
         0x234b2b,
-        0.88,
+        0.9,
       )
       .setOrigin(0, 0)
       .setStrokeStyle(
@@ -228,43 +229,85 @@ export class HudScene
       )
       .setDepth(100);
 
-    const blade =
-      this.createWeaponButton(
-        LOGICAL_WIDTH - 94,
-        59,
-        '1 · Меч',
-        'blade',
-      );
+    this.add
+      .text(
+        LOGICAL_WIDTH - 421,
+        34,
+        'Оружие',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '15px',
+          fontStyle: 'bold',
+          color: '#fff7d6',
+        },
+      )
+      .setDepth(101);
 
-    const bow =
-      this.createWeaponButton(
-        LOGICAL_WIDTH - 258,
-        59,
-        '2 · Лук',
-        'bow',
-      );
-
-    this.weaponButtons = {
-      blade:
-        blade.background,
-      bow:
-        bow.background,
+    const positions:
+      Record<
+        WeaponId,
+        readonly [number, number]
+      > = {
+      axe: [
+        LOGICAL_WIDTH - 365,
+        72,
+      ],
+      sword: [
+        LOGICAL_WIDTH - 242,
+        72,
+      ],
+      hammer: [
+        LOGICAL_WIDTH - 119,
+        72,
+      ],
+      spear: [
+        LOGICAL_WIDTH - 303,
+        116,
+      ],
+      daggers: [
+        LOGICAL_WIDTH - 180,
+        116,
+      ],
     };
 
-    this.weaponLabels = {
-      blade:
-        blade.label,
-      bow:
-        bow.label,
-    };
+    WEAPON_ORDER.forEach(
+      (weaponId, index) => {
+        const [
+          x,
+          y,
+        ] =
+          positions[
+            weaponId
+          ];
+
+        const button =
+          this.createWeaponButton(
+            x,
+            y,
+            `${index + 1} · ${WEAPON_DEFINITIONS[weaponId].shortName}`,
+            weaponId,
+          );
+
+        this.weaponButtons[
+          weaponId
+        ] =
+          button.background;
+
+        this.weaponLabels[
+          weaponId
+        ] =
+          button.label;
+      },
+    );
   }
 
   private createControlsHint(): void {
     this.add
       .text(
         LOGICAL_WIDTH - 24,
-        108,
-        'Автобой · Space/Shift — рывок',
+        154,
+        'Автобой · 1–5 оружие · Space/Shift — рывок',
         {
           fontFamily:
             'system-ui, sans-serif',
@@ -298,8 +341,8 @@ export class HudScene
         .rectangle(
           x,
           y,
-          140,
-          42,
+          112,
+          34,
           0x315f35,
           0.88,
         )
@@ -322,7 +365,7 @@ export class HudScene
           {
             fontFamily:
               'system-ui, sans-serif',
-            fontSize: '15px',
+            fontSize: '12px',
             fontStyle: 'bold',
             color: '#ffffff',
           },
@@ -372,8 +415,11 @@ export class HudScene
 
     for (
       const weaponId of
-      ['blade', 'bow'] as WeaponId[]
+      WEAPON_ORDER
     ) {
+      const unlocked =
+        state.unlockedWeaponIds
+          .includes(weaponId);
       const selected =
         weaponId ===
         state.weaponId;
@@ -383,23 +429,54 @@ export class HudScene
       ]?.setFillStyle(
         selected
           ? 0x7751a1
-          : 0x315f35,
-        selected
+          : unlocked
+            ? 0x315f35
+            : 0x4b4f4a,
+        unlocked
           ? 1
-          : 0.88,
+          : 0.72,
       );
 
-      const fallback =
-        weaponId === 'blade'
-          ? '1 · Меч'
-          : '2 · Лук';
+      this.weaponButtons[
+        weaponId
+      ]?.setStrokeStyle(
+        2,
+        selected
+          ? 0xffe590
+          : unlocked
+            ? 0xf3f5dd
+            : 0x8d948d,
+        selected
+          ? 0.95
+          : 0.5,
+      );
+
+      const index =
+        WEAPON_ORDER.indexOf(
+          weaponId,
+        ) + 1;
+
+      const name =
+        WEAPON_DEFINITIONS[
+          weaponId
+        ].shortName;
 
       this.weaponLabels[
         weaponId
       ]?.setText(
         selected
-          ? `${WEAPON_DEFINITIONS[weaponId].name} ✓`
-          : fallback,
+          ? `${name} ✓`
+          : unlocked
+            ? `${index} · ${name}`
+            : `${name} · ЗАКР.`,
+      );
+
+      this.weaponLabels[
+        weaponId
+      ]?.setColor(
+        unlocked
+          ? '#ffffff'
+          : '#b9bdb8',
       );
     }
   }

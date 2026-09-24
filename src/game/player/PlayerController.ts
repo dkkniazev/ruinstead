@@ -1,20 +1,25 @@
 import Phaser from 'phaser';
+import type {
+  WeaponId,
+} from '../combat/WeaponDefinitions';
 import { DesktopPlayerInput } from '../input/DesktopPlayerInput';
 import {
   InputModeTracker,
   type MovementIntent,
 } from '../input/PlayerInput';
 import { TouchPlayerInput } from '../input/TouchPlayerInput';
-import type {
-  WeaponId,
-} from '../combat/WeaponDefinitions';
 
 const PLAYER_TEXTURE =
-  'ruinstead-player-base-v2';
-const PLAYER_BLADE_TEXTURE =
-  'ruinstead-player-blade-v2';
-const PLAYER_BOW_TEXTURE =
-  'ruinstead-player-bow-v2';
+  'ruinstead-player-base-v3';
+
+const WEAPON_TEXTURES:
+  Record<WeaponId, string> = {
+  axe: 'ruinstead-player-axe-v3',
+  sword: 'ruinstead-player-sword-v3',
+  hammer: 'ruinstead-player-hammer-v3',
+  spear: 'ruinstead-player-spear-v3',
+  daggers: 'ruinstead-player-daggers-v3',
+};
 
 const MOVE_SPEED = 225;
 const DASH_SPEED = 570;
@@ -52,7 +57,7 @@ export class PlayerController {
   private damageTintUntil = 0;
   private enabled = true;
   private weaponId:
-    WeaponId = 'blade';
+    WeaponId = 'axe';
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -76,9 +81,9 @@ export class PlayerController {
 
     this.weaponSprite = scene.add
       .image(
-        x + 26,
-        y + 1,
-        PLAYER_BLADE_TEXTURE,
+        x + 27,
+        y + 2,
+        WEAPON_TEXTURES.axe,
       )
       .setDepth(
         y + PLAYER_BASELINE_OFFSET - 1,
@@ -257,9 +262,9 @@ export class PlayerController {
       weaponId;
 
     this.weaponSprite.setTexture(
-      weaponId === 'blade'
-        ? PLAYER_BLADE_TEXTURE
-        : PLAYER_BOW_TEXTURE,
+      WEAPON_TEXTURES[
+        weaponId
+      ],
     );
 
     this.syncWeaponTransform();
@@ -495,15 +500,23 @@ export class PlayerController {
     const facingLeft =
       this.sprite.flipX;
 
-    const xOffset =
-      this.weaponId === 'blade'
-        ? 27
-        : 29;
+    const offsets:
+      Record<
+        WeaponId,
+        readonly [number, number]
+      > = {
+      axe: [28, 2],
+      sword: [27, 1],
+      hammer: [30, 3],
+      spear: [34, 0],
+      daggers: [25, 5],
+    };
 
-    const yOffset =
-      this.weaponId === 'blade'
-        ? 1
-        : 4;
+    const [
+      xOffset,
+      yOffset,
+    ] =
+      offsets[this.weaponId];
 
     this.weaponSprite
       .setPosition(
@@ -530,8 +543,20 @@ export class PlayerController {
 
   private ensureTextures(): void {
     this.ensurePlayerTexture();
-    this.ensureBladeTexture();
-    this.ensureBowTexture();
+
+    for (
+      const weaponId of
+      Object.keys(
+        WEAPON_TEXTURES,
+      ) as WeaponId[]
+    ) {
+      this.ensureWeaponTexture(
+        weaponId,
+        WEAPON_TEXTURES[
+          weaponId
+        ],
+      );
+    }
   }
 
   private ensurePlayerTexture(): void {
@@ -622,135 +647,192 @@ export class PlayerController {
     graphics.destroy();
   }
 
-  private ensureBladeTexture(): void {
+  private ensureWeaponTexture(
+    weaponId: WeaponId,
+    key: string,
+  ): void {
     if (
       this.scene.textures.exists(
-        PLAYER_BLADE_TEXTURE,
+        key,
       )
     ) {
       return;
     }
 
-    const graphics =
+    const g =
       this.scene.make.graphics({
         x: 0,
         y: 0,
       });
 
-    graphics.lineStyle(
-      7,
-      0xe7eef0,
-      1,
-    );
-    graphics.lineBetween(
-      13,
-      52,
-      31,
-      8,
-    );
+    switch (weaponId) {
+      case 'axe':
+        g.lineStyle(
+          6,
+          0x6b472a,
+          1,
+        );
+        g.lineBetween(
+          13,
+          64,
+          31,
+          14,
+        );
+        g.fillStyle(
+          0xdde5e4,
+          1,
+        );
+        g.fillTriangle(
+          28,
+          10,
+          48,
+          14,
+          31,
+          32,
+        );
+        break;
 
-    graphics.lineStyle(
-      4,
-      0x6b4a2b,
-      1,
-    );
-    graphics.lineBetween(
-      10,
-      61,
-      18,
-      40,
-    );
+      case 'sword':
+        g.lineStyle(
+          7,
+          0xe7eef0,
+          1,
+        );
+        g.lineBetween(
+          13,
+          57,
+          32,
+          9,
+        );
+        g.lineStyle(
+          4,
+          0x6b4a2b,
+          1,
+        );
+        g.lineBetween(
+          10,
+          66,
+          18,
+          44,
+        );
+        g.lineStyle(
+          4,
+          0xd9b35c,
+          1,
+        );
+        g.lineBetween(
+          8,
+          45,
+          24,
+          51,
+        );
+        break;
 
-    graphics.lineStyle(
-      4,
-      0xd9b35c,
-      1,
-    );
-    graphics.lineBetween(
-      8,
-      42,
-      23,
-      48,
-    );
+      case 'hammer':
+        g.lineStyle(
+          7,
+          0x725033,
+          1,
+        );
+        g.lineBetween(
+          18,
+          66,
+          29,
+          29,
+        );
+        g.fillStyle(
+          0x7e8989,
+          1,
+        );
+        g.fillRoundedRect(
+          18,
+          13,
+          34,
+          22,
+          5,
+        );
+        g.fillStyle(
+          0xaab3b1,
+          1,
+        );
+        g.fillRoundedRect(
+          18,
+          13,
+          34,
+          8,
+          4,
+        );
+        break;
 
-    graphics.generateTexture(
-      PLAYER_BLADE_TEXTURE,
-      42,
-      70,
-    );
-    graphics.destroy();
-  }
+      case 'spear':
+        g.lineStyle(
+          5,
+          0x805a32,
+          1,
+        );
+        g.lineBetween(
+          9,
+          70,
+          39,
+          13,
+        );
+        g.fillStyle(
+          0xdce6e7,
+          1,
+        );
+        g.fillTriangle(
+          34,
+          14,
+          49,
+          4,
+          42,
+          22,
+        );
+        break;
 
-  private ensureBowTexture(): void {
-    if (
-      this.scene.textures.exists(
-        PLAYER_BOW_TEXTURE,
-      )
-    ) {
-      return;
+      case 'daggers':
+        g.lineStyle(
+          5,
+          0xe5edef,
+          1,
+        );
+        g.lineBetween(
+          11,
+          56,
+          29,
+          23,
+        );
+        g.lineBetween(
+          29,
+          57,
+          12,
+          25,
+        );
+        g.lineStyle(
+          4,
+          0x775031,
+          1,
+        );
+        g.lineBetween(
+          8,
+          63,
+          14,
+          52,
+        );
+        g.lineBetween(
+          32,
+          64,
+          26,
+          53,
+        );
+        break;
     }
 
-    const graphics =
-      this.scene.make.graphics({
-        x: 0,
-        y: 0,
-      });
-
-    graphics.lineStyle(
-      5,
-      0x87522d,
-      1,
+    g.generateTexture(
+      key,
+      54,
+      76,
     );
-    graphics.beginPath();
-    graphics.moveTo(12, 5);
-    graphics.lineTo(28, 18);
-    graphics.lineTo(32, 35);
-    graphics.lineTo(27, 52);
-    graphics.lineTo(12, 65);
-    graphics.strokePath();
-
-    graphics.lineStyle(
-      2,
-      0xf4e4c5,
-      0.95,
-    );
-    graphics.lineBetween(
-      12,
-      5,
-      12,
-      65,
-    );
-
-    graphics.lineStyle(
-      3,
-      0x6b472a,
-      1,
-    );
-    graphics.lineBetween(
-      5,
-      35,
-      36,
-      35,
-    );
-
-    graphics.fillStyle(
-      0xe8eef0,
-      1,
-    );
-    graphics.fillTriangle(
-      36,
-      30,
-      42,
-      35,
-      36,
-      40,
-    );
-
-    graphics.generateTexture(
-      PLAYER_BOW_TEXTURE,
-      46,
-      70,
-    );
-    graphics.destroy();
+    g.destroy();
   }
 }

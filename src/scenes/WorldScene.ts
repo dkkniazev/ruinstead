@@ -16,6 +16,12 @@ import {
   markYandexGameReady,
   startYandexGameplay,
 } from '../platform/yandex/YandexPlatform';
+import { EnemySystem } from '../game/enemies/EnemySystem';
+import {
+  CombatSystem,
+  type CombatState,
+} from '../game/combat/CombatSystem';
+import { CombatHud } from '../game/combat/CombatHud';
 
 export class WorldScene
   extends Phaser.Scene {
@@ -24,11 +30,23 @@ export class WorldScene
 
   private player?:
     PlayerController;
+  private enemies?:
+    EnemySystem;
+  private combat?:
+    CombatSystem;
+  private combatHud?:
+    CombatHud;
+
   private debugOverlay?:
     DebugOverlay;
   private areaLabel?:
     Phaser.GameObjects.Text;
   private lastAreaName = '';
+
+  private weaponOneKey?:
+    Phaser.Input.Keyboard.Key;
+  private weaponTwoKey?:
+    Phaser.Input.Keyboard.Key;
 
   constructor() {
     super('WorldScene');
@@ -51,10 +69,53 @@ export class WorldScene
         world.spawn.y,
       );
 
+    this.enemies =
+      new EnemySystem(this);
+
     this.physics.add.collider(
       this.player.sprite,
       world.obstacles,
     );
+    this.physics.add.collider(
+      this.enemies.group,
+      world.obstacles,
+    );
+    this.physics.add.collider(
+      this.player.sprite,
+      this.enemies.group,
+    );
+
+    this.combatHud =
+      new CombatHud(
+        this,
+        (weaponId) => {
+          this.combat?.setWeapon(
+            weaponId,
+          );
+        },
+      );
+
+    this.combat =
+      new CombatSystem(
+        this,
+        this.player,
+        this.enemies,
+        world.spawn,
+        (combatState) => {
+          this.handleCombatState(
+            combatState,
+          );
+        },
+      );
+
+    this.weaponOneKey =
+      this.input.keyboard?.addKey(
+        Phaser.Input.Keyboard.KeyCodes.ONE,
+      );
+    this.weaponTwoKey =
+      this.input.keyboard?.addKey(
+        Phaser.Input.Keyboard.KeyCodes.TWO,
+      );
 
     const camera =
       this.cameras.main;
@@ -97,8 +158,34 @@ export class WorldScene
     startYandexGameplay();
   }
 
-  update(time: number): void {
+  update(
+    time: number,
+    delta: number,
+  ): void {
     this.player?.update(time);
+
+    if (
+      this.player &&
+      this.enemies &&
+      this.combat
+    ) {
+      this.enemies.update(
+        time,
+        this.player.position,
+        (damage) => {
+          this.combat?.damagePlayer(
+            damage,
+          );
+        },
+      );
+
+      this.combat.update(
+        time,
+        delta,
+      );
+    }
+
+    this.handleWeaponKeys();
     this.updateAreaLabel();
     this.debugOverlay?.update();
   }
@@ -143,12 +230,12 @@ export class WorldScene
     this.add
       .text(
         LOGICAL_WIDTH - 24,
-        30,
-        'WASD / стрелки   ·   Space / Shift — рывок',
+        28,
+        'Автобой · 1/2 оружие · Space/Shift рывок',
         {
           fontFamily:
             'system-ui, sans-serif',
-          fontSize: '14px',
+          fontSize: '13px',
           color: '#31502f',
           backgroundColor:
             '#efffd0bb',
@@ -163,6 +250,38 @@ export class WorldScene
       .setDepth(8500);
 
     this.updateAreaLabel();
+  }
+
+  private handleCombatState(
+    state: CombatState,
+  ): void {
+    this.combatHud?.update(
+      state,
+    );
+  }
+
+  private handleWeaponKeys(): void {
+    if (
+      this.weaponOneKey &&
+      Phaser.Input.Keyboard.JustDown(
+        this.weaponOneKey,
+      )
+    ) {
+      this.combat?.setWeapon(
+        'blade',
+      );
+    }
+
+    if (
+      this.weaponTwoKey &&
+      Phaser.Input.Keyboard.JustDown(
+        this.weaponTwoKey,
+      )
+    ) {
+      this.combat?.setWeapon(
+        'bow',
+      );
+    }
   }
 
   private updateAreaLabel(): void {
@@ -218,8 +337,16 @@ export class WorldScene
       this.handleResize,
       this,
     );
+
+    this.combat?.destroy();
+    this.combat = undefined;
+
+    this.enemies?.destroy();
+    this.enemies = undefined;
+
     this.player?.destroy();
     this.player = undefined;
+
     this.debugOverlay?.destroy();
     this.debugOverlay = undefined;
   }

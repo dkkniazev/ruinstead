@@ -35,6 +35,8 @@ export class PlayerController {
     new Phaser.Math.Vector2(0, 1);
   private dashUntil = 0;
   private dashCooldownUntil = 0;
+  private damageTintUntil = 0;
+  private enabled = true;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -96,6 +98,18 @@ export class PlayerController {
   }
 
   update(time: number): void {
+    if (!this.enabled) {
+      this.applyVelocity(
+        new Phaser.Math.Vector2(
+          0,
+          0,
+        ),
+        0,
+      );
+      this.syncVisualDepth();
+      return;
+    }
+
     const input =
       this.inputMode.current === 'touch'
         ? this.touchInput
@@ -127,6 +141,7 @@ export class PlayerController {
         this.dashDirection,
         DASH_SPEED,
       );
+      this.applyTint(time);
       this.syncVisualDepth();
       return;
     }
@@ -142,15 +157,76 @@ export class PlayerController {
       MOVE_SPEED,
     );
 
-    this.sprite.clearTint();
+    this.applyTint(time);
     this.syncVisualDepth();
   }
 
-  get position(): Phaser.Math.Vector2 {
+  get position():
+    Phaser.Math.Vector2 {
     return new Phaser.Math.Vector2(
       this.sprite.x,
       this.sprite.y,
     );
+  }
+
+  setEnabled(
+    enabled: boolean,
+  ): void {
+    this.enabled =
+      enabled;
+
+    if (!enabled) {
+      const body =
+        this.sprite.body as
+          Phaser.Physics.Arcade.Body;
+
+      body.setVelocity(
+        0,
+        0,
+      );
+    }
+  }
+
+  teleport(
+    x: number,
+    y: number,
+  ): void {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.reset(
+      x,
+      y,
+    );
+
+    this.shadow.setPosition(
+      x,
+      y + 41,
+    );
+    this.syncVisualDepth();
+  }
+
+  faceTowards(
+    worldX: number,
+  ): void {
+    if (
+      Math.abs(
+        worldX -
+          this.sprite.x,
+      ) > 3
+    ) {
+      this.sprite.setFlipX(
+        worldX <
+          this.sprite.x,
+      );
+    }
+  }
+
+  flashDamage(): void {
+    this.damageTintUntil =
+      this.scene.time.now +
+      120;
   }
 
   destroy(): void {
@@ -183,10 +259,6 @@ export class PlayerController {
     this.dashCooldownUntil =
       time + DASH_COOLDOWN_MS;
 
-    this.sprite.setTint(
-      0xfff0a8,
-    );
-
     this.scene.cameras.main.shake(
       55,
       0.0011,
@@ -210,7 +282,8 @@ export class PlayerController {
   }
 
   private applyVelocity(
-    direction: Phaser.Math.Vector2,
+    direction:
+      Phaser.Math.Vector2,
     speed: number,
   ): void {
     const body =
@@ -223,18 +296,49 @@ export class PlayerController {
     );
   }
 
+  private applyTint(
+    time: number,
+  ): void {
+    if (
+      time <
+      this.damageTintUntil
+    ) {
+      this.sprite.setTintFill(
+        0xff7070,
+      );
+      return;
+    }
+
+    if (
+      time <
+      this.dashUntil
+    ) {
+      this.sprite.setTint(
+        0xfff0a8,
+      );
+      return;
+    }
+
+    this.sprite.clearTint();
+  }
+
   private syncVisualDepth(): void {
     const baseline =
       this.sprite.y +
       PLAYER_BASELINE_OFFSET;
 
-    this.sprite.setDepth(baseline);
+    this.sprite.setDepth(
+      baseline,
+    );
+
     this.shadow
       .setPosition(
         this.sprite.x,
         this.sprite.y + 41,
       )
-      .setDepth(baseline - 2);
+      .setDepth(
+        baseline - 2,
+      );
   }
 
   private syncInputMode(
@@ -260,7 +364,6 @@ export class PlayerController {
         y: 0,
       });
 
-    // Compact chibi silhouette for the casual 3/4 camera.
     graphics.fillStyle(
       0x5f3a76,
       1,
@@ -326,7 +429,6 @@ export class PlayerController {
       6,
     );
 
-    // Sword sits behind the shoulder and reads from a distance.
     graphics.lineStyle(
       6,
       0xe7eef0,
@@ -338,6 +440,7 @@ export class PlayerController {
       72,
       21,
     );
+
     graphics.lineStyle(
       4,
       0x6b4a2b,

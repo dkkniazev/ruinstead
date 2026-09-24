@@ -3,8 +3,13 @@ import {
   FOREST_HEART,
   FOREST_LANDMARKS,
 } from './ForestZone';
+import {
+  ROOT_COLOSSUS_ARENA_CENTER,
+  ROOT_COLOSSUS_ARENA_RADIUS,
+  STAGE_TWO_ENTRY,
+} from './StageOneProgression';
 
-export const WORLD_WIDTH = 2800;
+export const WORLD_WIDTH = 3400;
 export const WORLD_HEIGHT = 1800;
 
 export const SETTLEMENT_CENTER =
@@ -97,6 +102,8 @@ export function createPrototypeWorld(
   drawGround(scene);
   drawSettlement(scene);
   drawForestLandmarks(scene);
+  drawRootColossusArena(scene);
+  drawStageTwoPreview(scene);
   const obstacles =
     createObstacles(scene);
 
@@ -126,6 +133,13 @@ export function getAreaName(
     SETTLEMENT_SAFE_RADIUS
   ) {
     return 'Руины поселения';
+  }
+
+  if (
+    position.x >=
+    STAGE_TWO_ENTRY.x - 80
+  ) {
+    return 'Преддверие второй зоны';
   }
 
   if (position.x < 1100) {
@@ -332,6 +346,28 @@ function drawGround(
 
   drawFlowers(ground);
   drawGrassTufts(ground);
+
+  ground.lineStyle(
+    64,
+    0xcfb575,
+    0.84,
+  );
+  ground.beginPath();
+  ground.moveTo(
+    ROOT_COLOSSUS_ARENA_CENTER.x -
+      40,
+    ROOT_COLOSSUS_ARENA_CENTER.y -
+      20,
+  );
+  ground.lineTo(
+    2690,
+    1510,
+  );
+  ground.lineTo(
+    2795,
+    1500,
+  );
+  ground.strokePath();
 
   const border =
     scene.add.graphics();
@@ -685,6 +721,112 @@ function drawForestLandmarks(
     .setOrigin(0.5)
     .setDepth(
       FOREST_HEART.y + 120,
+    );
+}
+
+function drawRootColossusArena(
+  scene: Phaser.Scene,
+): void {
+  const g =
+    scene.add.graphics();
+
+  g.setDepth(-40);
+
+  g.fillStyle(
+    0x4b8f45,
+    0.72,
+  );
+  g.fillEllipse(
+    ROOT_COLOSSUS_ARENA_CENTER.x,
+    ROOT_COLOSSUS_ARENA_CENTER.y,
+    ROOT_COLOSSUS_ARENA_RADIUS *
+      2,
+    ROOT_COLOSSUS_ARENA_RADIUS *
+      1.35,
+  );
+
+  g.lineStyle(
+    10,
+    0x7b6a47,
+    0.58,
+  );
+  g.strokeEllipse(
+    ROOT_COLOSSUS_ARENA_CENTER.x,
+    ROOT_COLOSSUS_ARENA_CENTER.y,
+    ROOT_COLOSSUS_ARENA_RADIUS *
+      2,
+    ROOT_COLOSSUS_ARENA_RADIUS *
+      1.35,
+  );
+
+  g.lineStyle(
+    4,
+    0xc6b16f,
+    0.42,
+  );
+  g.strokeEllipse(
+    ROOT_COLOSSUS_ARENA_CENTER.x,
+    ROOT_COLOSSUS_ARENA_CENTER.y,
+    ROOT_COLOSSUS_ARENA_RADIUS *
+      1.55,
+    ROOT_COLOSSUS_ARENA_RADIUS,
+  );
+}
+
+function drawStageTwoPreview(
+  scene: Phaser.Scene,
+): void {
+  const g =
+    scene.add.graphics();
+
+  g.setDepth(-45);
+
+  g.fillStyle(
+    0xb6b867,
+    0.78,
+  );
+  g.fillRoundedRect(
+    2990,
+    1240,
+    390,
+    520,
+    42,
+  );
+
+  g.fillStyle(
+    0x8a8b4f,
+    0.18,
+  );
+  g.fillEllipse(
+    STAGE_TWO_ENTRY.x + 120,
+    STAGE_TWO_ENTRY.y,
+    360,
+    300,
+  );
+
+  scene.add
+    .text(
+      STAGE_TWO_ENTRY.x + 105,
+      STAGE_TWO_ENTRY.y - 115,
+      'Новая территория',
+      {
+        fontFamily:
+          'system-ui, sans-serif',
+        fontSize: '16px',
+        fontStyle: 'bold',
+        color: '#fff0bd',
+        backgroundColor:
+          '#4a4d33cc',
+        padding: {
+          x: 9,
+          y: 5,
+        },
+      },
+    )
+    .setOrigin(0.5)
+    .setDepth(
+      STAGE_TWO_ENTRY.y +
+        100,
     );
 }
 

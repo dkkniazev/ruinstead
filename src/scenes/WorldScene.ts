@@ -76,6 +76,9 @@ import {
   FOREST_HEART_DISCOVERY_RADIUS,
 } from '../game/world/ForestZone';
 import {
+  BridgeSystem,
+} from '../game/world/BridgeSystem';
+import {
   RETURN_POINT,
   RETURN_RADIUS,
   SETTLEMENT_CENTER,
@@ -109,6 +112,8 @@ export class WorldScene
     BackpackSystem;
   private resourceSystem?:
     ResourceSystem;
+  private bridgeSystem?:
+    BridgeSystem;
   private readonly questDirector =
     new QuestDirector();
   private bestiarySystem?:
@@ -167,6 +172,64 @@ export class WorldScene
       this.bestiarySystem
         .getHudState();
 
+    if (
+      this.gameState.world
+        .defeatedBosses
+        .includes(
+          'root-colossus',
+        )
+    ) {
+      let migrated = false;
+
+      if (
+        !this.gameState.world
+          .unlockedZones
+          .includes(
+            'stage-2',
+          )
+      ) {
+        this.gameState.world
+          .unlockedZones
+          .push(
+            'stage-2',
+          );
+        migrated = true;
+      }
+
+      if (
+        !this.gameState.world
+          .uniqueRewards
+          .includes(
+            'root-heart',
+          )
+      ) {
+        this.gameState.world
+          .uniqueRewards
+          .push(
+            'root-heart',
+          );
+        migrated = true;
+      }
+
+      if (
+        this.gameState.settlement
+          .buildings.bridge < 1
+      ) {
+        this.gameState.settlement
+          .buildings.bridge = 1;
+        this.gameState.settlement
+          .repairStages.bridge = 3;
+        migrated = true;
+      }
+
+      if (migrated) {
+        this.gameState =
+          this.stateStore.save(
+            this.gameState,
+          );
+      }
+    }
+
     const world =
       createPrototypeWorld(this);
 
@@ -189,6 +252,16 @@ export class WorldScene
             WORLD_HEIGHT - 40,
           )
         : world.spawn.y;
+
+    this.bridgeSystem =
+      new BridgeSystem(
+        this,
+        this.gameState.world
+          .unlockedZones
+          .includes(
+            'stage-2',
+          ),
+      );
 
     this.player =
       new PlayerController(
@@ -265,12 +338,27 @@ export class WorldScene
       world.obstacles,
     );
     this.physics.add.collider(
+      this.player.sprite,
+      this.bridgeSystem
+        .barriers,
+    );
+    this.physics.add.collider(
       this.enemies.group,
       world.obstacles,
     );
     this.physics.add.collider(
+      this.enemies.group,
+      this.bridgeSystem
+        .barriers,
+    );
+    this.physics.add.collider(
       this.bosses.group,
       world.obstacles,
+    );
+    this.physics.add.collider(
+      this.bosses.group,
+      this.bridgeSystem
+        .barriers,
     );
     this.physics.add.collider(
       this.player.sprite,
@@ -511,6 +599,7 @@ export class WorldScene
     this.handleReturnPoint();
     this.updateSettlement();
     this.updateForestObjective();
+    this.updateStageTwoTransition();
     this.updateQuestDirector();
     this.handleWeaponKeys();
     this.updateAreaName();
@@ -1204,13 +1293,42 @@ export class WorldScene
           .push('stage-2');
       }
 
+      if (
+        !this.gameState.world
+          .uniqueRewards
+          .includes(
+            'root-heart',
+          )
+      ) {
+        this.gameState.world
+          .uniqueRewards
+          .push(
+            'root-heart',
+          );
+      }
+
+      this.gameState.settlement
+        .buildings.bridge =
+          Math.max(
+            1,
+            this.gameState
+              .settlement
+              .buildings.bridge,
+          );
+      this.gameState.settlement
+        .repairStages.bridge = 3;
+
       this.combat?.unlockWeapon(
         'daggers',
       );
 
+      this.bridgeSystem?.unlock(
+        true,
+      );
+
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Кинжалы открыты · проход дальше разблокирован`,
+        `${event.name} повержен! Сердце корней получено · кинжалы открыты · мост восстановлен`,
       );
     } else {
       this.game.events.emit(
@@ -1558,6 +1676,39 @@ export class WorldScene
     this.saveState();
   }
 
+  private updateStageTwoTransition(): void {
+    if (
+      !this.player ||
+      !this.gameState ||
+      !this.bridgeSystem
+        ?.isUnlocked ||
+      !this.bridgeSystem
+        .isStageTwoEntryReached(
+          this.player.position,
+        ) ||
+      this.gameState.world
+        .discoveredLandmarks
+        .includes(
+          'stage-2-entry',
+        )
+    ) {
+      return;
+    }
+
+    this.gameState.world
+      .discoveredLandmarks
+      .push(
+        'stage-2-entry',
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Переход открыт: вы вошли в преддверие второй зоны',
+    );
+
+    this.saveState();
+  }
+
   private handleWeaponKeys(): void {
     for (
       const weaponId of
@@ -1705,6 +1856,10 @@ export class WorldScene
 
     this.resourceSystem?.destroy();
     this.resourceSystem =
+      undefined;
+
+    this.bridgeSystem?.destroy();
+    this.bridgeSystem =
       undefined;
 
     this.bestiarySystem =

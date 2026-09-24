@@ -10,6 +10,9 @@ import {
   SETTLEMENT_CENTER,
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
+import {
+  ROOT_COLOSSUS_ARENA_CENTER,
+} from '../world/StageOneProgression';
 
 export type BossId =
   | 'moss-ogre'
@@ -43,6 +46,11 @@ type BossDefinition = {
   specialDamage: number;
   specialCooldownMs: number;
   specialWindupMs: number;
+  lineSpecialDamage?: number;
+  lineSpecialLength?: number;
+  lineSpecialWidth?: number;
+  lineSpecialCooldownMs?: number;
+  lineSpecialWindupMs?: number;
   bodyRadius: number;
   texture: string;
   primaryColor: number;
@@ -118,8 +126,10 @@ const BOSS_DEFINITIONS:
   {
     id: 'root-colossus',
     name: 'Корневой колосс',
-    x: 2470,
-    y: 1540,
+    x:
+      ROOT_COLOSSUS_ARENA_CENTER.x,
+    y:
+      ROOT_COLOSSUS_ARENA_CENTER.y,
     maxHealth: 1000,
     moveSpeed: 66,
     damage: 24,
@@ -135,6 +145,11 @@ const BOSS_DEFINITIONS:
     specialDamage: 36,
     specialCooldownMs: 4700,
     specialWindupMs: 880,
+    lineSpecialDamage: 32,
+    lineSpecialLength: 245,
+    lineSpecialWidth: 74,
+    lineSpecialCooldownMs: 6100,
+    lineSpecialWindupMs: 760,
     bodyRadius: 44,
     texture: 'ruinstead-boss-root-colossus',
     primaryColor: 0x61462f,
@@ -163,9 +178,14 @@ export class BossUnit {
   private health: number;
   private nextAttackAt = 0;
   private nextSpecialAt = 1800;
+  private nextLineSpecialAt = 3900;
   private specialPending = false;
+  private lineSpecialPending = false;
   private specialTelegraph?:
     Phaser.GameObjects.Arc;
+  private lineSpecialTelegraph?:
+    Phaser.GameObjects.Rectangle;
+  private lastPlayerRadius = 0;
   private lastPlayerPosition =
     new Phaser.Math.Vector2();
   private respawnAtEpochMs = 0;
@@ -434,6 +454,8 @@ export class BossUnit {
     this.lastPlayerPosition.copy(
       playerPosition,
     );
+    this.lastPlayerRadius =
+      playerRadius;
 
     const body =
       this.sprite.body as
@@ -541,8 +563,37 @@ export class BossUnit {
     this._engaged = true;
     this.regenStartedAt = 0;
 
-    if (this.specialPending) {
+    if (
+      this.specialPending ||
+      this.lineSpecialPending
+    ) {
       body.setVelocity(0, 0);
+      this.syncVisuals(true);
+      return;
+    }
+
+    if (
+      this.definition.isMain &&
+      this.definition
+        .lineSpecialLength &&
+      this.definition
+        .lineSpecialCooldownMs &&
+      this.definition
+        .lineSpecialWindupMs &&
+      this.definition
+        .lineSpecialDamage &&
+      this.definition
+        .lineSpecialWidth &&
+      time >=
+        this.nextLineSpecialAt &&
+      distanceToPlayer <=
+        this.definition
+          .lineSpecialLength *
+          1.1
+    ) {
+      this.startLineSpecialAttack(
+        onPlayerHit,
+      );
       this.syncVisuals(true);
       return;
     }
@@ -658,6 +709,8 @@ export class BossUnit {
   destroy(): void {
     this.specialTelegraph
       ?.destroy();
+    this.lineSpecialTelegraph
+      ?.destroy();
     this.shadow.destroy();
     this.healthBack.destroy();
     this.healthFill.destroy();
@@ -710,7 +763,10 @@ export class BossUnit {
       this.definition
         .specialWindupMs,
       () => {
-        if (!this._alive) {
+        if (
+          !this._alive ||
+          !this.specialPending
+        ) {
           telegraph.destroy();
           return;
         }
@@ -755,6 +811,172 @@ export class BossUnit {
           this.scene.time.now +
           this.definition
             .specialCooldownMs;
+      },
+    );
+  }
+
+  private startLineSpecialAttack(
+    onPlayerHit:
+      (damage: number) => void,
+  ): void {
+    const length =
+      this.definition
+        .lineSpecialLength;
+    const width =
+      this.definition
+        .lineSpecialWidth;
+    const damage =
+      this.definition
+        .lineSpecialDamage;
+    const windup =
+      this.definition
+        .lineSpecialWindupMs;
+    const cooldown =
+      this.definition
+        .lineSpecialCooldownMs;
+
+    if (
+      !length ||
+      !width ||
+      !damage ||
+      !windup ||
+      !cooldown
+    ) {
+      return;
+    }
+
+    const direction =
+      new Phaser.Math.Vector2(
+        this.lastPlayerPosition.x -
+          this.sprite.x,
+        this.lastPlayerPosition.y -
+          this.sprite.y,
+      );
+
+    if (
+      direction.lengthSq() <
+      0.001
+    ) {
+      direction.set(1, 0);
+    }
+
+    direction.normalize();
+
+    const angle =
+      Math.atan2(
+        direction.y,
+        direction.x,
+      );
+
+    const telegraph =
+      this.scene.add
+        .rectangle(
+          this.sprite.x +
+            direction.x *
+              length /
+              2,
+          this.sprite.y +
+            direction.y *
+              length /
+              2,
+          length,
+          width,
+          0xff6f3f,
+          0.16,
+        )
+        .setStrokeStyle(
+          5,
+          0xffb06a,
+          0.78,
+        )
+        .setRotation(
+          angle,
+        )
+        .setDepth(
+          this.sprite.y - 4,
+        );
+
+    this.lineSpecialPending =
+      true;
+    this.lineSpecialTelegraph =
+      telegraph;
+
+    this.scene.tweens.add({
+      targets: telegraph,
+      alpha: 0.36,
+      scaleY: 1.12,
+      duration: windup,
+      ease: 'Sine.In',
+    });
+
+    this.scene.time.delayedCall(
+      windup,
+      () => {
+        if (
+          !this._alive ||
+          !this.lineSpecialPending
+        ) {
+          telegraph.destroy();
+          return;
+        }
+
+        const relative =
+          new Phaser.Math.Vector2(
+            this.lastPlayerPosition.x -
+              this.sprite.x,
+            this.lastPlayerPosition.y -
+              this.sprite.y,
+          );
+
+        const projection =
+          relative.dot(
+            direction,
+          );
+        const perpendicular =
+          Math.abs(
+            relative.x *
+              direction.y -
+            relative.y *
+              direction.x,
+          );
+
+        if (
+          projection >=
+            -this.lastPlayerRadius &&
+          projection <=
+            length +
+              this.lastPlayerRadius &&
+          perpendicular <=
+            width / 2 +
+              this.lastPlayerRadius
+        ) {
+          onPlayerHit(
+            damage,
+          );
+        }
+
+        this.scene.cameras.main.shake(
+          110,
+          0.0045,
+        );
+
+        this.scene.tweens.add({
+          targets: telegraph,
+          scaleY: 1.45,
+          alpha: 0,
+          duration: 145,
+          onComplete: () => {
+            telegraph.destroy();
+          },
+        });
+
+        this.lineSpecialTelegraph =
+          undefined;
+        this.lineSpecialPending =
+          false;
+        this.nextLineSpecialAt =
+          this.scene.time.now +
+          cooldown;
       },
     );
   }
@@ -810,9 +1032,15 @@ export class BossUnit {
     this.returning = true;
     this._engaged = false;
     this.specialPending = false;
+    this.lineSpecialPending =
+      false;
     this.specialTelegraph
       ?.destroy();
+    this.lineSpecialTelegraph
+      ?.destroy();
     this.specialTelegraph =
+      undefined;
+    this.lineSpecialTelegraph =
       undefined;
   }
 
@@ -931,8 +1159,14 @@ export class BossUnit {
 
     this.specialTelegraph
       ?.destroy();
+    this.lineSpecialTelegraph
+      ?.destroy();
     this.specialTelegraph =
       undefined;
+    this.lineSpecialTelegraph =
+      undefined;
+    this.lineSpecialPending =
+      false;
 
     this.healthBack.setVisible(
       false,
@@ -1010,10 +1244,18 @@ export class BossUnit {
       this.scene.time.now + 700;
     this.nextSpecialAt =
       this.scene.time.now + 2200;
+    this.nextLineSpecialAt =
+      this.scene.time.now + 3900;
     this.specialPending = false;
+    this.lineSpecialPending =
+      false;
     this.specialTelegraph
       ?.destroy();
+    this.lineSpecialTelegraph
+      ?.destroy();
     this.specialTelegraph =
+      undefined;
+    this.lineSpecialTelegraph =
       undefined;
 
     const body =

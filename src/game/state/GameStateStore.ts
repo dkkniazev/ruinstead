@@ -330,6 +330,12 @@ export function sanitizeGameState(value: unknown): GameState {
           defaults.world
             .discoveredLandmarks,
         ),
+      uniqueRewards:
+        stringArray(
+          world?.uniqueRewards,
+          defaults.world
+            .uniqueRewards,
+        ),
       playerPosition:
         positionX !== undefined &&
         positionY !== undefined

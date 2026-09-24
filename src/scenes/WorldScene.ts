@@ -53,9 +53,6 @@ import {
   startYandexGameplay,
 } from '../platform/yandex/YandexPlatform';
 
-const DEATH_RESOURCE_LOSS_FRACTION =
-  0.35;
-
 export class WorldScene
   extends Phaser.Scene {
   private readonly stateStore =
@@ -201,8 +198,10 @@ export class WorldScene
           .weaponId,
         this.gameState.player
           .unlockedWeaponIds,
-        this.gameState.resources
-          .coins,
+        (value) =>
+          this.handleCoinCollected(
+            value,
+          ),
         () => {
           this.handlePlayerDefeated();
         },
@@ -341,9 +340,10 @@ export class WorldScene
           wood: 0,
           stone: 0,
           metal: 0,
+          coins: 0,
         },
         usedCapacity: 0,
-        capacity: 30,
+        capacity: 100,
       };
 
     const storage =
@@ -358,11 +358,15 @@ export class WorldScene
             metal:
               this.gameState
                 .resources.metal,
+            coins:
+              this.gameState
+                .resources.coins,
           }
         : {
             wood: 0,
             stone: 0,
             metal: 0,
+            coins: 0,
           };
 
     return {
@@ -413,8 +417,6 @@ export class WorldScene
       this.gameState.player
         .unlockedWeaponIds =
           [...state.unlockedWeaponIds];
-      this.gameState.resources.coins =
-        state.coins;
       this.saveState();
     }
 
@@ -422,6 +424,26 @@ export class WorldScene
       HUD_COMBAT_STATE_EVENT,
       state,
     );
+  }
+
+  private handleCoinCollected(
+    value: number,
+  ): number {
+    if (!this.backpack) {
+      return 0;
+    }
+
+    const accepted =
+      this.backpack.add(
+        'coins',
+        value,
+      );
+
+    if (accepted > 0) {
+      this.handleBackpackChanged();
+    }
+
+    return accepted;
   }
 
   private handleBackpackChanged(): void {
@@ -446,30 +468,46 @@ export class WorldScene
   }
 
   private handlePlayerDefeated(): void {
-    if (!this.backpack) {
+    if (
+      !this.backpack ||
+      !this.player ||
+      !this.resourceSystem
+    ) {
       return;
     }
 
-    const lost =
-      this.backpack.loseFraction(
-        DEATH_RESOURCE_LOSS_FRACTION,
-      );
+    const deathPosition =
+      this.player.position;
+    const dropped =
+      this.backpack.takeAll();
+
+    this.resourceSystem.spawnDeathDrop(
+      deathPosition,
+      dropped,
+    );
+
+    this.enemies?.resetCombat(
+      this.time.now,
+    );
+    this.bosses?.resetCombat(
+      this.time.now,
+    );
 
     this.handleBackpackChanged();
 
     if (
       totalResourceUnits(
-        lost,
+        dropped,
       ) > 0
     ) {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `Поражение: потеряно ${this.formatResources(lost)}`,
+        `Поражение: весь рюкзак выпал на месте смерти — ${this.formatResources(dropped)}`,
       );
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        'Поражение: полевая добыча не потеряна',
+        'Поражение: рюкзак был пуст',
       );
     }
   }
@@ -566,6 +604,11 @@ export class WorldScene
     if (resources.metal > 0) {
       parts.push(
         `металл +${resources.metal}`,
+      );
+    }
+    if (resources.coins > 0) {
+      parts.push(
+        `монеты +${resources.coins}`,
       );
     }
 

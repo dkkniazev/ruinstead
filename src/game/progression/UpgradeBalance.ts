@@ -4,9 +4,11 @@ import type {
 import type {
   WeaponId,
 } from '../combat/WeaponDefinitions';
+import {
+  MAX_WEAPON_LEVEL,
+} from './WeaponInventory';
 
 export const MAX_PLAYER_UPGRADE_LEVEL = 10;
-export const MAX_WEAPON_LEVEL = 10;
 
 // Compatibility alias for older UI imports.
 export const MAX_UPGRADE_LEVEL =
@@ -21,20 +23,6 @@ export const PLAYER_UPGRADE_IDS = [
 
 export type PlayerUpgradeId =
   (typeof PLAYER_UPGRADE_IDS)[number];
-
-export type WeaponRarityId =
-  | 'common'
-  | 'uncommon'
-  | 'rare'
-  | 'epic'
-  | 'legendary';
-
-export type WeaponRarity = {
-  id: WeaponRarityId;
-  name: string;
-  damageMultiplier: number;
-  color: string;
-};
 
 const EMPTY_COST =
   (): ResourceCounts => ({
@@ -57,59 +45,6 @@ function clampedLevel(
       Math.floor(level),
     ),
   );
-}
-
-export function getWeaponRarity(
-  level: number,
-): WeaponRarity {
-  const safeLevel =
-    clampedLevel(
-      level,
-      MAX_WEAPON_LEVEL,
-    );
-
-  if (safeLevel >= 10) {
-    return {
-      id: 'legendary',
-      name: 'Легендарное',
-      damageMultiplier: 2.5,
-      color: '#ffd45c',
-    };
-  }
-
-  if (safeLevel >= 8) {
-    return {
-      id: 'epic',
-      name: 'Эпическое',
-      damageMultiplier: 2.25,
-      color: '#d99cff',
-    };
-  }
-
-  if (safeLevel >= 6) {
-    return {
-      id: 'rare',
-      name: 'Редкое',
-      damageMultiplier: 2,
-      color: '#73b9ff',
-    };
-  }
-
-  if (safeLevel >= 3) {
-    return {
-      id: 'uncommon',
-      name: 'Необычное',
-      damageMultiplier: 1,
-      color: '#79dc77',
-    };
-  }
-
-  return {
-    id: 'common',
-    name: 'Обычное',
-    damageMultiplier: 1,
-    color: '#f3f1e8',
-  };
 }
 
 export function getMaxHealth(
@@ -217,27 +152,6 @@ export function getBackpackCapacity(
     100 +
     early * 25 +
     late * 35
-  );
-}
-
-export function getWeaponDamageMultiplier(
-  level: number,
-): number {
-  const safeLevel =
-    clampedLevel(
-      level,
-      MAX_WEAPON_LEVEL,
-    );
-  const baseUpgrade =
-    1 + safeLevel * 0.15;
-  const rarity =
-    getWeaponRarity(
-      safeLevel,
-    );
-
-  return (
-    baseUpgrade *
-    rarity.damageMultiplier
   );
 }
 

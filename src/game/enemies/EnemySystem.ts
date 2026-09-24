@@ -560,9 +560,7 @@ export class EnemyUnit {
 
     if (
       playerSafe ||
-      !groupEngaged ||
-      distanceToSpawn >
-        this.definition.leashRange
+      !groupEngaged
     ) {
       if (distanceToSpawn > 10) {
         this.moveTowards(

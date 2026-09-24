@@ -76,6 +76,8 @@ export class CombatSystem {
         'axe',
       ],
     initialCoins = 0,
+    private readonly onPlayerDefeated?:
+      () => void,
   ) {
     this.drops =
       new DropSystem(
@@ -630,6 +632,7 @@ export class CombatSystem {
 
   private handleDeath(): void {
     this.dead = true;
+    this.onPlayerDefeated?.();
     this.player.setEnabled(
       false,
     );

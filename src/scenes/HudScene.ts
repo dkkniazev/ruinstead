@@ -14,13 +14,17 @@ import {
 import {
   HUD_AREA_EVENT,
   HUD_COMBAT_STATE_EVENT,
+  HUD_GATHERING_STATE_EVENT,
   HUD_NOTICE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
+  type GatheringHudState,
 } from '../game/ui/HudEvents';
 
 type HudSceneData = {
   initialCombatState:
     CombatState;
+  initialGatheringState:
+    GatheringHudState;
   initialAreaName: string;
 };
 
@@ -28,6 +32,8 @@ export class HudScene
   extends Phaser.Scene {
   private initialCombatState?:
     CombatState;
+  private initialGatheringState?:
+    GatheringHudState;
   private initialAreaName =
     'Руины поселения';
 
@@ -40,6 +46,14 @@ export class HudScene
   private areaText?:
     Phaser.GameObjects.Text;
   private noticeText?:
+    Phaser.GameObjects.Text;
+  private backpackFill?:
+    Phaser.GameObjects.Rectangle;
+  private backpackText?:
+    Phaser.GameObjects.Text;
+  private carriedText?:
+    Phaser.GameObjects.Text;
+  private storageText?:
     Phaser.GameObjects.Text;
 
   private weaponButtons:
@@ -65,6 +79,8 @@ export class HudScene
   init(data: HudSceneData): void {
     this.initialCombatState =
       data.initialCombatState;
+    this.initialGatheringState =
+      data.initialGatheringState;
     this.initialAreaName =
       data.initialAreaName;
   }
@@ -73,6 +89,7 @@ export class HudScene
     configureLogicalCamera(this);
 
     this.createTopLeftStatus();
+    this.createGatheringPanel();
     this.createWeaponSelector();
     this.createControlsHint();
     this.createNoticeLayer();
@@ -80,6 +97,11 @@ export class HudScene
     this.game.events.on(
       HUD_COMBAT_STATE_EVENT,
       this.handleCombatState,
+      this,
+    );
+    this.game.events.on(
+      HUD_GATHERING_STATE_EVENT,
+      this.handleGatheringState,
       this,
     );
     this.game.events.on(
@@ -114,6 +136,14 @@ export class HudScene
     ) {
       this.handleCombatState(
         this.initialCombatState,
+      );
+    }
+
+    if (
+      this.initialGatheringState
+    ) {
+      this.handleGatheringState(
+        this.initialGatheringState,
       );
     }
   }
@@ -215,6 +245,108 @@ export class HudScene
             x: 10,
             y: 5,
           },
+        },
+      )
+      .setDepth(103);
+  }
+
+  private createGatheringPanel(): void {
+    this.add
+      .rectangle(
+        26,
+        164,
+        276,
+        118,
+        0x234b2b,
+        0.88,
+      )
+      .setOrigin(0, 0)
+      .setStrokeStyle(
+        2,
+        0xf4f0cf,
+        0.58,
+      )
+      .setDepth(100);
+
+    this.add
+      .text(
+        42,
+        176,
+        'Рюкзак',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '15px',
+          fontStyle: 'bold',
+          color: '#fff7d6',
+        },
+      )
+      .setDepth(101);
+
+    this.add
+      .rectangle(
+        42,
+        203,
+        244,
+        20,
+        0x283128,
+        0.92,
+      )
+      .setOrigin(0, 0)
+      .setDepth(101);
+
+    this.backpackFill = this.add
+      .rectangle(
+        45,
+        206,
+        238,
+        14,
+        0x67c96a,
+        1,
+      )
+      .setOrigin(0, 0)
+      .setDepth(102);
+
+    this.backpackText = this.add
+      .text(
+        164,
+        213,
+        '',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '11px',
+          fontStyle: 'bold',
+          color: '#ffffff',
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(103);
+
+    this.carriedText = this.add
+      .text(
+        42,
+        231,
+        '',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '13px',
+          color: '#fff3cf',
+        },
+      )
+      .setDepth(103);
+
+    this.storageText = this.add
+      .text(
+        42,
+        253,
+        '',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '12px',
+          color: '#cde7c3',
         },
       )
       .setDepth(103);
@@ -425,6 +557,52 @@ export class HudScene
     };
   }
 
+  private handleGatheringState(
+    state: GatheringHudState,
+  ): void {
+    const {
+      carried,
+      usedCapacity,
+      capacity,
+    } =
+      state.backpack;
+    const ratio =
+      capacity > 0
+        ? Phaser.Math.Clamp(
+            usedCapacity /
+              capacity,
+            0,
+            1,
+          )
+        : 0;
+
+    this.backpackFill
+      ?.setDisplaySize(
+        238 * ratio,
+        14,
+      )
+      .setFillStyle(
+        ratio >= 1
+          ? 0xe16b55
+          : ratio >= 0.8
+            ? 0xe0b64d
+            : 0x67c96a,
+        1,
+      );
+
+    this.backpackText?.setText(
+      `${usedCapacity} / ${capacity}`,
+    );
+
+    this.carriedText?.setText(
+      `С собой: Д ${carried.wood} · К ${carried.stone} · М ${carried.metal}`,
+    );
+
+    this.storageText?.setText(
+      `Склад: Д ${state.storage.wood} · К ${state.storage.stone} · М ${state.storage.metal}`,
+    );
+  }
+
   private handleCombatState(
     state: CombatState,
   ): void {
@@ -582,6 +760,11 @@ export class HudScene
   }
 
   private cleanup(): void {
+    this.game.events.off(
+      HUD_GATHERING_STATE_EVENT,
+      this.handleGatheringState,
+      this,
+    );
     this.game.events.off(
       HUD_COMBAT_STATE_EVENT,
       this.handleCombatState,

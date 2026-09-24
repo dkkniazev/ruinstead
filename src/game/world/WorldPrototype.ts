@@ -7,6 +7,10 @@ export const SETTLEMENT_CENTER =
   new Phaser.Math.Vector2(650, 930);
 export const SETTLEMENT_SAFE_RADIUS = 390;
 
+export const RETURN_POINT =
+  new Phaser.Math.Vector2(760, 1010);
+export const RETURN_RADIUS = 92;
+
 const TREE_TEXTURE =
   'ruinstead-tree-bright-prototype';
 const ROCK_TEXTURE =
@@ -274,6 +278,64 @@ function drawSettlement(
     440,
     260,
   );
+
+  // Temporary field stash used to bank carried resources.
+  decor.fillStyle(
+    0x5d3d25,
+    1,
+  );
+  decor.fillRoundedRect(
+    RETURN_POINT.x - 34,
+    RETURN_POINT.y - 24,
+    68,
+    48,
+    7,
+  );
+  decor.fillStyle(
+    0x9c6938,
+    1,
+  );
+  decor.fillRoundedRect(
+    RETURN_POINT.x - 31,
+    RETURN_POINT.y - 20,
+    62,
+    19,
+    6,
+  );
+  decor.lineStyle(
+    4,
+    0xe2c264,
+    0.9,
+  );
+  decor.strokeCircle(
+    RETURN_POINT.x,
+    RETURN_POINT.y,
+    RETURN_RADIUS,
+  );
+
+  scene.add
+    .text(
+      RETURN_POINT.x,
+      RETURN_POINT.y + 43,
+      'Походный тайник',
+      {
+        fontFamily:
+          'system-ui, sans-serif',
+        fontSize: '14px',
+        fontStyle: 'bold',
+        color: '#4f5937',
+        backgroundColor:
+          '#f0e3a6aa',
+        padding: {
+          x: 7,
+          y: 3,
+        },
+      },
+    )
+    .setOrigin(0.5)
+    .setDepth(
+      RETURN_POINT.y + 80,
+    );
 
   // Campfire.
   decor.fillStyle(

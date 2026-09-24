@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 3 as const;
+export const SAVE_SCHEMA_VERSION = 4 as const;
 
 export type BuildingId =
   | 'forge'
@@ -22,6 +22,11 @@ export type GameState = {
     backpackLevel: number;
     dashLevel: number;
   };
+  backpack: {
+    wood: number;
+    stone: number;
+    metal: number;
+  };
   settlement: {
     level: number;
     buildings: Record<BuildingId, number>;
@@ -31,6 +36,10 @@ export type GameState = {
     defeatedBosses: string[];
     bossRespawnAt:
       Record<string, number>;
+    playerPosition: {
+      x: number;
+      y: number;
+    } | null;
   };
   resources: {
     wood: number;
@@ -65,6 +74,11 @@ export function createDefaultGameState(): GameState {
       backpackLevel: 0,
       dashLevel: 0,
     },
+    backpack: {
+      wood: 0,
+      stone: 0,
+      metal: 0,
+    },
     settlement: {
       level: 0,
       buildings: {
@@ -82,6 +96,7 @@ export function createDefaultGameState(): GameState {
       unlockedZones: ['settlement', 'forest-edge'],
       defeatedBosses: [],
       bossRespawnAt: {},
+      playerPosition: null,
     },
     resources: {
       wood: 0,

@@ -13,6 +13,17 @@ import {
 } from '../game/combat/WeaponDefinitions';
 import { EnemySystem } from '../game/enemies/EnemySystem';
 import {
+  BackpackSystem,
+} from '../game/gathering/BackpackSystem';
+import {
+  ResourceSystem,
+} from '../game/gathering/ResourceSystem';
+import {
+  RESOURCE_TYPES,
+  totalResourceUnits,
+  type ResourceCounts,
+} from '../game/gathering/ResourceTypes';
+import {
   configureLogicalCamera,
 } from '../game/layout/Viewport';
 import { PlayerController } from '../game/player/PlayerController';
@@ -24,10 +35,14 @@ import { GameStateStore } from '../game/state/GameStateStore';
 import {
   HUD_AREA_EVENT,
   HUD_COMBAT_STATE_EVENT,
+  HUD_GATHERING_STATE_EVENT,
   HUD_NOTICE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
+  type GatheringHudState,
 } from '../game/ui/HudEvents';
 import {
+  RETURN_POINT,
+  RETURN_RADIUS,
   WORLD_HEIGHT,
   WORLD_WIDTH,
   createPrototypeWorld,
@@ -37,6 +52,9 @@ import {
   markYandexGameReady,
   startYandexGameplay,
 } from '../platform/yandex/YandexPlatform';
+
+const DEATH_RESOURCE_LOSS_FRACTION =
+  0.35;
 
 export class WorldScene
   extends Phaser.Scene {
@@ -53,10 +71,15 @@ export class WorldScene
     BossSystem;
   private combat?:
     CombatSystem;
+  private backpack?:
+    BackpackSystem;
+  private resourceSystem?:
+    ResourceSystem;
 
   private debugOverlay?:
     DebugOverlay;
   private lastAreaName = '';
+  private wasAtReturnPoint = false;
 
   private weaponKeys:
     Partial<
@@ -83,11 +106,47 @@ export class WorldScene
     const world =
       createPrototypeWorld(this);
 
+    const savedPosition =
+      this.gameState.world
+        .playerPosition;
+    const startX =
+      savedPosition
+        ? Phaser.Math.Clamp(
+            savedPosition.x,
+            40,
+            WORLD_WIDTH - 40,
+          )
+        : world.spawn.x;
+    const startY =
+      savedPosition
+        ? Phaser.Math.Clamp(
+            savedPosition.y,
+            40,
+            WORLD_HEIGHT - 40,
+          )
+        : world.spawn.y;
+
     this.player =
       new PlayerController(
         this,
-        world.spawn.x,
-        world.spawn.y,
+        startX,
+        startY,
+      );
+
+    this.backpack =
+      new BackpackSystem(
+        this.gameState.player
+          .backpackLevel,
+        this.gameState.backpack,
+      );
+
+    this.resourceSystem =
+      new ResourceSystem(
+        this,
+        this.backpack,
+        () => {
+          this.handleBackpackChanged();
+        },
       );
 
     this.enemies =
@@ -144,6 +203,9 @@ export class WorldScene
           .unlockedWeaponIds,
         this.gameState.resources
           .coins,
+        () => {
+          this.handlePlayerDefeated();
+        },
       );
 
     this.createWeaponKeys();
@@ -179,11 +241,16 @@ export class WorldScene
         this.player.position,
       );
 
+    this.wasAtReturnPoint =
+      this.isAtReturnPoint();
+
     this.scene.launch(
       'HudScene',
       {
         initialCombatState:
           this.combat.state,
+        initialGatheringState:
+          this.gatheringHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -218,7 +285,8 @@ export class WorldScene
       this.player &&
       this.enemies &&
       this.bosses &&
-      this.combat
+      this.combat &&
+      this.resourceSystem
     ) {
       const onPlayerHit =
         (damage: number) => {
@@ -239,19 +307,68 @@ export class WorldScene
         onPlayerHit,
       );
 
+      const threatened =
+        this.enemies
+          .isPlayerThreatened() ||
+        this.bosses
+          .isPlayerThreatened();
+
       this.combat.update(
         time,
         delta,
-        this.enemies
-          .isPlayerThreatened() ||
-          this.bosses
-            .isPlayerThreatened(),
+        threatened,
+      );
+
+      this.resourceSystem.update(
+        time,
+        delta,
+        this.player.position,
+        threatened,
       );
     }
 
+    this.handleReturnPoint();
     this.handleWeaponKeys();
     this.updateAreaName();
     this.debugOverlay?.update();
+  }
+
+  private get gatheringHudState():
+    GatheringHudState {
+    const backpack =
+      this.backpack?.state ?? {
+        carried: {
+          wood: 0,
+          stone: 0,
+          metal: 0,
+        },
+        usedCapacity: 0,
+        capacity: 30,
+      };
+
+    const storage =
+      this.gameState
+        ? {
+            wood:
+              this.gameState
+                .resources.wood,
+            stone:
+              this.gameState
+                .resources.stone,
+            metal:
+              this.gameState
+                .resources.metal,
+          }
+        : {
+            wood: 0,
+            stone: 0,
+            metal: 0,
+          };
+
+    return {
+      backpack,
+      storage,
+    };
   }
 
   private createWeaponKeys(): void {
@@ -304,6 +421,157 @@ export class WorldScene
     this.game.events.emit(
       HUD_COMBAT_STATE_EVENT,
       state,
+    );
+  }
+
+  private handleBackpackChanged(): void {
+    if (
+      !this.gameState ||
+      !this.backpack
+    ) {
+      return;
+    }
+
+    this.gameState.backpack = {
+      ...this.backpack.state
+        .carried,
+    };
+
+    this.game.events.emit(
+      HUD_GATHERING_STATE_EVENT,
+      this.gatheringHudState,
+    );
+
+    this.saveState();
+  }
+
+  private handlePlayerDefeated(): void {
+    if (!this.backpack) {
+      return;
+    }
+
+    const lost =
+      this.backpack.loseFraction(
+        DEATH_RESOURCE_LOSS_FRACTION,
+      );
+
+    this.handleBackpackChanged();
+
+    if (
+      totalResourceUnits(
+        lost,
+      ) > 0
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `Поражение: потеряно ${this.formatResources(lost)}`,
+      );
+    } else {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Поражение: полевая добыча не потеряна',
+      );
+    }
+  }
+
+  private handleReturnPoint(): void {
+    if (
+      !this.player ||
+      !this.backpack ||
+      !this.gameState
+    ) {
+      return;
+    }
+
+    const inside =
+      this.isAtReturnPoint();
+
+    if (
+      inside &&
+      !this.wasAtReturnPoint &&
+      this.backpack
+        .state.usedCapacity > 0
+    ) {
+      const deposited =
+        this.backpack.deposit();
+
+      for (
+        const type of
+        RESOURCE_TYPES
+      ) {
+        this.gameState.resources[
+          type
+        ] += deposited[type];
+      }
+
+      this.gameState.progression
+        .expeditionCount += 1;
+
+      this.gameState.backpack = {
+        ...this.backpack.state
+          .carried,
+      };
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `Добыча сохранена: ${this.formatResources(deposited)}`,
+      );
+
+      this.game.events.emit(
+        HUD_GATHERING_STATE_EVENT,
+        this.gatheringHudState,
+      );
+
+      this.saveState();
+    }
+
+    this.wasAtReturnPoint =
+      inside;
+  }
+
+  private isAtReturnPoint():
+    boolean {
+    if (!this.player) {
+      return false;
+    }
+
+    return (
+      Phaser.Math.Distance.Between(
+        this.player.position.x,
+        this.player.position.y,
+        RETURN_POINT.x,
+        RETURN_POINT.y,
+      ) <=
+      RETURN_RADIUS
+    );
+  }
+
+  private formatResources(
+    resources:
+      ResourceCounts,
+  ): string {
+    const parts:
+      string[] = [];
+
+    if (resources.wood > 0) {
+      parts.push(
+        `дерево +${resources.wood}`,
+      );
+    }
+    if (resources.stone > 0) {
+      parts.push(
+        `камень +${resources.stone}`,
+      );
+    }
+    if (resources.metal > 0) {
+      parts.push(
+        `металл +${resources.metal}`,
+      );
+    }
+
+    return (
+      parts.join(' · ') ||
+      'ничего'
     );
   }
 
@@ -425,6 +693,21 @@ export class WorldScene
       return;
     }
 
+    if (this.player) {
+      this.gameState.world
+        .playerPosition = {
+          x: this.player.position.x,
+          y: this.player.position.y,
+        };
+    }
+
+    if (this.backpack) {
+      this.gameState.backpack = {
+        ...this.backpack.state
+          .carried,
+      };
+    }
+
     this.gameState =
       this.stateStore.save(
         this.gameState,
@@ -467,6 +750,10 @@ export class WorldScene
     this.scene.stop(
       'HudScene',
     );
+
+    this.resourceSystem?.destroy();
+    this.resourceSystem =
+      undefined;
 
     this.combat?.destroy();
     this.combat = undefined;

@@ -94,6 +94,7 @@ export function sanitizeGameState(value: unknown): GameState {
   const defaults = createDefaultGameState();
   const root = asRecord(value);
   const player = asRecord(root?.player);
+  const backpack = asRecord(root?.backpack);
   const settlement = asRecord(root?.settlement);
   const savedBuildings = asRecord(settlement?.buildings);
   const world = asRecord(root?.world);
@@ -101,6 +102,28 @@ export function sanitizeGameState(value: unknown): GameState {
   const progression = asRecord(root?.progression);
   const quests = asRecord(root?.quests);
   const settings = asRecord(root?.settings);
+
+  const playerPosition =
+    asRecord(
+      world?.playerPosition,
+    );
+
+  const positionX =
+    typeof playerPosition?.x ===
+        'number' &&
+      Number.isFinite(
+        playerPosition.x,
+      )
+      ? playerPosition.x
+      : undefined;
+  const positionY =
+    typeof playerPosition?.y ===
+        'number' &&
+      Number.isFinite(
+        playerPosition.y,
+      )
+      ? playerPosition.y
+      : undefined;
 
   const buildings = { ...defaults.settlement.buildings };
 
@@ -147,6 +170,20 @@ export function sanitizeGameState(value: unknown): GameState {
         defaults.player.dashLevel,
       ),
     },
+    backpack: {
+      wood: nonNegativeInt(
+        backpack?.wood,
+        defaults.backpack.wood,
+      ),
+      stone: nonNegativeInt(
+        backpack?.stone,
+        defaults.backpack.stone,
+      ),
+      metal: nonNegativeInt(
+        backpack?.metal,
+        defaults.backpack.metal,
+      ),
+    },
     settlement: {
       level: nonNegativeInt(
         settlement?.level,
@@ -166,6 +203,14 @@ export function sanitizeGameState(value: unknown): GameState {
       bossRespawnAt: numberRecord(
         world?.bossRespawnAt,
       ),
+      playerPosition:
+        positionX !== undefined &&
+        positionY !== undefined
+          ? {
+              x: positionX,
+              y: positionY,
+            }
+          : null,
     },
     resources: {
       wood: nonNegativeInt(

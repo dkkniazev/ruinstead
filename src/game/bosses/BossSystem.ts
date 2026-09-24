@@ -9,6 +9,9 @@ import type {
 import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
+import type {
+  WeaponRarityId,
+} from '../progression/WeaponInventory';
 import {
   SETTLEMENT_CENTER,
   SETTLEMENT_SAFE_RADIUS,
@@ -37,6 +40,10 @@ export type BossDefeatEvent = {
   y: number;
   dropResources:
     ResourceCounts;
+  weaponDrop: {
+    weaponId: WeaponId;
+    rarity: WeaponRarityId;
+  };
 };
 
 type BossDefinition = {
@@ -57,6 +64,10 @@ type BossDefinition = {
   dropCoins: number;
   dropResources:
     ResourceCounts;
+  weaponDrop: {
+    weaponId: WeaponId;
+    rarity: WeaponRarityId;
+  };
   respawnCooldownMs: number;
   weaknessWeaponId: WeaponId;
   resistanceWeaponId: WeaponId;
@@ -104,6 +115,7 @@ const BOSS_DEFINITIONS:
     leashRange: 300,
     dropCoins: 24,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
+    weaponDrop: { weaponId: 'spear', rarity: 'common' },
     respawnCooldownMs: bossRespawnCooldownMs(0),
     weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
@@ -132,6 +144,7 @@ const BOSS_DEFINITIONS:
     leashRange: 320,
     dropCoins: 32,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
+    weaponDrop: { weaponId: 'hammer', rarity: 'common' },
     respawnCooldownMs: bossRespawnCooldownMs(1),
     weaknessWeaponId: 'hammer',
     resistanceWeaponId: 'sword',
@@ -162,6 +175,7 @@ const BOSS_DEFINITIONS:
     leashRange: 360,
     dropCoins: 55,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
+    weaponDrop: { weaponId: 'daggers', rarity: 'common' },
     respawnCooldownMs: bossRespawnCooldownMs(2),
     weaknessWeaponId: 'spear',
     resistanceWeaponId: 'hammer',
@@ -202,6 +216,10 @@ const BOSS_DEFINITIONS:
       crystal: 1,
       fiber: 4,
     },
+    weaponDrop: {
+      weaponId: 'axe',
+      rarity: 'uncommon',
+    },
     respawnCooldownMs:
       bossRespawnCooldownMs(3),
     weaknessWeaponId: 'daggers',
@@ -239,6 +257,10 @@ const BOSS_DEFINITIONS:
       crystal: 4,
       fiber: 0,
     },
+    weaponDrop: {
+      weaponId: 'hammer',
+      rarity: 'uncommon',
+    },
     respawnCooldownMs:
       bossRespawnCooldownMs(4),
     weaknessWeaponId: 'hammer',
@@ -275,6 +297,10 @@ const BOSS_DEFINITIONS:
       coins: 0,
       crystal: 6,
       fiber: 6,
+    },
+    weaponDrop: {
+      weaponId: 'sword',
+      rarity: 'uncommon',
     },
     respawnCooldownMs:
       bossRespawnCooldownMs(5),
@@ -1367,6 +1393,10 @@ export class BossUnit {
       dropResources: {
         ...this.definition
           .dropResources,
+      },
+      weaponDrop: {
+        ...this.definition
+          .weaponDrop,
       },
     });
 

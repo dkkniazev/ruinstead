@@ -34,6 +34,8 @@ type ResourcePickup = {
   sprite: Phaser.GameObjects.Image;
   label?: Phaser.GameObjects.Text;
   expiresAt: number;
+  lockedUntilPlayerLeaves: boolean;
+  lockCenter?: Phaser.Math.Vector2;
 };
 
 const NODE_DEFINITIONS:
@@ -340,6 +342,7 @@ export class ResourceSystem {
         amount,
         Number.POSITIVE_INFINITY,
         true,
+        position,
       );
 
       slot += 1;
@@ -448,6 +451,7 @@ export class ResourceSystem {
     amount: number,
     expiresAt: number,
     persistent: boolean,
+    lockCenter?: Phaser.Math.Vector2,
   ): void {
     const sprite =
       this.scene.add
@@ -509,6 +513,10 @@ export class ResourceSystem {
       sprite,
       label,
       expiresAt,
+      lockedUntilPlayerLeaves:
+        lockCenter !== undefined,
+      lockCenter:
+        lockCenter?.clone(),
     });
   }
 
@@ -541,6 +549,30 @@ export class ResourceSystem {
           true,
         );
         continue;
+      }
+
+      if (
+        pickup.lockedUntilPlayerLeaves
+      ) {
+        const center =
+          pickup.lockCenter;
+
+        if (
+          center &&
+          Phaser.Math.Distance.Between(
+            playerPosition.x,
+            playerPosition.y,
+            center.x,
+            center.y,
+          ) >= 220
+        ) {
+          pickup.lockedUntilPlayerLeaves =
+            false;
+          pickup.lockCenter =
+            undefined;
+        } else {
+          continue;
+        }
       }
 
       if (

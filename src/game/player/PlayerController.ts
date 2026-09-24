@@ -7,7 +7,7 @@ import {
 import { TouchPlayerInput } from '../input/TouchPlayerInput';
 
 const PLAYER_TEXTURE =
-  'ruinstead-player-placeholder';
+  'ruinstead-player-prototype';
 
 const MOVE_SPEED = 225;
 const DASH_SPEED = 570;
@@ -46,11 +46,11 @@ export class PlayerController {
     this.shadow = scene.add
       .ellipse(
         x,
-        y + 42,
-        58,
-        20,
-        0x07100b,
-        0.32,
+        y + 41,
+        56,
+        19,
+        0x21431c,
+        0.24,
       )
       .setDepth(
         y + PLAYER_BASELINE_OFFSET - 2,
@@ -74,7 +74,7 @@ export class PlayerController {
         Phaser.Physics.Arcade.Body;
 
     body
-      .setSize(32, 34)
+      .setSize(32, 33)
       .setOffset(24, 70);
 
     this.desktopInput =
@@ -146,6 +146,13 @@ export class PlayerController {
     this.syncVisualDepth();
   }
 
+  get position(): Phaser.Math.Vector2 {
+    return new Phaser.Math.Vector2(
+      this.sprite.x,
+      this.sprite.y,
+    );
+  }
+
   destroy(): void {
     this.unsubscribeInputMode?.();
     this.unsubscribeInputMode =
@@ -177,7 +184,7 @@ export class PlayerController {
       time + DASH_COOLDOWN_MS;
 
     this.sprite.setTint(
-      0xffd684,
+      0xfff0a8,
     );
 
     this.scene.cameras.main.shake(
@@ -225,7 +232,7 @@ export class PlayerController {
     this.shadow
       .setPosition(
         this.sprite.x,
-        this.sprite.y + 42,
+        this.sprite.y + 41,
       )
       .setDepth(baseline - 2);
   }
@@ -253,113 +260,100 @@ export class PlayerController {
         y: 0,
       });
 
-    // Rear cloak / body: deliberately taller than wide so
-    // the character reads as a 3/4-view figure rather than a top-down dot.
+    // Compact chibi silhouette for the casual 3/4 camera.
     graphics.fillStyle(
-      0x26382f,
-      1,
-    );
-    graphics.fillTriangle(
-      22,
-      55,
-      58,
-      55,
-      64,
-      94,
-    );
-    graphics.fillTriangle(
-      22,
-      55,
-      64,
-      94,
-      18,
-      94,
-    );
-
-    // Shoulder mass.
-    graphics.fillStyle(
-      0x3f6f58,
+      0x5f3a76,
       1,
     );
     graphics.fillRoundedRect(
-      19,
+      20,
+      48,
+      42,
+      37,
+      13,
+    );
+
+    graphics.fillStyle(
+      0xf2b63f,
+      1,
+    );
+    graphics.fillRoundedRect(
+      23,
       45,
-      43,
-      34,
+      36,
+      33,
       12,
     );
 
-    // Head in 3/4 view.
     graphics.fillStyle(
-      0xd6b285,
+      0xe9bd8c,
       1,
     );
     graphics.fillEllipse(
       42,
-      33,
-      27,
-      31,
+      32,
+      29,
+      32,
     );
 
     graphics.fillStyle(
-      0x55402f,
+      0x5d3a2b,
       1,
     );
     graphics.fillEllipse(
-      39,
-      24,
-      28,
-      13,
+      40,
+      23,
+      31,
+      14,
     );
 
-    // Legs / boots remain visible under the torso.
     graphics.fillStyle(
-      0x1b2721,
+      0x4d315e,
       1,
     );
     graphics.fillRoundedRect(
-      26,
-      82,
-      12,
-      22,
-      5,
+      25,
+      77,
+      14,
+      24,
+      6,
     );
     graphics.fillRoundedRect(
       44,
-      82,
-      12,
-      22,
-      5,
+      77,
+      14,
+      24,
+      6,
     );
 
-    // Sword sits diagonally behind the right shoulder.
+    // Sword sits behind the shoulder and reads from a distance.
     graphics.lineStyle(
-      5,
-      0xcbd5c9,
+      6,
+      0xe7eef0,
       1,
     );
     graphics.lineBetween(
-      58,
-      55,
-      73,
-      24,
-    );
-    graphics.lineStyle(
-      3,
-      0x7b5b35,
-      1,
-    );
-    graphics.lineBetween(
-      55,
       60,
+      57,
+      72,
+      21,
+    );
+    graphics.lineStyle(
+      4,
+      0x6b4a2b,
+      1,
+    );
+    graphics.lineBetween(
+      57,
+      63,
       64,
-      43,
+      44,
     );
 
     graphics.generateTexture(
       PLAYER_TEXTURE,
-      80,
-      112,
+      82,
+      110,
     );
     graphics.destroy();
   }

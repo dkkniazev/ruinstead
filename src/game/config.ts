@@ -1,7 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from '../scenes/BootScene';
-import { ExpeditionScene } from '../scenes/ExpeditionScene';
-import { SettlementScene } from '../scenes/SettlementScene';
+import { WorldScene } from '../scenes/WorldScene';
 import {
   getBrowserViewportMetrics,
 } from './layout/Viewport';
@@ -13,13 +12,12 @@ export const gameConfig:
   Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'app',
-  backgroundColor: '#17231c',
+  backgroundColor: '#69be4b',
   width: viewport.renderWidth,
   height: viewport.renderHeight,
   scene: [
     BootScene,
-    SettlementScene,
-    ExpeditionScene,
+    WorldScene,
   ],
   scale: {
     mode: Phaser.Scale.NONE,

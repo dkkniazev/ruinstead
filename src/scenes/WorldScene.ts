@@ -6,29 +6,43 @@ import {
 import { PlayerController } from '../game/player/PlayerController';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
-  TEST_WORLD_HEIGHT,
-  TEST_WORLD_WIDTH,
-  createTestWorld,
-} from '../game/world/TestWorld';
+  WORLD_HEIGHT,
+  WORLD_WIDTH,
+  createPrototypeWorld,
+  getAreaName,
+} from '../game/world/WorldPrototype';
+import { GameStateStore } from '../game/state/GameStateStore';
+import {
+  markYandexGameReady,
+  startYandexGameplay,
+} from '../platform/yandex/YandexPlatform';
 
-export class ExpeditionScene
+export class WorldScene
   extends Phaser.Scene {
+  private readonly stateStore =
+    new GameStateStore();
+
   private player?:
     PlayerController;
   private debugOverlay?:
     DebugOverlay;
-  private escapeKey?:
-    Phaser.Input.Keyboard.Key;
+  private areaLabel?:
+    Phaser.GameObjects.Text;
+  private lastAreaName = '';
 
   constructor() {
-    super('ExpeditionScene');
+    super('WorldScene');
   }
 
   create(): void {
     configureLogicalCamera(this);
 
+    const state =
+      this.stateStore.load();
+    this.stateStore.save(state);
+
     const world =
-      createTestWorld(this);
+      createPrototypeWorld(this);
 
     this.player =
       new PlayerController(
@@ -48,8 +62,8 @@ export class ExpeditionScene
     camera.setBounds(
       0,
       0,
-      TEST_WORLD_WIDTH,
-      TEST_WORLD_HEIGHT,
+      WORLD_WIDTH,
+      WORLD_HEIGHT,
     );
     camera.startFollow(
       this.player.sprite,
@@ -68,11 +82,6 @@ export class ExpeditionScene
       new DebugOverlay(this);
     this.debugOverlay.create();
 
-    this.escapeKey =
-      this.input.keyboard?.addKey(
-        Phaser.Input.Keyboard.KeyCodes.ESC,
-      );
-
     this.scale.on(
       Phaser.Scale.Events.RESIZE,
       this.handleResize,
@@ -83,53 +92,49 @@ export class ExpeditionScene
       this.cleanup,
       this,
     );
+
+    markYandexGameReady();
+    startYandexGameplay();
   }
 
   update(time: number): void {
     this.player?.update(time);
+    this.updateAreaLabel();
     this.debugOverlay?.update();
-
-    if (
-      this.escapeKey &&
-      Phaser.Input.Keyboard.JustDown(
-        this.escapeKey,
-      )
-    ) {
-      this.returnToSettlement();
-    }
   }
 
   private createHud(): void {
     const panel =
       this.add
         .rectangle(
-          176,
-          57,
-          316,
-          74,
-          0x101812,
+          139,
+          50,
+          240,
+          58,
+          0x244825,
           0.72,
+        )
+        .setStrokeStyle(
+          2,
+          0xe9f5d3,
+          0.32,
         )
         .setScrollFactor(0)
         .setDepth(8400);
 
-    panel.setStrokeStyle(
-      1,
-      0x71836d,
-      0.35,
-    );
+    panel.setOrigin(0.5);
 
-    this.add
+    this.areaLabel = this.add
       .text(
-        30,
-        30,
-        'Заросший лес',
+        28,
+        32,
+        '',
         {
           fontFamily:
             'system-ui, sans-serif',
-          fontSize: '22px',
+          fontSize: '20px',
           fontStyle: 'bold',
-          color: '#f0ead8',
+          color: '#fff7d6',
         },
       )
       .setScrollFactor(0)
@@ -137,68 +142,53 @@ export class ExpeditionScene
 
     this.add
       .text(
+        LOGICAL_WIDTH - 24,
         30,
-        61,
-        '2.5D prototype · WASD · Space/Shift — рывок',
+        'WASD / стрелки   ·   Space / Shift — рывок',
         {
           fontFamily:
             'system-ui, sans-serif',
-          fontSize: '13px',
-          color: '#bac8b4',
+          fontSize: '14px',
+          color: '#31502f',
+          backgroundColor:
+            '#efffd0bb',
+          padding: {
+            x: 10,
+            y: 6,
+          },
         },
       )
+      .setOrigin(1, 0)
       .setScrollFactor(0)
       .setDepth(8500);
 
-    const back =
-      this.add
-        .rectangle(
-          LOGICAL_WIDTH - 108,
-          48,
-          176,
-          46,
-          0x111b15,
-          0.82,
-        )
-        .setStrokeStyle(
-          2,
-          0x9fb79b,
-          0.6,
-        )
-        .setScrollFactor(0)
-        .setDepth(8500)
-        .setInteractive({
-          useHandCursor: true,
-        });
-
-    this.add
-      .text(
-        LOGICAL_WIDTH - 108,
-        48,
-        'В поселение',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '16px',
-          fontStyle: 'bold',
-          color: '#e8efdf',
-        },
-      )
-      .setOrigin(0.5)
-      .setScrollFactor(0)
-      .setDepth(8501);
-
-    back.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () => {
-        this.returnToSettlement();
-      },
-    );
+    this.updateAreaLabel();
   }
 
-  private returnToSettlement(): void {
-    this.scene.start(
-      'SettlementScene',
+  private updateAreaLabel(): void {
+    if (
+      !this.player ||
+      !this.areaLabel
+    ) {
+      return;
+    }
+
+    const areaName =
+      getAreaName(
+        this.player.position,
+      );
+
+    if (
+      areaName ===
+      this.lastAreaName
+    ) {
+      return;
+    }
+
+    this.lastAreaName =
+      areaName;
+    this.areaLabel.setText(
+      areaName,
     );
   }
 
@@ -210,8 +200,8 @@ export class ExpeditionScene
         .setBounds(
           0,
           0,
-          TEST_WORLD_WIDTH,
-          TEST_WORLD_HEIGHT,
+          WORLD_WIDTH,
+          WORLD_HEIGHT,
         )
         .startFollow(
           this.player.sprite,

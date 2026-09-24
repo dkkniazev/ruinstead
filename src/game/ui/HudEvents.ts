@@ -18,6 +18,10 @@ import type {
 import type {
   BestiaryHudState,
 } from '../bestiary/BestiarySystem';
+import type {
+  CityBuilderHudState,
+  CityBuildingId,
+} from '../settlement/CityBuilderSystem';
 
 export type GatheringHudState = {
   backpack: BackpackState;
@@ -67,6 +71,12 @@ export const HUD_BESTIARY_CLAIM_EVENT =
   'ruinstead:hud:bestiary-claim';
 export const HUD_HEALTH_POTION_EVENT =
   'ruinstead:hud:health-potion';
+export const HUD_CITY_STATE_EVENT =
+  'ruinstead:hud:city-state';
+export const HUD_CITY_UPGRADE_EVENT =
+  'ruinstead:hud:city-upgrade';
+export const HUD_CITY_COLLECT_EVENT =
+  'ruinstead:hud:city-collect';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -93,4 +103,10 @@ export type HudBestiaryStateHandler =
 export type HudBestiaryClaimHandler =
   (entryId: string) => void;
 export type HudHealthPotionHandler =
+  () => void;
+export type HudCityStateHandler =
+  (state: CityBuilderHudState) => void;
+export type HudCityUpgradeHandler =
+  (id: CityBuildingId) => void;
+export type HudCityCollectHandler =
   () => void;

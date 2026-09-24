@@ -159,6 +159,15 @@ export function sanitizeGameState(value: unknown): GameState {
     asRecord(
       settlement?.repairStages,
     );
+  const settlementProduction =
+    asRecord(
+      settlement?.production,
+    );
+  const pendingProduction =
+    asRecord(
+      settlementProduction
+        ?.pending,
+    );
   const world = asRecord(root?.world);
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
@@ -311,6 +320,50 @@ export function sanitizeGameState(value: unknown): GameState {
       ),
       buildings,
       repairStages,
+      production: {
+        lastTickAt:
+          nonNegativeInt(
+            settlementProduction
+              ?.lastTickAt,
+            defaults.settlement
+              .production
+              .lastTickAt,
+          ),
+        pending: {
+          wood:
+            nonNegativeInt(
+              pendingProduction
+                ?.wood,
+              defaults.settlement
+                .production
+                .pending.wood,
+            ),
+          stone:
+            nonNegativeInt(
+              pendingProduction
+                ?.stone,
+              defaults.settlement
+                .production
+                .pending.stone,
+            ),
+          metal:
+            nonNegativeInt(
+              pendingProduction
+                ?.metal,
+              defaults.settlement
+                .production
+                .pending.metal,
+            ),
+          coins:
+            nonNegativeInt(
+              pendingProduction
+                ?.coins,
+              defaults.settlement
+                .production
+                .pending.coins,
+            ),
+        },
+      },
     },
     world: {
       unlockedZones: stringArray(

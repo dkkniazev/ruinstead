@@ -52,12 +52,20 @@ import {
   SettlementSystem,
   type SettlementHudState,
 } from '../game/settlement/SettlementSystem';
+import {
+  CityBuilderSystem,
+  type CityBuilderHudState,
+  type CityBuildingId,
+} from '../game/settlement/CityBuilderSystem';
 import { GameStateStore } from '../game/state/GameStateStore';
 import {
   HUD_AREA_EVENT,
   HUD_BESTIARY_CLAIM_EVENT,
   HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
+  HUD_CITY_COLLECT_EVENT,
+  HUD_CITY_STATE_EVENT,
+  HUD_CITY_UPGRADE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_HEALTH_POTION_EVENT,
   HUD_NOTICE_EVENT,
@@ -126,6 +134,9 @@ export class WorldScene
   private questHudSignature = '';
   private settlementSystem?:
     SettlementSystem;
+  private cityBuilderSystem?:
+    CityBuilderSystem;
+  private cityHudSignature = '';
 
   private debugOverlay?:
     DebugOverlay;
@@ -304,6 +315,28 @@ export class WorldScene
           .buildings.forge,
       );
 
+    this.cityBuilderSystem =
+      new CityBuilderSystem(
+        this,
+        this.gameState.settlement
+          .buildings,
+        this.gameState.settlement
+          .production,
+      );
+
+    if (
+      this.cityBuilderSystem
+        .updateProduction(
+          Date.now(),
+        )
+    ) {
+      this.gameState.settlement
+        .level =
+          this.cityBuilderSystem
+            .computeSettlementLevel();
+      this.saveState();
+    }
+
     this.enemies =
       new EnemySystem(
         this,
@@ -480,6 +513,16 @@ export class WorldScene
       this.handleHealthPotionUse,
       this,
     );
+    this.game.events.on(
+      HUD_CITY_UPGRADE_EVENT,
+      this.handleCityUpgrade,
+      this,
+    );
+    this.game.events.on(
+      HUD_CITY_COLLECT_EVENT,
+      this.handleCityCollect,
+      this,
+    );
 
     this.lastAreaName =
       getAreaName(
@@ -520,6 +563,8 @@ export class WorldScene
           this.questHudState,
         initialBestiaryState:
           this.bestiaryHudState,
+        initialCityState:
+          this.cityHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -607,6 +652,7 @@ export class WorldScene
 
     this.handleReturnPoint();
     this.updateSettlement();
+    this.updateCityBuilder();
     this.updateForestObjective();
     this.updateBridgeRepair();
     this.updateStageTwoTransition();
@@ -698,6 +744,51 @@ export class WorldScene
           storage,
           npcPresent: false,
         },
+      }
+    );
+  }
+
+  private get cityHudState():
+    CityBuilderHudState {
+    const storage =
+      this.gatheringHudState
+        .storage;
+    const insideSettlement =
+      this.player
+        ? Phaser.Math.Distance.Between(
+            this.player.position.x,
+            this.player.position.y,
+            SETTLEMENT_CENTER.x,
+            SETTLEMENT_CENTER.y,
+          ) <=
+          SETTLEMENT_SAFE_RADIUS
+        : false;
+
+    return (
+      this.cityBuilderSystem
+        ?.getHudState(
+          storage,
+          insideSettlement,
+        ) ?? {
+        insideSettlement,
+        settlementLevel:
+          this.gameState
+            ?.settlement.level ??
+          0,
+        npcCount: 0,
+        production: {
+          pending: {
+            wood: 0,
+            stone: 0,
+            metal: 0,
+            coins: 0,
+          },
+          capacity: 20,
+          used: 0,
+          canCollect: false,
+          cycleSeconds: 30,
+        },
+        buildings: [],
       }
     );
   }
@@ -1043,6 +1134,7 @@ export class WorldScene
       HUD_UPGRADE_STATE_EVENT,
       this.upgradeHudState,
     );
+    this.emitCityState();
 
     this.saveState();
   }
@@ -1619,6 +1711,153 @@ export class WorldScene
     );
   }
 
+  private updateCityBuilder(): void {
+    if (
+      !this.cityBuilderSystem ||
+      !this.gameState
+    ) {
+      return;
+    }
+
+    const produced =
+      this.cityBuilderSystem
+        .updateProduction(
+          Date.now(),
+        );
+
+    if (produced) {
+      this.gameState.settlement
+        .level =
+          this.cityBuilderSystem
+            .computeSettlementLevel();
+      this.saveState();
+    }
+
+    const state =
+      this.cityHudState;
+    const signature =
+      JSON.stringify(state);
+
+    if (
+      signature ===
+      this.cityHudSignature
+    ) {
+      return;
+    }
+
+    this.cityHudSignature =
+      signature;
+    this.game.events.emit(
+      HUD_CITY_STATE_EVENT,
+      state,
+    );
+  }
+
+  private handleCityUpgrade(
+    id: CityBuildingId,
+  ): void {
+    if (
+      !this.gameState ||
+      !this.cityBuilderSystem
+    ) {
+      return;
+    }
+
+    const result =
+      this.cityBuilderSystem
+        .attemptUpgrade(
+          id,
+          this.gameState.resources,
+          Date.now(),
+        );
+
+    if (!result.success) {
+      const message =
+        result.reason ===
+          'max-level'
+          ? 'Здание уже максимального уровня'
+          : result.reason ===
+              'locked'
+            ? 'Сначала выполните требование предыдущего здания'
+            : 'Не хватает ресурсов на улучшение здания';
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        message,
+      );
+      return;
+    }
+
+    this.gameState.settlement
+      .repairStages[id] = 3;
+    this.gameState.settlement
+      .level =
+        this.cityBuilderSystem
+          .computeSettlementLevel();
+    this.gameState.progression
+      .settlementXp +=
+        15 *
+        result.newLevel;
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Поселение: ${id} улучшено до Lv.${result.newLevel}`,
+    );
+
+    this.emitCityState();
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private handleCityCollect(): void {
+    if (
+      !this.gameState ||
+      !this.cityBuilderSystem
+    ) {
+      return;
+    }
+
+    const collected =
+      this.cityBuilderSystem
+        .collectProduction(
+          this.gameState.resources,
+        );
+
+    if (
+      totalResourceUnits(
+        collected,
+      ) <= 0
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Производство пока пусто',
+      );
+      return;
+    }
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Производство получено: ${this.formatResources(collected)}`,
+    );
+
+    this.emitCityState();
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private emitCityState(): void {
+    const state =
+      this.cityHudState;
+
+    this.cityHudSignature =
+      JSON.stringify(state);
+
+    this.game.events.emit(
+      HUD_CITY_STATE_EVENT,
+      state,
+    );
+  }
+
   private updateForestObjective(): void {
     if (
       !this.player ||
@@ -1931,6 +2170,16 @@ export class WorldScene
       this.handleHealthPotionUse,
       this,
     );
+    this.game.events.off(
+      HUD_CITY_UPGRADE_EVENT,
+      this.handleCityUpgrade,
+      this,
+    );
+    this.game.events.off(
+      HUD_CITY_COLLECT_EVENT,
+      this.handleCityCollect,
+      this,
+    );
 
     this.scene.stop(
       'HudScene',
@@ -1951,6 +2200,10 @@ export class WorldScene
 
     this.settlementSystem?.destroy();
     this.settlementSystem =
+      undefined;
+
+    this.cityBuilderSystem?.destroy();
+    this.cityBuilderSystem =
       undefined;
 
     this.combat?.destroy();

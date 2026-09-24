@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 11 as const;
+export const SAVE_SCHEMA_VERSION = 12 as const;
 
 export type BuildingId =
   | 'forge'
@@ -43,6 +43,15 @@ export type GameState = {
     buildings: Record<BuildingId, number>;
     repairStages:
       Record<BuildingId, number>;
+    production: {
+      lastTickAt: number;
+      pending: {
+        wood: number;
+        stone: number;
+        metal: number;
+        coins: number;
+      };
+    };
   };
   world: {
     unlockedZones: string[];
@@ -141,6 +150,15 @@ export function createDefaultGameState(): GameState {
         infirmary: 0,
         gate: 0,
         bridge: 0,
+      },
+      production: {
+        lastTickAt: Date.now(),
+        pending: {
+          wood: 0,
+          stone: 0,
+          metal: 0,
+          coins: 0,
+        },
       },
     },
     world: {

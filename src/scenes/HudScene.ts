@@ -15,6 +15,9 @@ import {
   HUD_AREA_EVENT,
   HUD_BESTIARY_CLAIM_EVENT,
   HUD_BESTIARY_STATE_EVENT,
+  HUD_CITY_COLLECT_EVENT,
+  HUD_CITY_STATE_EVENT,
+  HUD_CITY_UPGRADE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_HEALTH_POTION_EVENT,
@@ -39,6 +42,10 @@ import type {
   BestiaryHudEntry,
   BestiaryHudState,
 } from '../game/bestiary/BestiarySystem';
+import type {
+  CityBuilderHudState,
+  CityBuildingId,
+} from '../game/settlement/CityBuilderSystem';
 import {
   MAX_UPGRADE_LEVEL,
   getPlayerUpgradeCost,
@@ -72,6 +79,8 @@ type HudSceneData = {
     QuestHudState;
   initialBestiaryState:
     BestiaryHudState;
+  initialCityState:
+    CityBuilderHudState;
   initialAreaName: string;
 };
 
@@ -91,6 +100,26 @@ export class HudScene
     QuestHudState;
   private bestiaryState?:
     BestiaryHudState;
+  private cityState?:
+    CityBuilderHudState;
+  private cityPanelOpen = false;
+  private cityOpenButton?:
+    Phaser.GameObjects.Text;
+  private cityPanel?:
+    Phaser.GameObjects.Container;
+  private cityHeaderText?:
+    Phaser.GameObjects.Text;
+  private cityProductionText?:
+    Phaser.GameObjects.Text;
+  private cityCollectButton?:
+    Phaser.GameObjects.Text;
+  private cityBuildingButtons:
+    Partial<
+      Record<
+        CityBuildingId,
+        Phaser.GameObjects.Text
+      >
+    > = {};
   private selectedBestiaryId:
     string | null = null;
   private bestiaryPanelOpen =
@@ -226,6 +255,8 @@ export class HudScene
       data.initialQuestState;
     this.bestiaryState =
       data.initialBestiaryState;
+    this.cityState =
+      data.initialCityState;
     this.selectedBestiaryId =
       data.initialBestiaryState
         .entries.find(
@@ -249,6 +280,7 @@ export class HudScene
     this.createSettlementUi();
     this.createQuestPanel();
     this.createBestiaryUi();
+    this.createCityBuilderUi();
     this.createControlsHint();
     this.createNoticeLayer();
 
@@ -280,6 +312,11 @@ export class HudScene
     this.game.events.on(
       HUD_BESTIARY_STATE_EVENT,
       this.handleBestiaryState,
+      this,
+    );
+    this.game.events.on(
+      HUD_CITY_STATE_EVENT,
+      this.handleCityState,
       this,
     );
     this.game.events.on(
@@ -350,6 +387,18 @@ export class HudScene
         this.bestiaryState,
       );
     }
+
+    if (this.cityState) {
+      this.handleCityState(
+        this.cityState,
+      );
+    }
+
+    this.input.keyboard?.on(
+      'keydown-C',
+      this.handleCityToggle,
+      this,
+    );
 
     this.input.keyboard?.on(
       'keydown-Q',
@@ -1658,6 +1707,252 @@ export class HudScene
       panel;
   }
 
+  private createCityBuilderUi(): void {
+    this.cityOpenButton =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          304,
+          'C · Поселение',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#fff2c0',
+            backgroundColor:
+              '#5a4930ee',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(110)
+        .setVisible(false)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.cityOpenButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.toggleCityPanel();
+      },
+    );
+
+    const panel =
+      this.add.container(
+        LOGICAL_WIDTH / 2,
+        LOGICAL_HEIGHT / 2,
+      );
+
+    const bg =
+      this.add
+        .rectangle(
+          0,
+          0,
+          820,
+          600,
+          0x263728,
+          0.985,
+        )
+        .setStrokeStyle(
+          3,
+          0xddc783,
+          0.9,
+        );
+
+    const title =
+      this.add
+        .text(
+          -365,
+          -270,
+          'Поселение',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '27px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+          },
+        );
+
+    this.cityHeaderText =
+      this.add
+        .text(
+          365,
+          -264,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#d7e6ce',
+          },
+        )
+        .setOrigin(1, 0);
+
+    const close =
+      this.add
+        .text(
+          386,
+          -287,
+          '×',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '30px',
+            fontStyle: 'bold',
+            color: '#fff4d7',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    close.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.setCityPanelOpen(
+          false,
+        );
+      },
+    );
+
+    this.cityProductionText =
+      this.add
+        .text(
+          -365,
+          -215,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#e6efdf',
+            lineSpacing: 4,
+          },
+        );
+
+    this.cityCollectButton =
+      this.add
+        .text(
+          245,
+          -195,
+          'Забрать производство',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#5d7e48',
+            padding: {
+              x: 14,
+              y: 9,
+            },
+            fixedWidth: 250,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.cityCollectButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.game.events.emit(
+          HUD_CITY_COLLECT_EVENT,
+        );
+      },
+    );
+
+    const buildingObjects:
+      Phaser.GameObjects.Text[] = [];
+    const ids: CityBuildingId[] = [
+      'storage',
+      'sawmill',
+      'workshop',
+      'house',
+    ];
+
+    ids.forEach(
+      (id, index) => {
+        const button =
+          this.add
+            .text(
+              0,
+              -105 +
+                index * 88,
+              '',
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '14px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#496343',
+                padding: {
+                  x: 14,
+                  y: 10,
+                },
+                fixedWidth: 700,
+                fixedHeight: 72,
+                align: 'left',
+                wordWrap: {
+                  width: 670,
+                },
+              },
+            )
+            .setOrigin(0.5, 0)
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            this.game.events.emit(
+              HUD_CITY_UPGRADE_EVENT,
+              id,
+            );
+          },
+        );
+
+        this.cityBuildingButtons[
+          id
+        ] = button;
+        buildingObjects.push(
+          button,
+        );
+      },
+    );
+
+    panel.add([
+      bg,
+      title,
+      this.cityHeaderText,
+      close,
+      this.cityProductionText,
+      this.cityCollectButton,
+      ...buildingObjects,
+    ]);
+
+    panel
+      .setDepth(220)
+      .setVisible(false);
+
+    this.cityPanel =
+      panel;
+  }
+
   private createControlsHint(): void {
     this.add
       .text(
@@ -1711,6 +2006,133 @@ export class HudScene
   private handleHealthPotionKey(): void {
     this.game.events.emit(
       HUD_HEALTH_POTION_EVENT,
+    );
+  }
+
+  private handleCityState(
+    state: CityBuilderHudState,
+  ): void {
+    this.cityState =
+      state;
+
+    this.cityOpenButton
+      ?.setVisible(
+        state.insideSettlement,
+      );
+
+    if (
+      !state.insideSettlement
+    ) {
+      this.setCityPanelOpen(
+        false,
+      );
+    }
+
+    this.cityHeaderText?.setText(
+      `Ур. поселения ${state.settlementLevel} · NPC ${state.npcCount}`,
+    );
+
+    const pending =
+      state.production.pending;
+
+    this.cityProductionText?.setText(
+      `Производство: Д${pending.wood} · К${pending.stone} · М${pending.metal} · ●${pending.coins}\nБуфер: ${state.production.used} / ${state.production.capacity} · цикл ${state.production.cycleSeconds}с`,
+    );
+
+    this.cityCollectButton
+      ?.setText(
+        state.production
+          .canCollect
+          ? 'Забрать производство'
+          : 'Производство пусто',
+      )
+      .setStyle({
+        backgroundColor:
+          state.production
+            .canCollect
+            ? '#5d7e48'
+            : '#4a504a',
+        color:
+          state.production
+            .canCollect
+            ? '#ffffff'
+            : '#a9afa9',
+      });
+
+    for (
+      const building of
+      state.buildings
+    ) {
+      const button =
+        this.cityBuildingButtons[
+          building.id
+        ];
+
+      if (!button) {
+        continue;
+      }
+
+      const cost =
+        building.nextCost;
+      const costText =
+        cost
+          ? `Д${cost.wood} К${cost.stone} М${cost.metal} ●${cost.coins}`
+          : 'MAX';
+
+      const status =
+        building.locked
+          ? `Закрыто: ${building.lockReason}`
+          : building.level >=
+              building.maxLevel
+            ? 'Максимальный уровень'
+            : `Следующий уровень: ${costText}`;
+
+      button
+        .setText(
+          `${building.name}  Lv.${building.level} / ${building.maxLevel}\n${building.effectText} · ${status}`,
+        )
+        .setStyle({
+          backgroundColor:
+            building.locked
+              ? '#3f4540'
+              : building.canAfford
+                ? '#496343'
+                : '#514d42',
+          color:
+            building.locked
+              ? '#9ba29c'
+              : '#ffffff',
+        });
+    }
+  }
+
+  private handleCityToggle(): void {
+    if (
+      this.cityState
+        ?.insideSettlement
+    ) {
+      this.toggleCityPanel();
+    }
+  }
+
+  private toggleCityPanel(): void {
+    this.setCityPanelOpen(
+      !this.cityPanelOpen,
+    );
+  }
+
+  private setCityPanelOpen(
+    open: boolean,
+  ): void {
+    this.cityPanelOpen =
+      open &&
+      Boolean(
+        this.cityState
+          ?.insideSettlement,
+      );
+
+    this.cityPanel?.setVisible(
+      this.cityPanelOpen,
     );
   }
 
@@ -2509,6 +2931,11 @@ export class HudScene
       this,
     );
     this.game.events.off(
+      HUD_CITY_STATE_EVENT,
+      this.handleCityState,
+      this,
+    );
+    this.game.events.off(
       HUD_COMBAT_STATE_EVENT,
       this.handleCombatState,
       this,
@@ -2521,6 +2948,11 @@ export class HudScene
     this.game.events.off(
       HUD_NOTICE_EVENT,
       this.handleNotice,
+      this,
+    );
+    this.input.keyboard?.off(
+      'keydown-C',
+      this.handleCityToggle,
       this,
     );
     this.input.keyboard?.off(

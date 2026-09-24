@@ -6,6 +6,9 @@ import type {
 import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
+import type {
+  SettlementHudState,
+} from '../settlement/SettlementSystem';
 
 export type GatheringHudState = {
   backpack: BackpackState;
@@ -22,6 +25,10 @@ export const HUD_NOTICE_EVENT =
   'ruinstead:hud:notice';
 export const HUD_GATHERING_STATE_EVENT =
   'ruinstead:hud:gathering-state';
+export const HUD_SETTLEMENT_STATE_EVENT =
+  'ruinstead:hud:settlement-state';
+export const HUD_FORGE_REPAIR_EVENT =
+  'ruinstead:hud:forge-repair';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -33,3 +40,5 @@ export type HudNoticeHandler =
   (message: string) => void;
 export type HudGatheringStateHandler =
   (state: GatheringHudState) => void;
+export type HudSettlementStateHandler =
+  (state: SettlementHudState) => void;

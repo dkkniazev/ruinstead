@@ -31,12 +31,18 @@ import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
   type GameState,
 } from '../game/state/GameState';
+import {
+  SettlementSystem,
+  type SettlementHudState,
+} from '../game/settlement/SettlementSystem';
 import { GameStateStore } from '../game/state/GameStateStore';
 import {
   HUD_AREA_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_NOTICE_EVENT,
+  HUD_SETTLEMENT_STATE_EVENT,
+  HUD_FORGE_REPAIR_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
 } from '../game/ui/HudEvents';
@@ -72,6 +78,8 @@ export class WorldScene
     BackpackSystem;
   private resourceSystem?:
     ResourceSystem;
+  private settlementSystem?:
+    SettlementSystem;
 
   private debugOverlay?:
     DebugOverlay;
@@ -146,6 +154,15 @@ export class WorldScene
         },
       );
 
+    this.settlementSystem =
+      new SettlementSystem(
+        this,
+        this.gameState.settlement
+          .repairStages.forge,
+        this.gameState.settlement
+          .buildings.forge,
+      );
+
     this.enemies =
       new EnemySystem(this);
 
@@ -205,6 +222,9 @@ export class WorldScene
         () => {
           this.handlePlayerDefeated();
         },
+        () => {
+          this.handlePlayerRespawned();
+        },
       );
 
     this.createWeaponKeys();
@@ -234,6 +254,11 @@ export class WorldScene
       this.handleHudWeaponSelect,
       this,
     );
+    this.game.events.on(
+      HUD_FORGE_REPAIR_EVENT,
+      this.handleForgeRepair,
+      this,
+    );
 
     this.lastAreaName =
       getAreaName(
@@ -250,6 +275,8 @@ export class WorldScene
           this.combat.state,
         initialGatheringState:
           this.gatheringHudState,
+        initialSettlementState:
+          this.settlementHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -327,6 +354,7 @@ export class WorldScene
     }
 
     this.handleReturnPoint();
+    this.updateSettlement();
     this.handleWeaponKeys();
     this.updateAreaName();
     this.debugOverlay?.update();
@@ -373,6 +401,49 @@ export class WorldScene
       backpack,
       storage,
     };
+  }
+
+  private get settlementHudState():
+    SettlementHudState {
+    const storage =
+      this.gameState
+        ? {
+            wood:
+              this.gameState
+                .resources.wood,
+            stone:
+              this.gameState
+                .resources.stone,
+            metal:
+              this.gameState
+                .resources.metal,
+            coins:
+              this.gameState
+                .resources.coins,
+          }
+        : {
+            wood: 0,
+            stone: 0,
+            metal: 0,
+            coins: 0,
+          };
+
+    return (
+      this.settlementSystem
+        ?.getHudState(storage) ?? {
+        nearForge: false,
+        forge: {
+          repairStage: 0,
+          maxRepairStage: 3,
+          restored: false,
+          stageName: 'Развалины',
+          nextCost: null,
+          canAfford: false,
+          storage,
+          npcPresent: false,
+        },
+      }
+    );
   }
 
   private createWeaponKeys(): void {
@@ -467,6 +538,20 @@ export class WorldScene
     this.saveState();
   }
 
+  private handlePlayerRespawned(): void {
+    if (
+      !this.player ||
+      !this.resourceSystem
+    ) {
+      return;
+    }
+
+    this.resourceSystem
+      .handlePlayerRespawned(
+        this.player.position,
+      );
+  }
+
   private handlePlayerDefeated(): void {
     if (
       !this.backpack ||
@@ -558,6 +643,10 @@ export class WorldScene
       this.game.events.emit(
         HUD_GATHERING_STATE_EVENT,
         this.gatheringHudState,
+      );
+      this.game.events.emit(
+        HUD_SETTLEMENT_STATE_EVENT,
+        this.settlementHudState,
       );
 
       this.saveState();
@@ -670,6 +759,120 @@ export class WorldScene
         `${event.name} повержен · босс возродится позже`,
       );
     }
+
+    this.saveState();
+  }
+
+  private updateSettlement(): void {
+    if (
+      !this.player ||
+      !this.settlementSystem
+    ) {
+      return;
+    }
+
+    if (
+      this.settlementSystem.update(
+        this.player.position,
+      )
+    ) {
+      this.game.events.emit(
+        HUD_SETTLEMENT_STATE_EVENT,
+        this.settlementHudState,
+      );
+    }
+  }
+
+  private handleForgeRepair(): void {
+    if (
+      !this.gameState ||
+      !this.settlementSystem
+    ) {
+      return;
+    }
+
+    const result =
+      this.settlementSystem
+        .attemptForgeRepair(
+          this.gameState.resources,
+        );
+
+    if (!result.success) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        result.reason ===
+          'already-restored'
+          ? 'Кузница уже восстановлена'
+          : 'Не хватает ресурсов на следующий этап ремонта',
+      );
+      return;
+    }
+
+    this.gameState.settlement
+      .repairStages.forge =
+        result.newStage;
+
+    if (result.completed) {
+      this.gameState.settlement
+        .buildings.forge =
+          Math.max(
+            1,
+            this.gameState
+              .settlement
+              .buildings.forge,
+          );
+      this.gameState.settlement
+        .level =
+          Math.max(
+            1,
+            this.gameState
+              .settlement.level,
+          );
+      this.gameState.progression
+        .settlementXp += 100;
+
+      if (
+        !this.gameState.quests
+          .completedIds
+          .includes(
+            'restore-forge',
+          )
+      ) {
+        this.gameState.quests
+          .completedIds
+          .push(
+            'restore-forge',
+          );
+      }
+
+      if (
+        this.gameState.quests
+          .activeId ===
+        'restore-forge'
+      ) {
+        this.gameState.quests
+          .activeId = null;
+      }
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Кузница восстановлена! В поселении появился кузнец',
+      );
+    } else {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `Ремонт кузницы: этап ${result.newStage} / 3`,
+      );
+    }
+
+    this.game.events.emit(
+      HUD_GATHERING_STATE_EVENT,
+      this.gatheringHudState,
+    );
+    this.game.events.emit(
+      HUD_SETTLEMENT_STATE_EVENT,
+      this.settlementHudState,
+    );
 
     this.saveState();
   }
@@ -789,6 +992,11 @@ export class WorldScene
       this.handleHudWeaponSelect,
       this,
     );
+    this.game.events.off(
+      HUD_FORGE_REPAIR_EVENT,
+      this.handleForgeRepair,
+      this,
+    );
 
     this.scene.stop(
       'HudScene',
@@ -796,6 +1004,10 @@ export class WorldScene
 
     this.resourceSystem?.destroy();
     this.resourceSystem =
+      undefined;
+
+    this.settlementSystem?.destroy();
+    this.settlementSystem =
       undefined;
 
     this.combat?.destroy();

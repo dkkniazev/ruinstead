@@ -16,9 +16,14 @@ import {
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_NOTICE_EVENT,
+  HUD_SETTLEMENT_STATE_EVENT,
+  HUD_FORGE_REPAIR_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
 } from '../game/ui/HudEvents';
+import type {
+  SettlementHudState,
+} from '../game/settlement/SettlementSystem';
 
 const WEAPON_ICON_TEXTURES:
   Record<WeaponId, string> = {
@@ -34,6 +39,8 @@ type HudSceneData = {
     CombatState;
   initialGatheringState:
     GatheringHudState;
+  initialSettlementState:
+    SettlementHudState;
   initialAreaName: string;
 };
 
@@ -43,6 +50,11 @@ export class HudScene
     CombatState;
   private initialGatheringState?:
     GatheringHudState;
+  private initialSettlementState?:
+    SettlementHudState;
+  private settlementState?:
+    SettlementHudState;
+  private forgePanelOpen = false;
   private initialAreaName =
     'Руины поселения';
 
@@ -61,6 +73,24 @@ export class HudScene
   private carriedText?:
     Phaser.GameObjects.Text;
   private storageText?:
+    Phaser.GameObjects.Text;
+  private forgePrompt?:
+    Phaser.GameObjects.Rectangle;
+  private forgePromptText?:
+    Phaser.GameObjects.Text;
+  private forgePanel?:
+    Phaser.GameObjects.Container;
+  private forgeStageText?:
+    Phaser.GameObjects.Text;
+  private forgeCostText?:
+    Phaser.GameObjects.Text;
+  private forgeStorageText?:
+    Phaser.GameObjects.Text;
+  private forgeNpcText?:
+    Phaser.GameObjects.Text;
+  private forgeRepairButton?:
+    Phaser.GameObjects.Rectangle;
+  private forgeRepairButtonText?:
     Phaser.GameObjects.Text;
 
   private weaponButtons:
@@ -88,6 +118,8 @@ export class HudScene
       data.initialCombatState;
     this.initialGatheringState =
       data.initialGatheringState;
+    this.initialSettlementState =
+      data.initialSettlementState;
     this.initialAreaName =
       data.initialAreaName;
   }
@@ -98,6 +130,7 @@ export class HudScene
     this.createTopLeftStatus();
     this.createGatheringPanel();
     this.createWeaponSelector();
+    this.createSettlementUi();
     this.createControlsHint();
     this.createNoticeLayer();
 
@@ -109,6 +142,11 @@ export class HudScene
     this.game.events.on(
       HUD_GATHERING_STATE_EVENT,
       this.handleGatheringState,
+      this,
+    );
+    this.game.events.on(
+      HUD_SETTLEMENT_STATE_EVENT,
+      this.handleSettlementState,
       this,
     );
     this.game.events.on(
@@ -153,6 +191,20 @@ export class HudScene
         this.initialGatheringState,
       );
     }
+
+    if (
+      this.initialSettlementState
+    ) {
+      this.handleSettlementState(
+        this.initialSettlementState,
+      );
+    }
+
+    this.input.keyboard?.on(
+      'keydown-E',
+      this.handleForgeToggle,
+      this,
+    );
   }
 
   private createTopLeftStatus(): void {
@@ -426,6 +478,257 @@ export class HudScene
     );
   }
 
+  private createSettlementUi(): void {
+    const promptY =
+      LOGICAL_HEIGHT - 118;
+
+    this.forgePrompt = this.add
+      .rectangle(
+        LOGICAL_WIDTH / 2,
+        promptY,
+        238,
+        42,
+        0x304f35,
+        0.94,
+      )
+      .setStrokeStyle(
+        2,
+        0xffe39a,
+        0.82,
+      )
+      .setDepth(130)
+      .setVisible(false)
+      .setInteractive({
+        useHandCursor: true,
+      });
+
+    this.forgePromptText =
+      this.add
+        .text(
+          LOGICAL_WIDTH / 2,
+          promptY,
+          'E · Кузница',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '16px',
+            fontStyle: 'bold',
+            color: '#fff6d5',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(131)
+        .setVisible(false);
+
+    this.forgePrompt.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.toggleForgePanel();
+      },
+    );
+
+    const panel =
+      this.add.container(
+        LOGICAL_WIDTH / 2,
+        LOGICAL_HEIGHT / 2,
+      );
+
+    const bg =
+      this.add
+        .rectangle(
+          0,
+          0,
+          520,
+          360,
+          0x233b2a,
+          0.97,
+        )
+        .setStrokeStyle(
+          3,
+          0xf0d58b,
+          0.92,
+        );
+
+    const title =
+      this.add
+        .text(
+          0,
+          -145,
+          'Кузница',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '28px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+          },
+        )
+        .setOrigin(0.5);
+
+    this.forgeStageText =
+      this.add
+        .text(
+          0,
+          -92,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '19px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5);
+
+    this.forgeCostText =
+      this.add
+        .text(
+          0,
+          -35,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '16px',
+            color: '#ffe7ac',
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5);
+
+    this.forgeStorageText =
+      this.add
+        .text(
+          0,
+          18,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#cfe7c5',
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5);
+
+    this.forgeNpcText =
+      this.add
+        .text(
+          0,
+          64,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            color: '#ffffff',
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5);
+
+    this.forgeRepairButton =
+      this.add
+        .rectangle(
+          0,
+          118,
+          300,
+          52,
+          0x6f9250,
+          1,
+        )
+        .setStrokeStyle(
+          2,
+          0xffe7a0,
+          0.9,
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.forgeRepairButtonText =
+      this.add
+        .text(
+          0,
+          118,
+          'Вложить ресурсы',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '17px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+          },
+        )
+        .setOrigin(0.5);
+
+    const close =
+      this.add
+        .text(
+          226,
+          -154,
+          '×',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '30px',
+            fontStyle: 'bold',
+            color: '#fff4d7',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    close.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.setForgePanelOpen(
+          false,
+        );
+      },
+    );
+
+    this.forgeRepairButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        if (
+          !this.settlementState
+            ?.forge.restored &&
+          this.settlementState
+            ?.forge.canAfford
+        ) {
+          this.game.events.emit(
+            HUD_FORGE_REPAIR_EVENT,
+          );
+        }
+      },
+    );
+
+    panel.add([
+      bg,
+      title,
+      this.forgeStageText,
+      this.forgeCostText,
+      this.forgeStorageText,
+      this.forgeNpcText,
+      this.forgeRepairButton,
+      this.forgeRepairButtonText,
+      close,
+    ]);
+
+    panel
+      .setDepth(170)
+      .setVisible(false);
+
+    this.forgePanel =
+      panel;
+  }
+
   private createControlsHint(): void {
     this.add
       .text(
@@ -474,6 +777,109 @@ export class HudScene
         .setOrigin(0.5)
         .setDepth(180)
         .setAlpha(0);
+  }
+
+  private handleSettlementState(
+    state: SettlementHudState,
+  ): void {
+    this.settlementState =
+      state;
+
+    this.forgePrompt
+      ?.setVisible(
+        state.nearForge,
+      );
+    this.forgePromptText
+      ?.setVisible(
+        state.nearForge,
+      )
+      .setText(
+        state.forge.restored
+          ? 'E · Кузница'
+          : 'E · Восстановить кузницу',
+      );
+
+    if (!state.nearForge) {
+      this.setForgePanelOpen(
+        false,
+      );
+    }
+
+    const forge =
+      state.forge;
+
+    this.forgeStageText?.setText(
+      `Этап ${forge.repairStage} / ${forge.maxRepairStage}\n${forge.stageName}`,
+    );
+
+    const cost =
+      forge.nextCost;
+
+    this.forgeCostText?.setText(
+      forge.restored
+        ? 'Кузница снова работает'
+        : cost
+          ? `Следующий ремонт: дерево ${cost.wood} · камень ${cost.stone} · металл ${cost.metal}`
+          : '',
+    );
+
+    this.forgeStorageText?.setText(
+      `Склад: дерево ${forge.storage.wood} · камень ${forge.storage.stone} · металл ${forge.storage.metal}`,
+    );
+
+    this.forgeNpcText?.setText(
+      forge.npcPresent
+        ? 'Кузнец прибыл. Улучшение оружия откроется на Этапе 5.'
+        : 'Каждая стадия ремонта визуально меняет кузницу.',
+    );
+
+    this.forgeRepairButton
+      ?.setFillStyle(
+        forge.restored
+          ? 0x4b574b
+          : forge.canAfford
+            ? 0x6f9250
+            : 0x555c51,
+        1,
+      );
+
+    this.forgeRepairButtonText?.setText(
+      forge.restored
+        ? 'Восстановлено'
+        : forge.canAfford
+          ? 'Вложить ресурсы'
+          : 'Не хватает ресурсов',
+    );
+  }
+
+  private handleForgeToggle(): void {
+    if (
+      this.settlementState
+        ?.nearForge
+    ) {
+      this.toggleForgePanel();
+    }
+  }
+
+  private toggleForgePanel(): void {
+    this.setForgePanelOpen(
+      !this.forgePanelOpen,
+    );
+  }
+
+  private setForgePanelOpen(
+    open: boolean,
+  ): void {
+    this.forgePanelOpen =
+      open &&
+      Boolean(
+        this.settlementState
+          ?.nearForge,
+      );
+
+    this.forgePanel?.setVisible(
+      this.forgePanelOpen,
+    );
   }
 
   private handleGatheringState(
@@ -684,6 +1090,11 @@ export class HudScene
       this,
     );
     this.game.events.off(
+      HUD_SETTLEMENT_STATE_EVENT,
+      this.handleSettlementState,
+      this,
+    );
+    this.game.events.off(
       HUD_COMBAT_STATE_EVENT,
       this.handleCombatState,
       this,
@@ -696,6 +1107,11 @@ export class HudScene
     this.game.events.off(
       HUD_NOTICE_EVENT,
       this.handleNotice,
+      this,
+    );
+    this.input.keyboard?.off(
+      'keydown-E',
+      this.handleForgeToggle,
       this,
     );
     this.scale.off(

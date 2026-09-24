@@ -97,6 +97,10 @@ export function sanitizeGameState(value: unknown): GameState {
   const backpack = asRecord(root?.backpack);
   const settlement = asRecord(root?.settlement);
   const savedBuildings = asRecord(settlement?.buildings);
+  const savedRepairStages =
+    asRecord(
+      settlement?.repairStages,
+    );
   const world = asRecord(root?.world);
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
@@ -125,13 +129,31 @@ export function sanitizeGameState(value: unknown): GameState {
       ? playerPosition.y
       : undefined;
 
-  const buildings = { ...defaults.settlement.buildings };
+  const buildings = {
+    ...defaults.settlement.buildings,
+  };
+  const repairStages = {
+    ...defaults.settlement
+      .repairStages,
+  };
 
   for (const id of BUILDING_IDS) {
     buildings[id] = nonNegativeInt(
       savedBuildings?.[id],
       defaults.settlement.buildings[id],
     );
+
+    repairStages[id] =
+      Math.min(
+        3,
+        nonNegativeInt(
+          savedRepairStages?.[id],
+          buildings[id] > 0
+            ? 3
+            : defaults.settlement
+                .repairStages[id],
+        ),
+      );
   }
 
   return {
@@ -194,6 +216,7 @@ export function sanitizeGameState(value: unknown): GameState {
         defaults.settlement.level,
       ),
       buildings,
+      repairStages,
     },
     world: {
       unlockedZones: stringArray(

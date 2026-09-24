@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 5 as const;
+export const SAVE_SCHEMA_VERSION = 6 as const;
 
 export type BuildingId =
   | 'forge'
@@ -31,6 +31,8 @@ export type GameState = {
   settlement: {
     level: number;
     buildings: Record<BuildingId, number>;
+    repairStages:
+      Record<BuildingId, number>;
   };
   world: {
     unlockedZones: string[];
@@ -84,6 +86,16 @@ export function createDefaultGameState(): GameState {
     settlement: {
       level: 0,
       buildings: {
+        forge: 0,
+        storage: 0,
+        sawmill: 0,
+        workshop: 0,
+        house: 0,
+        infirmary: 0,
+        gate: 0,
+        bridge: 0,
+      },
+      repairStages: {
         forge: 0,
         storage: 0,
         sawmill: 0,

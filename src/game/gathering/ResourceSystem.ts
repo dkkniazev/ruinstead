@@ -34,8 +34,9 @@ type ResourcePickup = {
   sprite: Phaser.GameObjects.Image;
   label?: Phaser.GameObjects.Text;
   expiresAt: number;
-  lockedUntilPlayerLeaves: boolean;
-  lockCenter?: Phaser.Math.Vector2;
+  deathDrop: boolean;
+  pickupEnabled: boolean;
+  requiresExitAfterRespawn: boolean;
 };
 
 const NODE_DEFINITIONS:
@@ -185,6 +186,44 @@ class ResourceNode {
 
     this.deplete();
     return true;
+  }
+
+  handlePlayerRespawned(
+    playerPosition:
+      Phaser.Math.Vector2,
+  ): void {
+    for (
+      const pickup of
+      this.pickups
+    ) {
+      if (
+        !pickup.deathDrop ||
+        pickup.pickupEnabled
+      ) {
+        continue;
+      }
+
+      const distance =
+        Phaser.Math.Distance.Between(
+          playerPosition.x,
+          playerPosition.y,
+          pickup.sprite.x,
+          pickup.sprite.y,
+        );
+
+      if (
+        distance >
+        PICKUP_MAGNET_RANGE + 24
+      ) {
+        pickup.pickupEnabled =
+          true;
+        pickup.requiresExitAfterRespawn =
+          false;
+      } else {
+        pickup.requiresExitAfterRespawn =
+          true;
+      }
+    }
   }
 
   destroy(): void {
@@ -342,7 +381,6 @@ export class ResourceSystem {
         amount,
         Number.POSITIVE_INFINITY,
         true,
-        position,
       );
 
       slot += 1;
@@ -451,7 +489,6 @@ export class ResourceSystem {
     amount: number,
     expiresAt: number,
     persistent: boolean,
-    lockCenter?: Phaser.Math.Vector2,
   ): void {
     const sprite =
       this.scene.add
@@ -513,10 +550,12 @@ export class ResourceSystem {
       sprite,
       label,
       expiresAt,
-      lockedUntilPlayerLeaves:
-        lockCenter !== undefined,
-      lockCenter:
-        lockCenter?.clone(),
+      deathDrop:
+        persistent,
+      pickupEnabled:
+        !persistent,
+      requiresExitAfterRespawn:
+        false,
     });
   }
 
@@ -552,24 +591,23 @@ export class ResourceSystem {
       }
 
       if (
-        pickup.lockedUntilPlayerLeaves
+        pickup.deathDrop &&
+        !pickup.pickupEnabled
       ) {
-        const center =
-          pickup.lockCenter;
-
         if (
-          center &&
+          pickup.requiresExitAfterRespawn &&
           Phaser.Math.Distance.Between(
             playerPosition.x,
             playerPosition.y,
-            center.x,
-            center.y,
-          ) >= 220
+            pickup.sprite.x,
+            pickup.sprite.y,
+          ) >
+            PICKUP_MAGNET_RANGE + 24
         ) {
-          pickup.lockedUntilPlayerLeaves =
+          pickup.pickupEnabled =
+            true;
+          pickup.requiresExitAfterRespawn =
             false;
-          pickup.lockCenter =
-            undefined;
         } else {
           continue;
         }

@@ -81,6 +81,8 @@ export class CombatSystem {
       (value: number) => number,
     private readonly onPlayerDefeated?:
       () => void,
+    private readonly onPlayerRespawned?:
+      () => void,
   ) {
     this.drops =
       new DropSystem(
@@ -693,6 +695,8 @@ export class CombatSystem {
         this.player.setAliveVisualsVisible(
           true,
         );
+
+        this.onPlayerRespawned?.();
 
         this.scene.cameras.main.flash(
           220,

@@ -13,6 +13,7 @@ import {
   type CombatState,
 } from '../game/combat/CombatSystem';
 import {
+  WEAPON_DEFINITIONS,
   WEAPON_ORDER,
   type WeaponId,
 } from '../game/combat/WeaponDefinitions';
@@ -42,6 +43,8 @@ import {
 import {
   canAffordUpgrade,
   getPlayerUpgradeCost,
+  getWeaponDamageMultiplier,
+  getWeaponRarity,
   getWeaponUpgradeCost,
   spendUpgradeCost,
   type PlayerUpgradeId,
@@ -1835,11 +1838,27 @@ export class WorldScene
 
     this.applyProgression();
 
+    const nextLevel =
+      currentLevel + 1;
+    const previousRarity =
+      getWeaponRarity(
+        currentLevel,
+      );
+    const nextRarity =
+      getWeaponRarity(
+        nextLevel,
+      );
+    const damageMultiplier =
+      getWeaponDamageMultiplier(
+        nextLevel,
+      );
+
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      `${WEAPON_ORDER.includes(
-        weaponId,
-      ) ? weaponId : 'Оружие'} улучшено до уровня ${currentLevel + 1}`,
+      previousRarity.id !==
+        nextRarity.id
+        ? `${WEAPON_DEFINITIONS[weaponId].name} возвышен: ${nextRarity.name} · Lv.${nextLevel} · сила урона ×${damageMultiplier.toFixed(2)}`
+        : `${WEAPON_DEFINITIONS[weaponId].name} улучшен до Lv.${nextLevel} · ${nextRarity.name} · сила урона ×${damageMultiplier.toFixed(2)}`,
     );
     this.emitProgressionState();
     this.saveState();

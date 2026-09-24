@@ -16,6 +16,19 @@ type ChestDefinition = {
 const CHESTS:
   readonly ChestDefinition[] = [
   {
+    id: 'stage-2-entry-cache',
+    x: 3150,
+    y: 1470,
+    rewards: {
+      wood: 0,
+      stone: 0,
+      metal: 2,
+      coins: 30,
+      crystal: 5,
+      fiber: 8,
+    },
+  },
+  {
     id: 'stage-2-crystal-cache',
     x: 3700,
     y: 870,

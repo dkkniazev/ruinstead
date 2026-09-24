@@ -63,6 +63,9 @@ const NODE_DEFINITIONS:
   { id: 'metal-4', type: 'metal', x: 2050, y: 1490, durability: 5, dropCount: 2, respawnMs: 90_000 },
 
   // Stage 2: rare materials define the new region economy.
+  // The entry pair lets a Lv.5 player begin the Lv.6 ascension without first winning a Stage 2 fight.
+  { id: 'crystal-entry', type: 'crystal', x: 3160, y: 1320, durability: 4, dropCount: 4, respawnMs: 75_000 },
+  { id: 'fiber-entry', type: 'fiber', x: 3090, y: 1210, durability: 3, dropCount: 6, respawnMs: 60_000 },
   { id: 'crystal-1', type: 'crystal', x: 3460, y: 650, durability: 5, dropCount: 3, respawnMs: 110_000 },
   { id: 'crystal-2', type: 'crystal', x: 3920, y: 940, durability: 5, dropCount: 3, respawnMs: 110_000 },
   { id: 'crystal-3', type: 'crystal', x: 4470, y: 580, durability: 6, dropCount: 4, respawnMs: 120_000 },

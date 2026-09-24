@@ -5,7 +5,12 @@ import type {
   WeaponId,
 } from '../combat/WeaponDefinitions';
 
-export const MAX_UPGRADE_LEVEL = 5;
+export const MAX_PLAYER_UPGRADE_LEVEL = 10;
+export const MAX_WEAPON_LEVEL = 10;
+
+// Compatibility alias for older UI imports.
+export const MAX_UPGRADE_LEVEL =
+  MAX_PLAYER_UPGRADE_LEVEL;
 
 export const PLAYER_UPGRADE_IDS = [
   'max-health',
@@ -17,6 +22,20 @@ export const PLAYER_UPGRADE_IDS = [
 export type PlayerUpgradeId =
   (typeof PLAYER_UPGRADE_IDS)[number];
 
+export type WeaponRarityId =
+  | 'common'
+  | 'uncommon'
+  | 'rare'
+  | 'epic'
+  | 'legendary';
+
+export type WeaponRarity = {
+  id: WeaponRarityId;
+  name: string;
+  damageMultiplier: number;
+  color: string;
+};
+
 const EMPTY_COST =
   (): ResourceCounts => ({
     wood: 0,
@@ -27,24 +46,123 @@ const EMPTY_COST =
     coins: 0,
   });
 
+function clampedLevel(
+  level: number,
+  maxLevel: number,
+): number {
+  return Math.min(
+    maxLevel,
+    Math.max(
+      0,
+      Math.floor(level),
+    ),
+  );
+}
+
+export function getWeaponRarity(
+  level: number,
+): WeaponRarity {
+  const safeLevel =
+    clampedLevel(
+      level,
+      MAX_WEAPON_LEVEL,
+    );
+
+  if (safeLevel >= 10) {
+    return {
+      id: 'legendary',
+      name: 'Легендарное',
+      damageMultiplier: 2.5,
+      color: '#ffd45c',
+    };
+  }
+
+  if (safeLevel >= 8) {
+    return {
+      id: 'epic',
+      name: 'Эпическое',
+      damageMultiplier: 2.25,
+      color: '#d99cff',
+    };
+  }
+
+  if (safeLevel >= 6) {
+    return {
+      id: 'rare',
+      name: 'Редкое',
+      damageMultiplier: 2,
+      color: '#73b9ff',
+    };
+  }
+
+  if (safeLevel >= 3) {
+    return {
+      id: 'uncommon',
+      name: 'Необычное',
+      damageMultiplier: 1,
+      color: '#79dc77',
+    };
+  }
+
+  return {
+    id: 'common',
+    name: 'Обычное',
+    damageMultiplier: 1,
+    color: '#f3f1e8',
+  };
+}
+
 export function getMaxHealth(
   level: number,
 ): number {
+  const safeLevel =
+    clampedLevel(
+      level,
+      MAX_PLAYER_UPGRADE_LEVEL,
+    );
+  const early =
+    Math.min(
+      safeLevel,
+      5,
+    );
+  const late =
+    Math.max(
+      0,
+      safeLevel - 5,
+    );
+
   return (
     100 +
-    Math.max(0, level) * 20
+    early * 20 +
+    late * 30
   );
 }
 
 export function getMoveSpeed(
   level: number,
 ): number {
+  const safeLevel =
+    clampedLevel(
+      level,
+      MAX_PLAYER_UPGRADE_LEVEL,
+    );
+  const early =
+    Math.min(
+      safeLevel,
+      5,
+    );
+  const late =
+    Math.max(
+      0,
+      safeLevel - 5,
+    );
+
   return Math.round(
     225 *
       (
         1 +
-        Math.max(0, level) *
-          0.05
+        early * 0.05 +
+        late * 0.03
       ),
   );
 }
@@ -52,28 +170,74 @@ export function getMoveSpeed(
 export function getDashCooldownMs(
   level: number,
 ): number {
+  const safeLevel =
+    clampedLevel(
+      level,
+      MAX_PLAYER_UPGRADE_LEVEL,
+    );
+  const early =
+    Math.min(
+      safeLevel,
+      5,
+    );
+  const late =
+    Math.max(
+      0,
+      safeLevel - 5,
+    );
+
   return Math.max(
-    500,
+    360,
     850 -
-      Math.max(0, level) * 70,
+      early * 70 -
+      late * 28,
   );
 }
 
 export function getBackpackCapacity(
   level: number,
 ): number {
+  const safeLevel =
+    clampedLevel(
+      level,
+      MAX_PLAYER_UPGRADE_LEVEL,
+    );
+  const early =
+    Math.min(
+      safeLevel,
+      5,
+    );
+  const late =
+    Math.max(
+      0,
+      safeLevel - 5,
+    );
+
   return (
     100 +
-    Math.max(0, level) * 25
+    early * 25 +
+    late * 35
   );
 }
 
 export function getWeaponDamageMultiplier(
   level: number,
 ): number {
+  const safeLevel =
+    clampedLevel(
+      level,
+      MAX_WEAPON_LEVEL,
+    );
+  const baseUpgrade =
+    1 + safeLevel * 0.15;
+  const rarity =
+    getWeaponRarity(
+      safeLevel,
+    );
+
   return (
-    1 +
-    Math.max(0, level) * 0.15
+    baseUpgrade *
+    rarity.damageMultiplier
   );
 }
 
@@ -83,7 +247,7 @@ export function getPlayerUpgradeCost(
 ): ResourceCounts | null {
   if (
     currentLevel >=
-    MAX_UPGRADE_LEVEL
+    MAX_PLAYER_UPGRADE_LEVEL
   ) {
     return null;
   }
@@ -93,33 +257,83 @@ export function getPlayerUpgradeCost(
   const cost =
     EMPTY_COST();
 
+  if (next <= 5) {
+    switch (id) {
+      case 'max-health':
+        cost.coins =
+          20 + next * 12;
+        cost.stone =
+          next * 2;
+        break;
+      case 'move-speed':
+        cost.coins =
+          24 + next * 14;
+        cost.wood =
+          next * 3;
+        break;
+      case 'backpack':
+        cost.coins =
+          18 + next * 10;
+        cost.wood =
+          next * 4;
+        break;
+      case 'dash':
+        cost.coins =
+          28 + next * 16;
+        cost.metal =
+          Math.max(
+            1,
+            Math.ceil(next / 2),
+          );
+        break;
+    }
+
+    return cost;
+  }
+
+  const late =
+    next - 6;
+
   switch (id) {
     case 'max-health':
       cost.coins =
-        20 + next * 12;
+        150 + late * 45;
       cost.stone =
-        next * 2;
+        18 + late * 4;
+      cost.crystal =
+        6 + late * 3;
+      cost.fiber =
+        4 + late * 2;
       break;
     case 'move-speed':
       cost.coins =
-        24 + next * 14;
+        170 + late * 50;
       cost.wood =
-        next * 3;
+        30 + late * 6;
+      cost.crystal =
+        8 + late * 3;
+      cost.fiber =
+        6 + late * 3;
       break;
     case 'backpack':
       cost.coins =
-        18 + next * 10;
+        140 + late * 40;
       cost.wood =
-        next * 4;
+        36 + late * 8;
+      cost.crystal =
+        4 + late * 2;
+      cost.fiber =
+        12 + late * 4;
       break;
     case 'dash':
       cost.coins =
-        28 + next * 16;
+        190 + late * 55;
       cost.metal =
-        Math.max(
-          1,
-          Math.ceil(next / 2),
-        );
+        10 + late * 3;
+      cost.crystal =
+        8 + late * 3;
+      cost.fiber =
+        8 + late * 3;
       break;
   }
 
@@ -132,7 +346,7 @@ export function getWeaponUpgradeCost(
 ): ResourceCounts | null {
   if (
     currentLevel >=
-    MAX_UPGRADE_LEVEL
+    MAX_WEAPON_LEVEL
   ) {
     return null;
   }
@@ -140,29 +354,58 @@ export function getWeaponUpgradeCost(
   const next =
     currentLevel + 1;
 
+  if (next <= 5) {
+    return {
+      wood: 0,
+      stone:
+        Math.max(
+          1,
+          Math.floor(next / 2),
+        ),
+      metal:
+        1 + next,
+      crystal: 0,
+      fiber: 0,
+      coins:
+        25 + next * 18,
+    };
+  }
+
+  const late =
+    next - 6;
+
   return {
     wood: 0,
     stone:
-      Math.max(
-        1,
-        Math.floor(next / 2),
+      12 +
+      late * 2 +
+      Math.floor(
+        late / 2,
       ),
     metal:
-      1 + next,
+      18 +
+      late * 3 +
+      Math.floor(
+        late / 2,
+      ),
     crystal:
-      next >= 4
-        ? next === 4
-          ? 2
-          : 4
-        : 0,
+      12 +
+      late * 5 +
+      Math.max(
+        0,
+        late - 2,
+      ) * 2,
     fiber:
-      next >= 4
-        ? next === 4
-          ? 3
-          : 6
-        : 0,
+      18 +
+      late * 6 +
+      Math.max(
+        0,
+        late - 2,
+      ),
     coins:
-      25 + next * 18,
+      300 +
+      late * 65 +
+      late * late * 10,
   };
 }
 

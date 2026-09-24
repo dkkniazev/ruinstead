@@ -47,9 +47,11 @@ import type {
   CityBuildingId,
 } from '../game/settlement/CityBuilderSystem';
 import {
-  MAX_UPGRADE_LEVEL,
+  MAX_PLAYER_UPGRADE_LEVEL,
+  MAX_WEAPON_LEVEL,
   getPlayerUpgradeCost,
   getWeaponUpgradeCost,
+  getWeaponRarity,
   canAffordUpgrade,
   type PlayerUpgradeId,
 } from '../game/progression/UpgradeBalance';
@@ -2464,10 +2466,15 @@ export class HudScene
           id
         ];
 
+      const rareCost =
+        cost
+          ? `${cost.crystal ? ` Кр${cost.crystal}` : ''}${cost.fiber ? ` В${cost.fiber}` : ''}`
+          : '';
+
       button?.setText(
         cost
-          ? `${labels[id]} Lv.${level} → ${level + 1}   ●${cost.coins} Д${cost.wood} К${cost.stone} М${cost.metal}`
-          : `${labels[id]} Lv.${MAX_UPGRADE_LEVEL} · MAX`,
+          ? `${labels[id]} Lv.${level} → ${level + 1}   ●${cost.coins} Д${cost.wood} К${cost.stone} М${cost.metal}${rareCost}`
+          : `${labels[id]} Lv.${MAX_PLAYER_UPGRADE_LEVEL} · MAX`,
       );
 
       button?.setStyle({
@@ -2504,14 +2511,35 @@ export class HudScene
         state.storage,
         weaponCost,
       );
+    const rarity =
+      getWeaponRarity(
+        weaponLevel,
+      );
+    const nextRarity =
+      getWeaponRarity(
+        Math.min(
+          MAX_WEAPON_LEVEL,
+          weaponLevel + 1,
+        ),
+      );
+    const rarityUpgrade =
+      weaponCost &&
+      nextRarity.id !==
+        rarity.id
+        ? ` · ${rarity.name} → ${nextRarity.name}`
+        : ` · ${rarity.name}`;
+    const weaponRareCost =
+      weaponCost
+        ? `${weaponCost.crystal ? ` Кр${weaponCost.crystal}` : ''}${weaponCost.fiber ? ` В${weaponCost.fiber}` : ''}`
+        : '';
 
     this.weaponUpgradeButton
       ?.setText(
         !unlocked
           ? `${WEAPON_DEFINITIONS[weaponId].name} · закрыто`
           : weaponCost
-            ? `${WEAPON_DEFINITIONS[weaponId].name} Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal} Кр${weaponCost.crystal ?? 0} В${weaponCost.fiber ?? 0}`
-            : `${WEAPON_DEFINITIONS[weaponId].name} Lv.${MAX_UPGRADE_LEVEL} · MAX`,
+            ? `${WEAPON_DEFINITIONS[weaponId].name} Lv.${weaponLevel} → ${weaponLevel + 1}${rarityUpgrade}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}${weaponRareCost}`
+            : `${WEAPON_DEFINITIONS[weaponId].name} Lv.${MAX_WEAPON_LEVEL} · ${rarity.name} · MAX`,
       )
       .setStyle({
         backgroundColor:
@@ -2520,7 +2548,7 @@ export class HudScene
             : '#4a4350',
         color:
           unlocked
-            ? '#ffffff'
+            ? rarity.color
             : '#9f9aa2',
       });
   }

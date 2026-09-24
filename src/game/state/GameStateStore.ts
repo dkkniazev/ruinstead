@@ -6,6 +6,10 @@ import {
   type GameState,
 } from './GameState';
 import {
+  MAX_PLAYER_UPGRADE_LEVEL,
+  MAX_WEAPON_LEVEL,
+} from '../progression/UpgradeBalance';
+import {
   LOCAL_SAVE_KEY,
   LOCAL_SAVE_META_KEY,
 } from './SaveKeys';
@@ -31,6 +35,20 @@ function nonNegativeInt(value: unknown, fallback: number): number {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.max(0, Math.floor(value))
     : fallback;
+}
+
+function upgradeLevel(
+  value: unknown,
+  fallback: number,
+  maxLevel: number,
+): number {
+  return Math.min(
+    maxLevel,
+    nonNegativeInt(
+      value,
+      fallback,
+    ),
+  );
 }
 
 function booleanValue(value: unknown, fallback: boolean): boolean {
@@ -240,46 +258,56 @@ export function sanitizeGameState(value: unknown): GameState {
         player?.unlockedWeaponIds,
         defaults.player.unlockedWeaponIds,
       ),
-      maxHealthLevel: nonNegativeInt(
+      maxHealthLevel: upgradeLevel(
         player?.maxHealthLevel,
         defaults.player.maxHealthLevel,
+        MAX_PLAYER_UPGRADE_LEVEL,
       ),
-      damageLevel: nonNegativeInt(
+      damageLevel: upgradeLevel(
         player?.damageLevel,
         defaults.player.damageLevel,
+        MAX_PLAYER_UPGRADE_LEVEL,
       ),
-      moveSpeedLevel: nonNegativeInt(
+      moveSpeedLevel: upgradeLevel(
         player?.moveSpeedLevel,
         defaults.player.moveSpeedLevel,
+        MAX_PLAYER_UPGRADE_LEVEL,
       ),
-      backpackLevel: nonNegativeInt(
+      backpackLevel: upgradeLevel(
         player?.backpackLevel,
         defaults.player.backpackLevel,
+        MAX_PLAYER_UPGRADE_LEVEL,
       ),
-      dashLevel: nonNegativeInt(
+      dashLevel: upgradeLevel(
         player?.dashLevel,
         defaults.player.dashLevel,
+        MAX_PLAYER_UPGRADE_LEVEL,
       ),
       weaponLevels: {
-        axe: nonNegativeInt(
+        axe: upgradeLevel(
           weaponLevels?.axe,
           defaults.player.weaponLevels.axe,
+          MAX_WEAPON_LEVEL,
         ),
-        sword: nonNegativeInt(
+        sword: upgradeLevel(
           weaponLevels?.sword,
           defaults.player.weaponLevels.sword,
+          MAX_WEAPON_LEVEL,
         ),
-        hammer: nonNegativeInt(
+        hammer: upgradeLevel(
           weaponLevels?.hammer,
           defaults.player.weaponLevels.hammer,
+          MAX_WEAPON_LEVEL,
         ),
-        spear: nonNegativeInt(
+        spear: upgradeLevel(
           weaponLevels?.spear,
           defaults.player.weaponLevels.spear,
+          MAX_WEAPON_LEVEL,
         ),
-        daggers: nonNegativeInt(
+        daggers: upgradeLevel(
           weaponLevels?.daggers,
           defaults.player.weaponLevels.daggers,
+          MAX_WEAPON_LEVEL,
         ),
       },
     },

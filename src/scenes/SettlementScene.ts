@@ -15,14 +15,21 @@ import {
   startYandexGameplay,
 } from '../platform/yandex/YandexPlatform';
 
-export class SettlementScene extends Phaser.Scene {
+export class SettlementScene
+  extends Phaser.Scene {
   private readonly stateStore =
     new GameStateStore();
 
-  private inputMode?: InputModeTracker;
-  private unsubscribeInputMode?: () => void;
-  private debugOverlay?: DebugOverlay;
-  private inputLabel?: Phaser.GameObjects.Text;
+  private inputMode?:
+    InputModeTracker;
+  private unsubscribeInputMode?:
+    () => void;
+  private debugOverlay?:
+    DebugOverlay;
+  private inputLabel?:
+    Phaser.GameObjects.Text;
+  private expeditionKey?:
+    Phaser.Input.Keyboard.Key;
 
   constructor() {
     super('SettlementScene');
@@ -42,12 +49,15 @@ export class SettlementScene extends Phaser.Scene {
       this,
     );
 
-    const state = this.stateStore.load();
+    const state =
+      this.stateStore.load();
     this.stateStore.save(state);
 
     this.drawFoundationScene();
+    this.createExpeditionButton();
 
-    this.inputMode = new InputModeTracker();
+    this.inputMode =
+      new InputModeTracker();
     this.inputLabel = this.add
       .text(
         LOGICAL_WIDTH / 2,
@@ -67,9 +77,16 @@ export class SettlementScene extends Phaser.Scene {
     );
 
     this.unsubscribeInputMode =
-      this.inputMode.subscribe((mode) => {
-        this.updateInputLabel(mode);
-      });
+      this.inputMode.subscribe(
+        (mode) => {
+          this.updateInputLabel(mode);
+        },
+      );
+
+    this.expeditionKey =
+      this.input.keyboard?.addKey(
+        Phaser.Input.Keyboard.KeyCodes.E,
+      );
 
     this.debugOverlay =
       new DebugOverlay(this);
@@ -81,12 +98,25 @@ export class SettlementScene extends Phaser.Scene {
 
   update(): void {
     this.debugOverlay?.update();
+
+    if (
+      this.expeditionKey &&
+      Phaser.Input.Keyboard.JustDown(
+        this.expeditionKey,
+      )
+    ) {
+      this.startExpedition();
+    }
   }
 
   private drawFoundationScene(): void {
-    const graphics = this.add.graphics();
+    const graphics =
+      this.add.graphics();
 
-    graphics.fillStyle(0x17231c, 1);
+    graphics.fillStyle(
+      0x17231c,
+      1,
+    );
     graphics.fillRect(
       0,
       0,
@@ -94,7 +124,10 @@ export class SettlementScene extends Phaser.Scene {
       LOGICAL_HEIGHT,
     );
 
-    graphics.fillStyle(0x213329, 1);
+    graphics.fillStyle(
+      0x213329,
+      1,
+    );
     graphics.fillRoundedRect(
       110,
       120,
@@ -135,7 +168,10 @@ export class SettlementScene extends Phaser.Scene {
       );
     }
 
-    graphics.fillStyle(0xd68b45, 1);
+    graphics.fillStyle(
+      0xd68b45,
+      1,
+    );
     graphics.fillCircle(
       640,
       360,
@@ -152,7 +188,10 @@ export class SettlementScene extends Phaser.Scene {
       16,
     );
 
-    graphics.fillStyle(0x4a5048, 1);
+    graphics.fillStyle(
+      0x4a5048,
+      1,
+    );
     graphics.fillRoundedRect(
       820,
       292,
@@ -198,26 +237,12 @@ export class SettlementScene extends Phaser.Scene {
       .text(
         LOGICAL_WIDTH / 2,
         625,
-        'Foundation ready · Settlement prototype',
+        'Settlement prototype',
         {
           fontFamily:
             'system-ui, sans-serif',
           fontSize: '22px',
           color: '#d8dfcf',
-        },
-      )
-      .setOrigin(0.5);
-
-    this.add
-      .text(
-        LOGICAL_WIDTH / 2,
-        662,
-        'Следующий этап: персонаж → движение → камера → рывок',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '18px',
-          color: '#a9b9a3',
         },
       )
       .setOrigin(0.5);
@@ -251,6 +276,55 @@ export class SettlementScene extends Phaser.Scene {
       .setOrigin(0.5);
   }
 
+  private createExpeditionButton(): void {
+    const button =
+      this.add
+        .rectangle(
+          LOGICAL_WIDTH / 2,
+          545,
+          300,
+          58,
+          0x456d4d,
+          1,
+        )
+        .setStrokeStyle(
+          2,
+          0xb8ceb1,
+          0.8,
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.add
+      .text(
+        LOGICAL_WIDTH / 2,
+        545,
+        'В тестовую вылазку  [E]',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '19px',
+          fontStyle: 'bold',
+          color: '#f4f0dc',
+        },
+      )
+      .setOrigin(0.5);
+
+    button.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.startExpedition();
+      },
+    );
+  }
+
+  private startExpedition(): void {
+    this.scene.start(
+      'ExpeditionScene',
+    );
+  }
+
   private updateInputLabel(
     mode: InputMode,
   ): void {
@@ -272,7 +346,8 @@ export class SettlementScene extends Phaser.Scene {
       this,
     );
     this.unsubscribeInputMode?.();
-    this.unsubscribeInputMode = undefined;
+    this.unsubscribeInputMode =
+      undefined;
     this.inputMode?.destroy();
     this.inputMode = undefined;
     this.debugOverlay?.destroy();

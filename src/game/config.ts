@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from '../scenes/BootScene';
+import { ExpeditionScene } from '../scenes/ExpeditionScene';
 import { SettlementScene } from '../scenes/SettlementScene';
 import {
   getBrowserViewportMetrics,
@@ -18,6 +19,7 @@ export const gameConfig:
   scene: [
     BootScene,
     SettlementScene,
+    ExpeditionScene,
   ],
   scale: {
     mode: Phaser.Scale.NONE,

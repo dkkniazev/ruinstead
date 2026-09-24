@@ -183,6 +183,10 @@ export function sanitizeGameState(value: unknown): GameState {
         backpack?.metal,
         defaults.backpack.metal,
       ),
+      coins: nonNegativeInt(
+        backpack?.coins,
+        defaults.backpack.coins,
+      ),
     },
     settlement: {
       level: nonNegativeInt(

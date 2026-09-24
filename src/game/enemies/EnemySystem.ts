@@ -544,7 +544,7 @@ export class EnemySystem {
     EnemyUnit[] = [];
 
   constructor(
-    private readonly scene: Phaser.Scene,
+    scene: Phaser.Scene,
   ) {
     ensureEnemyTextures(scene);
 

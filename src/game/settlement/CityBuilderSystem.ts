@@ -634,7 +634,12 @@ export class CityBuilderSystem {
     ) {
       this.production.pending[
         type
-      ] += 1;
+      ] =
+        (
+          this.production.pending[
+            type
+          ] ?? 0
+        ) + 1;
       remaining -= 1;
     }
   }

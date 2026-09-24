@@ -266,7 +266,7 @@ const DEFINITIONS:
       'ruinstead-boss-root-colossus',
     thresholds:
       BOSS_THRESHOLDS,
-  },,
+  },
   {
     entryId:
       'species:dust-jackal',

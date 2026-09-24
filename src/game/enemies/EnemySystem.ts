@@ -184,7 +184,7 @@ const DEFINITIONS:
       'ruinstead-enemy-beetle-elite',
     bodyRadius: 28,
     baselineOffset: 34,
-  },,
+  },
   'dust-jackal': {
     id: 'dust-jackal',
     name: 'Пыльный шакал',
@@ -353,7 +353,7 @@ const HABITATS:
       [2580, 1050],
       [2440, 1450],
     ],
-  },,
+  },
   {
     species: 'dust-jackal',
     groups: [

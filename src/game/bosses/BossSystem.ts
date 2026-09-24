@@ -179,7 +179,7 @@ const BOSS_DEFINITIONS:
     primaryColor: 0x61462f,
     accentColor: 0xe7b85e,
     isMain: true,
-  },,
+  },
   {
     id: 'ash-matriarch',
     name: 'Пепельная матриархиня',

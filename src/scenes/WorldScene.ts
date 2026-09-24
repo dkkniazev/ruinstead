@@ -1352,7 +1352,8 @@ export class WorldScene
       ) {
         this.gameState.resources[
           type
-        ] += deposited[type];
+        ] +=
+          deposited[type] ?? 0;
       }
 
       this.gameState.progression
@@ -1421,6 +1422,22 @@ export class WorldScene
     if (resources.metal > 0) {
       parts.push(
         `металл +${resources.metal}`,
+      );
+    }
+    if (
+      (resources.crystal ?? 0) >
+      0
+    ) {
+      parts.push(
+        `кристалл +${resources.crystal ?? 0}`,
+      );
+    }
+    if (
+      (resources.fiber ?? 0) >
+      0
+    ) {
+      parts.push(
+        `волокно +${resources.fiber ?? 0}`,
       );
     }
     if (resources.coins > 0) {

@@ -2,9 +2,14 @@ import Phaser from 'phaser';
 import type {
   BackpackSystem,
 } from './BackpackSystem';
-import type {
-  ResourceType,
+import {
+  RESOURCE_TYPES,
+  type ResourceCounts,
+  type ResourceType,
 } from './ResourceTypes';
+
+type HarvestResourceType =
+  Exclude<ResourceType, 'coins'>;
 
 const HARVEST_RANGE = 88;
 const HARVEST_COOLDOWN_MS = 620;
@@ -15,7 +20,7 @@ const PICKUP_LIFETIME_MS = 90_000;
 
 type ResourceNodeDefinition = {
   id: string;
-  type: ResourceType;
+  type: HarvestResourceType;
   x: number;
   y: number;
   durability: number;
@@ -25,167 +30,44 @@ type ResourceNodeDefinition = {
 
 type ResourcePickup = {
   type: ResourceType;
+  amount: number;
   sprite: Phaser.GameObjects.Image;
+  label?: Phaser.GameObjects.Text;
   expiresAt: number;
 };
 
 const NODE_DEFINITIONS:
   readonly ResourceNodeDefinition[] = [
-  {
-    id: 'wood-1',
-    type: 'wood',
-    x: 1040,
-    y: 560,
-    durability: 3,
-    dropCount: 4,
-    respawnMs: 45_000,
-  },
-  {
-    id: 'wood-2',
-    type: 'wood',
-    x: 1240,
-    y: 620,
-    durability: 3,
-    dropCount: 4,
-    respawnMs: 45_000,
-  },
-  {
-    id: 'wood-3',
-    type: 'wood',
-    x: 1400,
-    y: 1120,
-    durability: 3,
-    dropCount: 4,
-    respawnMs: 45_000,
-  },
-  {
-    id: 'wood-4',
-    type: 'wood',
-    x: 1650,
-    y: 950,
-    durability: 3,
-    dropCount: 4,
-    respawnMs: 45_000,
-  },
-  {
-    id: 'wood-5',
-    type: 'wood',
-    x: 1870,
-    y: 1360,
-    durability: 3,
-    dropCount: 4,
-    respawnMs: 45_000,
-  },
-  {
-    id: 'wood-6',
-    type: 'wood',
-    x: 2210,
-    y: 850,
-    durability: 3,
-    dropCount: 4,
-    respawnMs: 45_000,
-  },
-  {
-    id: 'stone-1',
-    type: 'stone',
-    x: 1160,
-    y: 420,
-    durability: 4,
-    dropCount: 3,
-    respawnMs: 60_000,
-  },
-  {
-    id: 'stone-2',
-    type: 'stone',
-    x: 1510,
-    y: 720,
-    durability: 4,
-    dropCount: 3,
-    respawnMs: 60_000,
-  },
-  {
-    id: 'stone-3',
-    type: 'stone',
-    x: 1900,
-    y: 1010,
-    durability: 4,
-    dropCount: 3,
-    respawnMs: 60_000,
-  },
-  {
-    id: 'stone-4',
-    type: 'stone',
-    x: 2310,
-    y: 1300,
-    durability: 4,
-    dropCount: 3,
-    respawnMs: 60_000,
-  },
-  {
-    id: 'stone-5',
-    type: 'stone',
-    x: 1980,
-    y: 1460,
-    durability: 4,
-    dropCount: 3,
-    respawnMs: 60_000,
-  },
-  {
-    id: 'metal-1',
-    type: 'metal',
-    x: 1700,
-    y: 430,
-    durability: 5,
-    dropCount: 2,
-    respawnMs: 90_000,
-  },
-  {
-    id: 'metal-2',
-    type: 'metal',
-    x: 2050,
-    y: 620,
-    durability: 5,
-    dropCount: 2,
-    respawnMs: 90_000,
-  },
-  {
-    id: 'metal-3',
-    type: 'metal',
-    x: 2420,
-    y: 980,
-    durability: 5,
-    dropCount: 2,
-    respawnMs: 90_000,
-  },
-  {
-    id: 'metal-4',
-    type: 'metal',
-    x: 2190,
-    y: 1510,
-    durability: 5,
-    dropCount: 2,
-    respawnMs: 90_000,
-  },
+  { id: 'wood-1', type: 'wood', x: 1040, y: 560, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-2', type: 'wood', x: 1240, y: 620, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-3', type: 'wood', x: 1400, y: 1120, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-4', type: 'wood', x: 1650, y: 950, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-5', type: 'wood', x: 1870, y: 1360, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'wood-6', type: 'wood', x: 2210, y: 850, durability: 3, dropCount: 4, respawnMs: 45_000 },
+  { id: 'stone-1', type: 'stone', x: 1160, y: 420, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-2', type: 'stone', x: 1510, y: 720, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-3', type: 'stone', x: 1900, y: 1010, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-4', type: 'stone', x: 2310, y: 1300, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'stone-5', type: 'stone', x: 1980, y: 1460, durability: 4, dropCount: 3, respawnMs: 60_000 },
+  { id: 'metal-1', type: 'metal', x: 1700, y: 430, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  { id: 'metal-2', type: 'metal', x: 2050, y: 620, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  { id: 'metal-3', type: 'metal', x: 2420, y: 980, durability: 5, dropCount: 2, respawnMs: 90_000 },
+  { id: 'metal-4', type: 'metal', x: 2190, y: 1510, durability: 5, dropCount: 2, respawnMs: 90_000 },
 ];
 
 const NODE_TEXTURES:
-  Record<ResourceType, string> = {
-  wood:
-    'ruinstead-resource-node-wood',
-  stone:
-    'ruinstead-resource-node-stone',
-  metal:
-    'ruinstead-resource-node-metal',
+  Record<HarvestResourceType, string> = {
+  wood: 'ruinstead-resource-node-wood-pile',
+  stone: 'ruinstead-resource-node-stone-pile',
+  metal: 'ruinstead-resource-node-metal-pile',
 };
 
 const PICKUP_TEXTURES:
   Record<ResourceType, string> = {
-  wood:
-    'ruinstead-resource-pickup-wood',
-  stone:
-    'ruinstead-resource-pickup-stone',
-  metal:
-    'ruinstead-resource-pickup-metal',
+  wood: 'ruinstead-resource-pickup-wood',
+  stone: 'ruinstead-resource-pickup-stone',
+  metal: 'ruinstead-resource-pickup-metal',
+  coins: 'ruinstead-resource-pickup-coins',
 };
 
 class ResourceNode {
@@ -203,24 +85,17 @@ class ResourceNode {
 
   constructor(
     private readonly scene: Phaser.Scene,
-    readonly definition:
-      ResourceNodeDefinition,
+    readonly definition: ResourceNodeDefinition,
   ) {
-    this.health =
-      definition.durability;
+    this.health = definition.durability;
 
-    this.sprite =
-      scene.add
-        .image(
-          definition.x,
-          definition.y,
-          NODE_TEXTURES[
-            definition.type
-          ],
-        )
-        .setDepth(
-          definition.y + 45,
-        );
+    this.sprite = scene.add
+      .image(
+        definition.x,
+        definition.y,
+        NODE_TEXTURES[definition.type],
+      )
+      .setDepth(definition.y + 45);
 
     this.back = scene.add
       .rectangle(
@@ -232,9 +107,7 @@ class ResourceNode {
         0.75,
       )
       .setOrigin(0, 0.5)
-      .setDepth(
-        definition.y + 130,
-      )
+      .setDepth(definition.y + 130)
       .setVisible(false);
 
     this.fill = scene.add
@@ -247,9 +120,7 @@ class ResourceNode {
         0.96,
       )
       .setOrigin(0, 0.5)
-      .setDepth(
-        definition.y + 131,
-      )
+      .setDepth(definition.y + 131)
       .setVisible(false);
   }
 
@@ -284,20 +155,15 @@ class ResourceNode {
     }
 
     this.health =
-      Math.max(
-        0,
-        this.health - 1,
-      );
+      Math.max(0, this.health - 1);
 
     this.back.setVisible(true);
     this.fill.setVisible(true);
-
     this.fill.setDisplaySize(
       46 *
         (
           this.health /
-          this.definition
-            .durability
+          this.definition.durability
         ),
       5,
     );
@@ -329,8 +195,7 @@ class ResourceNode {
     this.active = false;
     this.respawnAt =
       this.scene.time.now +
-      this.definition
-        .respawnMs;
+      this.definition.respawnMs;
 
     this.back.setVisible(false);
     this.fill.setVisible(false);
@@ -342,9 +207,7 @@ class ResourceNode {
       duration: 180,
       ease: 'Back.In',
       onComplete: () => {
-        this.sprite.setVisible(
-          false,
-        );
+        this.sprite.setVisible(false);
       },
     });
   }
@@ -422,8 +285,7 @@ export class ResourceSystem {
 
     if (
       threatened ||
-      time <
-        this.nextHarvestAt
+      time < this.nextHarvestAt
     ) {
       return;
     }
@@ -438,16 +300,49 @@ export class ResourceSystem {
     }
 
     this.nextHarvestAt =
-      time +
-      HARVEST_COOLDOWN_MS;
+      time + HARVEST_COOLDOWN_MS;
 
-    const depleted =
-      node.hit();
-
-    if (depleted) {
-      this.spawnDrops(
+    if (node.hit()) {
+      this.spawnNodeDrops(
         node.definition,
       );
+    }
+  }
+
+  spawnDeathDrop(
+    position: Phaser.Math.Vector2,
+    contents: ResourceCounts,
+  ): void {
+    let slot = 0;
+
+    for (
+      const type of
+      RESOURCE_TYPES
+    ) {
+      const amount =
+        contents[type];
+
+      if (amount <= 0) {
+        continue;
+      }
+
+      const angle =
+        (slot / 4) *
+        Math.PI *
+        2;
+
+      this.spawnPickupStack(
+        type,
+        position.x +
+          Math.cos(angle) * 38,
+        position.y +
+          Math.sin(angle) * 28,
+        amount,
+        Number.POSITIVE_INFINITY,
+        true,
+      );
+
+      slot += 1;
     }
   }
 
@@ -464,6 +359,7 @@ export class ResourceSystem {
       this.pickups
     ) {
       pickup.sprite.destroy();
+      pickup.label?.destroy();
     }
 
     this.nodes.length = 0;
@@ -498,20 +394,17 @@ export class ResourceSystem {
         );
 
       if (
-        distance <=
-        bestDistance
+        distance <= bestDistance
       ) {
-        best =
-          node;
-        bestDistance =
-          distance;
+        best = node;
+        bestDistance = distance;
       }
     }
 
     return best;
   }
 
-  private spawnDrops(
+  private spawnNodeDrops(
     definition:
       ResourceNodeDefinition,
   ): void {
@@ -534,24 +427,64 @@ export class ResourceSystem {
           38,
         );
 
-      const sprite =
-        this.scene.add
-          .image(
-            definition.x +
-              Math.cos(angle) *
-                radius,
-            definition.y +
-              Math.sin(angle) *
-                radius,
-            PICKUP_TEXTURES[
-              definition.type
-            ],
-          )
-          .setDepth(
-            definition.y + 120,
-          )
-          .setScale(0.35);
+      this.spawnPickupStack(
+        definition.type,
+        definition.x +
+          Math.cos(angle) * radius,
+        definition.y +
+          Math.sin(angle) * radius,
+        1,
+        this.scene.time.now +
+          PICKUP_LIFETIME_MS,
+        false,
+      );
+    }
+  }
 
+  private spawnPickupStack(
+    type: ResourceType,
+    x: number,
+    y: number,
+    amount: number,
+    expiresAt: number,
+    persistent: boolean,
+  ): void {
+    const sprite =
+      this.scene.add
+        .image(
+          x,
+          y,
+          PICKUP_TEXTURES[type],
+        )
+        .setDepth(y + 120)
+        .setScale(
+          persistent ? 1.15 : 0.35,
+        );
+
+    let label:
+      Phaser.GameObjects.Text | undefined;
+
+    if (amount > 1) {
+      label =
+        this.scene.add
+          .text(
+            x + 13,
+            y - 14,
+            `×${amount}`,
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '13px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              stroke: '#3c3b2c',
+              strokeThickness: 3,
+            },
+          )
+          .setDepth(y + 121);
+    }
+
+    if (!persistent) {
       this.scene.tweens.add({
         targets: sprite,
         scale: 1,
@@ -560,16 +493,23 @@ export class ResourceSystem {
         yoyo: true,
         ease: 'Back.Out',
       });
-
-      this.pickups.push({
-        type:
-          definition.type,
-        sprite,
-        expiresAt:
-          this.scene.time.now +
-          PICKUP_LIFETIME_MS,
+    } else {
+      this.scene.tweens.add({
+        targets: sprite,
+        scale: 1.3,
+        duration: 260,
+        yoyo: true,
+        ease: 'Sine.InOut',
       });
     }
+
+    this.pickups.push({
+      type,
+      amount,
+      sprite,
+      label,
+      expiresAt,
+    });
   }
 
   private updatePickups(
@@ -591,8 +531,10 @@ export class ResourceSystem {
         this.pickups[index];
 
       if (
-        time >=
-        pickup.expiresAt
+        Number.isFinite(
+          pickup.expiresAt,
+        ) &&
+        time >= pickup.expiresAt
       ) {
         this.removePickup(
           index,
@@ -625,15 +567,25 @@ export class ResourceSystem {
         const accepted =
           this.backpack.add(
             pickup.type,
-            1,
+            pickup.amount,
           );
 
         if (accepted > 0) {
-          this.removePickup(
-            index,
-            false,
-          );
+          pickup.amount -= accepted;
           this.onBackpackChanged();
+
+          if (
+            pickup.amount <= 0
+          ) {
+            this.removePickup(
+              index,
+              false,
+            );
+          } else {
+            this.updatePickupLabel(
+              pickup,
+            );
+          }
         }
 
         continue;
@@ -661,8 +613,54 @@ export class ResourceSystem {
         pickup.sprite.setDepth(
           pickup.sprite.y + 120,
         );
+
+        pickup.label
+          ?.setPosition(
+            pickup.sprite.x + 13,
+            pickup.sprite.y - 14,
+          )
+          .setDepth(
+            pickup.sprite.y + 121,
+          );
       }
     }
+  }
+
+  private updatePickupLabel(
+    pickup: ResourcePickup,
+  ): void {
+    if (pickup.amount <= 1) {
+      pickup.label?.destroy();
+      pickup.label = undefined;
+      return;
+    }
+
+    if (!pickup.label) {
+      pickup.label =
+        this.scene.add
+          .text(
+            pickup.sprite.x + 13,
+            pickup.sprite.y - 14,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '13px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              stroke: '#3c3b2c',
+              strokeThickness: 3,
+            },
+          );
+    }
+
+    pickup.label
+      .setText(
+        `×${pickup.amount}`,
+      )
+      .setDepth(
+        pickup.sprite.y + 121,
+      );
   }
 
   private removePickup(
@@ -679,24 +677,17 @@ export class ResourceSystem {
       return;
     }
 
-    if (!fade) {
-      this.scene.tweens.add({
-        targets:
-          pickup.sprite,
-        scale: 1.45,
-        alpha: 0,
-        duration: 100,
-        onComplete: () => {
-          pickup.sprite.destroy();
-        },
-      });
-      return;
-    }
+    pickup.label?.destroy();
 
     this.scene.tweens.add({
       targets: pickup.sprite,
+      scale:
+        fade
+          ? pickup.sprite.scale
+          : 1.45,
       alpha: 0,
-      duration: 220,
+      duration:
+        fade ? 220 : 100,
       onComplete: () => {
         pickup.sprite.destroy();
       },
@@ -726,6 +717,11 @@ function ensureResourceTextures(
     'metal',
     0x6f8792,
   );
+  ensurePickupTexture(
+    scene,
+    'coins',
+    0xe3a724,
+  );
 }
 
 function ensureWoodNode(
@@ -745,57 +741,63 @@ function ensureWoodNode(
     });
 
   g.fillStyle(
-    0x2d6936,
-    0.18,
+    0x315f35,
+    0.16,
   );
   g.fillEllipse(
-    48,
-    73,
-    80,
+    52,
+    65,
+    88,
     20,
   );
 
-  g.fillStyle(
-    0x8f592d,
-    1,
-  );
-  g.fillRoundedRect(
-    31,
-    28,
-    33,
-    48,
-    10,
-  );
+  const logs = [
+    [13, 39, 62, 15],
+    [24, 25, 62, 15],
+    [10, 52, 69, 15],
+  ] as const;
 
-  g.fillStyle(
-    0x26934f,
-    1,
-  );
-  g.fillCircle(
-    48,
-    25,
-    31,
-  );
+  for (
+    const [x, y, w, h]
+    of logs
+  ) {
+    g.fillStyle(
+      0x9b6337,
+      1,
+    );
+    g.fillRoundedRect(
+      x,
+      y,
+      w,
+      h,
+      7,
+    );
 
-  g.fillStyle(
-    0x45ba61,
-    1,
-  );
-  g.fillCircle(
-    35,
-    18,
-    20,
-  );
-  g.fillCircle(
-    61,
-    17,
-    21,
-  );
+    g.fillStyle(
+      0xc98b50,
+      1,
+    );
+    g.fillCircle(
+      x + w - 4,
+      y + h / 2,
+      h / 2 - 1,
+    );
+
+    g.fillStyle(
+      0x6f4326,
+      0.8,
+    );
+    g.fillCircle(
+      x + w - 4,
+      y + h / 2,
+      3,
+    );
+  }
 
   g.generateTexture(
     key,
-    96,
-    90,
+    104,
+    78,
   );
   g.destroy();
 }
@@ -817,62 +819,54 @@ function ensureStoneNode(
     });
 
   g.fillStyle(
-    0x344f39,
-    0.15,
+    0x315f35,
+    0.14,
   );
   g.fillEllipse(
-    48,
-    68,
-    78,
-    18,
+    52,
+    65,
+    88,
+    20,
   );
 
-  g.fillStyle(
-    0x87928e,
-    1,
-  );
-  g.fillTriangle(
-    13,
-    61,
-    35,
-    27,
-    53,
-    62,
-  );
-  g.fillTriangle(
-    37,
-    62,
-    61,
-    20,
-    85,
-    62,
-  );
+  const stones = [
+    [25, 49, 20],
+    [46, 43, 24],
+    [69, 50, 19],
+    [35, 29, 18],
+    [60, 25, 21],
+  ] as const;
 
-  g.fillStyle(
-    0xc8d0ca,
-    0.85,
-  );
-  g.fillTriangle(
-    35,
-    27,
-    45,
-    48,
-    53,
-    62,
-  );
-  g.fillTriangle(
-    61,
-    20,
-    70,
-    43,
-    85,
-    62,
-  );
+  for (
+    const [x, y, r]
+    of stones
+  ) {
+    g.fillStyle(
+      0x909b98,
+      1,
+    );
+    g.fillCircle(
+      x,
+      y,
+      r,
+    );
+
+    g.fillStyle(
+      0xc6d0cb,
+      0.72,
+    );
+    g.fillEllipse(
+      x - 5,
+      y - 6,
+      r,
+      r * 0.6,
+    );
+  }
 
   g.generateTexture(
     key,
-    96,
-    82,
+    104,
+    78,
   );
   g.destroy();
 }
@@ -894,61 +888,69 @@ function ensureMetalNode(
     });
 
   g.fillStyle(
-    0x344f39,
-    0.15,
+    0x315f35,
+    0.14,
   );
   g.fillEllipse(
-    48,
-    69,
-    80,
-    18,
+    52,
+    67,
+    88,
+    20,
   );
 
   g.fillStyle(
     0x667982,
     1,
   );
-  g.fillTriangle(
-    12,
-    61,
-    38,
-    23,
-    53,
-    63,
+  g.fillRoundedRect(
+    19,
+    39,
+    70,
+    16,
+    4,
   );
-  g.fillTriangle(
-    38,
-    62,
-    66,
-    27,
-    86,
-    62,
+  g.fillRoundedRect(
+    34,
+    22,
+    18,
+    49,
+    4,
   );
 
   g.fillStyle(
-    0x9dc9d3,
-    0.95,
+    0x8fa6ad,
+    1,
   );
   g.fillTriangle(
-    32,
-    37,
-    40,
-    20,
-    48,
-    43,
+    16,
+    58,
+    38,
+    29,
+    50,
+    61,
   );
   g.fillTriangle(
-    59,
-    40,
-    68,
+    55,
+    57,
+    76,
     25,
-    75,
+    90,
+    60,
+  );
+
+  g.fillStyle(
+    0xb7e2ea,
+    0.8,
+  );
+  g.fillCircle(
+    52,
     47,
+    8,
   );
 
   g.generateTexture(
     key,
-    96,
+    104,
     82,
   );
   g.destroy();
@@ -1010,15 +1012,19 @@ function ensurePickupTexture(
   } else if (
     type === 'stone'
   ) {
-    g.fillTriangle(
-      4,
-      17,
-      13,
-      5,
-      25,
-      17,
+    g.fillCircle(
+      10,
+      14,
+      7,
     );
-  } else {
+    g.fillCircle(
+      18,
+      12,
+      8,
+    );
+  } else if (
+    type === 'metal'
+  ) {
     g.fillTriangle(
       4,
       17,
@@ -1038,6 +1044,21 @@ function ensurePickupTexture(
       5,
       18,
       13,
+    );
+  } else {
+    g.fillCircle(
+      14,
+      12,
+      10,
+    );
+    g.fillStyle(
+      0xffdf55,
+      1,
+    );
+    g.fillCircle(
+      12,
+      10,
+      6,
     );
   }
 

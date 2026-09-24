@@ -1,4 +1,7 @@
 import {
+  getBackpackCapacity,
+} from '../progression/UpgradeBalance';
+import {
   RESOURCE_DEFINITIONS,
   RESOURCE_TYPES,
   cloneResourceCounts,
@@ -6,9 +9,6 @@ import {
   type ResourceCounts,
   type ResourceType,
 } from './ResourceTypes';
-
-const BASE_CAPACITY = 100;
-const CAPACITY_PER_LEVEL = 25;
 
 export type BackpackState = {
   carried: ResourceCounts;
@@ -20,7 +20,7 @@ export class BackpackSystem {
   private readonly carried:
     ResourceCounts;
 
-  readonly capacity: number;
+  private _capacity: number;
 
   constructor(
     backpackLevel: number,
@@ -28,21 +28,30 @@ export class BackpackSystem {
       ResourceCounts =
         emptyResourceCounts(),
   ) {
-    this.capacity =
-      BASE_CAPACITY +
-      Math.max(
-        0,
-        Math.floor(
-          backpackLevel,
-        ),
-      ) *
-        CAPACITY_PER_LEVEL;
+    this._capacity =
+      getBackpackCapacity(
+        backpackLevel,
+      );
 
     this.carried =
       cloneResourceCounts(
         initial,
       );
 
+    this.trimToCapacity();
+  }
+
+  get capacity(): number {
+    return this._capacity;
+  }
+
+  setLevel(
+    backpackLevel: number,
+  ): void {
+    this._capacity =
+      getBackpackCapacity(
+        backpackLevel,
+      );
     this.trimToCapacity();
   }
 

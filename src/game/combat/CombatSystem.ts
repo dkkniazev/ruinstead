@@ -17,6 +17,10 @@ import {
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
 import {
+  getMaxHealth,
+  getWeaponDamageMultiplier,
+} from '../progression/UpgradeBalance';
+import {
   WEAPON_DEFINITIONS,
   isWeaponId,
   type WeaponAttackStyle,
@@ -27,6 +31,14 @@ type CombatTarget =
   | EnemyUnit
   | BossUnit;
 
+export type CombatProgression = {
+  maxHealthLevel: number;
+  weaponLevels:
+    Partial<
+      Record<WeaponId, number>
+    >;
+};
+
 export type CombatState = {
   health: number;
   maxHealth: number;
@@ -35,10 +47,13 @@ export type CombatState = {
 };
 
 export class CombatSystem {
-  private readonly maxHealth =
-    100;
+  private maxHealth = 100;
   private health =
     this.maxHealth;
+  private weaponLevels:
+    Partial<
+      Record<WeaponId, number>
+    > = {};
   private weaponId:
     WeaponId = 'axe';
 
@@ -77,6 +92,8 @@ export class CombatSystem {
       readonly unknown[] = [
         'axe',
       ],
+    progression:
+      CombatProgression,
     onCoinsCollected:
       (value: number) => number,
     private readonly onPlayerDefeated?:
@@ -89,6 +106,16 @@ export class CombatSystem {
         scene,
         onCoinsCollected,
       );
+
+    this.maxHealth =
+      getMaxHealth(
+        progression.maxHealthLevel,
+      );
+    this.health =
+      this.maxHealth;
+    this.weaponLevels = {
+      ...progression.weaponLevels,
+    };
 
     this.unlockedWeapons.clear();
 
@@ -147,6 +174,52 @@ export class CombatSystem {
       unlockedWeaponIds:
         [...this.unlockedWeapons],
     };
+  }
+
+  setProgression(
+    maxHealthLevel: number,
+    weaponLevels:
+      Partial<
+        Record<WeaponId, number>
+      >,
+  ): void {
+    const previousMax =
+      this.maxHealth;
+    this.maxHealth =
+      getMaxHealth(
+        maxHealthLevel,
+      );
+
+    if (
+      this.maxHealth >
+      previousMax
+    ) {
+      this.health =
+        Math.min(
+          this.maxHealth,
+          this.health +
+            (
+              this.maxHealth -
+              previousMax
+            ),
+        );
+    } else {
+      this.health =
+        Math.min(
+          this.health,
+          this.maxHealth,
+        );
+    }
+
+    this.weaponLevels = {
+      ...weaponLevels,
+    };
+
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+    this.emitState();
   }
 
   setWeapon(
@@ -436,6 +509,11 @@ export class CombatSystem {
         1,
         Math.round(
           baseDamage *
+            getWeaponDamageMultiplier(
+              this.weaponLevels[
+                this.weaponId
+              ] ?? 0,
+            ) *
             damageProfile.multiplier,
         ),
       );

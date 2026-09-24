@@ -18,12 +18,26 @@ import {
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
+  HUD_PLAYER_UPGRADE_EVENT,
+  HUD_UPGRADE_STATE_EVENT,
+  HUD_WEAPON_UPGRADE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
+  type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import type {
   SettlementHudState,
 } from '../game/settlement/SettlementSystem';
+import {
+  MAX_UPGRADE_LEVEL,
+  getPlayerUpgradeCost,
+  getWeaponUpgradeCost,
+  canAffordUpgrade,
+  type PlayerUpgradeId,
+} from '../game/progression/UpgradeBalance';
+import {
+  WEAPON_DEFINITIONS,
+} from '../game/combat/WeaponDefinitions';
 
 const WEAPON_ICON_TEXTURES:
   Record<WeaponId, string> = {
@@ -41,6 +55,8 @@ type HudSceneData = {
     GatheringHudState;
   initialSettlementState:
     SettlementHudState;
+  initialUpgradeState:
+    UpgradeHudState;
   initialAreaName: string;
 };
 
@@ -54,6 +70,8 @@ export class HudScene
     SettlementHudState;
   private settlementState?:
     SettlementHudState;
+  private upgradeState?:
+    UpgradeHudState;
   private forgePanelOpen = false;
   private initialAreaName =
     'Руины поселения';
@@ -92,6 +110,17 @@ export class HudScene
     Phaser.GameObjects.Rectangle;
   private forgeRepairButtonText?:
     Phaser.GameObjects.Text;
+  private upgradeTitle?:
+    Phaser.GameObjects.Text;
+  private playerUpgradeButtons:
+    Partial<
+      Record<
+        PlayerUpgradeId,
+        Phaser.GameObjects.Text
+      >
+    > = {};
+  private weaponUpgradeButton?:
+    Phaser.GameObjects.Text;
 
   private weaponButtons:
     Partial<
@@ -120,6 +149,8 @@ export class HudScene
       data.initialGatheringState;
     this.initialSettlementState =
       data.initialSettlementState;
+    this.upgradeState =
+      data.initialUpgradeState;
     this.initialAreaName =
       data.initialAreaName;
   }
@@ -147,6 +178,11 @@ export class HudScene
     this.game.events.on(
       HUD_SETTLEMENT_STATE_EVENT,
       this.handleSettlementState,
+      this,
+    );
+    this.game.events.on(
+      HUD_UPGRADE_STATE_EVENT,
+      this.handleUpgradeState,
       this,
     );
     this.game.events.on(
@@ -197,6 +233,12 @@ export class HudScene
     ) {
       this.handleSettlementState(
         this.initialSettlementState,
+      );
+    }
+
+    if (this.upgradeState) {
+      this.handleUpgradeState(
+        this.upgradeState,
       );
     }
 
@@ -538,8 +580,8 @@ export class HudScene
         .rectangle(
           0,
           0,
-          520,
-          360,
+          620,
+          560,
           0x233b2a,
           0.97,
         )
@@ -553,7 +595,7 @@ export class HudScene
       this.add
         .text(
           0,
-          -145,
+          -245,
           'Кузница',
           {
             fontFamily:
@@ -569,7 +611,7 @@ export class HudScene
       this.add
         .text(
           0,
-          -92,
+          -198,
           '',
           {
             fontFamily:
@@ -586,7 +628,7 @@ export class HudScene
       this.add
         .text(
           0,
-          -35,
+          -145,
           '',
           {
             fontFamily:
@@ -602,7 +644,7 @@ export class HudScene
       this.add
         .text(
           0,
-          18,
+          -102,
           '',
           {
             fontFamily:
@@ -618,7 +660,7 @@ export class HudScene
       this.add
         .text(
           0,
-          64,
+          -60,
           '',
           {
             fontFamily:
@@ -634,7 +676,7 @@ export class HudScene
       this.add
         .rectangle(
           0,
-          118,
+          -2,
           300,
           52,
           0x6f9250,
@@ -653,7 +695,7 @@ export class HudScene
       this.add
         .text(
           0,
-          118,
+          -2,
           'Вложить ресурсы',
           {
             fontFamily:
@@ -668,8 +710,8 @@ export class HudScene
     const close =
       this.add
         .text(
-          226,
-          -154,
+          276,
+          -254,
           '×',
           {
             fontFamily:
@@ -709,6 +751,134 @@ export class HudScene
       },
     );
 
+    this.upgradeTitle =
+      this.add
+        .text(
+          0,
+          50,
+          'Улучшения',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '18px',
+            fontStyle: 'bold',
+            color: '#ffe7a0',
+          },
+        )
+        .setOrigin(0.5);
+
+    const playerUpgrades:
+      Array<{
+        id: PlayerUpgradeId;
+        y: number;
+      }> = [
+      {
+        id: 'max-health',
+        y: 90,
+      },
+      {
+        id: 'move-speed',
+        y: 126,
+      },
+      {
+        id: 'backpack',
+        y: 162,
+      },
+      {
+        id: 'dash',
+        y: 198,
+      },
+    ];
+
+    for (
+      const item of
+      playerUpgrades
+    ) {
+      const button =
+        this.add
+          .text(
+            0,
+            item.y,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '14px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#486b43',
+              padding: {
+                x: 12,
+                y: 7,
+              },
+              fixedWidth: 500,
+              align: 'center',
+            },
+          )
+          .setOrigin(0.5)
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () => {
+          this.game.events.emit(
+            HUD_PLAYER_UPGRADE_EVENT,
+            item.id,
+          );
+        },
+      );
+
+      this.playerUpgradeButtons[
+        item.id
+      ] = button;
+    }
+
+    this.weaponUpgradeButton =
+      this.add
+        .text(
+          0,
+          238,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#76538d',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+            fixedWidth: 500,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.weaponUpgradeButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const weaponId =
+          this.upgradeState
+            ?.selectedWeaponId;
+
+        if (weaponId) {
+          this.game.events.emit(
+            HUD_WEAPON_UPGRADE_EVENT,
+            weaponId,
+          );
+        }
+      },
+    );
+
     panel.add([
       bg,
       title,
@@ -718,6 +888,11 @@ export class HudScene
       this.forgeNpcText,
       this.forgeRepairButton,
       this.forgeRepairButtonText,
+      this.upgradeTitle,
+      ...Object.values(
+        this.playerUpgradeButtons,
+      ),
+      this.weaponUpgradeButton,
       close,
     ]);
 
@@ -779,6 +954,129 @@ export class HudScene
         .setAlpha(0);
   }
 
+  private handleUpgradeState(
+    state: UpgradeHudState,
+  ): void {
+    this.upgradeState =
+      state;
+
+    const labels:
+      Record<
+        PlayerUpgradeId,
+        string
+      > = {
+      'max-health': 'Здоровье',
+      'move-speed': 'Скорость',
+      backpack: 'Рюкзак',
+      dash: 'Рывок',
+    };
+
+    const levels:
+      Record<
+        PlayerUpgradeId,
+        number
+      > = {
+      'max-health':
+        state.player
+          .maxHealthLevel,
+      'move-speed':
+        state.player
+          .moveSpeedLevel,
+      backpack:
+        state.player
+          .backpackLevel,
+      dash:
+        state.player
+          .dashLevel,
+    };
+
+    for (
+      const id of
+      [
+        'max-health',
+        'move-speed',
+        'backpack',
+        'dash',
+      ] as const
+    ) {
+      const level =
+        levels[id];
+      const cost =
+        getPlayerUpgradeCost(
+          id,
+          level,
+        );
+      const affordable =
+        canAffordUpgrade(
+          state.storage,
+          cost,
+        );
+      const button =
+        this.playerUpgradeButtons[
+          id
+        ];
+
+      button?.setText(
+        cost
+          ? `${labels[id]} Lv.${level} → ${level + 1}   ●${cost.coins} Д${cost.wood} К${cost.stone} М${cost.metal}`
+          : `${labels[id]} Lv.${MAX_UPGRADE_LEVEL} · MAX`,
+      );
+
+      button?.setStyle({
+        backgroundColor:
+          cost && affordable
+            ? '#486b43'
+            : '#444b45',
+        color:
+          cost
+            ? '#ffffff'
+            : '#bfc5bf',
+      });
+    }
+
+    const weaponId =
+      state.selectedWeaponId;
+    const weaponLevel =
+      state.weaponLevels[
+        weaponId
+      ];
+    const unlocked =
+      state.unlockedWeaponIds
+        .includes(weaponId);
+    const weaponCost =
+      unlocked
+        ? getWeaponUpgradeCost(
+            weaponId,
+            weaponLevel,
+          )
+        : null;
+    const weaponAffordable =
+      unlocked &&
+      canAffordUpgrade(
+        state.storage,
+        weaponCost,
+      );
+
+    this.weaponUpgradeButton
+      ?.setText(
+        !unlocked
+          ? `${WEAPON_DEFINITIONS[weaponId].name} · закрыто`
+          : weaponCost
+            ? `${WEAPON_DEFINITIONS[weaponId].name} Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}`
+            : `${WEAPON_DEFINITIONS[weaponId].name} Lv.${MAX_UPGRADE_LEVEL} · MAX`,
+      )
+      .setStyle({
+        backgroundColor:
+          weaponAffordable
+            ? '#76538d'
+            : '#4a4350',
+        color:
+          unlocked
+            ? '#ffffff'
+            : '#9f9aa2',
+      });
+  }
+
   private handleSettlementState(
     state: SettlementHudState,
   ): void {
@@ -829,9 +1127,37 @@ export class HudScene
 
     this.forgeNpcText?.setText(
       forge.npcPresent
-        ? 'Кузнец прибыл. Улучшение оружия откроется на Этапе 5.'
-        : 'Каждая стадия ремонта визуально меняет кузницу.',
+        ? 'Кузнец готов улучшать снаряжение.'
+        : '',
     );
+
+    this.forgeRepairButton
+      ?.setVisible(
+        !forge.restored,
+      );
+    this.forgeRepairButtonText
+      ?.setVisible(
+        !forge.restored,
+      );
+    this.upgradeTitle?.setVisible(
+      forge.restored,
+    );
+
+    for (
+      const button of
+      Object.values(
+        this.playerUpgradeButtons,
+      )
+    ) {
+      button.setVisible(
+        forge.restored,
+      );
+    }
+
+    this.weaponUpgradeButton
+      ?.setVisible(
+        forge.restored,
+      );
 
     this.forgeRepairButton
       ?.setFillStyle(
@@ -931,6 +1257,15 @@ export class HudScene
   private handleCombatState(
     state: CombatState,
   ): void {
+    if (this.upgradeState) {
+      this.handleUpgradeState({
+        ...this.upgradeState,
+        selectedWeaponId:
+          state.weaponId,
+        unlockedWeaponIds:
+          [...state.unlockedWeaponIds],
+      });
+    }
     const ratio =
       Phaser.Math.Clamp(
         state.health /
@@ -1092,6 +1427,11 @@ export class HudScene
     this.game.events.off(
       HUD_SETTLEMENT_STATE_EVENT,
       this.handleSettlementState,
+      this,
+    );
+    this.game.events.off(
+      HUD_UPGRADE_STATE_EVENT,
+      this.handleUpgradeState,
       this,
     );
     this.game.events.off(

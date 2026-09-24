@@ -8,6 +8,10 @@ import {
   type MovementIntent,
 } from '../input/PlayerInput';
 import { TouchPlayerInput } from '../input/TouchPlayerInput';
+import {
+  getDashCooldownMs,
+  getMoveSpeed,
+} from '../progression/UpgradeBalance';
 
 const PLAYER_TEXTURE =
   'ruinstead-player-base-v3';
@@ -21,10 +25,8 @@ const WEAPON_TEXTURES:
   daggers: 'ruinstead-player-daggers-v3',
 };
 
-const MOVE_SPEED = 225;
 const DASH_SPEED = 570;
 const DASH_DURATION_MS = 135;
-const DASH_COOLDOWN_MS = 850;
 const PLAYER_BASELINE_OFFSET = 46;
 
 export class PlayerController {
@@ -56,6 +58,8 @@ export class PlayerController {
   private dashCooldownUntil = 0;
   private damageTintUntil = 0;
   private enabled = true;
+  private moveSpeed = 225;
+  private dashCooldownMs = 850;
   private weaponId:
     WeaponId = 'axe';
 
@@ -63,8 +67,14 @@ export class PlayerController {
     private readonly scene: Phaser.Scene,
     x: number,
     y: number,
+    moveSpeedLevel = 0,
+    dashLevel = 0,
   ) {
     this.ensureTextures();
+    this.setProgression(
+      moveSpeedLevel,
+      dashLevel,
+    );
 
     this.shadow = scene.add
       .ellipse(
@@ -222,7 +232,7 @@ export class PlayerController {
 
     this.applyVelocity(
       movement,
-      MOVE_SPEED,
+      this.moveSpeed,
     );
 
     this.applyTint(time);
@@ -235,6 +245,20 @@ export class PlayerController {
       this.sprite.x,
       this.sprite.y,
     );
+  }
+
+  setProgression(
+    moveSpeedLevel: number,
+    dashLevel: number,
+  ): void {
+    this.moveSpeed =
+      getMoveSpeed(
+        moveSpeedLevel,
+      );
+    this.dashCooldownMs =
+      getDashCooldownMs(
+        dashLevel,
+      );
   }
 
   setEnabled(
@@ -386,7 +410,7 @@ export class PlayerController {
     this.dashUntil =
       time + DASH_DURATION_MS;
     this.dashCooldownUntil =
-      time + DASH_COOLDOWN_MS;
+      time + this.dashCooldownMs;
 
     this.scene.cameras.main.shake(
       55,

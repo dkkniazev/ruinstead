@@ -95,6 +95,10 @@ export function sanitizeGameState(value: unknown): GameState {
   const root = asRecord(value);
   const player = asRecord(root?.player);
   const backpack = asRecord(root?.backpack);
+  const weaponLevels =
+    asRecord(
+      player?.weaponLevels,
+    );
   const settlement = asRecord(root?.settlement);
   const savedBuildings = asRecord(settlement?.buildings);
   const savedRepairStages =
@@ -191,6 +195,28 @@ export function sanitizeGameState(value: unknown): GameState {
         player?.dashLevel,
         defaults.player.dashLevel,
       ),
+      weaponLevels: {
+        axe: nonNegativeInt(
+          weaponLevels?.axe,
+          defaults.player.weaponLevels.axe,
+        ),
+        sword: nonNegativeInt(
+          weaponLevels?.sword,
+          defaults.player.weaponLevels.sword,
+        ),
+        hammer: nonNegativeInt(
+          weaponLevels?.hammer,
+          defaults.player.weaponLevels.hammer,
+        ),
+        spear: nonNegativeInt(
+          weaponLevels?.spear,
+          defaults.player.weaponLevels.spear,
+        ),
+        daggers: nonNegativeInt(
+          weaponLevels?.daggers,
+          defaults.player.weaponLevels.daggers,
+        ),
+      },
     },
     backpack: {
       wood: nonNegativeInt(

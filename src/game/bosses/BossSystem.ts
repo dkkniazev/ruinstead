@@ -74,7 +74,7 @@ const BOSS_DEFINITIONS:
     attackRange: 78,
     attackCooldownMs: 1150,
     aggroRange: 190,
-    leashRange: 500,
+    leashRange: 300,
     dropCoins: 24,
     respawnCooldownMs: bossRespawnCooldownMs(0),
     weaknessWeaponId: 'sword',
@@ -100,7 +100,7 @@ const BOSS_DEFINITIONS:
     attackRange: 76,
     attackCooldownMs: 960,
     aggroRange: 205,
-    leashRange: 520,
+    leashRange: 320,
     dropCoins: 32,
     respawnCooldownMs: bossRespawnCooldownMs(1),
     weaknessWeaponId: 'hammer',
@@ -126,7 +126,7 @@ const BOSS_DEFINITIONS:
     attackRange: 84,
     attackCooldownMs: 1280,
     aggroRange: 220,
-    leashRange: 560,
+    leashRange: 360,
     dropCoins: 55,
     respawnCooldownMs: bossRespawnCooldownMs(2),
     weaknessWeaponId: 'spear',
@@ -405,10 +405,23 @@ export class BossUnit {
         this.spawn.y,
       );
 
+    const playerDistanceToSpawn =
+      Phaser.Math.Distance.Between(
+        playerPosition.x,
+        playerPosition.y,
+        this.spawn.x,
+        this.spawn.y,
+      );
+
     if (
       playerSafe ||
       distanceToSpawn >
-        this.definition.leashRange
+        this.definition.leashRange ||
+      (
+        this._engaged &&
+        playerDistanceToSpawn >
+          this.definition.leashRange
+      )
     ) {
       this.beginReturn(time);
     }

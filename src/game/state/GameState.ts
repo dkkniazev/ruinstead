@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 6 as const;
+export const SAVE_SCHEMA_VERSION = 7 as const;
 
 export type BuildingId =
   | 'forge'
@@ -21,6 +21,13 @@ export type GameState = {
     moveSpeedLevel: number;
     backpackLevel: number;
     dashLevel: number;
+    weaponLevels: {
+      axe: number;
+      sword: number;
+      hammer: number;
+      spear: number;
+      daggers: number;
+    };
   };
   backpack: {
     wood: number;
@@ -76,6 +83,13 @@ export function createDefaultGameState(): GameState {
       moveSpeedLevel: 0,
       backpackLevel: 0,
       dashLevel: 0,
+      weaponLevels: {
+        axe: 0,
+        sword: 0,
+        hammer: 0,
+        spear: 0,
+        daggers: 0,
+      },
     },
     backpack: {
       wood: 0,

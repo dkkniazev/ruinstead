@@ -26,6 +26,13 @@ import {
 import {
   configureLogicalCamera,
 } from '../game/layout/Viewport';
+import {
+  canAffordUpgrade,
+  getPlayerUpgradeCost,
+  getWeaponUpgradeCost,
+  spendUpgradeCost,
+  type PlayerUpgradeId,
+} from '../game/progression/UpgradeBalance';
 import { PlayerController } from '../game/player/PlayerController';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
@@ -43,8 +50,12 @@ import {
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
+  HUD_PLAYER_UPGRADE_EVENT,
+  HUD_UPGRADE_STATE_EVENT,
+  HUD_WEAPON_UPGRADE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
+  type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import {
   RETURN_POINT,
@@ -136,6 +147,10 @@ export class WorldScene
         this,
         startX,
         startY,
+        this.gameState.player
+          .moveSpeedLevel,
+        this.gameState.player
+          .dashLevel,
       );
 
     this.backpack =
@@ -215,6 +230,14 @@ export class WorldScene
           .weaponId,
         this.gameState.player
           .unlockedWeaponIds,
+        {
+          maxHealthLevel:
+            this.gameState.player
+              .maxHealthLevel,
+          weaponLevels:
+            this.gameState.player
+              .weaponLevels,
+        },
         (value) =>
           this.handleCoinCollected(
             value,
@@ -259,6 +282,16 @@ export class WorldScene
       this.handleForgeRepair,
       this,
     );
+    this.game.events.on(
+      HUD_PLAYER_UPGRADE_EVENT,
+      this.handlePlayerUpgrade,
+      this,
+    );
+    this.game.events.on(
+      HUD_WEAPON_UPGRADE_EVENT,
+      this.handleWeaponUpgrade,
+      this,
+    );
 
     this.lastAreaName =
       getAreaName(
@@ -277,6 +310,8 @@ export class WorldScene
           this.gatheringHudState,
         initialSettlementState:
           this.settlementHudState,
+        initialUpgradeState:
+          this.upgradeHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -446,6 +481,63 @@ export class WorldScene
     );
   }
 
+  private get upgradeHudState():
+    UpgradeHudState {
+    const state =
+      this.gameState;
+    const weaponId =
+      this.combat?.state
+        .weaponId ?? 'axe';
+    const unlocked =
+      this.combat?.state
+        .unlockedWeaponIds ??
+      ['axe'];
+
+    return {
+      forgeRestored:
+        this.settlementSystem
+          ?.restored ?? false,
+      selectedWeaponId:
+        weaponId,
+      unlockedWeaponIds:
+        [...unlocked],
+      weaponLevels: {
+        axe:
+          state?.player
+            .weaponLevels.axe ?? 0,
+        sword:
+          state?.player
+            .weaponLevels.sword ?? 0,
+        hammer:
+          state?.player
+            .weaponLevels.hammer ?? 0,
+        spear:
+          state?.player
+            .weaponLevels.spear ?? 0,
+        daggers:
+          state?.player
+            .weaponLevels.daggers ?? 0,
+      },
+      player: {
+        maxHealthLevel:
+          state?.player
+            .maxHealthLevel ?? 0,
+        moveSpeedLevel:
+          state?.player
+            .moveSpeedLevel ?? 0,
+        backpackLevel:
+          state?.player
+            .backpackLevel ?? 0,
+        dashLevel:
+          state?.player
+            .dashLevel ?? 0,
+      },
+      storage:
+        this.gatheringHudState
+          .storage,
+    };
+  }
+
   private createWeaponKeys(): void {
     const keyboard =
       this.input.keyboard;
@@ -495,6 +587,10 @@ export class WorldScene
       HUD_COMBAT_STATE_EVENT,
       state,
     );
+    this.game.events.emit(
+      HUD_UPGRADE_STATE_EVENT,
+      this.upgradeHudState,
+    );
   }
 
   private handleCoinCollected(
@@ -533,6 +629,10 @@ export class WorldScene
     this.game.events.emit(
       HUD_GATHERING_STATE_EVENT,
       this.gatheringHudState,
+    );
+    this.game.events.emit(
+      HUD_UPGRADE_STATE_EVENT,
+      this.upgradeHudState,
     );
 
     this.saveState();
@@ -873,8 +973,188 @@ export class WorldScene
       HUD_SETTLEMENT_STATE_EVENT,
       this.settlementHudState,
     );
+    this.game.events.emit(
+      HUD_UPGRADE_STATE_EVENT,
+      this.upgradeHudState,
+    );
 
     this.saveState();
+  }
+
+  private handlePlayerUpgrade(
+    id: PlayerUpgradeId,
+  ): void {
+    if (
+      !this.gameState ||
+      !this.settlementSystem
+        ?.restored
+    ) {
+      return;
+    }
+
+    const levelKey:
+      keyof Pick<
+        GameState['player'],
+        | 'maxHealthLevel'
+        | 'moveSpeedLevel'
+        | 'backpackLevel'
+        | 'dashLevel'
+      > =
+        id === 'max-health'
+          ? 'maxHealthLevel'
+          : id === 'move-speed'
+            ? 'moveSpeedLevel'
+            : id === 'backpack'
+              ? 'backpackLevel'
+              : 'dashLevel';
+
+    const currentLevel =
+      this.gameState.player[
+        levelKey
+      ];
+    const cost =
+      getPlayerUpgradeCost(
+        id,
+        currentLevel,
+      );
+
+    if (
+      !canAffordUpgrade(
+        this.gameState.resources,
+        cost,
+      ) ||
+      !cost
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        cost
+          ? 'Не хватает ресурсов для улучшения'
+          : 'Достигнут максимальный уровень',
+      );
+      return;
+    }
+
+    spendUpgradeCost(
+      this.gameState.resources,
+      cost,
+    );
+    this.gameState.player[
+      levelKey
+    ] =
+      currentLevel + 1;
+
+    this.applyProgression();
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Улучшение героя выполнено',
+    );
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private handleWeaponUpgrade(
+    weaponId: WeaponId,
+  ): void {
+    if (
+      !this.gameState ||
+      !this.settlementSystem
+        ?.restored ||
+      !this.combat?.state
+        .unlockedWeaponIds
+        .includes(weaponId)
+    ) {
+      return;
+    }
+
+    const currentLevel =
+      this.gameState.player
+        .weaponLevels[
+          weaponId
+        ];
+    const cost =
+      getWeaponUpgradeCost(
+        weaponId,
+        currentLevel,
+      );
+
+    if (
+      !canAffordUpgrade(
+        this.gameState.resources,
+        cost,
+      ) ||
+      !cost
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        cost
+          ? 'Не хватает ресурсов для улучшения оружия'
+          : 'Оружие уже максимального уровня',
+      );
+      return;
+    }
+
+    spendUpgradeCost(
+      this.gameState.resources,
+      cost,
+    );
+
+    this.gameState.player
+      .weaponLevels[
+        weaponId
+      ] =
+        currentLevel + 1;
+
+    this.applyProgression();
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `${WEAPON_ORDER.includes(
+        weaponId,
+      ) ? weaponId : 'Оружие'} улучшено до уровня ${currentLevel + 1}`,
+    );
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private applyProgression(): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    this.player?.setProgression(
+      this.gameState.player
+        .moveSpeedLevel,
+      this.gameState.player
+        .dashLevel,
+    );
+
+    this.backpack?.setLevel(
+      this.gameState.player
+        .backpackLevel,
+    );
+
+    this.combat?.setProgression(
+      this.gameState.player
+        .maxHealthLevel,
+      this.gameState.player
+        .weaponLevels,
+    );
+  }
+
+  private emitProgressionState(): void {
+    this.game.events.emit(
+      HUD_GATHERING_STATE_EVENT,
+      this.gatheringHudState,
+    );
+    this.game.events.emit(
+      HUD_SETTLEMENT_STATE_EVENT,
+      this.settlementHudState,
+    );
+    this.game.events.emit(
+      HUD_UPGRADE_STATE_EVENT,
+      this.upgradeHudState,
+    );
   }
 
   private handleWeaponKeys(): void {
@@ -995,6 +1275,16 @@ export class WorldScene
     this.game.events.off(
       HUD_FORGE_REPAIR_EVENT,
       this.handleForgeRepair,
+      this,
+    );
+    this.game.events.off(
+      HUD_PLAYER_UPGRADE_EVENT,
+      this.handlePlayerUpgrade,
+      this,
+    );
+    this.game.events.off(
+      HUD_WEAPON_UPGRADE_EVENT,
+      this.handleWeaponUpgrade,
       this,
     );
 

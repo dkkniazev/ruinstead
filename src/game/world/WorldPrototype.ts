@@ -11,16 +11,16 @@ export const RETURN_POINT =
   new Phaser.Math.Vector2(760, 1010);
 export const RETURN_RADIUS = 92;
 
-const TREE_TEXTURE =
-  'ruinstead-tree-bright-prototype';
-const ROCK_TEXTURE =
-  'ruinstead-rock-bright-prototype';
+const BUSH_TEXTURE =
+  'ruinstead-bush-obstacle-prototype';
+const RUIN_TEXTURE =
+  'ruinstead-ruin-obstacle-prototype';
 const FORGE_RUIN_TEXTURE =
   'ruinstead-forge-ruin-prototype';
 const TENT_TEXTURE =
   'ruinstead-tent-prototype';
 
-const TREE_POSITIONS: ReadonlyArray<
+const BUSH_POSITIONS: ReadonlyArray<
   readonly [number, number]
 > = [
   [220, 290],
@@ -56,7 +56,7 @@ const TREE_POSITIONS: ReadonlyArray<
   [1310, 1010],
 ];
 
-const ROCK_POSITIONS: ReadonlyArray<
+const RUIN_POSITIONS: ReadonlyArray<
   readonly [number, number]
 > = [
   [1090, 410],
@@ -416,17 +416,17 @@ function createObstacles(
 
   for (
     const [x, y]
-    of TREE_POSITIONS
+    of BUSH_POSITIONS
   ) {
     const tree =
       obstacles.create(
         x,
         y,
-        TREE_TEXTURE,
+        BUSH_TEXTURE,
       ) as Phaser.Physics.Arcade.Sprite;
 
     tree
-      .setDepth(y + 78)
+      .setDepth(y + 48)
       .refreshBody();
 
     const body =
@@ -434,23 +434,23 @@ function createObstacles(
         Phaser.Physics.Arcade.StaticBody;
 
     body
-      .setSize(42, 30)
-      .setOffset(51, 142);
+      .setSize(78, 34)
+      .setOffset(33, 72);
   }
 
   for (
     const [x, y]
-    of ROCK_POSITIONS
+    of RUIN_POSITIONS
   ) {
     const rock =
       obstacles.create(
         x,
         y,
-        ROCK_TEXTURE,
+        RUIN_TEXTURE,
       ) as Phaser.Physics.Arcade.Sprite;
 
     rock
-      .setDepth(y + 38)
+      .setDepth(y + 42)
       .refreshBody();
 
     const body =
@@ -458,8 +458,8 @@ function createObstacles(
         Phaser.Physics.Arcade.StaticBody;
 
     body
-      .setSize(88, 38)
-      .setOffset(16, 45);
+      .setSize(76, 38)
+      .setOffset(22, 44);
   }
 
   return obstacles;
@@ -572,183 +572,183 @@ function drawGrassTufts(
 function ensureWorldTextures(
   scene: Phaser.Scene,
 ): void {
-  ensureTreeTexture(scene);
-  ensureRockTexture(scene);
+  ensureBushTexture(scene);
+  ensureRuinTexture(scene);
   ensureTentTexture(scene);
   ensureForgeRuinTexture(scene);
 }
 
-function ensureTreeTexture(
+function ensureBushTexture(
   scene: Phaser.Scene,
 ): void {
   if (
     scene.textures.exists(
-      TREE_TEXTURE,
+      BUSH_TEXTURE,
     )
   ) {
     return;
   }
 
-  const tree =
+  const bush =
     scene.make.graphics({
       x: 0,
       y: 0,
     });
 
-  tree.fillStyle(
+  bush.fillStyle(
     0x285c32,
-    0.18,
-  );
-  tree.fillEllipse(
-    72,
-    166,
-    98,
-    28,
-  );
-
-  tree.fillStyle(
-    0x86542e,
-    1,
-  );
-  tree.fillRoundedRect(
-    61,
-    94,
-    25,
-    70,
-    8,
-  );
-
-  tree.fillStyle(
-    0x9d6638,
-    1,
-  );
-  tree.fillRoundedRect(
-    61,
-    94,
-    11,
-    66,
-    6,
-  );
-
-  tree.fillStyle(
-    0x138c67,
-    1,
-  );
-  tree.fillEllipse(
-    72,
-    87,
-    112,
-    68,
-  );
-
-  tree.fillStyle(
-    0x18a66f,
-    1,
-  );
-  tree.fillEllipse(
-    48,
-    66,
-    76,
-    70,
-  );
-  tree.fillEllipse(
-    94,
-    66,
-    78,
-    72,
-  );
-
-  tree.fillStyle(
-    0x28bb79,
-    1,
-  );
-  tree.fillEllipse(
-    72,
-    45,
-    80,
-    63,
-  );
-
-  tree.generateTexture(
-    TREE_TEXTURE,
-    144,
-    188,
-  );
-  tree.destroy();
-}
-
-function ensureRockTexture(
-  scene: Phaser.Scene,
-): void {
-  if (
-    scene.textures.exists(
-      ROCK_TEXTURE,
-    )
-  ) {
-    return;
-  }
-
-  const rock =
-    scene.make.graphics({
-      x: 0,
-      y: 0,
-    });
-
-  rock.fillStyle(
-    0x2c682f,
     0.16,
   );
-  rock.fillEllipse(
-    61,
+  bush.fillEllipse(
+    72,
+    100,
+    112,
+    26,
+  );
+
+  bush.fillStyle(
+    0x168a57,
+    1,
+  );
+  bush.fillCircle(
+    43,
+    66,
+    34,
+  );
+  bush.fillCircle(
     78,
-    104,
+    55,
+    40,
+  );
+  bush.fillCircle(
+    105,
+    72,
+    31,
+  );
+
+  bush.fillStyle(
+    0x29b86b,
+    1,
+  );
+  bush.fillCircle(
+    53,
+    50,
     24,
   );
-
-  rock.fillStyle(
-    0x8f9b9a,
-    1,
+  bush.fillCircle(
+    88,
+    43,
+    26,
   );
-  rock.beginPath();
-  rock.moveTo(14, 49);
-  rock.lineTo(61, 68);
-  rock.lineTo(108, 47);
-  rock.lineTo(104, 73);
-  rock.lineTo(61, 88);
-  rock.lineTo(16, 72);
-  rock.closePath();
-  rock.fillPath();
 
-  rock.fillStyle(
-    0xc6d0cb,
-    1,
-  );
-  rock.beginPath();
-  rock.moveTo(14, 49);
-  rock.lineTo(52, 17);
-  rock.lineTo(106, 46);
-  rock.lineTo(61, 68);
-  rock.closePath();
-  rock.fillPath();
-
-  rock.fillStyle(
-    0xe0e6df,
+  bush.fillStyle(
+    0x62cb77,
     0.72,
   );
-  rock.beginPath();
-  rock.moveTo(52, 17);
-  rock.lineTo(68, 47);
-  rock.lineTo(61, 68);
-  rock.lineTo(14, 49);
-  rock.closePath();
-  rock.fillPath();
+  bush.fillCircle(
+    72,
+    35,
+    14,
+  );
 
-  rock.generateTexture(
-    ROCK_TEXTURE,
+  bush.generateTexture(
+    BUSH_TEXTURE,
+    144,
+    120,
+  );
+  bush.destroy();
+}
+
+function ensureRuinTexture(
+  scene: Phaser.Scene,
+): void {
+  if (
+    scene.textures.exists(
+      RUIN_TEXTURE,
+    )
+  ) {
+    return;
+  }
+
+  const ruin =
+    scene.make.graphics({
+      x: 0,
+      y: 0,
+    });
+
+  ruin.fillStyle(
+    0x2c682f,
+    0.14,
+  );
+  ruin.fillEllipse(
+    60,
+    83,
+    104,
+    22,
+  );
+
+  ruin.fillStyle(
+    0xa99574,
+    1,
+  );
+  ruin.fillRoundedRect(
+    22,
+    34,
+    27,
+    48,
+    5,
+  );
+  ruin.fillRoundedRect(
+    66,
+    18,
+    30,
+    64,
+    5,
+  );
+
+  ruin.fillStyle(
+    0xd1c09a,
+    1,
+  );
+  ruin.fillRoundedRect(
+    18,
+    27,
+    35,
+    17,
+    4,
+  );
+  ruin.fillRoundedRect(
+    61,
+    11,
+    40,
+    18,
+    4,
+  );
+
+  ruin.lineStyle(
+    5,
+    0x77654f,
+    0.8,
+  );
+  ruin.lineBetween(
+    33,
+    45,
+    43,
+    60,
+  );
+  ruin.lineBetween(
+    78,
+    31,
+    89,
+    48,
+  );
+
+  ruin.generateTexture(
+    RUIN_TEXTURE,
     120,
     96,
   );
-  rock.destroy();
+  ruin.destroy();
 }
 
 function ensureTentTexture(

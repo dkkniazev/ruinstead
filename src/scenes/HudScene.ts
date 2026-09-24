@@ -28,6 +28,8 @@ import {
   HUD_QUEST_STATE_EVENT,
   HUD_UPGRADE_STATE_EVENT,
   HUD_WEAPON_UPGRADE_EVENT,
+  HUD_WEAPON_VARIANT_SELECT_EVENT,
+  HUD_WEAPON_FUSE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
   type UpgradeHudState,
@@ -48,13 +50,15 @@ import type {
 } from '../game/settlement/CityBuilderSystem';
 import {
   MAX_PLAYER_UPGRADE_LEVEL,
-  MAX_WEAPON_LEVEL,
   getPlayerUpgradeCost,
   getWeaponUpgradeCost,
-  getWeaponRarity,
   canAffordUpgrade,
   type PlayerUpgradeId,
 } from '../game/progression/UpgradeBalance';
+import {
+  MAX_WEAPON_LEVEL,
+  MAX_WEAPON_STARS,
+} from '../game/progression/WeaponInventory';
 import {
   WEAPON_DEFINITIONS,
 } from '../game/combat/WeaponDefinitions';
@@ -185,6 +189,10 @@ export class HudScene
       >
     > = {};
   private weaponUpgradeButton?:
+    Phaser.GameObjects.Text;
+  private weaponVariantButton?:
+    Phaser.GameObjects.Text;
+  private weaponFuseButton?:
     Phaser.GameObjects.Text;
   private questTitleText?:
     Phaser.GameObjects.Text;
@@ -939,7 +947,7 @@ export class HudScene
           0,
           0,
           620,
-          560,
+          680,
           0x233b2a,
           0.97,
         )
@@ -1237,6 +1245,127 @@ export class HudScene
       },
     );
 
+    this.weaponVariantButton =
+      this.add
+        .text(
+          0,
+          278,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#405968',
+            padding: {
+              x: 12,
+              y: 7,
+            },
+            fixedWidth: 500,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.weaponVariantButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const state =
+          this.upgradeState;
+
+        if (
+          !state ||
+          state.weaponOptions
+            .length <= 1
+        ) {
+          return;
+        }
+
+        const current =
+          state.equippedWeapon;
+        const index =
+          state.weaponOptions
+            .findIndex(
+              (option) =>
+                option.rarity ===
+                  current.rarity &&
+                option.stars ===
+                  current.stars,
+            );
+        const next =
+          state.weaponOptions[
+            (
+              index + 1 +
+              state.weaponOptions
+                .length
+            ) %
+            state.weaponOptions
+              .length
+          ];
+
+        this.game.events.emit(
+          HUD_WEAPON_VARIANT_SELECT_EVENT,
+          state.selectedWeaponId,
+          next.rarity,
+          next.stars,
+        );
+      },
+    );
+
+    this.weaponFuseButton =
+      this.add
+        .text(
+          0,
+          318,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#67523e',
+            padding: {
+              x: 12,
+              y: 7,
+            },
+            fixedWidth: 500,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.weaponFuseButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const state =
+          this.upgradeState;
+
+        if (!state) {
+          return;
+        }
+
+        const current =
+          state.equippedWeapon;
+
+        this.game.events.emit(
+          HUD_WEAPON_FUSE_EVENT,
+          state.selectedWeaponId,
+          current.rarity,
+          current.stars,
+        );
+      },
+    );
+
     panel.add([
       bg,
       title,
@@ -1251,6 +1380,8 @@ export class HudScene
         this.playerUpgradeButtons,
       ),
       this.weaponUpgradeButton,
+      this.weaponVariantButton,
+      this.weaponFuseButton,
       close,
     ]);
 
@@ -2491,10 +2622,10 @@ export class HudScene
 
     const weaponId =
       state.selectedWeaponId;
+    const equipped =
+      state.equippedWeapon;
     const weaponLevel =
-      state.weaponLevels[
-        weaponId
-      ];
+      equipped.level;
     const unlocked =
       state.unlockedWeaponIds
         .includes(weaponId);
@@ -2511,35 +2642,24 @@ export class HudScene
         state.storage,
         weaponCost,
       );
-    const rarity =
-      getWeaponRarity(
-        weaponLevel,
-      );
-    const nextRarity =
-      getWeaponRarity(
-        Math.min(
-          MAX_WEAPON_LEVEL,
-          weaponLevel + 1,
-        ),
-      );
-    const rarityUpgrade =
-      weaponCost &&
-      nextRarity.id !==
-        rarity.id
-        ? ` · ${rarity.name} → ${nextRarity.name}`
-        : ` · ${rarity.name}`;
     const weaponRareCost =
       weaponCost
         ? `${weaponCost.crystal ? ` Кр${weaponCost.crystal}` : ''}${weaponCost.fiber ? ` В${weaponCost.fiber}` : ''}`
         : '';
+    const starText =
+      equipped.stars > 0
+        ? ` ${'★'.repeat(equipped.stars)}`
+        : ' ☆';
+    const rarityLabel =
+      `${equipped.rarityName}${starText}`;
 
     this.weaponUpgradeButton
       ?.setText(
         !unlocked
           ? `${WEAPON_DEFINITIONS[weaponId].name} · закрыто`
           : weaponCost
-            ? `${WEAPON_DEFINITIONS[weaponId].name} Lv.${weaponLevel} → ${weaponLevel + 1}${rarityUpgrade}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}${weaponRareCost}`
-            : `${WEAPON_DEFINITIONS[weaponId].name} Lv.${MAX_WEAPON_LEVEL} · ${rarity.name} · MAX`,
+            ? `${WEAPON_DEFINITIONS[weaponId].name} · ${rarityLabel} · Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}${weaponRareCost}`
+            : `${WEAPON_DEFINITIONS[weaponId].name} · ${rarityLabel} · Lv.${MAX_WEAPON_LEVEL} · MAX`,
       )
       .setStyle({
         backgroundColor:
@@ -2548,8 +2668,53 @@ export class HudScene
             : '#4a4350',
         color:
           unlocked
-            ? rarity.color
+            ? equipped.rarityColor
             : '#9f9aa2',
+      });
+
+    this.weaponVariantButton
+      ?.setText(
+        state.weaponOptions.length > 1
+          ? `Экземпляр: ${rarityLabel} · Lv.${weaponLevel} · копий ★${equipped.stars}: ${equipped.count} · нажать для смены`
+          : `Экземпляр: ${rarityLabel} · Lv.${weaponLevel} · других вариантов пока нет`,
+      )
+      .setStyle({
+        backgroundColor:
+          state.weaponOptions.length > 1
+            ? '#405968'
+            : '#434a4e',
+        color:
+          equipped.rarityColor,
+      });
+
+    const canFuse =
+      equipped.stars <
+        MAX_WEAPON_STARS &&
+      equipped.count >= 2;
+    const nextStar =
+      Math.min(
+        MAX_WEAPON_STARS,
+        equipped.stars + 1,
+      );
+
+    this.weaponFuseButton
+      ?.setText(
+        equipped.stars >=
+          MAX_WEAPON_STARS
+          ? `Звёздность MAX · ${'★'.repeat(MAX_WEAPON_STARS)}`
+          : canFuse
+            ? `Слить 2 × ${equipped.rarityName} ★${equipped.stars} → ★${nextStar} · урон ×1.5`
+            : `Для ★${nextStar}: нужно 2 × ${equipped.rarityName} ★${equipped.stars} · есть ${equipped.count}`,
+      )
+      .setStyle({
+        backgroundColor:
+          canFuse
+            ? '#7a5e35'
+            : '#49473f',
+        color:
+          canFuse
+            ? '#fff0ae'
+            : '#aaa79c',
       });
   }
 
@@ -2631,6 +2796,14 @@ export class HudScene
     }
 
     this.weaponUpgradeButton
+      ?.setVisible(
+        forge.restored,
+      );
+    this.weaponVariantButton
+      ?.setVisible(
+        forge.restored,
+      );
+    this.weaponFuseButton
       ?.setVisible(
         forge.restored,
       );

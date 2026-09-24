@@ -16,7 +16,7 @@ export class DropSystem {
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly onCollect:
-      (value: number) => void,
+      (value: number) => number,
   ) {
     this.ensureCoinTexture();
   }
@@ -105,7 +105,21 @@ export class DropSystem {
       );
 
       if (distance <= 28) {
-        this.collect(index);
+        const accepted =
+          this.onCollect(
+            drop.value,
+          );
+
+        if (accepted <= 0) {
+          continue;
+        }
+
+        drop.value -=
+          accepted;
+
+        if (drop.value <= 0) {
+          this.collect(index);
+        }
       }
     }
   }
@@ -131,10 +145,6 @@ export class DropSystem {
       );
 
     if (!drop) return;
-
-    this.onCollect(
-      drop.value,
-    );
 
     this.scene.tweens.add({
       targets: drop.sprite,

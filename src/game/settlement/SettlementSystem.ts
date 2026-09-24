@@ -85,7 +85,7 @@ export class SettlementSystem {
     Phaser.GameObjects.Text;
 
   constructor(
-    private readonly scene: Phaser.Scene,
+    scene: Phaser.Scene,
     repairStage: number,
     forgeLevel: number,
   ) {

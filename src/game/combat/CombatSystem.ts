@@ -18,8 +18,11 @@ import {
 } from '../world/WorldPrototype';
 import {
   getMaxHealth,
-  getWeaponDamageMultiplier,
 } from '../progression/UpgradeBalance';
+import {
+  getWeaponDamageMultiplier,
+  type EquippedWeaponProfile,
+} from '../progression/WeaponInventory';
 import {
   WEAPON_DEFINITIONS,
   isWeaponId,
@@ -44,9 +47,10 @@ export const HEALTH_POTION_COOLDOWN_MS = 8_000;
 
 export type CombatProgression = {
   maxHealthLevel: number;
-  weaponLevels:
-    Partial<
-      Record<WeaponId, number>
+  weaponProfiles:
+    Record<
+      WeaponId,
+      EquippedWeaponProfile
     >;
 };
 
@@ -64,10 +68,42 @@ export class CombatSystem {
   private maxHealth = 100;
   private health =
     this.maxHealth;
-  private weaponLevels:
-    Partial<
-      Record<WeaponId, number>
-    > = {};
+  private weaponProfiles:
+    Record<
+      WeaponId,
+      EquippedWeaponProfile
+    > = {
+    axe: {
+      weaponId: 'axe',
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    },
+    sword: {
+      weaponId: 'sword',
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    },
+    hammer: {
+      weaponId: 'hammer',
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    },
+    spear: {
+      weaponId: 'spear',
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    },
+    daggers: {
+      weaponId: 'daggers',
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    },
+  };
   private weaponId:
     WeaponId = 'axe';
 
@@ -138,8 +174,8 @@ export class CombatSystem {
       );
     this.health =
       this.maxHealth;
-    this.weaponLevels = {
-      ...progression.weaponLevels,
+    this.weaponProfiles = {
+      ...progression.weaponProfiles,
     };
     this.healthPotions =
       Phaser.Math.Clamp(
@@ -221,9 +257,10 @@ export class CombatSystem {
 
   setProgression(
     maxHealthLevel: number,
-    weaponLevels:
-      Partial<
-        Record<WeaponId, number>
+    weaponProfiles:
+      Record<
+        WeaponId,
+        EquippedWeaponProfile
       >,
   ): void {
     const previousMax =
@@ -254,8 +291,8 @@ export class CombatSystem {
         );
     }
 
-    this.weaponLevels = {
-      ...weaponLevels,
+    this.weaponProfiles = {
+      ...weaponProfiles,
     };
 
     this.player.setHealth(
@@ -638,9 +675,15 @@ export class CombatSystem {
         Math.round(
           baseDamage *
             getWeaponDamageMultiplier(
-              this.weaponLevels[
+              this.weaponProfiles[
                 this.weaponId
-              ] ?? 0,
+              ].level,
+              this.weaponProfiles[
+                this.weaponId
+              ].rarity,
+              this.weaponProfiles[
+                this.weaponId
+              ].stars,
             ) *
             damageProfile.multiplier,
         ),

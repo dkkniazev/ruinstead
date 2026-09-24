@@ -22,6 +22,10 @@ import type {
   CityBuilderHudState,
   CityBuildingId,
 } from '../settlement/CityBuilderSystem';
+import type {
+  OwnedWeaponOption,
+  WeaponRarityId,
+} from '../progression/WeaponInventory';
 
 export type GatheringHudState = {
   backpack: BackpackState;
@@ -32,8 +36,10 @@ export type UpgradeHudState = {
   forgeRestored: boolean;
   selectedWeaponId: WeaponId;
   unlockedWeaponIds: WeaponId[];
-  weaponLevels:
-    Record<WeaponId, number>;
+  equippedWeapon:
+    OwnedWeaponOption;
+  weaponOptions:
+    OwnedWeaponOption[];
   player: {
     maxHealthLevel: number;
     moveSpeedLevel: number;
@@ -63,6 +69,10 @@ export const HUD_PLAYER_UPGRADE_EVENT =
   'ruinstead:hud:player-upgrade';
 export const HUD_WEAPON_UPGRADE_EVENT =
   'ruinstead:hud:weapon-upgrade';
+export const HUD_WEAPON_VARIANT_SELECT_EVENT =
+  'ruinstead:hud:weapon-variant-select';
+export const HUD_WEAPON_FUSE_EVENT =
+  'ruinstead:hud:weapon-fuse';
 export const HUD_QUEST_STATE_EVENT =
   'ruinstead:hud:quest-state';
 export const HUD_BESTIARY_STATE_EVENT =
@@ -96,6 +106,18 @@ export type HudPlayerUpgradeHandler =
   (id: PlayerUpgradeId) => void;
 export type HudWeaponUpgradeHandler =
   (weaponId: WeaponId) => void;
+export type HudWeaponVariantSelectHandler =
+  (
+    weaponId: WeaponId,
+    rarity: WeaponRarityId,
+    stars: number,
+  ) => void;
+export type HudWeaponFuseHandler =
+  (
+    weaponId: WeaponId,
+    rarity: WeaponRarityId,
+    stars: number,
+  ) => void;
 export type HudQuestStateHandler =
   (state: QuestHudState) => void;
 export type HudBestiaryStateHandler =

@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 12 as const;
+export const SAVE_SCHEMA_VERSION = 13 as const;
 
 export type BuildingId =
   | 'forge'
@@ -33,6 +33,8 @@ export type GameState = {
     wood: number;
     stone: number;
     metal: number;
+    crystal: number;
+    fiber: number;
     coins: number;
   };
   consumables: {
@@ -62,6 +64,8 @@ export type GameState = {
       string[];
     uniqueRewards:
       string[];
+    openedChests:
+      string[];
     playerPosition: {
       x: number;
       y: number;
@@ -71,6 +75,8 @@ export type GameState = {
     wood: number;
     stone: number;
     metal: number;
+    crystal: number;
+    fiber: number;
     coins: number;
   };
   progression: {
@@ -124,6 +130,8 @@ export function createDefaultGameState(): GameState {
       wood: 0,
       stone: 0,
       metal: 0,
+      crystal: 0,
+      fiber: 0,
       coins: 0,
     },
     consumables: {
@@ -167,12 +175,15 @@ export function createDefaultGameState(): GameState {
       bossRespawnAt: {},
       discoveredLandmarks: [],
       uniqueRewards: [],
+      openedChests: [],
       playerPosition: null,
     },
     resources: {
       wood: 0,
       stone: 0,
       metal: 0,
+      crystal: 0,
+      fiber: 0,
       coins: 0,
     },
     progression: {

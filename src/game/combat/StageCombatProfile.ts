@@ -28,6 +28,14 @@ export const STAGE_ONE_COMBAT_PROFILE:
   startingWeaponId: 'axe',
 };
 
+export const STAGE_TWO_COMBAT_PROFILE:
+  StageCombatProfile = {
+  id: 'stage-2',
+  weaknessWeaponId: 'sword',
+  resistanceWeaponId: 'axe',
+  startingWeaponId: 'daggers',
+};
+
 export function getStageDamageProfile(
   profile: StageCombatProfile,
   weaponId: WeaponId,

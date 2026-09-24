@@ -6,6 +6,9 @@ import type {
 import type {
   WeaponId,
 } from '../combat/WeaponDefinitions';
+import type {
+  ResourceCounts,
+} from '../gathering/ResourceTypes';
 import {
   SETTLEMENT_CENTER,
   SETTLEMENT_SAFE_RADIUS,
@@ -17,18 +20,31 @@ import {
 export type BossId =
   | 'moss-ogre'
   | 'crystal-boar'
-  | 'root-colossus';
+  | 'root-colossus'
+  | 'ash-matriarch'
+  | 'prism-golem'
+  | 'sun-tyrant';
 
 export type BossDefeatEvent = {
   id: BossId;
   name: string;
   isMain: boolean;
+  stageId:
+    | 'stage-1'
+    | 'stage-2';
   respawnAt: number;
+  x: number;
+  y: number;
+  dropResources:
+    ResourceCounts;
 };
 
 type BossDefinition = {
   id: BossId;
   name: string;
+  stageId:
+    | 'stage-1'
+    | 'stage-2';
   x: number;
   y: number;
   maxHealth: number;
@@ -39,6 +55,8 @@ type BossDefinition = {
   aggroRange: number;
   leashRange: number;
   dropCoins: number;
+  dropResources:
+    ResourceCounts;
   respawnCooldownMs: number;
   weaknessWeaponId: WeaponId;
   resistanceWeaponId: WeaponId;
@@ -74,6 +92,7 @@ const BOSS_DEFINITIONS:
   {
     id: 'moss-ogre',
     name: 'Мшистый громила',
+    stageId: 'stage-1',
     x: 890,
     y: 315,
     maxHealth: 620,
@@ -84,6 +103,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 190,
     leashRange: 300,
     dropCoins: 24,
+    dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
     respawnCooldownMs: bossRespawnCooldownMs(0),
     weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
@@ -100,6 +120,7 @@ const BOSS_DEFINITIONS:
   {
     id: 'crystal-boar',
     name: 'Кристальный вепрь',
+    stageId: 'stage-1',
     x: 2510,
     y: 630,
     maxHealth: 790,
@@ -110,6 +131,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 205,
     leashRange: 320,
     dropCoins: 32,
+    dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
     respawnCooldownMs: bossRespawnCooldownMs(1),
     weaknessWeaponId: 'hammer',
     resistanceWeaponId: 'sword',
@@ -126,6 +148,7 @@ const BOSS_DEFINITIONS:
   {
     id: 'root-colossus',
     name: 'Корневой колосс',
+    stageId: 'stage-1',
     x:
       ROOT_COLOSSUS_ARENA_CENTER.x,
     y:
@@ -138,6 +161,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 220,
     leashRange: 360,
     dropCoins: 55,
+    dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
     respawnCooldownMs: bossRespawnCooldownMs(2),
     weaknessWeaponId: 'spear',
     resistanceWeaponId: 'hammer',
@@ -155,7 +179,123 @@ const BOSS_DEFINITIONS:
     primaryColor: 0x61462f,
     accentColor: 0xe7b85e,
     isMain: true,
+  },,
+  {
+    id: 'ash-matriarch',
+    name: 'Пепельная матриархиня',
+    stageId: 'stage-2',
+    x: 3540,
+    y: 300,
+    maxHealth: 1240,
+    moveSpeed: 94,
+    damage: 29,
+    attackRange: 82,
+    attackCooldownMs: 1080,
+    aggroRange: 205,
+    leashRange: 320,
+    dropCoins: 45,
+    dropResources: {
+      wood: 0,
+      stone: 0,
+      metal: 0,
+      coins: 0,
+      crystal: 1,
+      fiber: 4,
+    },
+    respawnCooldownMs:
+      bossRespawnCooldownMs(3),
+    weaknessWeaponId: 'daggers',
+    resistanceWeaponId: 'hammer',
+    specialRadius: 118,
+    specialDamage: 39,
+    specialCooldownMs: 4200,
+    specialWindupMs: 650,
+    bodyRadius: 39,
+    texture:
+      'ruinstead-boss-ash-matriarch',
+    primaryColor: 0x8b5639,
+    accentColor: 0xe9b65f,
+    isMain: false,
   },
+  {
+    id: 'prism-golem',
+    name: 'Призменный голем',
+    stageId: 'stage-2',
+    x: 4860,
+    y: 340,
+    maxHealth: 1540,
+    moveSpeed: 70,
+    damage: 34,
+    attackRange: 88,
+    attackCooldownMs: 1250,
+    aggroRange: 210,
+    leashRange: 335,
+    dropCoins: 58,
+    dropResources: {
+      wood: 0,
+      stone: 0,
+      metal: 1,
+      coins: 0,
+      crystal: 4,
+      fiber: 0,
+    },
+    respawnCooldownMs:
+      bossRespawnCooldownMs(4),
+    weaknessWeaponId: 'hammer',
+    resistanceWeaponId: 'axe',
+    specialRadius: 138,
+    specialDamage: 45,
+    specialCooldownMs: 4650,
+    specialWindupMs: 820,
+    bodyRadius: 43,
+    texture:
+      'ruinstead-boss-prism-golem',
+    primaryColor: 0x6d6b74,
+    accentColor: 0xf0c95e,
+    isMain: false,
+  },
+  {
+    id: 'sun-tyrant',
+    name: 'Солнечный тиран',
+    stageId: 'stage-2',
+    x: 5250,
+    y: 1450,
+    maxHealth: 1880,
+    moveSpeed: 76,
+    damage: 36,
+    attackRange: 90,
+    attackCooldownMs: 1180,
+    aggroRange: 225,
+    leashRange: 370,
+    dropCoins: 82,
+    dropResources: {
+      wood: 0,
+      stone: 0,
+      metal: 2,
+      coins: 0,
+      crystal: 6,
+      fiber: 6,
+    },
+    respawnCooldownMs:
+      bossRespawnCooldownMs(5),
+    weaknessWeaponId: 'daggers',
+    resistanceWeaponId: 'spear',
+    specialRadius: 155,
+    specialDamage: 48,
+    specialCooldownMs: 4800,
+    specialWindupMs: 900,
+    lineSpecialDamage: 42,
+    lineSpecialLength: 270,
+    lineSpecialWidth: 82,
+    lineSpecialCooldownMs: 6200,
+    lineSpecialWindupMs: 780,
+    bodyRadius: 46,
+    texture:
+      'ruinstead-boss-sun-tyrant',
+    primaryColor: 0x9c4e2f,
+    accentColor: 0xffcf50,
+    isMain: true,
+  }
 ];
 
 export class BossUnit {
@@ -1218,8 +1358,16 @@ export class BossUnit {
       name: this.definition.name,
       isMain:
         this.definition.isMain,
+      stageId:
+        this.definition.stageId,
       respawnAt:
         this.respawnAtEpochMs,
+      x: this.sprite.x,
+      y: this.sprite.y,
+      dropResources: {
+        ...this.definition
+          .dropResources,
+      },
     });
 
     this.scene.tweens.add({

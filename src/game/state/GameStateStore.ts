@@ -296,6 +296,16 @@ export function sanitizeGameState(value: unknown): GameState {
         backpack?.metal,
         defaults.backpack.metal,
       ),
+      crystal:
+        nonNegativeInt(
+          backpack?.crystal,
+          defaults.backpack.crystal,
+        ),
+      fiber:
+        nonNegativeInt(
+          backpack?.fiber,
+          defaults.backpack.fiber,
+        ),
       coins: nonNegativeInt(
         backpack?.coins,
         defaults.backpack.coins,
@@ -389,6 +399,12 @@ export function sanitizeGameState(value: unknown): GameState {
           defaults.world
             .uniqueRewards,
         ),
+      openedChests:
+        stringArray(
+          world?.openedChests,
+          defaults.world
+            .openedChests,
+        ),
       playerPosition:
         positionX !== undefined &&
         positionY !== undefined
@@ -411,6 +427,16 @@ export function sanitizeGameState(value: unknown): GameState {
         resources?.metal,
         defaults.resources.metal,
       ),
+      crystal:
+        nonNegativeInt(
+          resources?.crystal,
+          defaults.resources.crystal,
+        ),
+      fiber:
+        nonNegativeInt(
+          resources?.fiber,
+          defaults.resources.fiber,
+        ),
       coins: nonNegativeInt(
         resources?.coins,
         defaults.resources.coins,

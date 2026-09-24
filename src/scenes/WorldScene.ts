@@ -24,6 +24,9 @@ import {
   ResourceSystem,
 } from '../game/gathering/ResourceSystem';
 import {
+  ChestSystem,
+} from '../game/world/ChestSystem';
+import {
   RESOURCE_TYPES,
   totalResourceUnits,
   type ResourceCounts,
@@ -88,6 +91,9 @@ import {
   BridgeSystem,
 } from '../game/world/BridgeSystem';
 import {
+  StageTwoGateSystem,
+} from '../game/world/StageTwoGateSystem';
+import {
   RETURN_POINT,
   RETURN_RADIUS,
   SETTLEMENT_CENTER,
@@ -123,6 +129,10 @@ export class WorldScene
     ResourceSystem;
   private bridgeSystem?:
     BridgeSystem;
+  private stageTwoGateSystem?:
+    StageTwoGateSystem;
+  private chestSystem?:
+    ChestSystem;
   private readonly questDirector =
     new QuestDirector();
   private bestiarySystem?:
@@ -279,6 +289,16 @@ export class WorldScene
         },
       );
 
+    this.stageTwoGateSystem =
+      new StageTwoGateSystem(
+        this,
+        this.gameState.world
+          .unlockedZones
+          .includes(
+            'stage-3',
+          ),
+      );
+
     this.player =
       new PlayerController(
         this,
@@ -303,6 +323,23 @@ export class WorldScene
         this.backpack,
         () => {
           this.handleBackpackChanged();
+        },
+      );
+
+    this.chestSystem =
+      new ChestSystem(
+        this,
+        this.backpack,
+        this.gameState.world
+          .openedChests,
+        () => {
+          this.handleBackpackChanged();
+        },
+        (message) => {
+          this.game.events.emit(
+            HUD_NOTICE_EVENT,
+            message,
+          );
         },
       );
 
@@ -381,6 +418,11 @@ export class WorldScene
         .barriers,
     );
     this.physics.add.collider(
+      this.player.sprite,
+      this.stageTwoGateSystem
+        .barriers,
+    );
+    this.physics.add.collider(
       this.enemies.group,
       world.obstacles,
     );
@@ -390,12 +432,22 @@ export class WorldScene
         .barriers,
     );
     this.physics.add.collider(
+      this.enemies.group,
+      this.stageTwoGateSystem
+        .barriers,
+    );
+    this.physics.add.collider(
       this.bosses.group,
       world.obstacles,
     );
     this.physics.add.collider(
       this.bosses.group,
       this.bridgeSystem
+        .barriers,
+    );
+    this.physics.add.collider(
+      this.bosses.group,
+      this.stageTwoGateSystem
         .barriers,
     );
     this.physics.add.collider(
@@ -648,6 +700,11 @@ export class WorldScene
         this.player.position,
         threatened,
       );
+
+      this.chestSystem?.update(
+        this.player.position,
+        threatened,
+      );
     }
 
     this.handleReturnPoint();
@@ -656,6 +713,7 @@ export class WorldScene
     this.updateForestObjective();
     this.updateBridgeRepair();
     this.updateStageTwoTransition();
+    this.updateStageThreeTransition();
     this.updateQuestDirector();
     this.handleWeaponKeys();
     this.updateAreaName();
@@ -670,6 +728,8 @@ export class WorldScene
           wood: 0,
           stone: 0,
           metal: 0,
+          crystal: 0,
+          fiber: 0,
           coins: 0,
         },
         usedCapacity: 0,
@@ -688,6 +748,12 @@ export class WorldScene
             metal:
               this.gameState
                 .resources.metal,
+            crystal:
+              this.gameState
+                .resources.crystal,
+            fiber:
+              this.gameState
+                .resources.fiber,
             coins:
               this.gameState
                 .resources.coins,
@@ -696,6 +762,8 @@ export class WorldScene
             wood: 0,
             stone: 0,
             metal: 0,
+            crystal: 0,
+            fiber: 0,
             coins: 0,
           };
 
@@ -719,6 +787,12 @@ export class WorldScene
             metal:
               this.gameState
                 .resources.metal,
+            crystal:
+              this.gameState
+                .resources.crystal,
+            fiber:
+              this.gameState
+                .resources.fiber,
             coins:
               this.gameState
                 .resources.coins,
@@ -727,6 +801,8 @@ export class WorldScene
             wood: 0,
             stone: 0,
             metal: 0,
+            crystal: 0,
+            fiber: 0,
             coins: 0,
           };
 
@@ -781,6 +857,8 @@ export class WorldScene
             wood: 0,
             stone: 0,
             metal: 0,
+            crystal: 0,
+            fiber: 0,
             coins: 0,
           },
           capacity: 20,
@@ -1382,7 +1460,23 @@ export class WorldScene
         event.respawnAt;
 
     if (
-      event.isMain &&
+      totalResourceUnits(
+        event.dropResources,
+      ) > 0
+    ) {
+      this.resourceSystem
+        ?.spawnResourceDrop(
+          new Phaser.Math.Vector2(
+            event.x,
+            event.y,
+          ),
+          event.dropResources,
+        );
+    }
+
+    if (
+      event.id ===
+        'root-colossus' &&
       firstClear
     ) {
       if (
@@ -1406,6 +1500,49 @@ export class WorldScene
       this.game.events.emit(
         HUD_NOTICE_EVENT,
         `${event.name} повержен! Сердце корней получено · кинжалы открыты · теперь можно восстановить мост`,
+      );
+    } else if (
+      event.id ===
+        'sun-tyrant' &&
+      firstClear
+    ) {
+      if (
+        !this.gameState.world
+          .uniqueRewards
+          .includes(
+            'sun-core',
+          )
+      ) {
+        this.gameState.world
+          .uniqueRewards
+          .push(
+            'sun-core',
+          );
+      }
+
+      if (
+        !this.gameState.world
+          .unlockedZones
+          .includes(
+            'stage-3',
+          )
+      ) {
+        this.gameState.world
+          .unlockedZones
+          .push(
+            'stage-3',
+          );
+      }
+
+      this.combat?.unlockWeapon(
+        'sword',
+      );
+      this.stageTwoGateSystem
+        ?.unlock();
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `${event.name} повержен! Ядро солнца получено · меч открыт · врата в следующую часть мира открыты`,
       );
     } else {
       this.game.events.emit(
@@ -2030,6 +2167,39 @@ export class WorldScene
     this.saveState();
   }
 
+  private updateStageThreeTransition(): void {
+    if (
+      !this.player ||
+      !this.gameState ||
+      !this.stageTwoGateSystem
+        ?.isUnlocked ||
+      !this.stageTwoGateSystem
+        .isStageThreeEntryReached(
+          this.player.position,
+        ) ||
+      this.gameState.world
+        .discoveredLandmarks
+        .includes(
+          'stage-3-entry',
+        )
+    ) {
+      return;
+    }
+
+    this.gameState.world
+      .discoveredLandmarks
+      .push(
+        'stage-3-entry',
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Открыто преддверие следующей части мира',
+    );
+
+    this.saveState();
+  }
+
   private handleWeaponKeys(): void {
     for (
       const weaponId of
@@ -2191,6 +2361,14 @@ export class WorldScene
 
     this.bridgeSystem?.destroy();
     this.bridgeSystem =
+      undefined;
+
+    this.stageTwoGateSystem?.destroy();
+    this.stageTwoGateSystem =
+      undefined;
+
+    this.chestSystem?.destroy();
+    this.chestSystem =
       undefined;
 
     this.bestiarySystem =

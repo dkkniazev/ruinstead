@@ -5,6 +5,7 @@ import type {
 } from '../combat/StageCombatProfile';
 import {
   STAGE_ONE_COMBAT_PROFILE,
+  STAGE_TWO_COMBAT_PROFILE,
   getStageDamageProfile,
 } from '../combat/StageCombatProfile';
 import type {
@@ -20,7 +21,12 @@ export type EnemySpeciesId =
   | 'slime'
   | 'boar'
   | 'mushroom'
-  | 'beetle';
+  | 'beetle'
+  | 'dust-jackal'
+  | 'sandling'
+  | 'sun-scorpion'
+  | 'ruin-gargoyle'
+  | 'emberling';
 
 export type EnemyRank =
   | 'normal'
@@ -30,6 +36,9 @@ export type EnemyDefinition = {
   id: EnemySpeciesId;
   name: string;
   eliteName: string;
+  stageId:
+    | 'stage-1'
+    | 'stage-2';
   maxHealth: number;
   moveSpeed: number;
   damage: number;
@@ -80,6 +89,7 @@ const DEFINITIONS:
     id: 'goblin',
     name: 'Гоблин',
     eliteName: 'Хобгоблин',
+    stageId: 'stage-1',
     maxHealth: 72,
     moveSpeed: 112,
     damage: 11,
@@ -99,6 +109,7 @@ const DEFINITIONS:
     id: 'slime',
     name: 'Слизень',
     eliteName: 'Старший слизень',
+    stageId: 'stage-1',
     maxHealth: 58,
     moveSpeed: 92,
     damage: 9,
@@ -118,6 +129,7 @@ const DEFINITIONS:
     id: 'boar',
     name: 'Кабан',
     eliteName: 'Вожак кабанов',
+    stageId: 'stage-1',
     maxHealth: 92,
     moveSpeed: 142,
     damage: 14,
@@ -137,6 +149,7 @@ const DEFINITIONS:
     id: 'mushroom',
     name: 'Грибник',
     eliteName: 'Старший грибник',
+    stageId: 'stage-1',
     maxHealth: 76,
     moveSpeed: 82,
     damage: 13,
@@ -156,6 +169,7 @@ const DEFINITIONS:
     id: 'beetle',
     name: 'Панцирник',
     eliteName: 'Матёрый панцирник',
+    stageId: 'stage-1',
     maxHealth: 125,
     moveSpeed: 74,
     damage: 18,
@@ -170,7 +184,107 @@ const DEFINITIONS:
       'ruinstead-enemy-beetle-elite',
     bodyRadius: 28,
     baselineOffset: 34,
+  },,
+  'dust-jackal': {
+    id: 'dust-jackal',
+    name: 'Пыльный шакал',
+    eliteName: 'Вожак шакалов',
+    stageId: 'stage-2',
+    maxHealth: 150,
+    moveSpeed: 136,
+    damage: 20,
+    attackRange: 84,
+    attackCooldownMs: 850,
+    aggroRange: 160,
+    leashRange: 300,
+    dropCoins: 5,
+    texture:
+      'ruinstead-enemy-dust-jackal',
+    eliteTexture:
+      'ruinstead-enemy-dust-jackal-elite',
+    bodyRadius: 25,
+    baselineOffset: 31,
   },
+  sandling: {
+    id: 'sandling',
+    name: 'Песчаник',
+    eliteName: 'Древний песчаник',
+    stageId: 'stage-2',
+    maxHealth: 138,
+    moveSpeed: 98,
+    damage: 21,
+    attackRange: 82,
+    attackCooldownMs: 940,
+    aggroRange: 150,
+    leashRange: 285,
+    dropCoins: 5,
+    texture:
+      'ruinstead-enemy-sandling',
+    eliteTexture:
+      'ruinstead-enemy-sandling-elite',
+    bodyRadius: 23,
+    baselineOffset: 31,
+  },
+  'sun-scorpion': {
+    id: 'sun-scorpion',
+    name: 'Солнечный скорпион',
+    eliteName: 'Золотой скорпион',
+    stageId: 'stage-2',
+    maxHealth: 184,
+    moveSpeed: 112,
+    damage: 24,
+    attackRange: 91,
+    attackCooldownMs: 1030,
+    aggroRange: 155,
+    leashRange: 300,
+    dropCoins: 6,
+    texture:
+      'ruinstead-enemy-sun-scorpion',
+    eliteTexture:
+      'ruinstead-enemy-sun-scorpion-elite',
+    bodyRadius: 28,
+    baselineOffset: 32,
+  },
+  'ruin-gargoyle': {
+    id: 'ruin-gargoyle',
+    name: 'Руинный страж',
+    eliteName: 'Крылатый страж',
+    stageId: 'stage-2',
+    maxHealth: 225,
+    moveSpeed: 84,
+    damage: 28,
+    attackRange: 88,
+    attackCooldownMs: 1160,
+    aggroRange: 145,
+    leashRange: 280,
+    dropCoins: 7,
+    texture:
+      'ruinstead-enemy-ruin-gargoyle',
+    eliteTexture:
+      'ruinstead-enemy-ruin-gargoyle-elite',
+    bodyRadius: 29,
+    baselineOffset: 35,
+  },
+  emberling: {
+    id: 'emberling',
+    name: 'Искровик',
+    eliteName: 'Пылающий искровик',
+    stageId: 'stage-2',
+    maxHealth: 168,
+    moveSpeed: 122,
+    damage: 25,
+    attackRange: 86,
+    attackCooldownMs: 900,
+    aggroRange: 158,
+    leashRange: 295,
+    dropCoins: 7,
+    texture:
+      'ruinstead-enemy-emberling',
+    eliteTexture:
+      'ruinstead-enemy-emberling-elite',
+    bodyRadius: 24,
+    baselineOffset: 30,
+  }
 };
 
 const HABITATS:
@@ -239,7 +353,72 @@ const HABITATS:
       [2580, 1050],
       [2440, 1450],
     ],
+  },,
+  {
+    species: 'dust-jackal',
+    groups: [
+      [3260, 760],
+      [3420, 900],
+      [3310, 1080],
+    ],
+    elites: [
+      [3450, 680],
+      [3520, 1020],
+      [3370, 1210],
+    ],
   },
+  {
+    species: 'sandling',
+    groups: [
+      [3650, 390],
+      [3830, 500],
+      [3720, 650],
+    ],
+    elites: [
+      [3550, 510],
+      [3930, 380],
+      [3900, 690],
+    ],
+  },
+  {
+    species: 'sun-scorpion',
+    groups: [
+      [3820, 1220],
+      [4050, 1350],
+      [4170, 1130],
+    ],
+    elites: [
+      [3710, 1420],
+      [4250, 1310],
+      [4020, 1040],
+    ],
+  },
+  {
+    species: 'ruin-gargoyle',
+    groups: [
+      [4280, 420],
+      [4490, 540],
+      [4380, 720],
+    ],
+    elites: [
+      [4180, 590],
+      [4620, 410],
+      [4580, 770],
+    ],
+  },
+  {
+    species: 'emberling',
+    groups: [
+      [4720, 1030],
+      [4950, 1150],
+      [4810, 1380],
+    ],
+    elites: [
+      [4630, 1210],
+      [5110, 1040],
+      [5020, 1460],
+    ],
+  }
 ];
 
 const GROUP_MEMBER_OFFSETS:
@@ -550,7 +729,10 @@ export class EnemyUnit {
     weaponId: WeaponId,
   ): DamageProfile {
     return getStageDamageProfile(
-      STAGE_ONE_COMBAT_PROFILE,
+      this.definition.stageId ===
+        'stage-2'
+        ? STAGE_TWO_COMBAT_PROFILE
+        : STAGE_ONE_COMBAT_PROFILE,
       weaponId,
     );
   }
@@ -1446,6 +1628,77 @@ function ensureEnemyTextures(
     DEFINITIONS.beetle.eliteTexture,
     true,
   );
+
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS['dust-jackal'],
+    0xb57a43,
+    0xe2b56d,
+    false,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS['dust-jackal'],
+    0x7b4d34,
+    0xffd36d,
+    true,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS.sandling,
+    0xc6aa72,
+    0xf0d49a,
+    false,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS.sandling,
+    0x8b744e,
+    0xffd870,
+    true,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS['sun-scorpion'],
+    0xc47a2b,
+    0xf5c74c,
+    false,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS['sun-scorpion'],
+    0x8b4b27,
+    0xffe16b,
+    true,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS['ruin-gargoyle'],
+    0x77756f,
+    0xb9a879,
+    false,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS['ruin-gargoyle'],
+    0x504e55,
+    0xe7c768,
+    true,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS.emberling,
+    0xc64c2f,
+    0xffb742,
+    false,
+  );
+  ensureStageTwoCreatureTexture(
+    scene,
+    DEFINITIONS.emberling,
+    0x8e3326,
+    0xffdf62,
+    true,
+  );
 }
 
 function createGraphics(
@@ -1855,6 +2108,90 @@ function ensureBeetleTexture(
     g,
     42,
   );
+
+  g.generateTexture(
+    key,
+    104,
+    112,
+  );
+  g.destroy();
+}
+
+function ensureStageTwoCreatureTexture(
+  scene: Phaser.Scene,
+  definition: EnemyDefinition,
+  primary: number,
+  accent: number,
+  elite: boolean,
+): void {
+  const key =
+    elite
+      ? definition.eliteTexture
+      : definition.texture;
+
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    createGraphics(scene);
+
+  g.fillStyle(
+    primary,
+    1,
+  );
+  g.fillEllipse(
+    52,
+    61,
+    elite ? 78 : 68,
+    elite ? 70 : 60,
+  );
+
+  g.fillStyle(
+    accent,
+    0.9,
+  );
+  g.fillEllipse(
+    44,
+    43,
+    elite ? 42 : 36,
+    elite ? 30 : 26,
+  );
+
+  g.fillTriangle(
+    20,
+    43,
+    34,
+    54,
+    28,
+    28,
+  );
+  g.fillTriangle(
+    84,
+    43,
+    70,
+    54,
+    76,
+    28,
+  );
+
+  addEyes(
+    g,
+    57,
+  );
+
+  if (elite) {
+    g.lineStyle(
+      4,
+      0xffdf68,
+      0.95,
+    );
+    g.strokeCircle(
+      52,
+      61,
+      38,
+    );
+  }
 
   g.generateTexture(
     key,

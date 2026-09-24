@@ -266,7 +266,170 @@ const DEFINITIONS:
       'ruinstead-boss-root-colossus',
     thresholds:
       BOSS_THRESHOLDS,
+  },,
+  {
+    entryId:
+      'species:dust-jackal',
+    kind: 'species',
+    entityId: 'dust-jackal',
+    name: 'Пыльный шакал',
+    eliteName: 'Вожак шакалов',
+    area: 'Пыльная тропа',
+    weakness: 'Меч ×2',
+    resistance: 'Топор ×0.5',
+    dropText:
+      '5 монет · элита 20',
+    texture:
+      'ruinstead-enemy-dust-jackal',
+    eliteTexture:
+      'ruinstead-enemy-dust-jackal-elite',
+    thresholds:
+      SPECIES_THRESHOLDS,
   },
+  {
+    entryId:
+      'species:sandling',
+    kind: 'species',
+    entityId: 'sandling',
+    name: 'Песчаник',
+    eliteName:
+      'Древний песчаник',
+    area: 'Соляная низина',
+    weakness: 'Меч ×2',
+    resistance: 'Топор ×0.5',
+    dropText:
+      '5 монет · элита 20',
+    texture:
+      'ruinstead-enemy-sandling',
+    eliteTexture:
+      'ruinstead-enemy-sandling-elite',
+    thresholds:
+      SPECIES_THRESHOLDS,
+  },
+  {
+    entryId:
+      'species:sun-scorpion',
+    kind: 'species',
+    entityId: 'sun-scorpion',
+    name:
+      'Солнечный скорпион',
+    eliteName:
+      'Золотой скорпион',
+    area:
+      'Скорпионья лощина',
+    weakness: 'Меч ×2',
+    resistance: 'Топор ×0.5',
+    dropText:
+      '6 монет · элита 24',
+    texture:
+      'ruinstead-enemy-sun-scorpion',
+    eliteTexture:
+      'ruinstead-enemy-sun-scorpion-elite',
+    thresholds:
+      SPECIES_THRESHOLDS,
+  },
+  {
+    entryId:
+      'species:ruin-gargoyle',
+    kind: 'species',
+    entityId: 'ruin-gargoyle',
+    name: 'Руинный страж',
+    eliteName:
+      'Крылатый страж',
+    area:
+      'Кристальные руины',
+    weakness: 'Меч ×2',
+    resistance: 'Топор ×0.5',
+    dropText:
+      '7 монет · элита 28',
+    texture:
+      'ruinstead-enemy-ruin-gargoyle',
+    eliteTexture:
+      'ruinstead-enemy-ruin-gargoyle-elite',
+    thresholds:
+      SPECIES_THRESHOLDS,
+  },
+  {
+    entryId:
+      'species:emberling',
+    kind: 'species',
+    entityId: 'emberling',
+    name: 'Искровик',
+    eliteName:
+      'Пылающий искровик',
+    area:
+      'Солнечный кратер',
+    weakness: 'Меч ×2',
+    resistance: 'Топор ×0.5',
+    dropText:
+      '7 монет · элита 28',
+    texture:
+      'ruinstead-enemy-emberling',
+    eliteTexture:
+      'ruinstead-enemy-emberling-elite',
+    thresholds:
+      SPECIES_THRESHOLDS,
+  },
+  {
+    entryId:
+      'boss:ash-matriarch',
+    kind: 'boss',
+    entityId: 'ash-matriarch',
+    name:
+      'Пепельная матриархиня',
+    area:
+      'Север Пепельных нагорий',
+    weakness:
+      'Кинжалы ×2',
+    resistance:
+      'Молот ×0.5',
+    dropText:
+      '45 монет · волокно/кристалл',
+    texture:
+      'ruinstead-boss-ash-matriarch',
+    thresholds:
+      BOSS_THRESHOLDS,
+  },
+  {
+    entryId:
+      'boss:prism-golem',
+    kind: 'boss',
+    entityId: 'prism-golem',
+    name:
+      'Призменный голем',
+    area:
+      'Кристальные руины',
+    weakness:
+      'Молот ×2',
+    resistance:
+      'Топор ×0.5',
+    dropText:
+      '58 монет · солнечные кристаллы',
+    texture:
+      'ruinstead-boss-prism-golem',
+    thresholds:
+      BOSS_THRESHOLDS,
+  },
+  {
+    entryId:
+      'boss:sun-tyrant',
+    kind: 'boss',
+    entityId: 'sun-tyrant',
+    name:
+      'Солнечный тиран',
+    area:
+      'Солнечный кратер',
+    weakness:
+      'Кинжалы ×2',
+    resistance:
+      'Копьё ×0.5',
+    dropText:
+      '82 монеты · открывает меч',
+    texture:
+      'ruinstead-boss-sun-tyrant',
+    thresholds:
+      BOSS_THRESHOLDS,
+  }
 ];
 
 export class BestiarySystem {

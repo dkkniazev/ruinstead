@@ -61,6 +61,17 @@ const NODE_DEFINITIONS:
   { id: 'metal-2', type: 'metal', x: 2110, y: 880, durability: 5, dropCount: 2, respawnMs: 90_000 },
   { id: 'metal-3', type: 'metal', x: 2260, y: 1180, durability: 5, dropCount: 2, respawnMs: 90_000 },
   { id: 'metal-4', type: 'metal', x: 2050, y: 1490, durability: 5, dropCount: 2, respawnMs: 90_000 },
+
+  // Stage 2: rare materials define the new region economy.
+  { id: 'crystal-1', type: 'crystal', x: 3460, y: 650, durability: 5, dropCount: 3, respawnMs: 110_000 },
+  { id: 'crystal-2', type: 'crystal', x: 3920, y: 940, durability: 5, dropCount: 3, respawnMs: 110_000 },
+  { id: 'crystal-3', type: 'crystal', x: 4470, y: 580, durability: 6, dropCount: 4, respawnMs: 120_000 },
+  { id: 'crystal-4', type: 'crystal', x: 5120, y: 1040, durability: 6, dropCount: 4, respawnMs: 120_000 },
+
+  { id: 'fiber-1', type: 'fiber', x: 3290, y: 1160, durability: 3, dropCount: 5, respawnMs: 70_000 },
+  { id: 'fiber-2', type: 'fiber', x: 3760, y: 480, durability: 3, dropCount: 5, respawnMs: 70_000 },
+  { id: 'fiber-3', type: 'fiber', x: 4310, y: 1260, durability: 4, dropCount: 6, respawnMs: 80_000 },
+  { id: 'fiber-4', type: 'fiber', x: 4970, y: 1450, durability: 4, dropCount: 6, respawnMs: 80_000 },
 ];
 
 const NODE_TEXTURES:
@@ -68,6 +79,10 @@ const NODE_TEXTURES:
   wood: 'ruinstead-resource-node-wood-pile',
   stone: 'ruinstead-resource-node-stone-pile',
   metal: 'ruinstead-resource-node-metal-pile',
+  crystal:
+    'ruinstead-resource-node-sun-crystal',
+  fiber:
+    'ruinstead-resource-node-dry-fiber',
 };
 
 const PICKUP_TEXTURES:
@@ -75,6 +90,10 @@ const PICKUP_TEXTURES:
   wood: 'ruinstead-resource-pickup-wood',
   stone: 'ruinstead-resource-pickup-stone',
   metal: 'ruinstead-resource-pickup-metal',
+  crystal:
+    'ruinstead-resource-pickup-crystal',
+  fiber:
+    'ruinstead-resource-pickup-fiber',
   coins: 'ruinstead-resource-pickup-coins',
 };
 
@@ -317,6 +336,44 @@ export class ResourceSystem {
     }
   }
 
+  spawnResourceDrop(
+    position: Phaser.Math.Vector2,
+    contents: ResourceCounts,
+  ): void {
+    let slot = 0;
+
+    for (
+      const type of
+      RESOURCE_TYPES
+    ) {
+      const amount =
+        contents[type] ?? 0;
+
+      if (amount <= 0) {
+        continue;
+      }
+
+      const angle =
+        (slot / 6) *
+        Math.PI *
+        2;
+
+      this.spawnPickupStack(
+        type,
+        position.x +
+          Math.cos(angle) * 42,
+        position.y +
+          Math.sin(angle) * 30,
+        amount,
+        this.scene.time.now +
+          PICKUP_LIFETIME_MS,
+        false,
+      );
+
+      slot += 1;
+    }
+  }
+
   spawnDeathDrop(
     position: Phaser.Math.Vector2,
     contents: ResourceCounts,
@@ -328,7 +385,7 @@ export class ResourceSystem {
       RESOURCE_TYPES
     ) {
       const amount =
-        contents[type];
+        contents[type] ?? 0;
 
       if (amount <= 0) {
         continue;
@@ -776,6 +833,8 @@ function ensureResourceTextures(
   ensureWoodNode(scene);
   ensureStoneNode(scene);
   ensureMetalNode(scene);
+  ensureCrystalNode(scene);
+  ensureFiberNode(scene);
 
   ensurePickupTexture(
     scene,
@@ -791,6 +850,16 @@ function ensureResourceTextures(
     scene,
     'metal',
     0x6f8792,
+  );
+  ensurePickupTexture(
+    scene,
+    'crystal',
+    0xf2c85d,
+  );
+  ensurePickupTexture(
+    scene,
+    'fiber',
+    0xd7b77a,
   );
   ensurePickupTexture(
     scene,
@@ -1031,6 +1100,139 @@ function ensureMetalNode(
   g.destroy();
 }
 
+function ensureCrystalNode(
+  scene: Phaser.Scene,
+): void {
+  const key =
+    NODE_TEXTURES.crystal;
+
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    scene.make.graphics({
+      x: 0,
+      y: 0,
+    });
+
+  g.fillStyle(
+    0x7b6643,
+    0.24,
+  );
+  g.fillEllipse(
+    52,
+    68,
+    86,
+    18,
+  );
+
+  for (
+    const [x, y, h] of
+    [
+      [28, 56, 42],
+      [48, 48, 58],
+      [69, 57, 39],
+    ] as const
+  ) {
+    g.fillStyle(
+      0xe1ad42,
+      1,
+    );
+    g.fillTriangle(
+      x - 11,
+      y + 12,
+      x,
+      y - h / 2,
+      x + 11,
+      y + 12,
+    );
+    g.fillStyle(
+      0xffe58a,
+      0.75,
+    );
+    g.fillTriangle(
+      x - 3,
+      y + 7,
+      x,
+      y - h / 2 + 8,
+      x + 5,
+      y + 8,
+    );
+  }
+
+  g.generateTexture(
+    key,
+    104,
+    82,
+  );
+  g.destroy();
+}
+
+function ensureFiberNode(
+  scene: Phaser.Scene,
+): void {
+  const key =
+    NODE_TEXTURES.fiber;
+
+  if (scene.textures.exists(key)) {
+    return;
+  }
+
+  const g =
+    scene.make.graphics({
+      x: 0,
+      y: 0,
+    });
+
+  g.fillStyle(
+    0x6e603d,
+    0.18,
+  );
+  g.fillEllipse(
+    52,
+    68,
+    86,
+    18,
+  );
+
+  for (
+    const x of
+    [26, 40, 54, 68, 80]
+  ) {
+    g.lineStyle(
+      7,
+      0xc59c5b,
+      1,
+    );
+    g.lineBetween(
+      x,
+      68,
+      x - 7,
+      30 +
+        (x % 3) * 5,
+    );
+    g.fillStyle(
+      0xe2c880,
+      1,
+    );
+    g.fillEllipse(
+      x - 7,
+      29 +
+        (x % 3) * 5,
+      16,
+      11,
+    );
+  }
+
+  g.generateTexture(
+    key,
+    104,
+    82,
+  );
+  g.destroy();
+}
+
 function ensurePickupTexture(
   scene: Phaser.Scene,
   type: ResourceType,
@@ -1119,6 +1321,55 @@ function ensurePickupTexture(
       5,
       18,
       13,
+    );
+  } else if (
+    type === 'crystal'
+  ) {
+    g.fillTriangle(
+      4,
+      18,
+      14,
+      3,
+      25,
+      18,
+    );
+    g.fillStyle(
+      0xffed9b,
+      0.85,
+    );
+    g.fillTriangle(
+      11,
+      14,
+      14,
+      6,
+      17,
+      15,
+    );
+  } else if (
+    type === 'fiber'
+  ) {
+    g.lineStyle(
+      5,
+      0xb48d50,
+      1,
+    );
+    g.lineBetween(
+      7,
+      18,
+      13,
+      5,
+    );
+    g.lineBetween(
+      14,
+      19,
+      19,
+      5,
+    );
+    g.lineBetween(
+      20,
+      18,
+      23,
+      7,
     );
   } else {
     g.fillCircle(

@@ -8,8 +8,12 @@ import {
   ROOT_COLOSSUS_ARENA_RADIUS,
   STAGE_TWO_ENTRY,
 } from './StageOneProgression';
+import {
+  STAGE_THREE_ENTRY,
+  STAGE_TWO_START_X,
+} from './StageTwoProgression';
 
-export const WORLD_WIDTH = 3400;
+export const WORLD_WIDTH = 6000;
 export const WORLD_HEIGHT = 1800;
 
 export const SETTLEMENT_CENTER =
@@ -137,6 +141,45 @@ export function getAreaName(
 
   if (
     position.x >=
+    STAGE_THREE_ENTRY.x - 80
+  ) {
+    return 'Преддверие третьей зоны';
+  }
+
+  if (
+    position.x >=
+    STAGE_TWO_START_X
+  ) {
+    if (position.x < 3550) {
+      return 'Пыльная тропа';
+    }
+
+    if (
+      position.x < 4100 &&
+      position.y < 900
+    ) {
+      return 'Соляная низина';
+    }
+
+    if (
+      position.x < 4300 &&
+      position.y >= 900
+    ) {
+      return 'Скорпионья лощина';
+    }
+
+    if (
+      position.x < 4700 &&
+      position.y < 900
+    ) {
+      return 'Кристальные руины';
+    }
+
+    return 'Солнечный кратер';
+  }
+
+  if (
+    position.x >=
     STAGE_TWO_ENTRY.x - 80
   ) {
     return 'Преддверие второй зоны';
@@ -190,6 +233,40 @@ function drawGround(
     0,
     WORLD_WIDTH,
     WORLD_HEIGHT,
+  );
+
+  // Stage 2 is mechanically a separate region but remains on the same seamless map.
+  ground.fillStyle(
+    0xc9aa68,
+    1,
+  );
+  ground.fillRect(
+    2980,
+    0,
+    WORLD_WIDTH - 2980,
+    WORLD_HEIGHT,
+  );
+
+  ground.fillStyle(
+    0xdfc47e,
+    0.5,
+  );
+  ground.fillEllipse(
+    4050,
+    850,
+    1800,
+    1450,
+  );
+
+  ground.fillStyle(
+    0xb8794d,
+    0.22,
+  );
+  ground.fillEllipse(
+    5000,
+    1100,
+    1200,
+    1000,
   );
 
   // Broad soft patches instead of a visible tile grid.
@@ -366,6 +443,38 @@ function drawGround(
   ground.lineTo(
     2795,
     1500,
+  );
+  ground.strokePath();
+
+  ground.lineStyle(
+    82,
+    0xb98a52,
+    0.88,
+  );
+  ground.beginPath();
+  ground.moveTo(
+    2990,
+    1500,
+  );
+  ground.lineTo(
+    3300,
+    1100,
+  );
+  ground.lineTo(
+    3700,
+    900,
+  );
+  ground.lineTo(
+    4200,
+    900,
+  );
+  ground.lineTo(
+    4700,
+    1050,
+  );
+  ground.lineTo(
+    5250,
+    1400,
   );
   ground.strokePath();
 
@@ -794,6 +903,18 @@ function drawStageTwoPreview(
   );
 
   g.fillStyle(
+    0xd8bd73,
+    0.78,
+  );
+  g.fillRoundedRect(
+    3300,
+    170,
+    2050,
+    1450,
+    48,
+  );
+
+  g.fillStyle(
     0x8a8b4f,
     0.18,
   );
@@ -808,7 +929,7 @@ function drawStageTwoPreview(
     .text(
       STAGE_TWO_ENTRY.x + 105,
       STAGE_TWO_ENTRY.y - 115,
-      'Новая территория',
+      'Пепельные нагорья',
       {
         fontFamily:
           'system-ui, sans-serif',
@@ -828,6 +949,40 @@ function drawStageTwoPreview(
       STAGE_TWO_ENTRY.y +
         100,
     );
+
+  for (
+    const landmark of
+    [
+      [3470, 520, 'Кости каравана'],
+      [4050, 930, 'Кристальный разлом'],
+      [4550, 470, 'Руины дозора'],
+      [5200, 1320, 'Солнечный кратер'],
+    ] as const
+  ) {
+    scene.add
+      .text(
+        landmark[0],
+        landmark[1],
+        landmark[2],
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '14px',
+          fontStyle: 'bold',
+          color: '#5f4931',
+          backgroundColor:
+            '#f2d89dcc',
+          padding: {
+            x: 7,
+            y: 3,
+          },
+        },
+      )
+      .setOrigin(0.5)
+      .setDepth(
+        landmark[1] + 120,
+      );
+  }
 }
 
 function createObstacles(

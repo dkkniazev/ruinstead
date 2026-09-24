@@ -78,7 +78,7 @@ export class BackpackSystem {
       RESOURCE_TYPES
     ) {
       used +=
-        this.carried[type] *
+        (this.carried[type] ?? 0) *
         RESOURCE_DEFINITIONS[
           type
         ].weight;
@@ -131,7 +131,8 @@ export class BackpackSystem {
       return 0;
     }
 
-    this.carried[type] +=
+    this.carried[type] =
+      (this.carried[type] ?? 0) +
       accepted;
 
     return accepted;
@@ -142,8 +143,8 @@ export class BackpackSystem {
   ): boolean {
     return RESOURCE_TYPES.every(
       (type) =>
-        this.carried[type] >=
-        cost[type],
+        (this.carried[type] ?? 0) >=
+        (cost[type] ?? 0),
     );
   }
 
@@ -158,11 +159,53 @@ export class BackpackSystem {
       const type of
       RESOURCE_TYPES
     ) {
-      this.carried[type] -=
-        cost[type];
+      this.carried[type] =
+        (this.carried[type] ?? 0) -
+        (cost[type] ?? 0);
     }
 
     return true;
+  }
+
+  canAcceptBundle(
+    contents: ResourceCounts,
+  ): boolean {
+    let weight = 0;
+
+    for (
+      const type of
+      RESOURCE_TYPES
+    ) {
+      weight +=
+        (contents[type] ?? 0) *
+        RESOURCE_DEFINITIONS[
+          type
+        ].weight;
+    }
+
+    return (
+      this.remainingCapacity >=
+      weight
+    );
+  }
+
+  addBundle(
+    contents: ResourceCounts,
+  ): void {
+    for (
+      const type of
+      RESOURCE_TYPES
+    ) {
+      const amount =
+        contents[type] ?? 0;
+
+      if (amount > 0) {
+        this.add(
+          type,
+          amount,
+        );
+      }
+    }
   }
 
   deposit(): ResourceCounts {
@@ -212,11 +255,13 @@ export class BackpackSystem {
         ].weight;
 
       while (
-        this.carried[type] > 0 &&
+        (this.carried[type] ?? 0) > 0 &&
         this.usedCapacity >
           this.capacity
       ) {
-        this.carried[type] -= 1;
+        this.carried[type] =
+          (this.carried[type] ?? 0) -
+          1;
 
         if (
           this.usedCapacity <=

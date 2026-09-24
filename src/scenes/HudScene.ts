@@ -1504,21 +1504,22 @@ export class HudScene
             .text(
               -390,
               -205 +
-                index * 50,
+                index * 28,
               '',
               {
                 fontFamily:
                   'system-ui, sans-serif',
-                fontSize: '13px',
+                fontSize: '11px',
                 fontStyle: 'bold',
                 color: '#ffffff',
                 backgroundColor:
                   '#34553c',
                 padding: {
-                  x: 10,
-                  y: 8,
+                  x: 8,
+                  y: 4,
                 },
                 fixedWidth: 270,
+                fixedHeight: 24,
               },
             )
             .setInteractive({
@@ -2509,7 +2510,7 @@ export class HudScene
         !unlocked
           ? `${WEAPON_DEFINITIONS[weaponId].name} · закрыто`
           : weaponCost
-            ? `${WEAPON_DEFINITIONS[weaponId].name} Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}`
+            ? `${WEAPON_DEFINITIONS[weaponId].name} Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal} Кр${weaponCost.crystal ?? 0} В${weaponCost.fiber ?? 0}`
             : `${WEAPON_DEFINITIONS[weaponId].name} Lv.${MAX_UPGRADE_LEVEL} · MAX`,
       )
       .setStyle({
@@ -2693,11 +2694,11 @@ export class HudScene
     );
 
     this.carriedText?.setText(
-      `С собой: Д ${carried.wood} · К ${carried.stone} · М ${carried.metal} · ● ${carried.coins}`,
+      `С собой: Д ${carried.wood} · К ${carried.stone} · М ${carried.metal} · Кр ${carried.crystal ?? 0} · В ${carried.fiber ?? 0} · ● ${carried.coins}`,
     );
 
     this.storageText?.setText(
-      `Склад: Д ${state.storage.wood} · К ${state.storage.stone} · М ${state.storage.metal} · ● ${state.storage.coins}`,
+      `Склад: Д ${state.storage.wood} · К ${state.storage.stone} · М ${state.storage.metal} · Кр ${state.storage.crystal ?? 0} · В ${state.storage.fiber ?? 0} · ● ${state.storage.coins}`,
     );
   }
 

@@ -2,6 +2,8 @@ export const RESOURCE_TYPES = [
   'wood',
   'stone',
   'metal',
+  'crystal',
+  'fiber',
   'coins',
 ] as const;
 
@@ -13,6 +15,8 @@ export type ResourceCounts = {
   stone: number;
   metal: number;
   coins: number;
+  crystal?: number;
+  fiber?: number;
 };
 
 export type ResourceDefinition = {
@@ -45,6 +49,18 @@ export const RESOURCE_DEFINITIONS:
     shortName: 'М',
     weight: 2,
   },
+  crystal: {
+    id: 'crystal',
+    name: 'Солнечный кристалл',
+    shortName: 'Кр',
+    weight: 1.5,
+  },
+  fiber: {
+    id: 'fiber',
+    name: 'Сухое волокно',
+    shortName: 'В',
+    weight: 0.5,
+  },
   coins: {
     id: 'coins',
     name: 'Монеты',
@@ -59,6 +75,8 @@ export function emptyResourceCounts():
     wood: 0,
     stone: 0,
     metal: 0,
+    crystal: 0,
+    fiber: 0,
     coins: 0,
   };
 }
@@ -70,6 +88,10 @@ export function cloneResourceCounts(
     wood: counts.wood,
     stone: counts.stone,
     metal: counts.metal,
+    crystal:
+      counts.crystal ?? 0,
+    fiber:
+      counts.fiber ?? 0,
     coins: counts.coins,
   };
 }
@@ -81,6 +103,8 @@ export function totalResourceUnits(
     counts.wood +
     counts.stone +
     counts.metal +
+    (counts.crystal ?? 0) +
+    (counts.fiber ?? 0) +
     counts.coins
   );
 }

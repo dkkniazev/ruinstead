@@ -22,6 +22,8 @@ const EMPTY_COST =
     wood: 0,
     stone: 0,
     metal: 0,
+    crystal: 0,
+    fiber: 0,
     coins: 0,
   });
 
@@ -147,6 +149,18 @@ export function getWeaponUpgradeCost(
       ),
     metal:
       1 + next,
+    crystal:
+      next >= 4
+        ? next === 4
+          ? 2
+          : 4
+        : 0,
+    fiber:
+      next >= 4
+        ? next === 4
+          ? 3
+          : 6
+        : 0,
     coins:
       25 + next * 18,
   };
@@ -161,6 +175,10 @@ export function canAffordUpgrade(
       storage.wood >= cost.wood &&
       storage.stone >= cost.stone &&
       storage.metal >= cost.metal &&
+      (storage.crystal ?? 0) >=
+        (cost.crystal ?? 0) &&
+      (storage.fiber ?? 0) >=
+        (cost.fiber ?? 0) &&
       storage.coins >= cost.coins,
   );
 }
@@ -172,5 +190,11 @@ export function spendUpgradeCost(
   storage.wood -= cost.wood;
   storage.stone -= cost.stone;
   storage.metal -= cost.metal;
+  storage.crystal =
+    (storage.crystal ?? 0) -
+    (cost.crystal ?? 0);
+  storage.fiber =
+    (storage.fiber ?? 0) -
+    (cost.fiber ?? 0);
   storage.coins -= cost.coins;
 }

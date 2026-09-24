@@ -799,6 +799,12 @@ export class EnemyUnit {
       return;
     }
 
+    if (
+      this.regenStartedAt > 0
+    ) {
+      return;
+    }
+
     this.regenStartedAt =
       time;
     this.regenStartHealth =

@@ -54,12 +54,12 @@ export class ExpeditionScene
     camera.startFollow(
       this.player.sprite,
       true,
-      0.12,
-      0.12,
+      0.1,
+      0.1,
     );
     camera.setDeadzone(
-      150,
-      100,
+      170,
+      105,
     );
 
     this.createHud();
@@ -100,15 +100,34 @@ export class ExpeditionScene
   }
 
   private createHud(): void {
+    const panel =
+      this.add
+        .rectangle(
+          176,
+          57,
+          316,
+          74,
+          0x101812,
+          0.72,
+        )
+        .setScrollFactor(0)
+        .setDepth(8400);
+
+    panel.setStrokeStyle(
+      1,
+      0x71836d,
+      0.35,
+    );
+
     this.add
       .text(
-        24,
-        32,
-        'Тестовая вылазка',
+        30,
+        30,
+        'Заросший лес',
         {
           fontFamily:
             'system-ui, sans-serif',
-          fontSize: '24px',
+          fontSize: '22px',
           fontStyle: 'bold',
           color: '#f0ead8',
         },
@@ -118,14 +137,14 @@ export class ExpeditionScene
 
     this.add
       .text(
-        24,
-        67,
-        'WASD/стрелки · Space/Shift — рывок',
+        30,
+        61,
+        '2.5D prototype · WASD · Space/Shift — рывок',
         {
           fontFamily:
             'system-ui, sans-serif',
-          fontSize: '15px',
-          color: '#c3d0ba',
+          fontSize: '13px',
+          color: '#bac8b4',
         },
       )
       .setScrollFactor(0)
@@ -197,8 +216,8 @@ export class ExpeditionScene
         .startFollow(
           this.player.sprite,
           true,
-          0.12,
-          0.12,
+          0.1,
+          0.1,
         );
     }
   }

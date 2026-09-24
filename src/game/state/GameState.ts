@@ -1,4 +1,9 @@
-export const SAVE_SCHEMA_VERSION = 13 as const;
+import {
+  createDefaultWeaponInventory,
+  type WeaponInventoryState,
+} from '../progression/WeaponInventory';
+
+export const SAVE_SCHEMA_VERSION = 14 as const;
 
 export type BuildingId =
   | 'forge'
@@ -21,6 +26,10 @@ export type GameState = {
     moveSpeedLevel: number;
     backpackLevel: number;
     dashLevel: number;
+    /**
+     * Legacy family levels are kept only for migration from v13 and older.
+     * Runtime weapon power uses weaponInventory.
+     */
     weaponLevels: {
       axe: number;
       sword: number;
@@ -28,6 +37,8 @@ export type GameState = {
       spear: number;
       daggers: number;
     };
+    weaponInventory:
+      WeaponInventoryState;
   };
   backpack: {
     wood: number;
@@ -119,12 +130,14 @@ export function createDefaultGameState(): GameState {
       backpackLevel: 0,
       dashLevel: 0,
       weaponLevels: {
-        axe: 0,
-        sword: 0,
-        hammer: 0,
-        spear: 0,
-        daggers: 0,
+        axe: 1,
+        sword: 1,
+        hammer: 1,
+        spear: 1,
+        daggers: 1,
       },
+      weaponInventory:
+        createDefaultWeaponInventory(),
     },
     backpack: {
       wood: 0,

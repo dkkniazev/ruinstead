@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { BootScene } from '../scenes/BootScene';
+import { HudScene } from '../scenes/HudScene';
 import { WorldScene } from '../scenes/WorldScene';
 import {
   getBrowserViewportMetrics,
@@ -18,6 +19,7 @@ export const gameConfig:
   scene: [
     BootScene,
     WorldScene,
+    HudScene,
   ],
   scale: {
     mode: Phaser.Scale.NONE,

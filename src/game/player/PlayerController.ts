@@ -5,9 +5,16 @@ import {
   type MovementIntent,
 } from '../input/PlayerInput';
 import { TouchPlayerInput } from '../input/TouchPlayerInput';
+import type {
+  WeaponId,
+} from '../combat/WeaponDefinitions';
 
 const PLAYER_TEXTURE =
-  'ruinstead-player-prototype';
+  'ruinstead-player-base-v2';
+const PLAYER_BLADE_TEXTURE =
+  'ruinstead-player-blade-v2';
+const PLAYER_BOW_TEXTURE =
+  'ruinstead-player-bow-v2';
 
 const MOVE_SPEED = 225;
 const DASH_SPEED = 570;
@@ -21,6 +28,13 @@ export class PlayerController {
 
   private readonly shadow:
     Phaser.GameObjects.Ellipse;
+  private readonly weaponSprite:
+    Phaser.GameObjects.Image;
+  private readonly healthBack:
+    Phaser.GameObjects.Rectangle;
+  private readonly healthFill:
+    Phaser.GameObjects.Rectangle;
+
   private readonly desktopInput:
     DesktopPlayerInput;
   private readonly touchInput:
@@ -37,13 +51,15 @@ export class PlayerController {
   private dashCooldownUntil = 0;
   private damageTintUntil = 0;
   private enabled = true;
+  private weaponId:
+    WeaponId = 'blade';
 
   constructor(
     private readonly scene: Phaser.Scene,
     x: number,
     y: number,
   ) {
-    this.ensureTexture();
+    this.ensureTextures();
 
     this.shadow = scene.add
       .ellipse(
@@ -56,6 +72,16 @@ export class PlayerController {
       )
       .setDepth(
         y + PLAYER_BASELINE_OFFSET - 2,
+      );
+
+    this.weaponSprite = scene.add
+      .image(
+        x + 26,
+        y + 1,
+        PLAYER_BLADE_TEXTURE,
+      )
+      .setDepth(
+        y + PLAYER_BASELINE_OFFSET - 1,
       );
 
     this.sprite =
@@ -79,6 +105,38 @@ export class PlayerController {
       .setSize(32, 33)
       .setOffset(24, 70);
 
+    this.healthBack = scene.add
+      .rectangle(
+        x - 34,
+        y - 69,
+        68,
+        10,
+        0x29312a,
+        0.9,
+      )
+      .setOrigin(0, 0.5)
+      .setDepth(
+        y +
+          PLAYER_BASELINE_OFFSET +
+          100,
+      );
+
+    this.healthFill = scene.add
+      .rectangle(
+        x - 32,
+        y - 69,
+        64,
+        6,
+        0x59d96a,
+        1,
+      )
+      .setOrigin(0, 0.5)
+      .setDepth(
+        y +
+          PLAYER_BASELINE_OFFSET +
+          101,
+      );
+
     this.desktopInput =
       new DesktopPlayerInput(scene);
     this.touchInput =
@@ -95,6 +153,11 @@ export class PlayerController {
           this.syncInputMode(mode);
         },
       );
+
+    this.setWeapon(
+      this.weaponId,
+    );
+    this.syncVisualDepth();
   }
 
   update(time: number): void {
@@ -187,6 +250,66 @@ export class PlayerController {
     }
   }
 
+  setWeapon(
+    weaponId: WeaponId,
+  ): void {
+    this.weaponId =
+      weaponId;
+
+    this.weaponSprite.setTexture(
+      weaponId === 'blade'
+        ? PLAYER_BLADE_TEXTURE
+        : PLAYER_BOW_TEXTURE,
+    );
+
+    this.syncWeaponTransform();
+  }
+
+  setHealth(
+    health: number,
+    maxHealth: number,
+  ): void {
+    const ratio =
+      maxHealth > 0
+        ? Phaser.Math.Clamp(
+            health / maxHealth,
+            0,
+            1,
+          )
+        : 0;
+
+    this.healthFill.setDisplaySize(
+      64 * ratio,
+      6,
+    );
+
+    this.healthFill.setFillStyle(
+      ratio > 0.5
+        ? 0x59d96a
+        : ratio > 0.25
+          ? 0xf2bd4f
+          : 0xf05f62,
+      1,
+    );
+  }
+
+  setAliveVisualsVisible(
+    visible: boolean,
+  ): void {
+    this.shadow.setVisible(
+      visible,
+    );
+    this.weaponSprite.setVisible(
+      visible,
+    );
+    this.healthBack.setVisible(
+      visible,
+    );
+    this.healthFill.setVisible(
+      visible,
+    );
+  }
+
   teleport(
     x: number,
     y: number,
@@ -200,10 +323,6 @@ export class PlayerController {
       y,
     );
 
-    this.shadow.setPosition(
-      x,
-      y + 41,
-    );
     this.syncVisualDepth();
   }
 
@@ -220,6 +339,7 @@ export class PlayerController {
         worldX <
           this.sprite.x,
       );
+      this.syncWeaponTransform();
     }
   }
 
@@ -237,6 +357,10 @@ export class PlayerController {
     this.desktopInput.destroy();
     this.touchInput.destroy();
     this.inputMode.destroy();
+
+    this.healthFill.destroy();
+    this.healthBack.destroy();
+    this.weaponSprite.destroy();
     this.shadow.destroy();
     this.sprite.destroy();
   }
@@ -339,6 +463,61 @@ export class PlayerController {
       .setDepth(
         baseline - 2,
       );
+
+    this.healthBack
+      .setPosition(
+        this.sprite.x - 34,
+        this.sprite.y - 69,
+      )
+      .setDepth(
+        baseline + 100,
+      );
+
+    this.healthFill
+      .setPosition(
+        this.sprite.x - 32,
+        this.sprite.y - 69,
+      )
+      .setDepth(
+        baseline + 101,
+      );
+
+    this.syncWeaponTransform(
+      baseline,
+    );
+  }
+
+  private syncWeaponTransform(
+    baseline =
+      this.sprite.y +
+      PLAYER_BASELINE_OFFSET,
+  ): void {
+    const facingLeft =
+      this.sprite.flipX;
+
+    const xOffset =
+      this.weaponId === 'blade'
+        ? 27
+        : 29;
+
+    const yOffset =
+      this.weaponId === 'blade'
+        ? 1
+        : 4;
+
+    this.weaponSprite
+      .setPosition(
+        this.sprite.x +
+          (facingLeft
+            ? -xOffset
+            : xOffset),
+        this.sprite.y +
+          yOffset,
+      )
+      .setFlipX(facingLeft)
+      .setDepth(
+        baseline - 1,
+      );
   }
 
   private syncInputMode(
@@ -349,7 +528,13 @@ export class PlayerController {
     );
   }
 
-  private ensureTexture(): void {
+  private ensureTextures(): void {
+    this.ensurePlayerTexture();
+    this.ensureBladeTexture();
+    this.ensureBowTexture();
+  }
+
+  private ensurePlayerTexture(): void {
     if (
       this.scene.textures.exists(
         PLAYER_TEXTURE,
@@ -429,16 +614,39 @@ export class PlayerController {
       6,
     );
 
+    graphics.generateTexture(
+      PLAYER_TEXTURE,
+      82,
+      110,
+    );
+    graphics.destroy();
+  }
+
+  private ensureBladeTexture(): void {
+    if (
+      this.scene.textures.exists(
+        PLAYER_BLADE_TEXTURE,
+      )
+    ) {
+      return;
+    }
+
+    const graphics =
+      this.scene.make.graphics({
+        x: 0,
+        y: 0,
+      });
+
     graphics.lineStyle(
-      6,
+      7,
       0xe7eef0,
       1,
     );
     graphics.lineBetween(
-      60,
-      57,
-      72,
-      21,
+      13,
+      52,
+      31,
+      8,
     );
 
     graphics.lineStyle(
@@ -447,16 +655,101 @@ export class PlayerController {
       1,
     );
     graphics.lineBetween(
-      57,
-      63,
-      64,
-      44,
+      10,
+      61,
+      18,
+      40,
+    );
+
+    graphics.lineStyle(
+      4,
+      0xd9b35c,
+      1,
+    );
+    graphics.lineBetween(
+      8,
+      42,
+      23,
+      48,
     );
 
     graphics.generateTexture(
-      PLAYER_TEXTURE,
-      82,
-      110,
+      PLAYER_BLADE_TEXTURE,
+      42,
+      70,
+    );
+    graphics.destroy();
+  }
+
+  private ensureBowTexture(): void {
+    if (
+      this.scene.textures.exists(
+        PLAYER_BOW_TEXTURE,
+      )
+    ) {
+      return;
+    }
+
+    const graphics =
+      this.scene.make.graphics({
+        x: 0,
+        y: 0,
+      });
+
+    graphics.lineStyle(
+      5,
+      0x87522d,
+      1,
+    );
+    graphics.beginPath();
+    graphics.moveTo(12, 5);
+    graphics.lineTo(28, 18);
+    graphics.lineTo(32, 35);
+    graphics.lineTo(27, 52);
+    graphics.lineTo(12, 65);
+    graphics.strokePath();
+
+    graphics.lineStyle(
+      2,
+      0xf4e4c5,
+      0.95,
+    );
+    graphics.lineBetween(
+      12,
+      5,
+      12,
+      65,
+    );
+
+    graphics.lineStyle(
+      3,
+      0x6b472a,
+      1,
+    );
+    graphics.lineBetween(
+      5,
+      35,
+      36,
+      35,
+    );
+
+    graphics.fillStyle(
+      0xe8eef0,
+      1,
+    );
+    graphics.fillTriangle(
+      36,
+      30,
+      42,
+      35,
+      36,
+      40,
+    );
+
+    graphics.generateTexture(
+      PLAYER_BOW_TEXTURE,
+      46,
+      70,
     );
     graphics.destroy();
   }

@@ -72,6 +72,14 @@ export class CombatSystem {
         },
       );
 
+    this.player.setWeapon(
+      this.weaponId,
+    );
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+
     this.emitState();
   }
 
@@ -101,6 +109,11 @@ export class CombatSystem {
     this.weaponId =
       weaponId;
     this.nextAttackAt = 0;
+
+    this.player.setWeapon(
+      weaponId,
+    );
+
     this.emitState();
   }
 
@@ -190,7 +203,12 @@ export class CombatSystem {
         this.health - amount,
       );
 
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
     this.player.flashDamage();
+
     this.audio.playHit();
     this.showPlayerDamage(
       amount,
@@ -441,6 +459,9 @@ export class CombatSystem {
     this.player.setEnabled(
       false,
     );
+    this.player.setAliveVisualsVisible(
+      false,
+    );
 
     this.scene.tweens.add({
       targets:
@@ -459,19 +480,28 @@ export class CombatSystem {
           this.respawn.x,
           this.respawn.y,
         );
+
+        this.health =
+          this.maxHealth;
+
+        this.player.setHealth(
+          this.health,
+          this.maxHealth,
+        );
         this.player.sprite
           .setAlpha(1)
           .setScale(1)
           .clearTint();
 
-        this.health =
-          this.maxHealth;
         this.dead = false;
         this.invulnerableUntil =
           this.scene.time.now +
           1200;
 
         this.player.setEnabled(
+          true,
+        );
+        this.player.setAliveVisualsVisible(
           true,
         );
 

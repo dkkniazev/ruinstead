@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import {
-  LOGICAL_WIDTH,
   configureLogicalCamera,
 } from '../game/layout/Viewport';
 import { PlayerController } from '../game/player/PlayerController';
@@ -21,7 +20,14 @@ import {
   CombatSystem,
   type CombatState,
 } from '../game/combat/CombatSystem';
-import { CombatHud } from '../game/combat/CombatHud';
+import type {
+  WeaponId,
+} from '../game/combat/WeaponDefinitions';
+import {
+  HUD_AREA_EVENT,
+  HUD_COMBAT_STATE_EVENT,
+  HUD_WEAPON_SELECT_EVENT,
+} from '../game/ui/HudEvents';
 
 export class WorldScene
   extends Phaser.Scene {
@@ -34,13 +40,9 @@ export class WorldScene
     EnemySystem;
   private combat?:
     CombatSystem;
-  private combatHud?:
-    CombatHud;
 
   private debugOverlay?:
     DebugOverlay;
-  private areaLabel?:
-    Phaser.GameObjects.Text;
   private lastAreaName = '';
 
   private weaponOneKey?:
@@ -85,16 +87,6 @@ export class WorldScene
       this.enemies.group,
     );
 
-    this.combatHud =
-      new CombatHud(
-        this,
-        (weaponId) => {
-          this.combat?.setWeapon(
-            weaponId,
-          );
-        },
-      );
-
     this.combat =
       new CombatSystem(
         this,
@@ -137,7 +129,26 @@ export class WorldScene
       105,
     );
 
-    this.createHud();
+    this.game.events.on(
+      HUD_WEAPON_SELECT_EVENT,
+      this.handleHudWeaponSelect,
+      this,
+    );
+
+    this.lastAreaName =
+      getAreaName(
+        this.player.position,
+      );
+
+    this.scene.launch(
+      'HudScene',
+      {
+        initialCombatState:
+          this.combat.state,
+        initialAreaName:
+          this.lastAreaName,
+      },
+    );
 
     this.debugOverlay =
       new DebugOverlay(this);
@@ -186,76 +197,20 @@ export class WorldScene
     }
 
     this.handleWeaponKeys();
-    this.updateAreaLabel();
+    this.updateAreaName();
     this.debugOverlay?.update();
-  }
-
-  private createHud(): void {
-    const panel =
-      this.add
-        .rectangle(
-          139,
-          50,
-          240,
-          58,
-          0x244825,
-          0.72,
-        )
-        .setStrokeStyle(
-          2,
-          0xe9f5d3,
-          0.32,
-        )
-        .setScrollFactor(0)
-        .setDepth(8400);
-
-    panel.setOrigin(0.5);
-
-    this.areaLabel = this.add
-      .text(
-        28,
-        32,
-        '',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '20px',
-          fontStyle: 'bold',
-          color: '#fff7d6',
-        },
-      )
-      .setScrollFactor(0)
-      .setDepth(8500);
-
-    this.add
-      .text(
-        LOGICAL_WIDTH - 24,
-        28,
-        'Автобой · 1/2 оружие · Space/Shift рывок',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '13px',
-          color: '#31502f',
-          backgroundColor:
-            '#efffd0bb',
-          padding: {
-            x: 10,
-            y: 6,
-          },
-        },
-      )
-      .setOrigin(1, 0)
-      .setScrollFactor(0)
-      .setDepth(8500);
-
-    this.updateAreaLabel();
   }
 
   private handleCombatState(
     state: CombatState,
   ): void {
-    this.combatHud?.update(
+    this.player?.setHealth(
+      state.health,
+      state.maxHealth,
+    );
+
+    this.game.events.emit(
+      HUD_COMBAT_STATE_EVENT,
       state,
     );
   }
@@ -284,11 +239,16 @@ export class WorldScene
     }
   }
 
-  private updateAreaLabel(): void {
-    if (
-      !this.player ||
-      !this.areaLabel
-    ) {
+  private handleHudWeaponSelect(
+    weaponId: WeaponId,
+  ): void {
+    this.combat?.setWeapon(
+      weaponId,
+    );
+  }
+
+  private updateAreaName(): void {
+    if (!this.player) {
       return;
     }
 
@@ -306,7 +266,9 @@ export class WorldScene
 
     this.lastAreaName =
       areaName;
-    this.areaLabel.setText(
+
+    this.game.events.emit(
+      HUD_AREA_EVENT,
       areaName,
     );
   }
@@ -336,6 +298,16 @@ export class WorldScene
       Phaser.Scale.Events.RESIZE,
       this.handleResize,
       this,
+    );
+
+    this.game.events.off(
+      HUD_WEAPON_SELECT_EVENT,
+      this.handleHudWeaponSelect,
+      this,
+    );
+
+    this.scene.stop(
+      'HudScene',
     );
 
     this.combat?.destroy();

@@ -1,0 +1,16 @@
+import type { CombatState } from '../combat/CombatSystem';
+import type { WeaponId } from '../combat/WeaponDefinitions';
+
+export const HUD_COMBAT_STATE_EVENT =
+  'ruinstead:hud:combat-state';
+export const HUD_AREA_EVENT =
+  'ruinstead:hud:area';
+export const HUD_WEAPON_SELECT_EVENT =
+  'ruinstead:hud:weapon-select';
+
+export type HudCombatStateHandler =
+  (state: CombatState) => void;
+export type HudAreaHandler =
+  (areaName: string) => void;
+export type HudWeaponSelectHandler =
+  (weaponId: WeaponId) => void;

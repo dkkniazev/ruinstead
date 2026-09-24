@@ -15,6 +15,9 @@ import type {
 import type {
   QuestHudState,
 } from '../quests/QuestDirector';
+import type {
+  BestiaryHudState,
+} from '../bestiary/BestiarySystem';
 
 export type GatheringHudState = {
   backpack: BackpackState;
@@ -58,6 +61,10 @@ export const HUD_WEAPON_UPGRADE_EVENT =
   'ruinstead:hud:weapon-upgrade';
 export const HUD_QUEST_STATE_EVENT =
   'ruinstead:hud:quest-state';
+export const HUD_BESTIARY_STATE_EVENT =
+  'ruinstead:hud:bestiary-state';
+export const HUD_BESTIARY_CLAIM_EVENT =
+  'ruinstead:hud:bestiary-claim';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -79,3 +86,7 @@ export type HudWeaponUpgradeHandler =
   (weaponId: WeaponId) => void;
 export type HudQuestStateHandler =
   (state: QuestHudState) => void;
+export type HudBestiaryStateHandler =
+  (state: BestiaryHudState) => void;
+export type HudBestiaryClaimHandler =
+  (entryId: string) => void;

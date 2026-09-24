@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 8 as const;
+export const SAVE_SCHEMA_VERSION = 9 as const;
 
 export type BuildingId =
   | 'forge'
@@ -66,6 +66,19 @@ export type GameState = {
   quests: {
     activeId: string | null;
     completedIds: string[];
+  };
+  bestiary: {
+    discoveredSpecies: string[];
+    discoveredElites: string[];
+    discoveredBosses: string[];
+    speciesKills:
+      Record<string, number>;
+    eliteKills:
+      Record<string, number>;
+    bossKills:
+      Record<string, number>;
+    claimedLevels:
+      Record<string, number[]>;
   };
   settings: {
     soundEnabled: boolean;
@@ -142,6 +155,15 @@ export function createDefaultGameState(): GameState {
     quests: {
       activeId: 'restore-forge',
       completedIds: [],
+    },
+    bestiary: {
+      discoveredSpecies: [],
+      discoveredElites: [],
+      discoveredBosses: [],
+      speciesKills: {},
+      eliteKills: {},
+      bossKills: {},
+      claimedLevels: {},
     },
     settings: {
       soundEnabled: true,

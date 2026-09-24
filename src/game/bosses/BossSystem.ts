@@ -354,6 +354,20 @@ export class BossUnit {
     );
   }
 
+  get bestiaryKind():
+    'boss' {
+    return 'boss';
+  }
+
+  get bestiaryId(): string {
+    return this.definition.id;
+  }
+
+  get bestiaryElite():
+    boolean {
+    return false;
+  }
+
   get dropCoins(): number {
     return this.definition.dropCoins;
   }
@@ -1183,6 +1197,8 @@ export class BossSystem {
       Record<string, number>,
     onDefeated:
       (event: BossDefeatEvent) => void,
+    private readonly onEncounter?:
+      (bossId: string) => void,
   ) {
     ensureBossTextures(scene);
 
@@ -1238,12 +1254,24 @@ export class BossSystem {
       const boss of
       this.bosses
     ) {
+      const wasEngaged =
+        boss.engaged;
+
       boss.update(
         time,
         playerPosition,
         playerRadius,
         onPlayerHit,
       );
+
+      if (
+        !wasEngaged &&
+        boss.engaged
+      ) {
+        this.onEncounter?.(
+          boss.definition.id,
+        );
+      }
     }
 
     this.playerThreatened =

@@ -13,6 +13,8 @@ import {
 } from '../game/combat/WeaponDefinitions';
 import {
   HUD_AREA_EVENT,
+  HUD_BESTIARY_CLAIM_EVENT,
+  HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -32,6 +34,10 @@ import type {
 import type {
   QuestHudState,
 } from '../game/quests/QuestDirector';
+import type {
+  BestiaryHudEntry,
+  BestiaryHudState,
+} from '../game/bestiary/BestiarySystem';
 import {
   MAX_UPGRADE_LEVEL,
   getPlayerUpgradeCost,
@@ -63,6 +69,8 @@ type HudSceneData = {
     UpgradeHudState;
   initialQuestState:
     QuestHudState;
+  initialBestiaryState:
+    BestiaryHudState;
   initialAreaName: string;
 };
 
@@ -80,6 +88,12 @@ export class HudScene
     UpgradeHudState;
   private questState?:
     QuestHudState;
+  private bestiaryState?:
+    BestiaryHudState;
+  private selectedBestiaryId:
+    string | null = null;
+  private bestiaryPanelOpen =
+    false;
   private forgePanelOpen = false;
   private initialAreaName =
     'Руины поселения';
@@ -139,6 +153,33 @@ export class HudScene
     Phaser.GameObjects.Text;
   private questOptionalText?:
     Phaser.GameObjects.Text;
+  private bestiaryOpenButton?:
+    Phaser.GameObjects.Text;
+  private bestiaryPanel?:
+    Phaser.GameObjects.Container;
+  private bestiaryHeaderText?:
+    Phaser.GameObjects.Text;
+  private bestiaryEntryButtons:
+    Record<
+      string,
+      Phaser.GameObjects.Text
+    > = {};
+  private bestiaryImage?:
+    Phaser.GameObjects.Image;
+  private bestiaryEliteImage?:
+    Phaser.GameObjects.Image;
+  private bestiaryNameText?:
+    Phaser.GameObjects.Text;
+  private bestiaryLevelText?:
+    Phaser.GameObjects.Text;
+  private bestiaryDetailsText?:
+    Phaser.GameObjects.Text;
+  private bestiaryProgressText?:
+    Phaser.GameObjects.Text;
+  private bestiaryRewardText?:
+    Phaser.GameObjects.Text;
+  private bestiaryClaimButton?:
+    Phaser.GameObjects.Text;
 
   private weaponButtons:
     Partial<
@@ -171,6 +212,17 @@ export class HudScene
       data.initialUpgradeState;
     this.questState =
       data.initialQuestState;
+    this.bestiaryState =
+      data.initialBestiaryState;
+    this.selectedBestiaryId =
+      data.initialBestiaryState
+        .entries.find(
+          (entry) =>
+            entry.discovered,
+        )?.entryId ??
+      data.initialBestiaryState
+        .entries[0]?.entryId ??
+      null;
     this.initialAreaName =
       data.initialAreaName;
   }
@@ -183,6 +235,7 @@ export class HudScene
     this.createWeaponSelector();
     this.createSettlementUi();
     this.createQuestPanel();
+    this.createBestiaryUi();
     this.createControlsHint();
     this.createNoticeLayer();
 
@@ -209,6 +262,11 @@ export class HudScene
     this.game.events.on(
       HUD_QUEST_STATE_EVENT,
       this.handleQuestState,
+      this,
+    );
+    this.game.events.on(
+      HUD_BESTIARY_STATE_EVENT,
+      this.handleBestiaryState,
       this,
     );
     this.game.events.on(
@@ -273,6 +331,18 @@ export class HudScene
         this.questState,
       );
     }
+
+    if (this.bestiaryState) {
+      this.handleBestiaryState(
+        this.bestiaryState,
+      );
+    }
+
+    this.input.keyboard?.on(
+      'keydown-B',
+      this.handleBestiaryToggle,
+      this,
+    );
 
     this.input.keyboard?.on(
       'keydown-E',
@@ -1052,6 +1122,337 @@ export class HudScene
         .setDepth(101);
   }
 
+  private createBestiaryUi(): void {
+    this.bestiaryOpenButton =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          262,
+          'B · Бестиарий',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#fff2c0',
+            backgroundColor:
+              '#304c35ee',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(110)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.bestiaryOpenButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.toggleBestiaryPanel();
+      },
+    );
+
+    const panel =
+      this.add.container(
+        LOGICAL_WIDTH / 2,
+        LOGICAL_HEIGHT / 2,
+      );
+
+    const bg =
+      this.add
+        .rectangle(
+          0,
+          0,
+          860,
+          570,
+          0x1e3526,
+          0.985,
+        )
+        .setStrokeStyle(
+          3,
+          0xd9c47f,
+          0.92,
+        );
+
+    const title =
+      this.add
+        .text(
+          -390,
+          -255,
+          'Бестиарий',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '27px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+          },
+        );
+
+    this.bestiaryHeaderText =
+      this.add
+        .text(
+          390,
+          -252,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            color: '#d4e7ca',
+          },
+        )
+        .setOrigin(1, 0);
+
+    const close =
+      this.add
+        .text(
+          407,
+          -278,
+          '×',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '30px',
+            fontStyle: 'bold',
+            color: '#fff4d7',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    close.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.setBestiaryPanelOpen(
+          false,
+        );
+      },
+    );
+
+    const entryObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    const entries =
+      this.bestiaryState
+        ?.entries ?? [];
+
+    entries.forEach(
+      (entry, index) => {
+        const button =
+          this.add
+            .text(
+              -390,
+              -205 +
+                index * 50,
+              '',
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '13px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#34553c',
+                padding: {
+                  x: 10,
+                  y: 8,
+                },
+                fixedWidth: 270,
+              },
+            )
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            this.selectedBestiaryId =
+              entry.entryId;
+            this.renderBestiary();
+          },
+        );
+
+        this.bestiaryEntryButtons[
+          entry.entryId
+        ] = button;
+        entryObjects.push(
+          button,
+        );
+      },
+    );
+
+    this.bestiaryImage =
+      this.add
+        .image(
+          60,
+          -142,
+          'ruinstead-enemy-goblin',
+        )
+        .setScale(1.15);
+
+    this.bestiaryEliteImage =
+      this.add
+        .image(
+          185,
+          -137,
+          'ruinstead-enemy-hobgoblin',
+        )
+        .setScale(1.05);
+
+    this.bestiaryNameText =
+      this.add
+        .text(
+          -70,
+          -215,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '22px',
+            fontStyle: 'bold',
+            color: '#fff2b5',
+          },
+        );
+
+    this.bestiaryLevelText =
+      this.add
+        .text(
+          365,
+          -215,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '16px',
+            fontStyle: 'bold',
+            color: '#f4d77c',
+          },
+        )
+        .setOrigin(1, 0);
+
+    this.bestiaryDetailsText =
+      this.add
+        .text(
+          -70,
+          -55,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#e7eee2',
+            lineSpacing: 6,
+            wordWrap: {
+              width: 430,
+            },
+          },
+        );
+
+    this.bestiaryProgressText =
+      this.add
+        .text(
+          -70,
+          105,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#b9e1a9',
+          },
+        );
+
+    this.bestiaryRewardText =
+      this.add
+        .text(
+          -70,
+          145,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            color: '#f0dba1',
+          },
+        );
+
+    this.bestiaryClaimButton =
+      this.add
+        .text(
+          145,
+          205,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#6b8e4c',
+            padding: {
+              x: 18,
+              y: 10,
+            },
+            fixedWidth: 300,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.bestiaryClaimButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const entry =
+          this.getSelectedBestiaryEntry();
+
+        if (
+          entry?.claimableLevel
+        ) {
+          this.game.events.emit(
+            HUD_BESTIARY_CLAIM_EVENT,
+            entry.entryId,
+          );
+        }
+      },
+    );
+
+    panel.add([
+      bg,
+      title,
+      this.bestiaryHeaderText,
+      close,
+      ...entryObjects,
+      this.bestiaryImage,
+      this.bestiaryEliteImage,
+      this.bestiaryNameText,
+      this.bestiaryLevelText,
+      this.bestiaryDetailsText,
+      this.bestiaryProgressText,
+      this.bestiaryRewardText,
+      this.bestiaryClaimButton,
+    ]);
+
+    panel
+      .setDepth(210)
+      .setVisible(false);
+
+    this.bestiaryPanel =
+      panel;
+  }
+
   private createControlsHint(): void {
     this.add
       .text(
@@ -1100,6 +1501,215 @@ export class HudScene
         .setOrigin(0.5)
         .setDepth(180)
         .setAlpha(0);
+  }
+
+  private handleBestiaryState(
+    state: BestiaryHudState,
+  ): void {
+    this.bestiaryState =
+      state;
+
+    if (
+      !this.selectedBestiaryId ||
+      !state.entries.some(
+        (entry) =>
+          entry.entryId ===
+          this.selectedBestiaryId,
+      )
+    ) {
+      this.selectedBestiaryId =
+        state.entries.find(
+          (entry) =>
+            entry.discovered,
+        )?.entryId ??
+        state.entries[0]
+          ?.entryId ??
+        null;
+    }
+
+    this.renderBestiary();
+  }
+
+  private renderBestiary(): void {
+    const state =
+      this.bestiaryState;
+
+    if (!state) {
+      return;
+    }
+
+    this.bestiaryHeaderText?.setText(
+      `Открыто ${state.discoveredCount} / ${state.totalCount} · MASTER ${state.masteryCount}`,
+    );
+
+    for (
+      const entry of
+      state.entries
+    ) {
+      const button =
+        this.bestiaryEntryButtons[
+          entry.entryId
+        ];
+
+      button
+        ?.setText(
+          `${entry.mastery ? '★ ' : ''}${entry.name}   Lv.${entry.level}`,
+        )
+        .setStyle({
+          backgroundColor:
+            entry.entryId ===
+            this.selectedBestiaryId
+              ? '#6b5a86'
+              : entry.discovered
+                ? '#34553c'
+                : '#343b36',
+          color:
+            entry.discovered
+              ? '#ffffff'
+              : '#8d958e',
+        });
+    }
+
+    const entry =
+      this.getSelectedBestiaryEntry();
+
+    if (!entry) {
+      return;
+    }
+
+    this.bestiaryNameText?.setText(
+      entry.mastery
+        ? `★ ${entry.name}`
+        : entry.name,
+    );
+    this.bestiaryLevelText?.setText(
+      `Lv.${entry.level} / 5`,
+    );
+
+    this.bestiaryImage
+      ?.setTexture(
+        entry.texture,
+      )
+      .setVisible(
+        entry.discovered,
+      );
+
+    const showElite =
+      entry.kind === 'species' &&
+      entry.eliteDiscovered &&
+      Boolean(
+        entry.eliteTexture,
+      );
+
+    if (
+      showElite &&
+      entry.eliteTexture
+    ) {
+      this.bestiaryEliteImage
+        ?.setTexture(
+          entry.eliteTexture,
+        )
+        .setVisible(true);
+    } else {
+      this.bestiaryEliteImage
+        ?.setVisible(false);
+    }
+
+    if (!entry.discovered) {
+      this.bestiaryDetailsText?.setText(
+        'Запись ещё не открыта. Найдите этого противника в мире.',
+      );
+      this.bestiaryProgressText?.setText(
+        'Уровень 0 / 5',
+      );
+      this.bestiaryRewardText?.setText(
+        'Первая награда откроется после обнаружения.',
+      );
+      this.bestiaryClaimButton
+        ?.setText(
+          'Награда недоступна',
+        )
+        .setStyle({
+          backgroundColor:
+            '#494f4a',
+          color:
+            '#9da39e',
+        });
+      return;
+    }
+
+    const eliteLine =
+      entry.kind ===
+        'species'
+        ? `\nЭлитная форма: ${entry.eliteName ?? '—'} · убийств элиты ${entry.eliteKills}`
+        : '';
+
+    this.bestiaryDetailsText?.setText(
+      `Ареал: ${entry.area}\nУязвимость: ${entry.weakness}\nСопротивление: ${entry.resistance}\nДроп: ${entry.dropText}${eliteLine}`,
+    );
+
+    this.bestiaryProgressText?.setText(
+      `${entry.progressText}\nВсего убийств: ${entry.kills}`,
+    );
+
+    this.bestiaryRewardText?.setText(
+      entry.claimableLevel
+        ? `Доступна награда Lv.${entry.claimableLevel}: ${entry.rewardPreview}`
+        : entry.mastery
+          ? 'Все награды получены · mastery завершён'
+          : `Следующая награда: ${entry.rewardPreview}`,
+    );
+
+    this.bestiaryClaimButton
+      ?.setText(
+        entry.claimableLevel
+          ? `Забрать награду Lv.${entry.claimableLevel}`
+          : 'Награда недоступна',
+      )
+      .setStyle({
+        backgroundColor:
+          entry.claimableLevel
+            ? '#6b8e4c'
+            : '#494f4a',
+        color:
+          entry.claimableLevel
+            ? '#ffffff'
+            : '#9da39e',
+      });
+  }
+
+  private getSelectedBestiaryEntry():
+    BestiaryHudEntry | undefined {
+    return this.bestiaryState
+      ?.entries.find(
+        (entry) =>
+          entry.entryId ===
+          this.selectedBestiaryId,
+      );
+  }
+
+  private handleBestiaryToggle(): void {
+    this.toggleBestiaryPanel();
+  }
+
+  private toggleBestiaryPanel(): void {
+    this.setBestiaryPanelOpen(
+      !this.bestiaryPanelOpen,
+    );
+  }
+
+  private setBestiaryPanelOpen(
+    open: boolean,
+  ): void {
+    this.bestiaryPanelOpen =
+      open;
+    this.bestiaryPanel?.setVisible(
+      open,
+    );
+
+    if (open) {
+      this.renderBestiary();
+    }
   }
 
   private handleQuestState(
@@ -1613,6 +2223,11 @@ export class HudScene
       this,
     );
     this.game.events.off(
+      HUD_BESTIARY_STATE_EVENT,
+      this.handleBestiaryState,
+      this,
+    );
+    this.game.events.off(
       HUD_COMBAT_STATE_EVENT,
       this.handleCombatState,
       this,
@@ -1630,6 +2245,11 @@ export class HudScene
     this.input.keyboard?.off(
       'keydown-E',
       this.handleForgeToggle,
+      this,
+    );
+    this.input.keyboard?.off(
+      'keydown-B',
+      this.handleBestiaryToggle,
       this,
     );
     this.scale.off(

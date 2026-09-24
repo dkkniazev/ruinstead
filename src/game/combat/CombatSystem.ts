@@ -96,6 +96,13 @@ export class CombatSystem {
       CombatProgression,
     onCoinsCollected:
       (value: number) => number,
+    private readonly onTargetKilled?:
+      (
+        kind:
+          'species' | 'boss',
+        entityId: string,
+        elite: boolean,
+      ) => void,
     private readonly onPlayerDefeated?:
       () => void,
     private readonly onPlayerRespawned?:
@@ -535,6 +542,12 @@ export class CombatSystem {
     }
 
     this.audio.playKill();
+
+    this.onTargetKilled?.(
+      target.bestiaryKind,
+      target.bestiaryId,
+      target.bestiaryElite,
+    );
 
     this.drops.spawn(
       target.sprite.x,

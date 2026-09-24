@@ -512,6 +512,20 @@ export class EnemyUnit {
     );
   }
 
+  get bestiaryKind():
+    'species' {
+    return 'species';
+  }
+
+  get bestiaryId(): string {
+    return this.definition.id;
+  }
+
+  get bestiaryElite():
+    boolean {
+    return this.rank === 'elite';
+  }
+
   get damage():
     number {
     return Math.round(
@@ -1175,6 +1189,12 @@ export class EnemySystem {
 
   constructor(
     scene: Phaser.Scene,
+    private readonly onEncounter?:
+      (
+        speciesId:
+          EnemySpeciesId,
+        rank: EnemyRank,
+      ) => void,
   ) {
     ensureEnemyTextures(scene);
 
@@ -1290,6 +1310,10 @@ export class EnemySystem {
         ) {
           this.engagedGroups.add(
             enemy.groupId,
+          );
+          this.onEncounter?.(
+            enemy.definition.id,
+            enemy.rank,
           );
         }
       }

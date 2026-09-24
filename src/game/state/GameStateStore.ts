@@ -60,6 +60,58 @@ function stringArray(value: unknown, fallback: string[]): string[] {
   );
 }
 
+function numberArrayRecord(
+  value: unknown,
+): Record<string, number[]> {
+  const record =
+    asRecord(value);
+
+  if (!record) {
+    return {};
+  }
+
+  const result:
+    Record<string, number[]> = {};
+
+  for (
+    const [key, entry]
+    of Object.entries(record)
+  ) {
+    if (!Array.isArray(entry)) {
+      continue;
+    }
+
+    result[key] =
+      [
+        ...new Set(
+          entry
+            .filter(
+              (
+                level,
+              ): level is number =>
+                typeof level ===
+                  'number' &&
+                Number.isFinite(
+                  level,
+                ) &&
+                level >= 1 &&
+                level <= 5,
+            )
+            .map(
+              (level) =>
+                Math.floor(
+                  level,
+                ),
+            ),
+        ),
+      ].sort(
+        (a, b) => a - b,
+      );
+  }
+
+  return result;
+}
+
 function numberRecord(
   value: unknown,
 ): Record<string, number> {
@@ -109,6 +161,8 @@ export function sanitizeGameState(value: unknown): GameState {
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
   const quests = asRecord(root?.quests);
+  const bestiary =
+    asRecord(root?.bestiary);
   const settings = asRecord(root?.settings);
 
   const playerPosition =
@@ -308,6 +362,49 @@ export function sanitizeGameState(value: unknown): GameState {
         quests?.completedIds,
         defaults.quests.completedIds,
       ),
+    },
+    bestiary: {
+      discoveredSpecies:
+        stringArray(
+          bestiary
+            ?.discoveredSpecies,
+          defaults.bestiary
+            .discoveredSpecies,
+        ),
+      discoveredElites:
+        stringArray(
+          bestiary
+            ?.discoveredElites,
+          defaults.bestiary
+            .discoveredElites,
+        ),
+      discoveredBosses:
+        stringArray(
+          bestiary
+            ?.discoveredBosses,
+          defaults.bestiary
+            .discoveredBosses,
+        ),
+      speciesKills:
+        numberRecord(
+          bestiary
+            ?.speciesKills,
+        ),
+      eliteKills:
+        numberRecord(
+          bestiary
+            ?.eliteKills,
+        ),
+      bossKills:
+        numberRecord(
+          bestiary
+            ?.bossKills,
+        ),
+      claimedLevels:
+        numberArrayRecord(
+          bestiary
+            ?.claimedLevels,
+        ),
     },
     settings: {
       soundEnabled: booleanValue(

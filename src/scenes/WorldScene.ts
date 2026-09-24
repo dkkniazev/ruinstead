@@ -1,5 +1,10 @@
 import Phaser from 'phaser';
 import {
+  BestiarySystem,
+  type BestiaryEntryKind,
+  type BestiaryHudState,
+} from '../game/bestiary/BestiarySystem';
+import {
   BossSystem,
   type BossDefeatEvent,
 } from '../game/bosses/BossSystem';
@@ -50,6 +55,8 @@ import {
 import { GameStateStore } from '../game/state/GameStateStore';
 import {
   HUD_AREA_EVENT,
+  HUD_BESTIARY_CLAIM_EVENT,
+  HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -103,6 +110,10 @@ export class WorldScene
     ResourceSystem;
   private readonly questDirector =
     new QuestDirector();
+  private bestiarySystem?:
+    BestiarySystem;
+  private bestiaryHudState?:
+    BestiaryHudState;
   private questHudState?:
     QuestHudState;
   private questHudSignature = '';
@@ -135,6 +146,25 @@ export class WorldScene
       this.stateStore.save(
         this.gameState,
       );
+
+    this.bestiarySystem =
+      new BestiarySystem(
+        this.gameState,
+      );
+
+    if (
+      this.bestiarySystem
+        .reconcileLegacyBosses()
+    ) {
+      this.gameState =
+        this.stateStore.save(
+          this.gameState,
+        );
+    }
+
+    this.bestiaryHudState =
+      this.bestiarySystem
+        .getHudState();
 
     const world =
       createPrototypeWorld(this);
@@ -196,7 +226,19 @@ export class WorldScene
       );
 
     this.enemies =
-      new EnemySystem(this);
+      new EnemySystem(
+        this,
+        (
+          speciesId,
+          rank,
+        ) => {
+          this.handleBestiaryEncounter(
+            'species',
+            speciesId,
+            rank === 'elite',
+          );
+        },
+      );
 
     this.bosses =
       new BossSystem(
@@ -206,6 +248,13 @@ export class WorldScene
         (event) => {
           this.handleBossDefeated(
             event,
+          );
+        },
+        (bossId) => {
+          this.handleBestiaryEncounter(
+            'boss',
+            bossId,
+            false,
           );
         },
       );
@@ -259,6 +308,17 @@ export class WorldScene
           this.handleCoinCollected(
             value,
           ),
+        (
+          kind,
+          entityId,
+          elite,
+        ) => {
+          this.handleBestiaryKill(
+            kind,
+            entityId,
+            elite,
+          );
+        },
         () => {
           this.handlePlayerDefeated();
         },
@@ -309,6 +369,11 @@ export class WorldScene
       this.handleWeaponUpgrade,
       this,
     );
+    this.game.events.on(
+      HUD_BESTIARY_CLAIM_EVENT,
+      this.handleBestiaryClaim,
+      this,
+    );
 
     this.lastAreaName =
       getAreaName(
@@ -347,6 +412,8 @@ export class WorldScene
           this.upgradeHudState,
         initialQuestState:
           this.questHudState,
+        initialBestiaryState:
+          this.bestiaryHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -665,6 +732,108 @@ export class WorldScene
 
     this.emitProgressionState();
     this.saveState();
+  }
+
+  private handleBestiaryEncounter(
+    kind: BestiaryEntryKind,
+    entityId: string,
+    elite: boolean,
+  ): void {
+    if (!this.bestiarySystem) {
+      return;
+    }
+
+    const result =
+      this.bestiarySystem
+        .recordEncounter(
+          kind,
+          entityId,
+          elite,
+        );
+
+    if (!result.changed) {
+      return;
+    }
+
+    if (result.notice) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        result.notice,
+      );
+    }
+
+    this.emitBestiaryState();
+    this.saveState();
+  }
+
+  private handleBestiaryKill(
+    kind: BestiaryEntryKind,
+    entityId: string,
+    elite: boolean,
+  ): void {
+    if (!this.bestiarySystem) {
+      return;
+    }
+
+    const result =
+      this.bestiarySystem
+        .recordKill(
+          kind,
+          entityId,
+          elite,
+        );
+
+    if (result.notice) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        result.notice,
+      );
+    }
+
+    this.emitBestiaryState();
+    this.saveState();
+  }
+
+  private handleBestiaryClaim(
+    entryId: string,
+  ): void {
+    if (!this.bestiarySystem) {
+      return;
+    }
+
+    const result =
+      this.bestiarySystem
+        .claimNextReward(
+          entryId,
+        );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      return;
+    }
+
+    this.emitBestiaryState();
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private emitBestiaryState(): void {
+    if (!this.bestiarySystem) {
+      return;
+    }
+
+    this.bestiaryHudState =
+      this.bestiarySystem
+        .getHudState();
+
+    this.game.events.emit(
+      HUD_BESTIARY_STATE_EVENT,
+      this.bestiaryHudState,
+    );
   }
 
   private createWeaponKeys(): void {
@@ -1458,6 +1627,11 @@ export class WorldScene
       this.handleWeaponUpgrade,
       this,
     );
+    this.game.events.off(
+      HUD_BESTIARY_CLAIM_EVENT,
+      this.handleBestiaryClaim,
+      this,
+    );
 
     this.scene.stop(
       'HudScene',
@@ -1465,6 +1639,11 @@ export class WorldScene
 
     this.resourceSystem?.destroy();
     this.resourceSystem =
+      undefined;
+
+    this.bestiarySystem =
+      undefined;
+    this.bestiaryHudState =
       undefined;
 
     this.settlementSystem?.destroy();

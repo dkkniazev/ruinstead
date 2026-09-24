@@ -47,6 +47,8 @@ export class CombatSystem {
 
   private nextAttackAt = 0;
   private invulnerableUntil = 0;
+  private lastCombatAt = 0;
+  private nextRegenTickAt = 0;
   private dead = false;
 
   private readonly drops:
@@ -201,6 +203,7 @@ export class CombatSystem {
   update(
     time: number,
     delta: number,
+    threatened: boolean,
   ): void {
     this.drops.update(
       delta,
@@ -209,6 +212,17 @@ export class CombatSystem {
 
     if (this.dead) {
       return;
+    }
+
+    if (threatened) {
+      this.lastCombatAt =
+        time;
+      this.nextRegenTickAt =
+        time + 500;
+    } else {
+      this.regenerateHealth(
+        time,
+      );
     }
 
     const definition =
@@ -229,6 +243,10 @@ export class CombatSystem {
       return;
     }
 
+    this.lastCombatAt =
+      time;
+    this.nextRegenTickAt =
+      time + 500;
     this.nextAttackAt =
       time +
       definition.cooldownMs;
@@ -260,6 +278,10 @@ export class CombatSystem {
 
     this.invulnerableUntil =
       now + 360;
+    this.lastCombatAt =
+      now;
+    this.nextRegenTickAt =
+      now + 500;
 
     this.health =
       Math.max(
@@ -292,6 +314,37 @@ export class CombatSystem {
 
   destroy(): void {
     this.drops.destroy();
+  }
+
+  private regenerateHealth(
+    time: number,
+  ): void {
+    if (
+      this.health >=
+        this.maxHealth ||
+      time - this.lastCombatAt <
+        5000 ||
+      time <
+        this.nextRegenTickAt
+    ) {
+      return;
+    }
+
+    this.nextRegenTickAt =
+      time + 500;
+
+    this.health =
+      Math.min(
+        this.maxHealth,
+        this.health + 3,
+      );
+
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+
+    this.emitState();
   }
 
   private findNearestTarget(
@@ -618,6 +671,11 @@ export class CombatSystem {
         this.invulnerableUntil =
           this.scene.time.now +
           1200;
+        this.lastCombatAt =
+          this.scene.time.now;
+        this.nextRegenTickAt =
+          this.scene.time.now +
+          500;
 
         this.player.setEnabled(
           true,

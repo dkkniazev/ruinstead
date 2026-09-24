@@ -1,4 +1,4 @@
-export const SAVE_SCHEMA_VERSION = 2 as const;
+export const SAVE_SCHEMA_VERSION = 3 as const;
 
 export type BuildingId =
   | 'forge'
@@ -29,6 +29,8 @@ export type GameState = {
   world: {
     unlockedZones: string[];
     defeatedBosses: string[];
+    bossRespawnAt:
+      Record<string, number>;
   };
   resources: {
     wood: number;
@@ -79,6 +81,7 @@ export function createDefaultGameState(): GameState {
     world: {
       unlockedZones: ['settlement', 'forest-edge'],
       defeatedBosses: [],
+      bossRespawnAt: {},
     },
     resources: {
       wood: 0,

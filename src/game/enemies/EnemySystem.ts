@@ -65,6 +65,8 @@ type HabitatDefinition = {
 const ELITE_HEALTH_MULTIPLIER = 2.8;
 const ELITE_DAMAGE_MULTIPLIER = 1.55;
 const ELITE_DROP_MULTIPLIER = 4;
+const NORMAL_RESPAWN_MS = 30_000;
+const ELITE_RESPAWN_MS = 120_000;
 
 const DEFINITIONS:
   Record<
@@ -78,7 +80,7 @@ const DEFINITIONS:
     maxHealth: 72,
     moveSpeed: 112,
     damage: 11,
-    attackRange: 60,
+    attackRange: 78,
     attackCooldownMs: 880,
     aggroRange: 145,
     leashRange: 255,
@@ -97,7 +99,7 @@ const DEFINITIONS:
     maxHealth: 58,
     moveSpeed: 92,
     damage: 9,
-    attackRange: 54,
+    attackRange: 74,
     attackCooldownMs: 760,
     aggroRange: 140,
     leashRange: 245,
@@ -116,7 +118,7 @@ const DEFINITIONS:
     maxHealth: 92,
     moveSpeed: 142,
     damage: 14,
-    attackRange: 62,
+    attackRange: 84,
     attackCooldownMs: 960,
     aggroRange: 155,
     leashRange: 285,
@@ -135,7 +137,7 @@ const DEFINITIONS:
     maxHealth: 76,
     moveSpeed: 82,
     damage: 13,
-    attackRange: 62,
+    attackRange: 80,
     attackCooldownMs: 1040,
     aggroRange: 138,
     leashRange: 240,
@@ -154,7 +156,7 @@ const DEFINITIONS:
     maxHealth: 125,
     moveSpeed: 74,
     damage: 18,
-    attackRange: 68,
+    attackRange: 88,
     attackCooldownMs: 1180,
     aggroRange: 135,
     leashRange: 230,
@@ -315,6 +317,7 @@ export class EnemyUnit {
   private health:
     number;
   private nextAttackAt = 0;
+  private respawnAt = 0;
   private _alive = true;
 
   constructor(
@@ -515,7 +518,16 @@ export class EnemyUnit {
     onPlayerHit:
       (damage: number) => void,
   ): void {
-    if (!this._alive) return;
+    if (!this._alive) {
+      if (
+        this.respawnAt > 0 &&
+        time >= this.respawnAt
+      ) {
+        this.respawn();
+      }
+
+      return;
+    }
 
     const body =
       this.sprite.body as
@@ -728,6 +740,11 @@ export class EnemyUnit {
 
   private kill(): void {
     this._alive = false;
+    this.respawnAt =
+      this.scene.time.now +
+      (this.rank === 'elite'
+        ? ELITE_RESPAWN_MS
+        : NORMAL_RESPAWN_MS);
 
     const body =
       this.sprite.body as
@@ -761,6 +778,57 @@ export class EnemyUnit {
       duration: 230,
       ease: 'Back.In',
     });
+  }
+
+  private respawn(): void {
+    this._alive = true;
+    this.respawnAt = 0;
+    this.health =
+      this.maxHealth;
+    this.nextAttackAt =
+      this.scene.time.now + 350;
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.enable = true;
+    body.reset(
+      this.spawn.x,
+      this.spawn.y,
+    );
+
+    const elite =
+      this.rank === 'elite';
+
+    this.sprite
+      .setAlpha(1)
+      .setScale(
+        elite ? 1.22 : 1,
+      )
+      .clearTint()
+      .setVisible(true);
+
+    this.shadow
+      .setAlpha(1)
+      .setScale(1)
+      .setVisible(true);
+
+    this.aura
+      ?.setAlpha(1)
+      .setScale(1)
+      .setVisible(true);
+
+    this.healthBack
+      .setAlpha(1)
+      .setVisible(false);
+
+    this.healthFill
+      .setAlpha(1)
+      .setVisible(false);
+
+    this.updateHealthBar();
+    this.syncVisuals(false);
   }
 
   private updateHealthBar(): void {
@@ -920,6 +988,18 @@ export class EnemySystem {
 
   private readonly enemies:
     EnemyUnit[] = [];
+  private readonly engagedGroups =
+    new Set<string>();
+  private readonly groupMeta =
+    new Map<
+      string,
+      {
+        center:
+          Phaser.Math.Vector2;
+        resetRange: number;
+      }
+    >();
+  private playerThreatened = false;
 
   constructor(
     scene: Phaser.Scene,
@@ -929,9 +1009,12 @@ export class EnemySystem {
     this.group =
       scene.physics.add.group();
 
+    const spawns =
+      buildSpawns();
+
     for (
       const spawn of
-      buildSpawns()
+      spawns
     ) {
       this.enemies.push(
         new EnemyUnit(
@@ -941,6 +1024,76 @@ export class EnemySystem {
         ),
       );
     }
+
+    const grouped =
+      new Map<
+        string,
+        {
+          x: number;
+          y: number;
+          count: number;
+          resetRange: number;
+        }
+      >();
+
+    for (
+      const spawn of
+      spawns
+    ) {
+      const existing =
+        grouped.get(
+          spawn.groupId,
+        );
+      const resetRange =
+        DEFINITIONS[
+          spawn.species
+        ].leashRange + 70;
+
+      if (existing) {
+        existing.x += spawn.x;
+        existing.y += spawn.y;
+        existing.count += 1;
+        existing.resetRange =
+          Math.max(
+            existing.resetRange,
+            resetRange,
+          );
+      } else {
+        grouped.set(
+          spawn.groupId,
+          {
+            x: spawn.x,
+            y: spawn.y,
+            count: 1,
+            resetRange,
+          },
+        );
+      }
+    }
+
+    for (
+      const [
+        groupId,
+        meta,
+      ] of grouped
+    ) {
+      this.groupMeta.set(
+        groupId,
+        {
+          center:
+            new Phaser.Math.Vector2(
+              meta.x / meta.count,
+              meta.y / meta.count,
+            ),
+          resetRange:
+            meta.resetRange,
+        },
+      );
+    }
+  }
+
+  isPlayerThreatened(): boolean {
+    return this.playerThreatened;
   }
 
   update(
@@ -950,23 +1103,81 @@ export class EnemySystem {
     onPlayerHit:
       (damage: number) => void,
   ): void {
-    const engagedGroups =
+    const playerSafe =
+      Phaser.Math.Distance.Between(
+        playerPosition.x,
+        playerPosition.y,
+        SETTLEMENT_CENTER.x,
+        SETTLEMENT_CENTER.y,
+      ) <=
+      SETTLEMENT_SAFE_RADIUS;
+
+    const aliveGroups =
       new Set<string>();
 
     for (
       const enemy of
       this.enemies
     ) {
-      if (
-        enemy.canTriggerAggro(
-          playerPosition,
-        )
-      ) {
-        engagedGroups.add(
+      if (enemy.alive) {
+        aliveGroups.add(
           enemy.groupId,
         );
       }
     }
+
+    if (playerSafe) {
+      this.engagedGroups.clear();
+    } else {
+      for (
+        const groupId of
+        [...this.engagedGroups]
+      ) {
+        const meta =
+          this.groupMeta.get(
+            groupId,
+          );
+
+        if (
+          !meta ||
+          !aliveGroups.has(
+            groupId,
+          ) ||
+          Phaser.Math.Distance.Between(
+            playerPosition.x,
+            playerPosition.y,
+            meta.center.x,
+            meta.center.y,
+          ) >
+            meta.resetRange
+        ) {
+          this.engagedGroups.delete(
+            groupId,
+          );
+        }
+      }
+
+      for (
+        const enemy of
+        this.enemies
+      ) {
+        if (
+          !this.engagedGroups.has(
+            enemy.groupId,
+          ) &&
+          enemy.canTriggerAggro(
+            playerPosition,
+          )
+        ) {
+          this.engagedGroups.add(
+            enemy.groupId,
+          );
+        }
+      }
+    }
+
+    this.playerThreatened =
+      this.engagedGroups.size > 0;
 
     for (
       const enemy of
@@ -975,7 +1186,7 @@ export class EnemySystem {
       enemy.update(
         time,
         playerPosition,
-        engagedGroups.has(
+        this.engagedGroups.has(
           enemy.groupId,
         ),
         onPlayerHit,

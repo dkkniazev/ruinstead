@@ -97,7 +97,7 @@ export class WorldScene
       new BossSystem(
         this,
         this.gameState.world
-          .defeatedBosses,
+          .bossRespawnAt,
         (event) => {
           this.handleBossDefeated(
             event,
@@ -242,6 +242,10 @@ export class WorldScene
       this.combat.update(
         time,
         delta,
+        this.enemies
+          .isPlayerThreatened() ||
+          this.bosses
+            .isPlayerThreatened(),
       );
     }
 
@@ -310,17 +314,27 @@ export class WorldScene
       return;
     }
 
-    if (
+    const firstClear =
       !this.gameState.world
         .defeatedBosses
-        .includes(event.id)
-    ) {
+        .includes(event.id);
+
+    if (firstClear) {
       this.gameState.world
         .defeatedBosses
         .push(event.id);
     }
 
-    if (event.isMain) {
+    this.gameState.world
+      .bossRespawnAt[
+        event.id
+      ] =
+        event.respawnAt;
+
+    if (
+      event.isMain &&
+      firstClear
+    ) {
       if (
         !this.gameState.world
           .unlockedZones
@@ -342,7 +356,7 @@ export class WorldScene
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен`,
+        `${event.name} повержен · босс возродится позже`,
       );
     }
 

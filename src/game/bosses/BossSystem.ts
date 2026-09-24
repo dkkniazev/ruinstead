@@ -20,6 +20,7 @@ export type BossDefeatEvent = {
   id: BossId;
   name: string;
   isMain: boolean;
+  respawnAt: number;
 };
 
 type BossDefinition = {
@@ -35,6 +36,7 @@ type BossDefinition = {
   aggroRange: number;
   leashRange: number;
   dropCoins: number;
+  respawnCooldownMs: number;
   weaknessWeaponId: WeaponId;
   resistanceWeaponId: WeaponId;
   specialRadius: number;
@@ -63,6 +65,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 340,
     leashRange: 500,
     dropCoins: 24,
+    respawnCooldownMs: 15 * 60 * 1000,
     weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
     specialRadius: 112,
@@ -88,6 +91,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 360,
     leashRange: 520,
     dropCoins: 32,
+    respawnCooldownMs: 45 * 60 * 1000,
     weaknessWeaponId: 'hammer',
     resistanceWeaponId: 'sword',
     specialRadius: 96,
@@ -113,6 +117,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 390,
     leashRange: 560,
     dropCoins: 55,
+    respawnCooldownMs: 2 * 60 * 60 * 1000,
     weaknessWeaponId: 'spear',
     resistanceWeaponId: 'hammer',
     specialRadius: 145,
@@ -152,6 +157,8 @@ export class BossUnit {
     Phaser.GameObjects.Arc;
   private lastPlayerPosition =
     new Phaser.Math.Vector2();
+  private respawnAtEpochMs = 0;
+  private _engaged = false;
   private _alive = true;
 
   constructor(
@@ -159,6 +166,7 @@ export class BossUnit {
     group:
       Phaser.Physics.Arcade.Group,
     definition: BossDefinition,
+    initialRespawnAt: number,
     private readonly onDefeated:
       (event: BossDefeatEvent) => void,
   ) {
@@ -261,10 +269,23 @@ export class BossUnit {
       .setVisible(false);
 
     this.syncVisuals(false);
+
+    if (
+      initialRespawnAt >
+      Date.now()
+    ) {
+      this.setDormantUntil(
+        initialRespawnAt,
+      );
+    }
   }
 
   get alive(): boolean {
     return this._alive;
+  }
+
+  get engaged(): boolean {
+    return this._engaged;
   }
 
   get position():
@@ -316,6 +337,14 @@ export class BossUnit {
       (damage: number) => void,
   ): void {
     if (!this._alive) {
+      if (
+        this.respawnAtEpochMs > 0 &&
+        Date.now() >=
+          this.respawnAtEpochMs
+      ) {
+        this.respawn();
+      }
+
       return;
     }
 
@@ -360,6 +389,9 @@ export class BossUnit {
             .aggroRange ||
         distanceToSpawn > 28
       );
+
+    this._engaged =
+      engaged;
 
     if (
       !engaged ||
@@ -654,6 +686,11 @@ export class BossUnit {
 
   private kill(): void {
     this._alive = false;
+    this._engaged = false;
+    this.respawnAtEpochMs =
+      Date.now() +
+      this.definition
+        .respawnCooldownMs;
 
     const body =
       this.sprite.body as
@@ -682,6 +719,8 @@ export class BossUnit {
       name: this.definition.name,
       isMain:
         this.definition.isMain,
+      respawnAt:
+        this.respawnAtEpochMs,
     });
 
     this.scene.tweens.add({
@@ -695,6 +734,99 @@ export class BossUnit {
       duration: 380,
       ease: 'Back.In',
     });
+  }
+
+  private setDormantUntil(
+    respawnAt: number,
+  ): void {
+    this._alive = false;
+    this._engaged = false;
+    this.respawnAtEpochMs =
+      respawnAt;
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.setVelocity(0, 0);
+    body.enable = false;
+
+    this.sprite
+      .setVisible(false)
+      .setAlpha(0);
+    this.shadow
+      .setVisible(false)
+      .setAlpha(0);
+    this.healthBack.setVisible(
+      false,
+    );
+    this.healthFill.setVisible(
+      false,
+    );
+    this.nameLabel.setVisible(
+      false,
+    );
+  }
+
+  private respawn(): void {
+    this._alive = true;
+    this._engaged = false;
+    this.respawnAtEpochMs = 0;
+    this.health =
+      this.definition.maxHealth;
+    this.nextAttackAt =
+      this.scene.time.now + 700;
+    this.nextSpecialAt =
+      this.scene.time.now + 2200;
+    this.specialPending = false;
+    this.specialTelegraph
+      ?.destroy();
+    this.specialTelegraph =
+      undefined;
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.enable = true;
+    body.reset(
+      this.spawn.x,
+      this.spawn.y,
+    );
+
+    const baseScale =
+      this.definition.isMain
+        ? 1.2
+        : 1.05;
+
+    this.sprite
+      .setVisible(true)
+      .setAlpha(1)
+      .setScale(baseScale)
+      .clearTint();
+
+    this.shadow
+      .setVisible(true)
+      .setAlpha(1)
+      .setScale(1);
+
+    this.healthFill
+      .setDisplaySize(
+        138,
+        8,
+      )
+      .setAlpha(1)
+      .setVisible(false);
+
+    this.healthBack
+      .setAlpha(1)
+      .setVisible(false);
+
+    this.nameLabel
+      .setAlpha(1)
+      .setVisible(false);
+
+    this.syncVisuals(false);
   }
 
   private showDamageNumber(
@@ -825,11 +957,12 @@ export class BossSystem {
 
   private readonly bosses:
     BossUnit[] = [];
+  private playerThreatened = false;
 
   constructor(
     scene: Phaser.Scene,
-    defeatedBossIds:
-      readonly string[],
+    bossRespawnAt:
+      Record<string, number>,
     onDefeated:
       (event: BossDefeatEvent) => void,
   ) {
@@ -838,32 +971,26 @@ export class BossSystem {
     this.group =
       scene.physics.add.group();
 
-    const defeated =
-      new Set(
-        defeatedBossIds,
-      );
-
     for (
       const definition of
       BOSS_DEFINITIONS
     ) {
-      if (
-        defeated.has(
-          definition.id,
-        )
-      ) {
-        continue;
-      }
-
       this.bosses.push(
         new BossUnit(
           scene,
           this.group,
           definition,
+          bossRespawnAt[
+            definition.id
+          ] ?? 0,
           onDefeated,
         ),
       );
     }
+  }
+
+  isPlayerThreatened(): boolean {
+    return this.playerThreatened;
   }
 
   update(
@@ -883,6 +1010,13 @@ export class BossSystem {
         onPlayerHit,
       );
     }
+
+    this.playerThreatened =
+      this.bosses.some(
+        (boss) =>
+          boss.alive &&
+          boss.engaged,
+      );
   }
 
   findNearest(

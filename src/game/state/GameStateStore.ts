@@ -60,6 +60,36 @@ function stringArray(value: unknown, fallback: string[]): string[] {
   );
 }
 
+function numberRecord(
+  value: unknown,
+): Record<string, number> {
+  const record =
+    asRecord(value);
+
+  if (!record) {
+    return {};
+  }
+
+  const result:
+    Record<string, number> = {};
+
+  for (
+    const [key, entry]
+    of Object.entries(record)
+  ) {
+    if (
+      typeof entry === 'number' &&
+      Number.isFinite(entry) &&
+      entry > 0
+    ) {
+      result[key] =
+        Math.floor(entry);
+    }
+  }
+
+  return result;
+}
+
 export function sanitizeGameState(value: unknown): GameState {
   const defaults = createDefaultGameState();
   const root = asRecord(value);
@@ -132,6 +162,9 @@ export function sanitizeGameState(value: unknown): GameState {
       defeatedBosses: stringArray(
         world?.defeatedBosses,
         defaults.world.defeatedBosses,
+      ),
+      bossRespawnAt: numberRecord(
+        world?.bossRespawnAt,
       ),
     },
     resources: {

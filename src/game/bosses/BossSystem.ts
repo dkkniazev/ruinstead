@@ -310,6 +310,50 @@ export class BossUnit {
     );
   }
 
+  get combatPosition():
+    Phaser.Math.Vector2 {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    return new Phaser.Math.Vector2(
+      body.center.x,
+      body.center.y,
+    );
+  }
+
+  get combatRadius(): number {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    return Math.max(
+      body.halfWidth,
+      body.halfHeight,
+    );
+  }
+
+  combatDistanceTo(
+    origin:
+      Phaser.Math.Vector2,
+    originRadius = 0,
+  ): number {
+    const center =
+      this.combatPosition;
+
+    return Math.max(
+      0,
+      Phaser.Math.Distance.Between(
+        center.x,
+        center.y,
+        origin.x,
+        origin.y,
+      ) -
+        this.combatRadius -
+        originRadius,
+    );
+  }
+
   get dropCoins(): number {
     return this.definition.dropCoins;
   }
@@ -357,6 +401,7 @@ export class BossUnit {
     time: number,
     playerPosition:
       Phaser.Math.Vector2,
+    playerRadius: number,
     onPlayerHit:
       (damage: number) => void,
   ): void {
@@ -390,11 +435,9 @@ export class BossUnit {
       SETTLEMENT_SAFE_RADIUS;
 
     const distanceToPlayer =
-      Phaser.Math.Distance.Between(
-        this.sprite.x,
-        this.sprite.y,
-        playerPosition.x,
-        playerPosition.y,
+      this.combatDistanceTo(
+        playerPosition,
+        playerRadius,
       );
 
     const distanceToSpawn =
@@ -1187,6 +1230,7 @@ export class BossSystem {
     time: number,
     playerPosition:
       Phaser.Math.Vector2,
+    playerRadius: number,
     onPlayerHit:
       (damage: number) => void,
   ): void {
@@ -1197,6 +1241,7 @@ export class BossSystem {
       boss.update(
         time,
         playerPosition,
+        playerRadius,
         onPlayerHit,
       );
     }
@@ -1212,6 +1257,7 @@ export class BossSystem {
   findNearest(
     origin: Phaser.Math.Vector2,
     range: number,
+    originRadius = 0,
   ): BossUnit | undefined {
     let best:
       BossUnit | undefined;
@@ -1227,11 +1273,9 @@ export class BossSystem {
       }
 
       const distance =
-        Phaser.Math.Distance.Between(
-          origin.x,
-          origin.y,
-          boss.sprite.x,
-          boss.sprite.y,
+        boss.combatDistanceTo(
+          origin,
+          originRadius,
         );
 
       if (

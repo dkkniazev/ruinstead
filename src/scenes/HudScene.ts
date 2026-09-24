@@ -19,6 +19,7 @@ import {
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
   HUD_PLAYER_UPGRADE_EVENT,
+  HUD_QUEST_STATE_EVENT,
   HUD_UPGRADE_STATE_EVENT,
   HUD_WEAPON_UPGRADE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
@@ -28,6 +29,9 @@ import {
 import type {
   SettlementHudState,
 } from '../game/settlement/SettlementSystem';
+import type {
+  QuestHudState,
+} from '../game/quests/QuestDirector';
 import {
   MAX_UPGRADE_LEVEL,
   getPlayerUpgradeCost,
@@ -57,6 +61,8 @@ type HudSceneData = {
     SettlementHudState;
   initialUpgradeState:
     UpgradeHudState;
+  initialQuestState:
+    QuestHudState;
   initialAreaName: string;
 };
 
@@ -72,6 +78,8 @@ export class HudScene
     SettlementHudState;
   private upgradeState?:
     UpgradeHudState;
+  private questState?:
+    QuestHudState;
   private forgePanelOpen = false;
   private initialAreaName =
     'Руины поселения';
@@ -121,6 +129,16 @@ export class HudScene
     > = {};
   private weaponUpgradeButton?:
     Phaser.GameObjects.Text;
+  private questTitleText?:
+    Phaser.GameObjects.Text;
+  private questObjectiveText?:
+    Phaser.GameObjects.Text;
+  private questProgressText?:
+    Phaser.GameObjects.Text;
+  private questHintText?:
+    Phaser.GameObjects.Text;
+  private questOptionalText?:
+    Phaser.GameObjects.Text;
 
   private weaponButtons:
     Partial<
@@ -151,6 +169,8 @@ export class HudScene
       data.initialSettlementState;
     this.upgradeState =
       data.initialUpgradeState;
+    this.questState =
+      data.initialQuestState;
     this.initialAreaName =
       data.initialAreaName;
   }
@@ -162,6 +182,7 @@ export class HudScene
     this.createGatheringPanel();
     this.createWeaponSelector();
     this.createSettlementUi();
+    this.createQuestPanel();
     this.createControlsHint();
     this.createNoticeLayer();
 
@@ -183,6 +204,11 @@ export class HudScene
     this.game.events.on(
       HUD_UPGRADE_STATE_EVENT,
       this.handleUpgradeState,
+      this,
+    );
+    this.game.events.on(
+      HUD_QUEST_STATE_EVENT,
+      this.handleQuestState,
       this,
     );
     this.game.events.on(
@@ -239,6 +265,12 @@ export class HudScene
     if (this.upgradeState) {
       this.handleUpgradeState(
         this.upgradeState,
+      );
+    }
+
+    if (this.questState) {
+      this.handleQuestState(
+        this.questState,
       );
     }
 
@@ -904,6 +936,122 @@ export class HudScene
       panel;
   }
 
+  private createQuestPanel(): void {
+    const right =
+      LOGICAL_WIDTH - 26;
+    const top = 72;
+
+    this.add
+      .rectangle(
+        right,
+        top,
+        350,
+        174,
+        0x203e27,
+        0.9,
+      )
+      .setOrigin(1, 0)
+      .setStrokeStyle(
+        2,
+        0xf4f0cf,
+        0.5,
+      )
+      .setDepth(100);
+
+    this.questTitleText =
+      this.add
+        .text(
+          right - 16,
+          top + 14,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '16px',
+            fontStyle: 'bold',
+            color: '#fff2b5',
+            align: 'right',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(101);
+
+    this.questObjectiveText =
+      this.add
+        .text(
+          right - 16,
+          top + 42,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#ffffff',
+            align: 'right',
+            wordWrap: {
+              width: 316,
+            },
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(101);
+
+    this.questProgressText =
+      this.add
+        .text(
+          right - 16,
+          top + 88,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#bde4a9',
+            align: 'right',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(101);
+
+    this.questHintText =
+      this.add
+        .text(
+          right - 16,
+          top + 111,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#cad7c6',
+            align: 'right',
+            wordWrap: {
+              width: 316,
+            },
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(101);
+
+    this.questOptionalText =
+      this.add
+        .text(
+          right - 16,
+          top + 148,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#d9c9f0',
+            align: 'right',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(101);
+  }
+
   private createControlsHint(): void {
     this.add
       .text(
@@ -952,6 +1100,31 @@ export class HudScene
         .setOrigin(0.5)
         .setDepth(180)
         .setAlpha(0);
+  }
+
+  private handleQuestState(
+    state: QuestHudState,
+  ): void {
+    this.questState =
+      state;
+
+    this.questTitleText?.setText(
+      `${state.title} · ${state.sequenceProgress}`,
+    );
+    this.questObjectiveText?.setText(
+      state.objective,
+    );
+    this.questProgressText?.setText(
+      `${state.progress}${state.rewardText ? ` · награда ${state.rewardText}` : ''}`,
+    );
+    this.questHintText?.setText(
+      state.hint,
+    );
+    this.questOptionalText?.setText(
+      state.optional
+        ? `Доп.: ${state.optional.title} · ${state.optional.progress} · ${state.optional.rewardText}`
+        : 'Дополнительные цели выполнены',
+    );
   }
 
   private handleUpgradeState(
@@ -1432,6 +1605,11 @@ export class HudScene
     this.game.events.off(
       HUD_UPGRADE_STATE_EVENT,
       this.handleUpgradeState,
+      this,
+    );
+    this.game.events.off(
+      HUD_QUEST_STATE_EVENT,
+      this.handleQuestState,
       this,
     );
     this.game.events.off(

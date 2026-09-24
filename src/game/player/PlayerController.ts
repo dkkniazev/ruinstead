@@ -247,6 +247,29 @@ export class PlayerController {
     );
   }
 
+  get combatPosition():
+    Phaser.Math.Vector2 {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    return new Phaser.Math.Vector2(
+      body.center.x,
+      body.center.y,
+    );
+  }
+
+  get combatRadius(): number {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    return Math.max(
+      body.halfWidth,
+      body.halfHeight,
+    );
+  }
+
   setProgression(
     moveSpeedLevel: number,
     dashLevel: number,

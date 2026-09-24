@@ -468,6 +468,50 @@ export class EnemyUnit {
     );
   }
 
+  get combatPosition():
+    Phaser.Math.Vector2 {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    return new Phaser.Math.Vector2(
+      body.center.x,
+      body.center.y,
+    );
+  }
+
+  get combatRadius(): number {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    return Math.max(
+      body.halfWidth,
+      body.halfHeight,
+    );
+  }
+
+  combatDistanceTo(
+    origin:
+      Phaser.Math.Vector2,
+    originRadius = 0,
+  ): number {
+    const center =
+      this.combatPosition;
+
+    return Math.max(
+      0,
+      Phaser.Math.Distance.Between(
+        center.x,
+        center.y,
+        origin.x,
+        origin.y,
+      ) -
+        this.combatRadius -
+        originRadius,
+    );
+  }
+
   get damage():
     number {
     return Math.round(
@@ -505,10 +549,13 @@ export class EnemyUnit {
       return false;
     }
 
+    const center =
+      this.combatPosition;
+
     return (
       Phaser.Math.Distance.Between(
-        this.sprite.x,
-        this.sprite.y,
+        center.x,
+        center.y,
         playerPosition.x,
         playerPosition.y,
       ) <=
@@ -531,10 +578,13 @@ export class EnemyUnit {
           AGGRO_RETENTION_MULTIPLIER,
       );
 
+    const center =
+      this.combatPosition;
+
     return (
       Phaser.Math.Distance.Between(
-        this.sprite.x,
-        this.sprite.y,
+        center.x,
+        center.y,
         playerPosition.x,
         playerPosition.y,
       ) <= retentionRange
@@ -552,6 +602,7 @@ export class EnemyUnit {
     time: number,
     playerPosition:
       Phaser.Math.Vector2,
+    playerRadius: number,
     groupEngaged: boolean,
     onPlayerHit:
       (damage: number) => void,
@@ -581,11 +632,9 @@ export class EnemyUnit {
       SETTLEMENT_SAFE_RADIUS;
 
     const distanceToPlayer =
-      Phaser.Math.Distance.Between(
-        this.sprite.x,
-        this.sprite.y,
-        playerPosition.x,
-        playerPosition.y,
+      this.combatDistanceTo(
+        playerPosition,
+        playerRadius,
       );
 
     const distanceToSpawn =
@@ -1170,6 +1219,7 @@ export class EnemySystem {
     time: number,
     playerPosition:
       Phaser.Math.Vector2,
+    playerRadius: number,
     onPlayerHit:
       (damage: number) => void,
   ): void {
@@ -1255,6 +1305,7 @@ export class EnemySystem {
       enemy.update(
         time,
         playerPosition,
+        playerRadius,
         this.engagedGroups.has(
           enemy.groupId,
         ),
@@ -1266,6 +1317,7 @@ export class EnemySystem {
   findNearest(
     origin: Phaser.Math.Vector2,
     range: number,
+    originRadius = 0,
   ): EnemyUnit | undefined {
     let best:
       EnemyUnit | undefined;
@@ -1281,11 +1333,9 @@ export class EnemySystem {
       }
 
       const distance =
-        Phaser.Math.Distance.Between(
-          origin.x,
-          origin.y,
-          enemy.sprite.x,
-          enemy.sprite.y,
+        enemy.combatDistanceTo(
+          origin,
+          originRadius,
         );
 
       if (

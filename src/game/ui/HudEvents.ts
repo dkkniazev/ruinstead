@@ -12,6 +12,9 @@ import type {
 import type {
   PlayerUpgradeId,
 } from '../progression/UpgradeBalance';
+import type {
+  QuestHudState,
+} from '../quests/QuestDirector';
 
 export type GatheringHudState = {
   backpack: BackpackState;
@@ -53,6 +56,8 @@ export const HUD_PLAYER_UPGRADE_EVENT =
   'ruinstead:hud:player-upgrade';
 export const HUD_WEAPON_UPGRADE_EVENT =
   'ruinstead:hud:weapon-upgrade';
+export const HUD_QUEST_STATE_EVENT =
+  'ruinstead:hud:quest-state';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -72,3 +77,5 @@ export type HudPlayerUpgradeHandler =
   (id: PlayerUpgradeId) => void;
 export type HudWeaponUpgradeHandler =
   (weaponId: WeaponId) => void;
+export type HudQuestStateHandler =
+  (state: QuestHudState) => void;

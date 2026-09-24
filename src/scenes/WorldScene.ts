@@ -27,6 +27,11 @@ import {
   configureLogicalCamera,
 } from '../game/layout/Viewport';
 import {
+  QuestDirector,
+  type QuestContext,
+  type QuestHudState,
+} from '../game/quests/QuestDirector';
+import {
   canAffordUpgrade,
   getPlayerUpgradeCost,
   getWeaponUpgradeCost,
@@ -51,6 +56,7 @@ import {
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
   HUD_PLAYER_UPGRADE_EVENT,
+  HUD_QUEST_STATE_EVENT,
   HUD_UPGRADE_STATE_EVENT,
   HUD_WEAPON_UPGRADE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
@@ -64,6 +70,8 @@ import {
 import {
   RETURN_POINT,
   RETURN_RADIUS,
+  SETTLEMENT_CENTER,
+  SETTLEMENT_SAFE_RADIUS,
   WORLD_HEIGHT,
   WORLD_WIDTH,
   createPrototypeWorld,
@@ -93,6 +101,11 @@ export class WorldScene
     BackpackSystem;
   private resourceSystem?:
     ResourceSystem;
+  private readonly questDirector =
+    new QuestDirector();
+  private questHudState?:
+    QuestHudState;
+  private questHudSignature = '';
   private settlementSystem?:
     SettlementSystem;
 
@@ -305,6 +318,22 @@ export class WorldScene
     this.wasAtReturnPoint =
       this.isAtReturnPoint();
 
+    const initialQuest =
+      this.questDirector.update(
+        this.gameState,
+        this.questContext,
+      );
+    this.questHudState =
+      initialQuest.hud;
+    this.questHudSignature =
+      JSON.stringify(
+        initialQuest.hud,
+      );
+
+    if (initialQuest.changed) {
+      this.saveState();
+    }
+
     this.scene.launch(
       'HudScene',
       {
@@ -316,6 +345,8 @@ export class WorldScene
           this.settlementHudState,
         initialUpgradeState:
           this.upgradeHudState,
+        initialQuestState:
+          this.questHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -360,15 +391,24 @@ export class WorldScene
           );
         };
 
+      const combatPosition =
+        this.player
+          .combatPosition;
+      const combatRadius =
+        this.player
+          .combatRadius;
+
       this.enemies.update(
         time,
-        this.player.position,
+        combatPosition,
+        combatRadius,
         onPlayerHit,
       );
 
       this.bosses.update(
         time,
-        this.player.position,
+        combatPosition,
+        combatRadius,
         onPlayerHit,
       );
 
@@ -395,6 +435,7 @@ export class WorldScene
     this.handleReturnPoint();
     this.updateSettlement();
     this.updateForestObjective();
+    this.updateQuestDirector();
     this.handleWeaponKeys();
     this.updateAreaName();
     this.debugOverlay?.update();
@@ -541,6 +582,89 @@ export class WorldScene
         this.gatheringHudState
           .storage,
     };
+  }
+
+  private get questContext():
+    QuestContext {
+    const position =
+      this.player?.position;
+    const outsideSettlement =
+      position
+        ? Phaser.Math.Distance.Between(
+            position.x,
+            position.y,
+            SETTLEMENT_CENTER.x,
+            SETTLEMENT_CENTER.y,
+          ) >
+          SETTLEMENT_SAFE_RADIUS
+        : false;
+
+    return {
+      outsideSettlement,
+      carried:
+        this.backpack?.state
+          .carried ?? {
+          wood: 0,
+          stone: 0,
+          metal: 0,
+          coins: 0,
+        },
+    };
+  }
+
+  private updateQuestDirector(): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      this.questDirector.update(
+        this.gameState,
+        this.questContext,
+      );
+
+    this.questHudState =
+      result.hud;
+
+    const signature =
+      JSON.stringify(
+        result.hud,
+      );
+
+    if (
+      signature !==
+      this.questHudSignature
+    ) {
+      this.questHudSignature =
+        signature;
+
+      this.game.events.emit(
+        HUD_QUEST_STATE_EVENT,
+        result.hud,
+      );
+    }
+
+    if (!result.changed) {
+      return;
+    }
+
+    if (
+      result.completed.length > 0
+    ) {
+      const completion =
+        result.completed[
+          result.completed.length -
+            1
+        ];
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `${completion.optional ? 'Доп. цель' : 'Цель'} выполнена: ${completion.title} · +●${completion.reward.coins} · +XP ${completion.reward.settlementXp}`,
+      );
+    }
+
+    this.emitProgressionState();
+    this.saveState();
   }
 
   private createWeaponKeys(): void {

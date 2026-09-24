@@ -336,7 +336,7 @@ export class CombatSystem {
       definition.cooldownMs;
 
     this.player.faceTowards(
-      target.sprite.x,
+      target.combatPosition.x,
     );
 
     this.attackMelee(
@@ -435,17 +435,21 @@ export class CombatSystem {
     range: number,
   ): CombatTarget | undefined {
     const origin =
-      this.player.position;
+      this.player.combatPosition;
+    const originRadius =
+      this.player.combatRadius;
 
     const enemy =
       this.enemies.findNearest(
         origin,
         range,
+        originRadius,
       );
     const boss =
       this.bosses.findNearest(
         origin,
         range,
+        originRadius,
       );
 
     if (!enemy) {
@@ -457,19 +461,15 @@ export class CombatSystem {
     }
 
     const enemyDistance =
-      Phaser.Math.Distance.Between(
-        origin.x,
-        origin.y,
-        enemy.sprite.x,
-        enemy.sprite.y,
+      enemy.combatDistanceTo(
+        origin,
+        originRadius,
       );
 
     const bossDistance =
-      Phaser.Math.Distance.Between(
-        origin.x,
-        origin.y,
-        boss.sprite.x,
-        boss.sprite.y,
+      boss.combatDistanceTo(
+        origin,
+        originRadius,
       );
 
     return bossDistance <
@@ -486,11 +486,15 @@ export class CombatSystem {
     this.audio.playSwing();
 
     const origin =
-      this.player.position;
+      this.player.combatPosition;
+    const targetPosition =
+      target.combatPosition;
     const direction =
       new Phaser.Math.Vector2(
-        target.sprite.x - origin.x,
-        target.sprite.y - origin.y,
+        targetPosition.x -
+          origin.x,
+        targetPosition.y -
+          origin.y,
       ).normalize();
 
     this.showAttackEffect(

@@ -31,6 +31,17 @@ type CombatTarget =
   | EnemyUnit
   | BossUnit;
 
+export type HealthPotionUseResult =
+  | 'used'
+  | 'dead'
+  | 'empty'
+  | 'full-health'
+  | 'cooldown';
+
+export const MAX_HEALTH_POTIONS = 3;
+export const HEALTH_POTION_HEAL_FRACTION = 0.35;
+export const HEALTH_POTION_COOLDOWN_MS = 8_000;
+
 export type CombatProgression = {
   maxHealthLevel: number;
   weaponLevels:
@@ -42,6 +53,7 @@ export type CombatProgression = {
 export type CombatState = {
   health: number;
   maxHealth: number;
+  healthPotions: number;
   weaponId: WeaponId;
   unlockedWeaponIds: WeaponId[];
 };
@@ -67,6 +79,9 @@ export class CombatSystem {
   private lastCombatAt = 0;
   private nextRegenTickAt = 0;
   private dead = false;
+  private healthPotions =
+    MAX_HEALTH_POTIONS;
+  private nextHealthPotionAt = 0;
 
   private readonly drops:
     DropSystem;
@@ -94,6 +109,7 @@ export class CombatSystem {
       ],
     progression:
       CombatProgression,
+    initialHealthPotions: number,
     onCoinsCollected:
       (value: number) => number,
     private readonly onTargetKilled?:
@@ -123,6 +139,14 @@ export class CombatSystem {
     this.weaponLevels = {
       ...progression.weaponLevels,
     };
+    this.healthPotions =
+      Phaser.Math.Clamp(
+        Math.floor(
+          initialHealthPotions,
+        ),
+        0,
+        MAX_HEALTH_POTIONS,
+      );
 
     this.unlockedWeapons.clear();
 
@@ -176,6 +200,8 @@ export class CombatSystem {
         this.health,
       maxHealth:
         this.maxHealth,
+      healthPotions:
+        this.healthPotions,
       weaponId:
         this.weaponId,
       unlockedWeaponIds:
@@ -351,6 +377,87 @@ export class CombatSystem {
       definition.damage,
       definition.attackStyle,
     );
+  }
+
+  useHealthPotion():
+    HealthPotionUseResult {
+    const now =
+      this.scene.time.now;
+
+    if (this.dead) {
+      return 'dead';
+    }
+
+    if (
+      this.healthPotions <= 0
+    ) {
+      return 'empty';
+    }
+
+    if (
+      this.health >=
+      this.maxHealth
+    ) {
+      return 'full-health';
+    }
+
+    if (
+      now <
+      this.nextHealthPotionAt
+    ) {
+      return 'cooldown';
+    }
+
+    const healAmount =
+      Math.max(
+        1,
+        Math.round(
+          this.maxHealth *
+            HEALTH_POTION_HEAL_FRACTION,
+        ),
+      );
+    const before =
+      this.health;
+
+    this.health =
+      Math.min(
+        this.maxHealth,
+        this.health +
+          healAmount,
+      );
+    this.healthPotions -= 1;
+    this.nextHealthPotionAt =
+      now +
+      HEALTH_POTION_COOLDOWN_MS;
+
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+
+    this.showPlayerHeal(
+      this.health - before,
+    );
+
+    this.emitState();
+    return 'used';
+  }
+
+  refillHealthPotions(): boolean {
+    const changed =
+      this.healthPotions !==
+        MAX_HEALTH_POTIONS ||
+      this.nextHealthPotionAt !== 0;
+
+    this.healthPotions =
+      MAX_HEALTH_POTIONS;
+    this.nextHealthPotionAt = 0;
+
+    if (changed) {
+      this.emitState();
+    }
+
+    return changed;
   }
 
   damagePlayer(
@@ -803,6 +910,49 @@ export class CombatSystem {
         this.emitState();
       },
     );
+  }
+
+  private showPlayerHeal(
+    amount: number,
+  ): void {
+    if (amount <= 0) {
+      return;
+    }
+
+    const position =
+      this.player.position;
+
+    const label =
+      this.scene.add
+        .text(
+          position.x,
+          position.y - 76,
+          `+${amount}`,
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '19px',
+            fontStyle: 'bold',
+            color: '#78e889',
+            stroke: '#ffffff',
+            strokeThickness: 3,
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(
+          position.y + 251,
+        );
+
+    this.scene.tweens.add({
+      targets: label,
+      y: label.y - 30,
+      alpha: 0,
+      duration: 520,
+      ease: 'Quad.Out',
+      onComplete: () => {
+        label.destroy();
+      },
+    });
   }
 
   private showPlayerDamage(

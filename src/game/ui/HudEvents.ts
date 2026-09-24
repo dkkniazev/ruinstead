@@ -65,6 +65,8 @@ export const HUD_BESTIARY_STATE_EVENT =
   'ruinstead:hud:bestiary-state';
 export const HUD_BESTIARY_CLAIM_EVENT =
   'ruinstead:hud:bestiary-claim';
+export const HUD_HEALTH_POTION_EVENT =
+  'ruinstead:hud:health-potion';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -90,3 +92,5 @@ export type HudBestiaryStateHandler =
   (state: BestiaryHudState) => void;
 export type HudBestiaryClaimHandler =
   (entryId: string) => void;
+export type HudHealthPotionHandler =
+  () => void;

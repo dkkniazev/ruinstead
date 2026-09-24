@@ -59,6 +59,7 @@ import {
   HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
+  HUD_HEALTH_POTION_EVENT,
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
@@ -304,6 +305,9 @@ export class WorldScene
             this.gameState.player
               .weaponLevels,
         },
+        this.gameState
+          .consumables
+          .healthPotions,
         (value) =>
           this.handleCoinCollected(
             value,
@@ -372,6 +376,11 @@ export class WorldScene
     this.game.events.on(
       HUD_BESTIARY_CLAIM_EVENT,
       this.handleBestiaryClaim,
+      this,
+    );
+    this.game.events.on(
+      HUD_HEALTH_POTION_EVENT,
+      this.handleHealthPotionUse,
       this,
     );
 
@@ -878,6 +887,9 @@ export class WorldScene
       this.gameState.player
         .unlockedWeaponIds =
           [...state.unlockedWeaponIds];
+      this.gameState.consumables
+        .healthPotions =
+          state.healthPotions;
       this.saveState();
     }
 
@@ -936,6 +948,33 @@ export class WorldScene
     this.saveState();
   }
 
+  private handleHealthPotionUse(): void {
+    const result =
+      this.combat
+        ?.useHealthPotion();
+
+    if (
+      !result ||
+      result === 'used'
+    ) {
+      return;
+    }
+
+    const message =
+      result === 'empty'
+        ? 'Зелья здоровья закончились'
+        : result === 'full-health'
+          ? 'Здоровье уже полное'
+          : result === 'cooldown'
+            ? 'Зелье ещё перезаряжается'
+            : 'Сейчас нельзя использовать зелье';
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      message,
+    );
+  }
+
   private handlePlayerRespawned(): void {
     if (
       !this.player ||
@@ -948,6 +987,9 @@ export class WorldScene
       .handlePlayerRespawned(
         this.player.position,
       );
+
+    this.combat
+      ?.refillHealthPotions();
   }
 
   private handlePlayerDefeated(): void {
@@ -1009,10 +1051,29 @@ export class WorldScene
 
     if (
       inside &&
-      !this.wasAtReturnPoint &&
-      this.backpack
-        .state.usedCapacity > 0
+      !this.wasAtReturnPoint
     ) {
+      const potionsRefilled =
+        this.combat
+          ?.refillHealthPotions() ??
+        false;
+
+      if (
+        this.backpack
+          .state.usedCapacity <= 0
+      ) {
+        if (potionsRefilled) {
+          this.game.events.emit(
+            HUD_NOTICE_EVENT,
+            'Зелья здоровья пополнены',
+          );
+        }
+
+        this.wasAtReturnPoint =
+          inside;
+        return;
+      }
+
       const deposited =
         this.backpack.deposit();
 
@@ -1630,6 +1691,11 @@ export class WorldScene
     this.game.events.off(
       HUD_BESTIARY_CLAIM_EVENT,
       this.handleBestiaryClaim,
+      this,
+    );
+    this.game.events.off(
+      HUD_HEALTH_POTION_EVENT,
+      this.handleHealthPotionUse,
       this,
     );
 

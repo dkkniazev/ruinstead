@@ -17,6 +17,7 @@ import {
   HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
+  HUD_HEALTH_POTION_EVENT,
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
@@ -101,6 +102,12 @@ export class HudScene
   private healthFill?:
     Phaser.GameObjects.Rectangle;
   private healthText?:
+    Phaser.GameObjects.Text;
+  private potionButton?:
+    Phaser.GameObjects.Rectangle;
+  private potionIcon?:
+    Phaser.GameObjects.Image;
+  private potionCountText?:
     Phaser.GameObjects.Text;
   private areaText?:
     Phaser.GameObjects.Text;
@@ -233,6 +240,7 @@ export class HudScene
     this.createTopLeftStatus();
     this.createGatheringPanel();
     this.createWeaponSelector();
+    this.createPotionButton();
     this.createSettlementUi();
     this.createQuestPanel();
     this.createBestiaryUi();
@@ -337,6 +345,12 @@ export class HudScene
         this.bestiaryState,
       );
     }
+
+    this.input.keyboard?.on(
+      'keydown-Q',
+      this.handleHealthPotionKey,
+      this,
+    );
 
     this.input.keyboard?.on(
       'keydown-B',
@@ -618,6 +632,95 @@ export class HudScene
         this.weaponIcons[
           weaponId
         ] = icon;
+      },
+    );
+  }
+
+  private createPotionButton(): void {
+    ensureHealthPotionTexture(
+      this,
+    );
+
+    const x =
+      LOGICAL_WIDTH / 2 + 246;
+    const y =
+      LOGICAL_HEIGHT - 50;
+
+    this.potionButton =
+      this.add
+        .rectangle(
+          x,
+          y,
+          58,
+          58,
+          0x6b3f48,
+          0.96,
+        )
+        .setStrokeStyle(
+          2,
+          0xf3f5dd,
+          0.68,
+        )
+        .setDepth(102)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.potionIcon =
+      this.add
+        .image(
+          x,
+          y - 4,
+          'ruinstead-health-potion-hud',
+        )
+        .setDepth(103);
+
+    this.potionCountText =
+      this.add
+        .text(
+          x + 21,
+          y + 19,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            stroke: '#4a232c',
+            strokeThickness: 3,
+          },
+        )
+        .setOrigin(1, 1)
+        .setDepth(104);
+
+    this.add
+      .text(
+        x - 22,
+        y - 23,
+        'Q',
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize: '10px',
+          fontStyle: 'bold',
+          color: '#fff5d8',
+          backgroundColor:
+            '#3b473bcc',
+          padding: {
+            x: 3,
+            y: 1,
+          },
+        },
+      )
+      .setDepth(104);
+
+    this.potionButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.game.events.emit(
+          HUD_HEALTH_POTION_EVENT,
+        );
       },
     );
   }
@@ -1503,6 +1606,12 @@ export class HudScene
         .setAlpha(0);
   }
 
+  private handleHealthPotionKey(): void {
+    this.game.events.emit(
+      HUD_HEALTH_POTION_EVENT,
+    );
+  }
+
   private handleBestiaryState(
     state: BestiaryHudState,
   ): void {
@@ -2066,6 +2175,29 @@ export class HudScene
       `HP ${state.health} / ${state.maxHealth}`,
     );
 
+    this.potionCountText?.setText(
+      `×${state.healthPotions}`,
+    );
+
+    const potionAvailable =
+      state.healthPotions > 0 &&
+      state.health <
+        state.maxHealth;
+
+    this.potionButton?.setFillStyle(
+      potionAvailable
+        ? 0x8f4556
+        : 0x414944,
+      potionAvailable
+        ? 1
+        : 0.72,
+    );
+    this.potionIcon?.setAlpha(
+      state.healthPotions > 0
+        ? 1
+        : 0.3,
+    );
+
     for (
       const weaponId of
       WEAPON_ORDER
@@ -2243,6 +2375,11 @@ export class HudScene
       this,
     );
     this.input.keyboard?.off(
+      'keydown-Q',
+      this.handleHealthPotionKey,
+      this,
+    );
+    this.input.keyboard?.off(
       'keydown-E',
       this.handleForgeToggle,
       this,
@@ -2258,4 +2395,91 @@ export class HudScene
       this,
     );
   }
+}
+
+function ensureHealthPotionTexture(
+  scene: Phaser.Scene,
+): void {
+  const key =
+    'ruinstead-health-potion-hud';
+
+  if (
+    scene.textures.exists(key)
+  ) {
+    return;
+  }
+
+  const g =
+    scene.make.graphics({
+      x: 0,
+      y: 0,
+    });
+
+  g.fillStyle(
+    0xd8e6de,
+    1,
+  );
+  g.fillRoundedRect(
+    15,
+    5,
+    18,
+    12,
+    4,
+  );
+
+  g.fillStyle(
+    0x9aafaa,
+    1,
+  );
+  g.fillRoundedRect(
+    18,
+    2,
+    12,
+    6,
+    2,
+  );
+
+  g.fillStyle(
+    0xf36b76,
+    1,
+  );
+  g.fillRoundedRect(
+    8,
+    15,
+    32,
+    31,
+    10,
+  );
+
+  g.fillStyle(
+    0xffa0a8,
+    0.9,
+  );
+  g.fillRoundedRect(
+    13,
+    19,
+    12,
+    21,
+    6,
+  );
+
+  g.lineStyle(
+    3,
+    0xffe6df,
+    0.9,
+  );
+  g.strokeRoundedRect(
+    8,
+    15,
+    32,
+    31,
+    10,
+  );
+
+  g.generateTexture(
+    key,
+    48,
+    52,
+  );
+  g.destroy();
 }

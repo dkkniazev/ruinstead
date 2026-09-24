@@ -147,6 +147,8 @@ export function sanitizeGameState(value: unknown): GameState {
   const root = asRecord(value);
   const player = asRecord(root?.player);
   const backpack = asRecord(root?.backpack);
+  const consumables =
+    asRecord(root?.consumables);
   const weaponLevels =
     asRecord(
       player?.weaponLevels,
@@ -289,6 +291,18 @@ export function sanitizeGameState(value: unknown): GameState {
         backpack?.coins,
         defaults.backpack.coins,
       ),
+    },
+    consumables: {
+      healthPotions:
+        Math.min(
+          3,
+          nonNegativeInt(
+            consumables
+              ?.healthPotions,
+            defaults.consumables
+              .healthPotions,
+          ),
+        ),
     },
     settlement: {
       level: nonNegativeInt(

@@ -212,7 +212,6 @@ export class PlayerController {
       this.scene.make.graphics({
         x: 0,
         y: 0,
-        add: false,
       });
 
     graphics.fillStyle(

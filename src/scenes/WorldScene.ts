@@ -76,6 +76,7 @@ import {
   FOREST_HEART_DISCOVERY_RADIUS,
 } from '../game/world/ForestZone';
 import {
+  BRIDGE_REPAIR_COST,
   BridgeSystem,
 } from '../game/world/BridgeSystem';
 import {
@@ -130,6 +131,8 @@ export class WorldScene
     DebugOverlay;
   private lastAreaName = '';
   private wasAtReturnPoint = false;
+  private bridgeRepairKey?:
+    Phaser.Input.Keyboard.Key;
 
   private weaponKeys:
     Partial<
@@ -183,21 +186,6 @@ export class WorldScene
 
       if (
         !this.gameState.world
-          .unlockedZones
-          .includes(
-            'stage-2',
-          )
-      ) {
-        this.gameState.world
-          .unlockedZones
-          .push(
-            'stage-2',
-          );
-        migrated = true;
-      }
-
-      if (
-        !this.gameState.world
           .uniqueRewards
           .includes(
             'root-heart',
@@ -211,14 +199,31 @@ export class WorldScene
         migrated = true;
       }
 
+      const crossedBridge =
+        this.gameState.world
+          .discoveredLandmarks
+          .includes(
+            'stage-2-entry',
+          );
+
       if (
+        !crossedBridge &&
         this.gameState.settlement
-          .buildings.bridge < 1
+          .buildings.bridge > 0
       ) {
         this.gameState.settlement
-          .buildings.bridge = 1;
+          .buildings.bridge = 0;
         this.gameState.settlement
-          .repairStages.bridge = 3;
+          .repairStages.bridge = 0;
+        this.gameState.world
+          .unlockedZones =
+            this.gameState.world
+              .unlockedZones
+              .filter(
+                (zone) =>
+                  zone !==
+                  'stage-2',
+              );
         migrated = true;
       }
 
@@ -256,11 +261,11 @@ export class WorldScene
     this.bridgeSystem =
       new BridgeSystem(
         this,
-        this.gameState.world
-          .unlockedZones
-          .includes(
-            'stage-2',
-          ),
+        this.gameState.settlement
+          .buildings.bridge > 0,
+        () => {
+          this.handleBridgeRepair();
+        },
       );
 
     this.player =
@@ -420,6 +425,10 @@ export class WorldScene
       );
 
     this.createWeaponKeys();
+    this.bridgeRepairKey =
+      this.input.keyboard?.addKey(
+        Phaser.Input.Keyboard.KeyCodes.E,
+      );
 
     const camera =
       this.cameras.main;
@@ -599,6 +608,7 @@ export class WorldScene
     this.handleReturnPoint();
     this.updateSettlement();
     this.updateForestObjective();
+    this.updateBridgeRepair();
     this.updateStageTwoTransition();
     this.updateQuestDirector();
     this.handleWeaponKeys();
@@ -1285,16 +1295,6 @@ export class WorldScene
     ) {
       if (
         !this.gameState.world
-          .unlockedZones
-          .includes('stage-2')
-      ) {
-        this.gameState.world
-          .unlockedZones
-          .push('stage-2');
-      }
-
-      if (
-        !this.gameState.world
           .uniqueRewards
           .includes(
             'root-heart',
@@ -1307,28 +1307,13 @@ export class WorldScene
           );
       }
 
-      this.gameState.settlement
-        .buildings.bridge =
-          Math.max(
-            1,
-            this.gameState
-              .settlement
-              .buildings.bridge,
-          );
-      this.gameState.settlement
-        .repairStages.bridge = 3;
-
       this.combat?.unlockWeapon(
         'daggers',
       );
 
-      this.bridgeSystem?.unlock(
-        true,
-      );
-
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Сердце корней получено · кинжалы открыты · мост восстановлен`,
+        `${event.name} повержен! Сердце корней получено · кинжалы открыты · теперь можно восстановить мост`,
       );
     } else {
       this.game.events.emit(
@@ -1674,6 +1659,103 @@ export class WorldScene
     );
 
     this.saveState();
+  }
+
+  private updateBridgeRepair(): void {
+    if (
+      !this.player ||
+      !this.gameState ||
+      !this.bridgeSystem
+    ) {
+      return;
+    }
+
+    const repairAccess =
+      this.gameState.world
+        .uniqueRewards
+        .includes(
+          'root-heart',
+        );
+
+    this.bridgeSystem.update(
+      this.player.position,
+      repairAccess,
+    );
+
+    if (
+      this.bridgeRepairKey &&
+      Phaser.Input.Keyboard.JustDown(
+        this.bridgeRepairKey,
+      ) &&
+      this.bridgeSystem
+        .canRepairHere
+    ) {
+      this.handleBridgeRepair();
+    }
+  }
+
+  private handleBridgeRepair(): void {
+    if (
+      !this.gameState ||
+      !this.backpack ||
+      !this.bridgeSystem ||
+      this.bridgeSystem.isUnlocked ||
+      !this.gameState.world
+        .uniqueRewards
+        .includes(
+          'root-heart',
+        ) ||
+      !this.bridgeSystem
+        .canRepairHere
+    ) {
+      return;
+    }
+
+    if (
+      !this.backpack.spend(
+        BRIDGE_REPAIR_COST,
+      )
+    ) {
+      const carried =
+        this.backpack.state
+          .carried;
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `Для моста нужно: 20 дерева · 10 камня · 4 металла. В рюкзаке: ${carried.wood} / ${carried.stone} / ${carried.metal}`,
+      );
+      return;
+    }
+
+    this.gameState.settlement
+      .buildings.bridge = 1;
+    this.gameState.settlement
+      .repairStages.bridge = 3;
+
+    if (
+      !this.gameState.world
+        .unlockedZones
+        .includes(
+          'stage-2',
+        )
+    ) {
+      this.gameState.world
+        .unlockedZones
+        .push(
+          'stage-2',
+        );
+    }
+
+    this.bridgeSystem.unlock(
+      true,
+    );
+
+    this.handleBackpackChanged();
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Мост восстановлен из ресурсов рюкзака · проход во вторую зону открыт',
+    );
   }
 
   private updateStageTwoTransition(): void {

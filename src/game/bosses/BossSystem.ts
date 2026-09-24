@@ -174,6 +174,9 @@ export class BossUnit {
     Phaser.GameObjects.Rectangle;
   private readonly nameLabel:
     Phaser.GameObjects.Text;
+  private readonly respawnLabel:
+    Phaser.GameObjects.Text;
+  private lastRespawnSecond = -1;
 
   private health: number;
   private nextAttackAt = 0;
@@ -301,6 +304,33 @@ export class BossUnit {
       )
       .setOrigin(0.5)
       .setVisible(false);
+
+    this.respawnLabel =
+      scene.add
+        .text(
+          definition.x,
+          definition.y + 10,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+            backgroundColor:
+              '#2f3530dd',
+            padding: {
+              x: 10,
+              y: 6,
+            },
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(
+          definition.y + 180,
+        )
+        .setVisible(false);
 
     this.syncVisuals(false);
 
@@ -440,6 +470,8 @@ export class BossUnit {
       (damage: number) => void,
   ): void {
     if (!this._alive) {
+      this.updateRespawnLabel();
+
       if (
         this.respawnAtEpochMs > 0 &&
         Date.now() >=
@@ -715,6 +747,7 @@ export class BossUnit {
     this.healthBack.destroy();
     this.healthFill.destroy();
     this.nameLabel.destroy();
+    this.respawnLabel.destroy();
     this.sprite.destroy();
   }
 
@@ -1177,6 +1210,8 @@ export class BossUnit {
     this.nameLabel.setVisible(
       false,
     );
+    this.lastRespawnSecond = -1;
+    this.updateRespawnLabel();
 
     this.onDefeated({
       id: this.definition.id,
@@ -1230,6 +1265,8 @@ export class BossUnit {
     this.nameLabel.setVisible(
       false,
     );
+    this.lastRespawnSecond = -1;
+    this.updateRespawnLabel();
   }
 
   private respawn(): void {
@@ -1299,8 +1336,59 @@ export class BossUnit {
     this.nameLabel
       .setAlpha(1)
       .setVisible(false);
+    this.respawnLabel
+      .setVisible(false);
+    this.lastRespawnSecond = -1;
 
     this.syncVisuals(false);
+  }
+
+  private updateRespawnLabel(): void {
+    if (
+      this._alive ||
+      this.respawnAtEpochMs <= 0
+    ) {
+      this.respawnLabel.setVisible(
+        false,
+      );
+      return;
+    }
+
+    const remainingSeconds =
+      Math.max(
+        0,
+        Math.ceil(
+          (
+            this.respawnAtEpochMs -
+            Date.now()
+          ) / 1000,
+        ),
+      );
+
+    if (
+      remainingSeconds ===
+      this.lastRespawnSecond
+    ) {
+      return;
+    }
+
+    this.lastRespawnSecond =
+      remainingSeconds;
+
+    const minutes =
+      Math.floor(
+        remainingSeconds / 60,
+      );
+    const seconds =
+      remainingSeconds % 60;
+
+    this.respawnLabel
+      .setText(
+        `${this.definition.name}\nВозрождение ${minutes}:${seconds
+          .toString()
+          .padStart(2, '0')}`,
+      )
+      .setVisible(true);
   }
 
   private showDamageNumber(

@@ -54,6 +54,8 @@ export type CombatState = {
   health: number;
   maxHealth: number;
   healthPotions: number;
+  healthPotionCooldownMs: number;
+  healthPotionCooldownRemainingMs: number;
   weaponId: WeaponId;
   unlockedWeaponIds: WeaponId[];
 };
@@ -202,6 +204,14 @@ export class CombatSystem {
         this.maxHealth,
       healthPotions:
         this.healthPotions,
+      healthPotionCooldownMs:
+        HEALTH_POTION_COOLDOWN_MS,
+      healthPotionCooldownRemainingMs:
+        Math.max(
+          0,
+          this.nextHealthPotionAt -
+            this.scene.time.now,
+        ),
       weaponId:
         this.weaponId,
       unlockedWeaponIds:

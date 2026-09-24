@@ -107,8 +107,13 @@ export class HudScene
     Phaser.GameObjects.Rectangle;
   private potionIcon?:
     Phaser.GameObjects.Image;
+  private potionReadyIcon?:
+    Phaser.GameObjects.Image;
   private potionCountText?:
     Phaser.GameObjects.Text;
+  private potionCooldownUntil = 0;
+  private potionCooldownMs = 8000;
+  private potionLastKnownCount = 0;
   private areaText?:
     Phaser.GameObjects.Text;
   private noticeText?:
@@ -636,6 +641,90 @@ export class HudScene
     );
   }
 
+  update(): void {
+    this.updatePotionCooldownVisual();
+  }
+
+  private updatePotionCooldownVisual(): void {
+    if (
+      !this.potionIcon ||
+      !this.potionReadyIcon
+    ) {
+      return;
+    }
+
+    if (
+      this.potionLastKnownCount <= 0
+    ) {
+      this.potionIcon
+        .setTint(
+          0x444846,
+        )
+        .setAlpha(0.48);
+      this.potionReadyIcon
+        .setVisible(false);
+      return;
+    }
+
+    const remaining =
+      Math.max(
+        0,
+        this.potionCooldownUntil -
+          this.time.now,
+      );
+
+    if (remaining <= 0) {
+      this.potionIcon
+        .setTint(
+          0x555b58,
+        )
+        .setAlpha(0.42);
+      this.potionReadyIcon
+        .setVisible(true)
+        .setCrop();
+      return;
+    }
+
+    const readyRatio =
+      Phaser.Math.Clamp(
+        1 -
+          remaining /
+            this.potionCooldownMs,
+        0,
+        1,
+      );
+
+    const textureHeight = 52;
+    const visibleHeight =
+      Math.max(
+        1,
+        Math.round(
+          textureHeight *
+            readyRatio,
+        ),
+      );
+    const cropY =
+      textureHeight -
+      visibleHeight;
+
+    this.potionIcon
+      .setTint(
+        0x454948,
+      )
+      .setAlpha(0.82);
+
+    this.potionReadyIcon
+      .setVisible(
+        readyRatio > 0,
+      )
+      .setCrop(
+        0,
+        cropY,
+        48,
+        visibleHeight,
+      );
+  }
+
   private createPotionButton(): void {
     ensureHealthPotionTexture(
       this,
@@ -667,6 +756,19 @@ export class HudScene
         });
 
     this.potionIcon =
+      this.add
+        .image(
+          x,
+          y - 4,
+          'ruinstead-health-potion-hud',
+        )
+        .setTint(
+          0x555b58,
+        )
+        .setAlpha(0.78)
+        .setDepth(103);
+
+    this.potionReadyIcon =
       this.add
         .image(
           x,
@@ -1647,9 +1749,33 @@ export class HudScene
       return;
     }
 
+    const claimableCount =
+      state.entries.filter(
+        (entry) =>
+          entry.claimableLevel !==
+          null,
+      ).length;
+
     this.bestiaryHeaderText?.setText(
       `Открыто ${state.discoveredCount} / ${state.totalCount} · MASTER ${state.masteryCount}`,
     );
+
+    this.bestiaryOpenButton
+      ?.setText(
+        claimableCount > 0
+          ? `◆ B · Бестиарий (${claimableCount})`
+          : 'B · Бестиарий',
+      )
+      .setStyle({
+        backgroundColor:
+          claimableCount > 0
+            ? '#79651fee'
+            : '#304c35ee',
+        color:
+          claimableCount > 0
+            ? '#fff3ad'
+            : '#fff2c0',
+      });
 
     for (
       const entry of
@@ -1662,20 +1788,27 @@ export class HudScene
 
       button
         ?.setText(
-          `${entry.mastery ? '★ ' : ''}${entry.name}   Lv.${entry.level}`,
+          `${entry.claimableLevel ? '◆ ' : entry.mastery ? '★ ' : ''}${entry.name}   Lv.${entry.level}`,
         )
         .setStyle({
           backgroundColor:
-            entry.entryId ===
-            this.selectedBestiaryId
-              ? '#6b5a86'
-              : entry.discovered
-                ? '#34553c'
-                : '#343b36',
+            entry.claimableLevel
+              ? entry.entryId ===
+                this.selectedBestiaryId
+                ? '#a17f24'
+                : '#79651f'
+              : entry.entryId ===
+                  this.selectedBestiaryId
+                ? '#6b5a86'
+                : entry.discovered
+                  ? '#34553c'
+                  : '#343b36',
           color:
-            entry.discovered
-              ? '#ffffff'
-              : '#8d958e',
+            entry.claimableLevel
+              ? '#fff3ad'
+              : entry.discovered
+                ? '#ffffff'
+                : '#8d958e',
         });
     }
 
@@ -2179,6 +2312,26 @@ export class HudScene
       `×${state.healthPotions}`,
     );
 
+    this.potionLastKnownCount =
+      state.healthPotions;
+    this.potionCooldownMs =
+      state.healthPotionCooldownMs;
+
+    if (
+      state
+        .healthPotionCooldownRemainingMs >
+      0
+    ) {
+      this.potionCooldownUntil =
+        this.time.now +
+        state
+          .healthPotionCooldownRemainingMs;
+    } else {
+      this.potionCooldownUntil = 0;
+    }
+
+    this.updatePotionCooldownVisual();
+
     const potionAvailable =
       state.healthPotions > 0 &&
       state.health <
@@ -2192,11 +2345,7 @@ export class HudScene
         ? 1
         : 0.72,
     );
-    this.potionIcon?.setAlpha(
-      state.healthPotions > 0
-        ? 1
-        : 0.3,
-    );
+
 
     for (
       const weaponId of

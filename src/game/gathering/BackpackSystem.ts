@@ -137,6 +137,34 @@ export class BackpackSystem {
     return accepted;
   }
 
+  canSpend(
+    cost: ResourceCounts,
+  ): boolean {
+    return RESOURCE_TYPES.every(
+      (type) =>
+        this.carried[type] >=
+        cost[type],
+    );
+  }
+
+  spend(
+    cost: ResourceCounts,
+  ): boolean {
+    if (!this.canSpend(cost)) {
+      return false;
+    }
+
+    for (
+      const type of
+      RESOURCE_TYPES
+    ) {
+      this.carried[type] -=
+        cost[type];
+    }
+
+    return true;
+  }
+
   deposit(): ResourceCounts {
     return this.takeAll();
   }

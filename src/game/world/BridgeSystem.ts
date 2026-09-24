@@ -1,4 +1,7 @@
 import Phaser from 'phaser';
+import type {
+  ResourceCounts,
+} from '../gathering/ResourceTypes';
 import {
   STAGE_ONE_BRIDGE_CENTER,
   STAGE_ONE_BRIDGE_HEIGHT,
@@ -8,6 +11,16 @@ import {
   STAGE_TWO_ENTRY,
   STAGE_TWO_ENTRY_RADIUS,
 } from './StageOneProgression';
+
+export const BRIDGE_REPAIR_COST:
+  ResourceCounts = {
+  wood: 20,
+  stone: 10,
+  metal: 4,
+  coins: 0,
+};
+
+const BRIDGE_REPAIR_RADIUS = 155;
 
 export class BridgeSystem {
   readonly barriers:
@@ -24,10 +37,16 @@ export class BridgeSystem {
     Phaser.GameObjects.Rectangle;
   private readonly bridgeLabel:
     Phaser.GameObjects.Text;
+  private readonly repairPrompt:
+    Phaser.GameObjects.Text;
+  private repairAccess = false;
+  private nearBridge = false;
 
   constructor(
     private readonly scene: Phaser.Scene,
     initiallyUnlocked: boolean,
+    private readonly onRepairRequested?:
+      () => void,
   ) {
     this.unlocked =
       initiallyUnlocked;
@@ -115,6 +134,51 @@ export class BridgeSystem {
             120,
         );
 
+    this.repairPrompt =
+      scene.add
+        .text(
+          STAGE_ONE_BRIDGE_CENTER.x,
+          STAGE_ONE_BRIDGE_CENTER.y -
+            118,
+          'E · Восстановить мост\n20 дерева · 10 камня · 4 металла',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#fff4c7',
+            backgroundColor:
+              '#3f4b35ee',
+            padding: {
+              x: 10,
+              y: 7,
+            },
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(
+          STAGE_ONE_BRIDGE_CENTER.y +
+            130,
+        )
+        .setVisible(false)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.repairPrompt.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        if (
+          this.repairAccess &&
+          this.nearBridge &&
+          !this.unlocked
+        ) {
+          this.onRepairRequested?.();
+        }
+      },
+    );
+
     if (
       initiallyUnlocked
     ) {
@@ -133,6 +197,49 @@ export class BridgeSystem {
 
   get isUnlocked(): boolean {
     return this.unlocked;
+  }
+
+  get canRepairHere(): boolean {
+    return (
+      this.repairAccess &&
+      this.nearBridge &&
+      !this.unlocked
+    );
+  }
+
+  update(
+    playerPosition:
+      Phaser.Math.Vector2,
+    repairAccess: boolean,
+  ): void {
+    this.repairAccess =
+      repairAccess;
+
+    this.nearBridge =
+      Phaser.Math.Distance.Between(
+        playerPosition.x,
+        playerPosition.y,
+        STAGE_ONE_BRIDGE_CENTER.x,
+        STAGE_ONE_BRIDGE_CENTER.y,
+      ) <=
+      BRIDGE_REPAIR_RADIUS;
+
+    this.repairPrompt.setVisible(
+      this.canRepairHere,
+    );
+
+    if (
+      !this.unlocked &&
+      repairAccess
+    ) {
+      this.bridgeLabel
+        .setText(
+          'Мост можно восстановить',
+        )
+        .setColor(
+          '#fff0b3',
+        );
+    }
   }
 
   unlock(
@@ -173,6 +280,9 @@ export class BridgeSystem {
       .setColor(
         '#f8e4a9',
       );
+    this.repairPrompt.setVisible(
+      false,
+    );
 
     if (animated) {
       this.scene.tweens.add({
@@ -223,6 +333,7 @@ export class BridgeSystem {
     this.brokenLeft.destroy();
     this.brokenRight.destroy();
     this.bridgeLabel.destroy();
+    this.repairPrompt.destroy();
   }
 
   private drawRiver(): void {

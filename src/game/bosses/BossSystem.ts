@@ -50,6 +50,15 @@ type BossDefinition = {
   isMain: boolean;
 };
 
+function bossRespawnCooldownMs(
+  globalBossIndex: number,
+): number {
+  return (
+    15 +
+    globalBossIndex * 5
+  ) * 60 * 1000;
+}
+
 const BOSS_DEFINITIONS:
   readonly BossDefinition[] = [
   {
@@ -65,7 +74,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 340,
     leashRange: 500,
     dropCoins: 24,
-    respawnCooldownMs: 15 * 60 * 1000,
+    respawnCooldownMs: bossRespawnCooldownMs(0),
     weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
     specialRadius: 112,
@@ -91,7 +100,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 360,
     leashRange: 520,
     dropCoins: 32,
-    respawnCooldownMs: 45 * 60 * 1000,
+    respawnCooldownMs: bossRespawnCooldownMs(1),
     weaknessWeaponId: 'hammer',
     resistanceWeaponId: 'sword',
     specialRadius: 96,
@@ -117,7 +126,7 @@ const BOSS_DEFINITIONS:
     aggroRange: 390,
     leashRange: 560,
     dropCoins: 55,
-    respawnCooldownMs: 2 * 60 * 60 * 1000,
+    respawnCooldownMs: bossRespawnCooldownMs(2),
     weaknessWeaponId: 'spear',
     resistanceWeaponId: 'hammer',
     specialRadius: 145,

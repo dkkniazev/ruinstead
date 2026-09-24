@@ -50,6 +50,8 @@ type BossDefinition = {
   isMain: boolean;
 };
 
+const RESET_REGEN_MS = 20_000;
+
 function bossRespawnCooldownMs(
   globalBossIndex: number,
 ): number {
@@ -71,7 +73,7 @@ const BOSS_DEFINITIONS:
     damage: 22,
     attackRange: 78,
     attackCooldownMs: 1150,
-    aggroRange: 340,
+    aggroRange: 190,
     leashRange: 500,
     dropCoins: 24,
     respawnCooldownMs: bossRespawnCooldownMs(0),
@@ -97,7 +99,7 @@ const BOSS_DEFINITIONS:
     damage: 20,
     attackRange: 76,
     attackCooldownMs: 960,
-    aggroRange: 360,
+    aggroRange: 205,
     leashRange: 520,
     dropCoins: 32,
     respawnCooldownMs: bossRespawnCooldownMs(1),
@@ -123,7 +125,7 @@ const BOSS_DEFINITIONS:
     damage: 27,
     attackRange: 84,
     attackCooldownMs: 1280,
-    aggroRange: 390,
+    aggroRange: 220,
     leashRange: 560,
     dropCoins: 55,
     respawnCooldownMs: bossRespawnCooldownMs(2),
@@ -167,6 +169,9 @@ export class BossUnit {
   private lastPlayerPosition =
     new Phaser.Math.Vector2();
   private respawnAtEpochMs = 0;
+  private regenStartedAt = 0;
+  private regenStartHealth = 0;
+  private returning = false;
   private _engaged = false;
   private _alive = true;
 
@@ -309,6 +314,16 @@ export class BossUnit {
     return this.definition.dropCoins;
   }
 
+  forceReset(
+    time: number,
+  ): void {
+    if (!this._alive) {
+      return;
+    }
+
+    this.beginReturn(time);
+  }
+
   getDamageProfile(
     weaponId: WeaponId,
   ): DamageProfile {
@@ -390,29 +405,54 @@ export class BossUnit {
         this.spawn.y,
       );
 
-    const engaged =
-      !playerSafe &&
-      (
-        distanceToPlayer <=
-          this.definition
-            .aggroRange ||
-        distanceToSpawn > 28
-      );
-
-    this._engaged =
-      engaged;
-
     if (
-      !engaged ||
+      playerSafe ||
       distanceToSpawn >
         this.definition.leashRange
     ) {
-      this.specialPending =
-        false;
-      this.specialTelegraph
-        ?.destroy();
-      this.specialTelegraph =
-        undefined;
+      this.beginReturn(time);
+    }
+
+    if (this.returning) {
+      this.regenerateAfterReset(
+        time,
+      );
+
+      if (distanceToSpawn > 10) {
+        this.moveTowards(
+          this.spawn,
+          this.definition.moveSpeed *
+            0.9,
+        );
+      } else {
+        body.setVelocity(0, 0);
+        this.returning = false;
+      }
+
+      this.syncVisuals(false);
+      return;
+    }
+
+    const engaged =
+      distanceToPlayer <=
+        this.definition.aggroRange ||
+      (
+        distanceToSpawn > 28 &&
+        distanceToSpawn <=
+          this.definition.leashRange
+      );
+
+    if (!engaged) {
+      if (this._engaged) {
+        this.startResetRegen(
+          time,
+        );
+      }
+
+      this._engaged = false;
+      this.regenerateAfterReset(
+        time,
+      );
 
       if (distanceToSpawn > 10) {
         this.moveTowards(
@@ -427,6 +467,9 @@ export class BossUnit {
       this.syncVisuals(false);
       return;
     }
+
+    this._engaged = true;
+    this.regenStartedAt = 0;
 
     if (this.specialPending) {
       body.setVelocity(0, 0);
@@ -459,8 +502,7 @@ export class BossUnit {
       body.setVelocity(0, 0);
 
       if (
-        time >=
-        this.nextAttackAt
+        time >= this.nextAttackAt
       ) {
         this.nextAttackAt =
           time +
@@ -516,14 +558,7 @@ export class BossUnit {
       true,
     );
 
-    const ratio =
-      this.health /
-      this.definition.maxHealth;
-
-    this.healthFill.setDisplaySize(
-      138 * ratio,
-      8,
-    );
+    this.updateHealthBar();
 
     this.showDamageNumber(
       amount,
@@ -693,9 +728,119 @@ export class BossUnit {
     }
   }
 
+  private beginReturn(
+    time: number,
+  ): void {
+    if (!this.returning) {
+      this.startResetRegen(
+        time,
+      );
+    }
+
+    this.returning = true;
+    this._engaged = false;
+    this.specialPending = false;
+    this.specialTelegraph
+      ?.destroy();
+    this.specialTelegraph =
+      undefined;
+  }
+
+  private startResetRegen(
+    time: number,
+  ): void {
+    if (
+      this.health >=
+      this.definition.maxHealth
+    ) {
+      this.regenStartedAt = 0;
+      return;
+    }
+
+    this.regenStartedAt =
+      time;
+    this.regenStartHealth =
+      this.health;
+  }
+
+  private regenerateAfterReset(
+    time: number,
+  ): void {
+    if (
+      this.health >=
+      this.definition.maxHealth
+    ) {
+      this.health =
+        this.definition.maxHealth;
+      this.regenStartedAt = 0;
+      return;
+    }
+
+    if (
+      this.regenStartedAt <= 0
+    ) {
+      this.startResetRegen(
+        time,
+      );
+    }
+
+    const progress =
+      Phaser.Math.Clamp(
+        (
+          time -
+          this.regenStartedAt
+        ) /
+          RESET_REGEN_MS,
+        0,
+        1,
+      );
+
+    this.health =
+      this.regenStartHealth +
+      (
+        this.definition.maxHealth -
+        this.regenStartHealth
+      ) *
+        progress;
+
+    this.updateHealthBar();
+
+    if (progress >= 1) {
+      this.health =
+        this.definition.maxHealth;
+      this.regenStartedAt = 0;
+      this.healthBack.setVisible(
+        false,
+      );
+      this.healthFill.setVisible(
+        false,
+      );
+      this.nameLabel.setVisible(
+        false,
+      );
+    }
+  }
+
+  private updateHealthBar(): void {
+    const ratio =
+      Phaser.Math.Clamp(
+        this.health /
+          this.definition.maxHealth,
+        0,
+        1,
+      );
+
+    this.healthFill.setDisplaySize(
+      138 * ratio,
+      8,
+    );
+  }
+
   private kill(): void {
     this._alive = false;
     this._engaged = false;
+    this.returning = false;
+    this.regenStartedAt = 0;
     this.respawnAtEpochMs =
       Date.now() +
       this.definition
@@ -780,6 +925,8 @@ export class BossUnit {
   private respawn(): void {
     this._alive = true;
     this._engaged = false;
+    this.returning = false;
+    this.regenStartedAt = 0;
     this.respawnAtEpochMs = 0;
     this.health =
       this.definition.maxHealth;
@@ -1000,6 +1147,21 @@ export class BossSystem {
 
   isPlayerThreatened(): boolean {
     return this.playerThreatened;
+  }
+
+  resetCombat(
+    time: number,
+  ): void {
+    this.playerThreatened = false;
+
+    for (
+      const boss of
+      this.bosses
+    ) {
+      boss.forceReset(
+        time,
+      );
+    }
   }
 
   update(

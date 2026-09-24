@@ -57,8 +57,7 @@ export class ChestSystem {
     ChestVisual[] = [];
 
   constructor(
-    private readonly scene:
-      Phaser.Scene,
+    scene: Phaser.Scene,
     private readonly backpack:
       BackpackSystem,
     private readonly openedIds:

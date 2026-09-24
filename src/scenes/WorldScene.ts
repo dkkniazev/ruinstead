@@ -1199,9 +1199,19 @@ export class WorldScene
       return;
     }
 
+    const carried =
+      this.backpack.state
+        .carried;
+
     this.gameState.backpack = {
-      ...this.backpack.state
-        .carried,
+      wood: carried.wood,
+      stone: carried.stone,
+      metal: carried.metal,
+      crystal:
+        carried.crystal ?? 0,
+      fiber:
+        carried.fiber ?? 0,
+      coins: carried.coins,
     };
 
     this.game.events.emit(
@@ -1359,9 +1369,19 @@ export class WorldScene
       this.gameState.progression
         .expeditionCount += 1;
 
+      const carried =
+        this.backpack.state
+          .carried;
+
       this.gameState.backpack = {
-        ...this.backpack.state
-          .carried,
+        wood: carried.wood,
+        stone: carried.stone,
+        metal: carried.metal,
+        crystal:
+          carried.crystal ?? 0,
+        fiber:
+          carried.fiber ?? 0,
+        coins: carried.coins,
       };
 
       this.game.events.emit(
@@ -2288,9 +2308,19 @@ export class WorldScene
     }
 
     if (this.backpack) {
+      const carried =
+        this.backpack.state
+          .carried;
+
       this.gameState.backpack = {
-        ...this.backpack.state
-          .carried,
+        wood: carried.wood,
+        stone: carried.stone,
+        metal: carried.metal,
+        crystal:
+          carried.crystal ?? 0,
+        fiber:
+          carried.fiber ?? 0,
+        coins: carried.coins,
       };
     }
 

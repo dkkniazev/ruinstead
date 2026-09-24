@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
 import type {
+  BossSystem,
+  BossUnit,
+} from '../bosses/BossSystem';
+import type {
   EnemySystem,
   EnemyUnit,
 } from '../enemies/EnemySystem';
@@ -14,6 +18,10 @@ import {
   type WeaponAttackStyle,
   type WeaponId,
 } from './WeaponDefinitions';
+
+type CombatTarget =
+  | EnemyUnit
+  | BossUnit;
 
 export type CombatState = {
   health: number;
@@ -53,6 +61,8 @@ export class CombatSystem {
       PlayerController,
     private readonly enemies:
       EnemySystem,
+    private readonly bosses:
+      BossSystem,
     private readonly respawn:
       Phaser.Math.Vector2,
     private readonly onStateChanged:
@@ -63,6 +73,7 @@ export class CombatSystem {
       readonly unknown[] = [
         'axe',
       ],
+    initialCoins = 0,
   ) {
     this.drops =
       new DropSystem(
@@ -71,6 +82,12 @@ export class CombatSystem {
           this.coins += value;
           this.emitState();
         },
+      );
+
+    this.coins =
+      Math.max(
+        0,
+        Math.floor(initialCoins),
       );
 
     this.unlockedWeapons.clear();
@@ -200,8 +217,7 @@ export class CombatSystem {
       ];
 
     const target =
-      this.enemies.findNearest(
-        this.player.position,
+      this.findNearestTarget(
         definition.range,
       );
 
@@ -278,8 +294,55 @@ export class CombatSystem {
     this.drops.destroy();
   }
 
+  private findNearestTarget(
+    range: number,
+  ): CombatTarget | undefined {
+    const origin =
+      this.player.position;
+
+    const enemy =
+      this.enemies.findNearest(
+        origin,
+        range,
+      );
+    const boss =
+      this.bosses.findNearest(
+        origin,
+        range,
+      );
+
+    if (!enemy) {
+      return boss;
+    }
+
+    if (!boss) {
+      return enemy;
+    }
+
+    const enemyDistance =
+      Phaser.Math.Distance.Between(
+        origin.x,
+        origin.y,
+        enemy.sprite.x,
+        enemy.sprite.y,
+      );
+
+    const bossDistance =
+      Phaser.Math.Distance.Between(
+        origin.x,
+        origin.y,
+        boss.sprite.x,
+        boss.sprite.y,
+      );
+
+    return bossDistance <
+      enemyDistance
+      ? boss
+      : enemy;
+  }
+
   private attackMelee(
-    target: EnemyUnit,
+    target: CombatTarget,
     baseDamage: number,
     style: WeaponAttackStyle,
   ): void {

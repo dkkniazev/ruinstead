@@ -7,6 +7,8 @@ export const HUD_AREA_EVENT =
   'ruinstead:hud:area';
 export const HUD_WEAPON_SELECT_EVENT =
   'ruinstead:hud:weapon-select';
+export const HUD_NOTICE_EVENT =
+  'ruinstead:hud:notice';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -14,3 +16,5 @@ export type HudAreaHandler =
   (areaName: string) => void;
 export type HudWeaponSelectHandler =
   (weaponId: WeaponId) => void;
+export type HudNoticeHandler =
+  (message: string) => void;

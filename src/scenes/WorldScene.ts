@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
 import {
+  BossSystem,
+  type BossDefeatEvent,
+} from '../game/bosses/BossSystem';
+import {
   CombatSystem,
   type CombatState,
 } from '../game/combat/CombatSystem';
@@ -13,10 +17,14 @@ import {
 } from '../game/layout/Viewport';
 import { PlayerController } from '../game/player/PlayerController';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
+import {
+  type GameState,
+} from '../game/state/GameState';
 import { GameStateStore } from '../game/state/GameStateStore';
 import {
   HUD_AREA_EVENT,
   HUD_COMBAT_STATE_EVENT,
+  HUD_NOTICE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
 } from '../game/ui/HudEvents';
 import {
@@ -35,10 +43,14 @@ export class WorldScene
   private readonly stateStore =
     new GameStateStore();
 
+  private gameState?:
+    GameState;
   private player?:
     PlayerController;
   private enemies?:
     EnemySystem;
+  private bosses?:
+    BossSystem;
   private combat?:
     CombatSystem;
 
@@ -61,9 +73,12 @@ export class WorldScene
   create(): void {
     configureLogicalCamera(this);
 
-    const state =
+    this.gameState =
       this.stateStore.load();
-    this.stateStore.save(state);
+    this.gameState =
+      this.stateStore.save(
+        this.gameState,
+      );
 
     const world =
       createPrototypeWorld(this);
@@ -78,6 +93,18 @@ export class WorldScene
     this.enemies =
       new EnemySystem(this);
 
+    this.bosses =
+      new BossSystem(
+        this,
+        this.gameState.world
+          .defeatedBosses,
+        (event) => {
+          this.handleBossDefeated(
+            event,
+          );
+        },
+      );
+
     this.physics.add.collider(
       this.player.sprite,
       world.obstacles,
@@ -87,8 +114,16 @@ export class WorldScene
       world.obstacles,
     );
     this.physics.add.collider(
+      this.bosses.group,
+      world.obstacles,
+    );
+    this.physics.add.collider(
       this.player.sprite,
       this.enemies.group,
+    );
+    this.physics.add.collider(
+      this.player.sprite,
+      this.bosses.group,
     );
 
     this.combat =
@@ -96,15 +131,19 @@ export class WorldScene
         this,
         this.player,
         this.enemies,
+        this.bosses,
         world.spawn,
         (combatState) => {
           this.handleCombatState(
             combatState,
           );
         },
-        state.player.weaponId,
-        state.player
+        this.gameState.player
+          .weaponId,
+        this.gameState.player
           .unlockedWeaponIds,
+        this.gameState.resources
+          .coins,
       );
 
     this.createWeaponKeys();
@@ -178,16 +217,26 @@ export class WorldScene
     if (
       this.player &&
       this.enemies &&
+      this.bosses &&
       this.combat
     ) {
-      this.enemies.update(
-        time,
-        this.player.position,
-        (damage) => {
+      const onPlayerHit =
+        (damage: number) => {
           this.combat?.damagePlayer(
             damage,
           );
-        },
+        };
+
+      this.enemies.update(
+        time,
+        this.player.position,
+        onPlayerHit,
+      );
+
+      this.bosses.update(
+        time,
+        this.player.position,
+        onPlayerHit,
       );
 
       this.combat.update(
@@ -237,10 +286,67 @@ export class WorldScene
       state.maxHealth,
     );
 
+    if (this.gameState) {
+      this.gameState.player.weaponId =
+        state.weaponId;
+      this.gameState.player
+        .unlockedWeaponIds =
+          [...state.unlockedWeaponIds];
+      this.gameState.resources.coins =
+        state.coins;
+      this.saveState();
+    }
+
     this.game.events.emit(
       HUD_COMBAT_STATE_EVENT,
       state,
     );
+  }
+
+  private handleBossDefeated(
+    event: BossDefeatEvent,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    if (
+      !this.gameState.world
+        .defeatedBosses
+        .includes(event.id)
+    ) {
+      this.gameState.world
+        .defeatedBosses
+        .push(event.id);
+    }
+
+    if (event.isMain) {
+      if (
+        !this.gameState.world
+          .unlockedZones
+          .includes('stage-2')
+      ) {
+        this.gameState.world
+          .unlockedZones
+          .push('stage-2');
+      }
+
+      this.combat?.unlockWeapon(
+        'daggers',
+      );
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `${event.name} повержен! Кинжалы открыты · проход дальше разблокирован`,
+      );
+    } else {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `${event.name} повержен`,
+      );
+    }
+
+    this.saveState();
   }
 
   private handleWeaponKeys(): void {
@@ -300,6 +406,17 @@ export class WorldScene
     );
   }
 
+  private saveState(): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    this.gameState =
+      this.stateStore.save(
+        this.gameState,
+      );
+  }
+
   private handleResize(): void {
     configureLogicalCamera(this);
 
@@ -339,6 +456,9 @@ export class WorldScene
 
     this.combat?.destroy();
     this.combat = undefined;
+
+    this.bosses?.destroy();
+    this.bosses = undefined;
 
     this.enemies?.destroy();
     this.enemies = undefined;

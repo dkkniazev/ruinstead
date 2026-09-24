@@ -1,0 +1,1067 @@
+import Phaser from 'phaser';
+import type {
+  DamageEffectiveness,
+  DamageProfile,
+} from '../combat/StageCombatProfile';
+import type {
+  WeaponId,
+} from '../combat/WeaponDefinitions';
+import {
+  SETTLEMENT_CENTER,
+  SETTLEMENT_SAFE_RADIUS,
+} from '../world/WorldPrototype';
+
+export type BossId =
+  | 'moss-ogre'
+  | 'crystal-boar'
+  | 'root-colossus';
+
+export type BossDefeatEvent = {
+  id: BossId;
+  name: string;
+  isMain: boolean;
+};
+
+type BossDefinition = {
+  id: BossId;
+  name: string;
+  x: number;
+  y: number;
+  maxHealth: number;
+  moveSpeed: number;
+  damage: number;
+  attackRange: number;
+  attackCooldownMs: number;
+  aggroRange: number;
+  leashRange: number;
+  dropCoins: number;
+  weaknessWeaponId: WeaponId;
+  resistanceWeaponId: WeaponId;
+  specialRadius: number;
+  specialDamage: number;
+  specialCooldownMs: number;
+  specialWindupMs: number;
+  bodyRadius: number;
+  texture: string;
+  primaryColor: number;
+  accentColor: number;
+  isMain: boolean;
+};
+
+const BOSS_DEFINITIONS:
+  readonly BossDefinition[] = [
+  {
+    id: 'moss-ogre',
+    name: 'Мшистый громила',
+    x: 890,
+    y: 315,
+    maxHealth: 620,
+    moveSpeed: 82,
+    damage: 22,
+    attackRange: 78,
+    attackCooldownMs: 1150,
+    aggroRange: 340,
+    leashRange: 500,
+    dropCoins: 24,
+    weaknessWeaponId: 'sword',
+    resistanceWeaponId: 'spear',
+    specialRadius: 112,
+    specialDamage: 30,
+    specialCooldownMs: 4300,
+    specialWindupMs: 720,
+    bodyRadius: 37,
+    texture: 'ruinstead-boss-moss-ogre',
+    primaryColor: 0x506e3c,
+    accentColor: 0xb8d36f,
+    isMain: false,
+  },
+  {
+    id: 'crystal-boar',
+    name: 'Кристальный вепрь',
+    x: 2510,
+    y: 630,
+    maxHealth: 790,
+    moveSpeed: 108,
+    damage: 20,
+    attackRange: 76,
+    attackCooldownMs: 960,
+    aggroRange: 360,
+    leashRange: 520,
+    dropCoins: 32,
+    weaknessWeaponId: 'hammer',
+    resistanceWeaponId: 'sword',
+    specialRadius: 96,
+    specialDamage: 34,
+    specialCooldownMs: 3900,
+    specialWindupMs: 560,
+    bodyRadius: 38,
+    texture: 'ruinstead-boss-crystal-boar',
+    primaryColor: 0x5d647d,
+    accentColor: 0x8fe5ef,
+    isMain: false,
+  },
+  {
+    id: 'root-colossus',
+    name: 'Корневой колосс',
+    x: 2470,
+    y: 1540,
+    maxHealth: 1120,
+    moveSpeed: 66,
+    damage: 27,
+    attackRange: 84,
+    attackCooldownMs: 1280,
+    aggroRange: 390,
+    leashRange: 560,
+    dropCoins: 55,
+    weaknessWeaponId: 'spear',
+    resistanceWeaponId: 'hammer',
+    specialRadius: 145,
+    specialDamage: 42,
+    specialCooldownMs: 4700,
+    specialWindupMs: 880,
+    bodyRadius: 44,
+    texture: 'ruinstead-boss-root-colossus',
+    primaryColor: 0x61462f,
+    accentColor: 0xe7b85e,
+    isMain: true,
+  },
+];
+
+export class BossUnit {
+  readonly sprite:
+    Phaser.Physics.Arcade.Sprite;
+  readonly spawn:
+    Phaser.Math.Vector2;
+  readonly definition:
+    BossDefinition;
+
+  private readonly shadow:
+    Phaser.GameObjects.Ellipse;
+  private readonly healthBack:
+    Phaser.GameObjects.Rectangle;
+  private readonly healthFill:
+    Phaser.GameObjects.Rectangle;
+  private readonly nameLabel:
+    Phaser.GameObjects.Text;
+
+  private health: number;
+  private nextAttackAt = 0;
+  private nextSpecialAt = 1800;
+  private specialPending = false;
+  private specialTelegraph?:
+    Phaser.GameObjects.Arc;
+  private lastPlayerPosition =
+    new Phaser.Math.Vector2();
+  private _alive = true;
+
+  constructor(
+    private readonly scene: Phaser.Scene,
+    group:
+      Phaser.Physics.Arcade.Group,
+    definition: BossDefinition,
+    private readonly onDefeated:
+      (event: BossDefeatEvent) => void,
+  ) {
+    this.definition =
+      definition;
+    this.health =
+      definition.maxHealth;
+    this.spawn =
+      new Phaser.Math.Vector2(
+        definition.x,
+        definition.y,
+      );
+
+    this.shadow = scene.add
+      .ellipse(
+        definition.x,
+        definition.y + 36,
+        definition.bodyRadius * 2.45,
+        definition.bodyRadius * 0.78,
+        0x274d27,
+        0.28,
+      );
+
+    this.sprite =
+      group.create(
+        definition.x,
+        definition.y,
+        definition.texture,
+      ) as Phaser.Physics.Arcade.Sprite;
+
+    this.sprite
+      .setScale(
+        definition.isMain
+          ? 1.2
+          : 1.05,
+      )
+      .setCollideWorldBounds(true);
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.setCircle(
+      definition.bodyRadius,
+      this.sprite.width / 2 -
+        definition.bodyRadius,
+      this.sprite.height -
+        definition.bodyRadius * 2 -
+        10,
+    );
+
+    this.healthBack = scene.add
+      .rectangle(
+        definition.x - 72,
+        definition.y - 78,
+        144,
+        12,
+        0x3a2728,
+        0.9,
+      )
+      .setOrigin(0, 0.5)
+      .setVisible(false);
+
+    this.healthFill = scene.add
+      .rectangle(
+        definition.x - 69,
+        definition.y - 78,
+        138,
+        8,
+        definition.isMain
+          ? 0xe29d38
+          : 0xd85b62,
+        1,
+      )
+      .setOrigin(0, 0.5)
+      .setVisible(false);
+
+    this.nameLabel = scene.add
+      .text(
+        definition.x,
+        definition.y - 97,
+        definition.name,
+        {
+          fontFamily:
+            'system-ui, sans-serif',
+          fontSize:
+            definition.isMain
+              ? '17px'
+              : '15px',
+          fontStyle: 'bold',
+          color:
+            definition.isMain
+              ? '#ffe6a0'
+              : '#fff2e8',
+          stroke: '#4b2c2b',
+          strokeThickness: 4,
+        },
+      )
+      .setOrigin(0.5)
+      .setVisible(false);
+
+    this.syncVisuals(false);
+  }
+
+  get alive(): boolean {
+    return this._alive;
+  }
+
+  get position():
+    Phaser.Math.Vector2 {
+    return new Phaser.Math.Vector2(
+      this.sprite.x,
+      this.sprite.y,
+    );
+  }
+
+  get dropCoins(): number {
+    return this.definition.dropCoins;
+  }
+
+  getDamageProfile(
+    weaponId: WeaponId,
+  ): DamageProfile {
+    if (
+      weaponId ===
+      this.definition.weaknessWeaponId
+    ) {
+      return {
+        multiplier: 2,
+        effectiveness: 'weakness',
+      };
+    }
+
+    if (
+      weaponId ===
+      this.definition.resistanceWeaponId
+    ) {
+      return {
+        multiplier: 0.5,
+        effectiveness: 'resistance',
+      };
+    }
+
+    return {
+      multiplier: 1,
+      effectiveness: 'neutral',
+    };
+  }
+
+  update(
+    time: number,
+    playerPosition:
+      Phaser.Math.Vector2,
+    onPlayerHit:
+      (damage: number) => void,
+  ): void {
+    if (!this._alive) {
+      return;
+    }
+
+    this.lastPlayerPosition.copy(
+      playerPosition,
+    );
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    const playerSafe =
+      Phaser.Math.Distance.Between(
+        playerPosition.x,
+        playerPosition.y,
+        SETTLEMENT_CENTER.x,
+        SETTLEMENT_CENTER.y,
+      ) <=
+      SETTLEMENT_SAFE_RADIUS;
+
+    const distanceToPlayer =
+      Phaser.Math.Distance.Between(
+        this.sprite.x,
+        this.sprite.y,
+        playerPosition.x,
+        playerPosition.y,
+      );
+
+    const distanceToSpawn =
+      Phaser.Math.Distance.Between(
+        this.sprite.x,
+        this.sprite.y,
+        this.spawn.x,
+        this.spawn.y,
+      );
+
+    const engaged =
+      !playerSafe &&
+      (
+        distanceToPlayer <=
+          this.definition
+            .aggroRange ||
+        distanceToSpawn > 28
+      );
+
+    if (
+      !engaged ||
+      distanceToSpawn >
+        this.definition.leashRange
+    ) {
+      this.specialPending =
+        false;
+      this.specialTelegraph
+        ?.destroy();
+      this.specialTelegraph =
+        undefined;
+
+      if (distanceToSpawn > 10) {
+        this.moveTowards(
+          this.spawn,
+          this.definition.moveSpeed *
+            0.82,
+        );
+      } else {
+        body.setVelocity(0, 0);
+      }
+
+      this.syncVisuals(false);
+      return;
+    }
+
+    if (this.specialPending) {
+      body.setVelocity(0, 0);
+      this.syncVisuals(true);
+      return;
+    }
+
+    if (
+      time >= this.nextSpecialAt &&
+      distanceToPlayer <=
+        this.definition
+          .specialRadius * 1.55
+    ) {
+      this.startSpecialAttack(
+        onPlayerHit,
+      );
+      this.syncVisuals(true);
+      return;
+    }
+
+    if (
+      distanceToPlayer >
+      this.definition.attackRange
+    ) {
+      this.moveTowards(
+        playerPosition,
+        this.definition.moveSpeed,
+      );
+    } else {
+      body.setVelocity(0, 0);
+
+      if (
+        time >=
+        this.nextAttackAt
+      ) {
+        this.nextAttackAt =
+          time +
+          this.definition
+            .attackCooldownMs;
+
+        onPlayerHit(
+          this.definition.damage,
+        );
+
+        this.scene.tweens.add({
+          targets: this.sprite,
+          scaleX:
+            (this.definition.isMain
+              ? 1.2
+              : 1.05) * 1.08,
+          scaleY:
+            (this.definition.isMain
+              ? 1.2
+              : 1.05) * 0.92,
+          duration: 100,
+          yoyo: true,
+          ease: 'Quad.Out',
+        });
+      }
+    }
+
+    this.syncVisuals(true);
+  }
+
+  takeDamage(
+    amount: number,
+    effectiveness:
+      DamageEffectiveness,
+  ): boolean {
+    if (!this._alive) {
+      return false;
+    }
+
+    this.health =
+      Math.max(
+        0,
+        this.health - amount,
+      );
+
+    this.healthBack.setVisible(
+      true,
+    );
+    this.healthFill.setVisible(
+      true,
+    );
+    this.nameLabel.setVisible(
+      true,
+    );
+
+    const ratio =
+      this.health /
+      this.definition.maxHealth;
+
+    this.healthFill.setDisplaySize(
+      138 * ratio,
+      8,
+    );
+
+    this.showDamageNumber(
+      amount,
+      effectiveness,
+    );
+
+    this.sprite.setTintFill(
+      0xffffff,
+    );
+    this.scene.time.delayedCall(
+      75,
+      () => {
+        if (this._alive) {
+          this.sprite.clearTint();
+        }
+      },
+    );
+
+    if (this.health > 0) {
+      return false;
+    }
+
+    this.kill();
+    return true;
+  }
+
+  destroy(): void {
+    this.specialTelegraph
+      ?.destroy();
+    this.shadow.destroy();
+    this.healthBack.destroy();
+    this.healthFill.destroy();
+    this.nameLabel.destroy();
+    this.sprite.destroy();
+  }
+
+  private startSpecialAttack(
+    onPlayerHit:
+      (damage: number) => void,
+  ): void {
+    this.specialPending = true;
+
+    const radius =
+      this.definition
+        .specialRadius;
+
+    const telegraph =
+      this.scene.add
+        .circle(
+          this.sprite.x,
+          this.sprite.y + 10,
+          radius,
+          0xff5b46,
+          0.12,
+        )
+        .setStrokeStyle(
+          5,
+          0xff835c,
+          0.72,
+        )
+        .setDepth(
+          this.sprite.y - 5,
+        );
+
+    this.specialTelegraph =
+      telegraph;
+
+    this.scene.tweens.add({
+      targets: telegraph,
+      alpha: 0.3,
+      scale: 1.08,
+      duration:
+        this.definition
+          .specialWindupMs,
+      ease: 'Sine.In',
+    });
+
+    this.scene.time.delayedCall(
+      this.definition
+        .specialWindupMs,
+      () => {
+        if (!this._alive) {
+          telegraph.destroy();
+          return;
+        }
+
+        const distance =
+          Phaser.Math.Distance.Between(
+            this.sprite.x,
+            this.sprite.y,
+            this.lastPlayerPosition.x,
+            this.lastPlayerPosition.y,
+          );
+
+        if (distance <= radius) {
+          onPlayerHit(
+            this.definition
+              .specialDamage,
+          );
+        }
+
+        this.scene.cameras.main.shake(
+          90,
+          this.definition.isMain
+            ? 0.004
+            : 0.0025,
+        );
+
+        this.scene.tweens.add({
+          targets: telegraph,
+          scale: 1.22,
+          alpha: 0,
+          duration: 130,
+          onComplete: () => {
+            telegraph.destroy();
+          },
+        });
+
+        this.specialTelegraph =
+          undefined;
+        this.specialPending =
+          false;
+        this.nextSpecialAt =
+          this.scene.time.now +
+          this.definition
+            .specialCooldownMs;
+      },
+    );
+  }
+
+  private moveTowards(
+    target:
+      Phaser.Math.Vector2,
+    speed: number,
+  ): void {
+    const direction =
+      new Phaser.Math.Vector2(
+        target.x - this.sprite.x,
+        target.y - this.sprite.y,
+      );
+
+    if (
+      direction.lengthSq() <=
+      0.001
+    ) {
+      return;
+    }
+
+    direction.normalize();
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.setVelocity(
+      direction.x * speed,
+      direction.y * speed,
+    );
+
+    if (
+      Math.abs(direction.x) >
+      0.08
+    ) {
+      this.sprite.setFlipX(
+        direction.x < 0,
+      );
+    }
+  }
+
+  private kill(): void {
+    this._alive = false;
+
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    body.setVelocity(0, 0);
+    body.enable = false;
+
+    this.specialTelegraph
+      ?.destroy();
+    this.specialTelegraph =
+      undefined;
+
+    this.healthBack.setVisible(
+      false,
+    );
+    this.healthFill.setVisible(
+      false,
+    );
+    this.nameLabel.setVisible(
+      false,
+    );
+
+    this.onDefeated({
+      id: this.definition.id,
+      name: this.definition.name,
+      isMain:
+        this.definition.isMain,
+    });
+
+    this.scene.tweens.add({
+      targets: [
+        this.sprite,
+        this.shadow,
+      ],
+      alpha: 0,
+      scaleX: 0.55,
+      scaleY: 0.55,
+      duration: 380,
+      ease: 'Back.In',
+    });
+  }
+
+  private showDamageNumber(
+    amount: number,
+    effectiveness:
+      DamageEffectiveness,
+  ): void {
+    const color =
+      effectiveness ===
+      'weakness'
+        ? '#ffd45c'
+        : effectiveness ===
+            'resistance'
+          ? '#adb6c4'
+          : '#fff5e5';
+
+    const suffix =
+      effectiveness ===
+      'weakness'
+        ? ' ×2'
+        : effectiveness ===
+            'resistance'
+          ? ' ×0.5'
+          : '';
+
+    const label =
+      this.scene.add
+        .text(
+          this.sprite.x,
+          this.sprite.y - 100,
+          `-${amount}${suffix}`,
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize:
+              effectiveness ===
+              'weakness'
+                ? '21px'
+                : '18px',
+            fontStyle: 'bold',
+            color,
+            stroke: '#4d2c2d',
+            strokeThickness: 4,
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(
+          this.sprite.y + 250,
+        );
+
+    this.scene.tweens.add({
+      targets: label,
+      y: label.y - 34,
+      alpha: 0,
+      duration: 520,
+      ease: 'Quad.Out',
+      onComplete: () => {
+        label.destroy();
+      },
+    });
+  }
+
+  private syncVisuals(
+    engaged: boolean,
+  ): void {
+    const baseline =
+      this.sprite.y + 56;
+
+    this.sprite.setDepth(
+      baseline,
+    );
+    this.shadow
+      .setPosition(
+        this.sprite.x,
+        this.sprite.y + 36,
+      )
+      .setDepth(
+        baseline - 3,
+      );
+
+    this.healthBack
+      .setPosition(
+        this.sprite.x - 72,
+        this.sprite.y - 78,
+      )
+      .setDepth(
+        baseline + 90,
+      );
+
+    this.healthFill
+      .setPosition(
+        this.sprite.x - 69,
+        this.sprite.y - 78,
+      )
+      .setDepth(
+        baseline + 91,
+      );
+
+    this.nameLabel
+      .setPosition(
+        this.sprite.x,
+        this.sprite.y - 97,
+      )
+      .setDepth(
+        baseline + 92,
+      );
+
+    const visible =
+      engaged ||
+      this.health <
+        this.definition.maxHealth;
+
+    this.healthBack.setVisible(
+      visible,
+    );
+    this.healthFill.setVisible(
+      visible,
+    );
+    this.nameLabel.setVisible(
+      visible,
+    );
+  }
+}
+
+export class BossSystem {
+  readonly group:
+    Phaser.Physics.Arcade.Group;
+
+  private readonly bosses:
+    BossUnit[] = [];
+
+  constructor(
+    scene: Phaser.Scene,
+    defeatedBossIds:
+      readonly string[],
+    onDefeated:
+      (event: BossDefeatEvent) => void,
+  ) {
+    ensureBossTextures(scene);
+
+    this.group =
+      scene.physics.add.group();
+
+    const defeated =
+      new Set(
+        defeatedBossIds,
+      );
+
+    for (
+      const definition of
+      BOSS_DEFINITIONS
+    ) {
+      if (
+        defeated.has(
+          definition.id,
+        )
+      ) {
+        continue;
+      }
+
+      this.bosses.push(
+        new BossUnit(
+          scene,
+          this.group,
+          definition,
+          onDefeated,
+        ),
+      );
+    }
+  }
+
+  update(
+    time: number,
+    playerPosition:
+      Phaser.Math.Vector2,
+    onPlayerHit:
+      (damage: number) => void,
+  ): void {
+    for (
+      const boss of
+      this.bosses
+    ) {
+      boss.update(
+        time,
+        playerPosition,
+        onPlayerHit,
+      );
+    }
+  }
+
+  findNearest(
+    origin: Phaser.Math.Vector2,
+    range: number,
+  ): BossUnit | undefined {
+    let best:
+      BossUnit | undefined;
+    let bestDistance =
+      range;
+
+    for (
+      const boss of
+      this.bosses
+    ) {
+      if (!boss.alive) {
+        continue;
+      }
+
+      const distance =
+        Phaser.Math.Distance.Between(
+          origin.x,
+          origin.y,
+          boss.sprite.x,
+          boss.sprite.y,
+        );
+
+      if (
+        distance <=
+        bestDistance
+      ) {
+        best =
+          boss;
+        bestDistance =
+          distance;
+      }
+    }
+
+    return best;
+  }
+
+  destroy(): void {
+    for (
+      const boss of
+      this.bosses
+    ) {
+      boss.destroy();
+    }
+
+    this.bosses.length = 0;
+    this.group.destroy(true);
+  }
+}
+
+function ensureBossTextures(
+  scene: Phaser.Scene,
+): void {
+  for (
+    const definition of
+    BOSS_DEFINITIONS
+  ) {
+    if (
+      scene.textures.exists(
+        definition.texture,
+      )
+    ) {
+      continue;
+    }
+
+    const g =
+      scene.make.graphics({
+        x: 0,
+        y: 0,
+      });
+
+    g.fillStyle(
+      definition.primaryColor,
+      1,
+    );
+    g.fillEllipse(
+      70,
+      77,
+      definition.isMain
+        ? 105
+        : 94,
+      definition.isMain
+        ? 96
+        : 84,
+    );
+
+    g.fillStyle(
+      definition.accentColor,
+      0.92,
+    );
+    g.fillEllipse(
+      60,
+      55,
+      60,
+      38,
+    );
+
+    g.fillStyle(
+      0xffffff,
+      1,
+    );
+    g.fillCircle(
+      55,
+      70,
+      8,
+    );
+    g.fillCircle(
+      83,
+      70,
+      8,
+    );
+
+    g.fillStyle(
+      0x2b2630,
+      1,
+    );
+    g.fillCircle(
+      57,
+      71,
+      4,
+    );
+    g.fillCircle(
+      81,
+      71,
+      4,
+    );
+
+    g.fillStyle(
+      definition.accentColor,
+      1,
+    );
+    g.fillTriangle(
+      35,
+      38,
+      50,
+      57,
+      24,
+      60,
+    );
+    g.fillTriangle(
+      103,
+      38,
+      90,
+      57,
+      116,
+      60,
+    );
+
+    if (
+      definition.isMain
+    ) {
+      g.lineStyle(
+        8,
+        0x79562f,
+        1,
+      );
+      g.lineBetween(
+        45,
+        20,
+        54,
+        48,
+      );
+      g.lineBetween(
+        95,
+        20,
+        86,
+        48,
+      );
+    }
+
+    g.generateTexture(
+      definition.texture,
+      140,
+      145,
+    );
+    g.destroy();
+  }
+}

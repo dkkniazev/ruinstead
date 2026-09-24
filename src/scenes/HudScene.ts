@@ -14,6 +14,7 @@ import {
 import {
   HUD_AREA_EVENT,
   HUD_COMBAT_STATE_EVENT,
+  HUD_NOTICE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
 } from '../game/ui/HudEvents';
 
@@ -37,6 +38,8 @@ export class HudScene
   private coinText?:
     Phaser.GameObjects.Text;
   private areaText?:
+    Phaser.GameObjects.Text;
+  private noticeText?:
     Phaser.GameObjects.Text;
 
   private weaponButtons:
@@ -72,6 +75,7 @@ export class HudScene
     this.createTopLeftStatus();
     this.createWeaponSelector();
     this.createControlsHint();
+    this.createNoticeLayer();
 
     this.game.events.on(
       HUD_COMBAT_STATE_EVENT,
@@ -81,6 +85,11 @@ export class HudScene
     this.game.events.on(
       HUD_AREA_EVENT,
       this.handleAreaName,
+      this,
+    );
+    this.game.events.on(
+      HUD_NOTICE_EVENT,
+      this.handleNotice,
       this,
     );
 
@@ -325,6 +334,33 @@ export class HudScene
       .setDepth(100);
   }
 
+  private createNoticeLayer(): void {
+    this.noticeText =
+      this.add
+        .text(
+          LOGICAL_WIDTH / 2,
+          205,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '22px',
+            fontStyle: 'bold',
+            color: '#fff7d6',
+            backgroundColor:
+              '#2a402ddd',
+            padding: {
+              x: 16,
+              y: 10,
+            },
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setDepth(180)
+        .setAlpha(0);
+  }
+
   private createWeaponButton(
     x: number,
     y: number,
@@ -489,6 +525,58 @@ export class HudScene
     );
   }
 
+  private handleNotice(
+    message: string,
+  ): void {
+    if (!this.noticeText) {
+      return;
+    }
+
+    this.tweens.killTweensOf(
+      this.noticeText,
+    );
+
+    this.noticeText
+      .setText(message)
+      .setAlpha(1)
+      .setScale(0.96);
+
+    this.tweens.add({
+      targets:
+        this.noticeText,
+      scale: 1,
+      duration: 120,
+      ease: 'Back.Out',
+      onComplete: () => {
+        this.time.delayedCall(
+          1450,
+          () => {
+            if (
+              !this.noticeText
+            ) {
+              return;
+            }
+
+            this.tweens.add({
+              targets:
+                this.noticeText,
+              alpha: 0,
+              y:
+                this.noticeText.y -
+                10,
+              duration: 260,
+              onComplete: () => {
+                this.noticeText?.setY(
+                  205,
+                );
+              },
+            });
+          },
+        );
+      },
+    });
+  }
+
   private handleResize(): void {
     configureLogicalCamera(this);
   }
@@ -502,6 +590,11 @@ export class HudScene
     this.game.events.off(
       HUD_AREA_EVENT,
       this.handleAreaName,
+      this,
+    );
+    this.game.events.off(
+      HUD_NOTICE_EVENT,
+      this.handleNotice,
       this,
     );
     this.scale.off(

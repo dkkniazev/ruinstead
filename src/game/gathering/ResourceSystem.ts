@@ -2,9 +2,8 @@ import Phaser from 'phaser';
 import type {
   BackpackSystem,
 } from './BackpackSystem';
-import {
-  RESOURCE_DEFINITIONS,
-  type ResourceType,
+import type {
+  ResourceType,
 } from './ResourceTypes';
 
 const HARVEST_RANGE = 88;

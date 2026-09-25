@@ -3779,9 +3779,11 @@ export class WorldScene
         tier,
         mode,
         rarity:
-          result.rarity,
+          result.rarity ??
+          'none',
         skinId:
-          result.skinId,
+          result.skinId ??
+          'none',
       },
     );
   }

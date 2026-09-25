@@ -78,6 +78,7 @@ import {
 import {
   MAX_PLAYER_UPGRADE_LEVEL,
   getPlayerUpgradeCost,
+  getWeaponFusionCost,
   getWeaponUpgradeCost,
   canAffordUpgrade,
   type PlayerUpgradeId,
@@ -5115,7 +5116,7 @@ export class HudScene
         building.nextCost;
       const costText =
         cost
-          ? `Д${cost.wood} К${cost.stone} М${cost.metal} ●${cost.coins}`
+          ? `Д${cost.wood} К${cost.stone} М${cost.metal}${cost.crystal ? ` Кр${cost.crystal}` : ''}${cost.fiber ? ` В${cost.fiber}` : ''} ●${cost.coins}`
           : 'MAX';
 
       const status =
@@ -5593,32 +5594,51 @@ export class HudScene
           equipped.rarityColor,
       });
 
-    const canFuse =
+    const hasFuseCopies =
       equipped.stars <
         MAX_WEAPON_STARS &&
       equipped.count >= 2;
+    const fusionCost =
+      equipped.stars <
+        MAX_WEAPON_STARS
+        ? getWeaponFusionCost(
+            equipped.stars,
+          )
+        : null;
+    const fusionAffordable =
+      hasFuseCopies &&
+      canAffordUpgrade(
+        state.storage,
+        fusionCost,
+      );
     const nextStar =
       Math.min(
         MAX_WEAPON_STARS,
         equipped.stars + 1,
       );
+    const fusionCostText =
+      fusionCost
+        ? `●${fusionCost.coins} К${fusionCost.stone} М${fusionCost.metal}${fusionCost.crystal ? ` Кр${fusionCost.crystal}` : ''}${fusionCost.fiber ? ` В${fusionCost.fiber}` : ''}`
+        : '';
 
     this.weaponFuseButton
       ?.setText(
         equipped.stars >=
           MAX_WEAPON_STARS
           ? `Звёздность MAX · ${'★'.repeat(MAX_WEAPON_STARS)}`
-          : canFuse
-            ? `Слить 2 × ${equipped.rarityName} ★${equipped.stars} → ★${nextStar} · урон ×1.5`
-            : `Для ★${nextStar}: нужно 2 × ${equipped.rarityName} ★${equipped.stars} · есть ${equipped.count}`,
+          : !hasFuseCopies
+            ? `Для ★${nextStar}: нужно 2 × ${equipped.rarityName} ★${equipped.stars} · есть ${equipped.count}`
+            : fusionAffordable
+              ? `Слить → ★${nextStar} · ${fusionCostText} · урон ×1.5`
+              : `Слияние ★${equipped.stars} → ★${nextStar} · не хватает: ${fusionCostText}`,
       )
       .setStyle({
         backgroundColor:
-          canFuse
+          fusionAffordable
             ? '#7a5e35'
             : '#49473f',
         color:
-          canFuse
+          fusionAffordable
             ? '#fff0ae'
             : '#aaa79c',
       });

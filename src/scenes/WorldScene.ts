@@ -44,6 +44,7 @@ import {
 import {
   canAffordUpgrade,
   getPlayerUpgradeCost,
+  getWeaponFusionCost,
   getWeaponUpgradeCost,
   spendUpgradeCost,
   type PlayerUpgradeId,
@@ -4639,6 +4640,25 @@ export class WorldScene
       return;
     }
 
+    const fusionCost =
+      getWeaponFusionCost(
+        stars,
+      );
+
+    if (
+      !fusionCost ||
+      !canAffordUpgrade(
+        this.gameState.resources,
+        fusionCost,
+      )
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Не хватает ресурсов на слияние оружия',
+      );
+      return;
+    }
+
     const fused =
       fuseWeapon(
         this.gameState.player
@@ -4649,6 +4669,11 @@ export class WorldScene
     if (!fused) {
       return;
     }
+
+    spendUpgradeCost(
+      this.gameState.resources,
+      fusionCost,
+    );
 
     this.applyProgression();
 

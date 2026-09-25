@@ -7,6 +7,17 @@ import type {
 import type {
   GameState,
 } from '../state/GameState';
+import {
+  WEAPON_DEFINITIONS,
+} from '../combat/WeaponDefinitions';
+import {
+  REGION_WEAPON_PROFILES,
+  RELEASE_BOSSES,
+  RELEASE_SPECIES,
+} from '../world/ReleaseWorldContent';
+import {
+  getRegionDefinition,
+} from '../world/ReleaseRegionMap';
 
 export type BestiaryEntryKind =
   | 'species'
@@ -89,348 +100,147 @@ const SPECIES_THRESHOLDS =
 const BOSS_THRESHOLDS =
   [0, 1, 3, 5, 10] as const;
 
+const LEGACY_SPECIES_TEXTURES:
+  Record<
+    string,
+    readonly [string, string]
+  > = {
+  goblin: [
+    'ruinstead-enemy-goblin',
+    'ruinstead-enemy-hobgoblin',
+  ],
+  slime: [
+    'ruinstead-enemy-slime',
+    'ruinstead-enemy-elder-slime',
+  ],
+  boar: [
+    'ruinstead-enemy-boar',
+    'ruinstead-enemy-boar-alpha',
+  ],
+  mushroom: [
+    'ruinstead-enemy-mushroom',
+    'ruinstead-enemy-elder-mushroom',
+  ],
+  beetle: [
+    'ruinstead-enemy-beetle',
+    'ruinstead-enemy-beetle-elite',
+  ],
+  'dust-jackal': [
+    'ruinstead-enemy-dust-jackal',
+    'ruinstead-enemy-dust-jackal-elite',
+  ],
+  sandling: [
+    'ruinstead-enemy-sandling',
+    'ruinstead-enemy-sandling-elite',
+  ],
+  'sun-scorpion': [
+    'ruinstead-enemy-sun-scorpion',
+    'ruinstead-enemy-sun-scorpion-elite',
+  ],
+  'ruin-gargoyle': [
+    'ruinstead-enemy-ruin-gargoyle',
+    'ruinstead-enemy-ruin-gargoyle-elite',
+  ],
+  emberling: [
+    'ruinstead-enemy-emberling',
+    'ruinstead-enemy-emberling-elite',
+  ],
+};
+
+function buildBestiaryDefinitions():
+  BestiaryDefinition[] {
+  const speciesEntries =
+    RELEASE_SPECIES.map(
+      (species) => {
+        const region =
+          getRegionDefinition(
+            species.region,
+          );
+        const profile =
+          REGION_WEAPON_PROFILES[
+            species.region
+          ];
+        const textures =
+          LEGACY_SPECIES_TEXTURES[
+            species.id
+          ] ?? [
+            `ruinstead-enemy-${species.id}`,
+            `ruinstead-enemy-${species.id}-elite`,
+          ];
+
+        return {
+          entryId:
+            `species:${species.id}`,
+          kind:
+            'species' as const,
+          entityId:
+            species.id,
+          name:
+            species.name,
+          eliteName:
+            species.eliteName,
+          area:
+            region.name,
+          weakness:
+            `${WEAPON_DEFINITIONS[profile.weakness].name} ×2`,
+          resistance:
+            `${WEAPON_DEFINITIONS[profile.resistance].name} ×0.5`,
+          dropText:
+            'Монеты · элита даёт ×4',
+          texture:
+            textures[0],
+          eliteTexture:
+            textures[1],
+          thresholds:
+            SPECIES_THRESHOLDS,
+        };
+      },
+    );
+
+  const bossEntries =
+    RELEASE_BOSSES.map(
+      (boss) => {
+        const region =
+          getRegionDefinition(
+            boss.region,
+          );
+
+        return {
+          entryId:
+            `boss:${boss.id}`,
+          kind:
+            'boss' as const,
+          entityId:
+            boss.id,
+          name:
+            boss.name,
+          area:
+            region.name,
+          weakness:
+            `${WEAPON_DEFINITIONS[boss.weaknessWeaponId].name} ×2`,
+          resistance:
+            `${WEAPON_DEFINITIONS[boss.resistanceWeaponId].name} ×0.5`,
+          dropText:
+            boss.weaponDrop
+              ? `Ресурсы · монеты · ${WEAPON_DEFINITIONS[boss.weaponDrop].name} Common ☆`
+              : 'Ресурсы · монеты',
+          texture:
+            `ruinstead-boss-${boss.id}`,
+          thresholds:
+            BOSS_THRESHOLDS,
+        };
+      },
+    );
+
+  return [
+    ...speciesEntries,
+    ...bossEntries,
+  ];
+}
+
 const DEFINITIONS:
-  readonly BestiaryDefinition[] = [
-  {
-    entryId:
-      'species:goblin',
-    kind: 'species',
-    entityId: 'goblin',
-    name: 'Гоблин',
-    eliteName: 'Хобгоблин',
-    area:
-      'Гоблинья поляна',
-    weakness:
-      'Кинжалы ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '2 монеты · элита 8',
-    texture:
-      'ruinstead-enemy-goblin',
-    eliteTexture:
-      'ruinstead-enemy-hobgoblin',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:slime',
-    kind: 'species',
-    entityId: 'slime',
-    name: 'Слизень',
-    eliteName:
-      'Старший слизень',
-    area:
-      'Топь слизней',
-    weakness:
-      'Кинжалы ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '2 монеты · элита 8',
-    texture:
-      'ruinstead-enemy-slime',
-    eliteTexture:
-      'ruinstead-enemy-elder-slime',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:boar',
-    kind: 'species',
-    entityId: 'boar',
-    name: 'Кабан',
-    eliteName:
-      'Вожак кабанов',
-    area:
-      'Кабаний овраг',
-    weakness:
-      'Кинжалы ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '3 монеты · элита 12',
-    texture:
-      'ruinstead-enemy-boar',
-    eliteTexture:
-      'ruinstead-enemy-boar-alpha',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:mushroom',
-    kind: 'species',
-    entityId: 'mushroom',
-    name: 'Грибник',
-    eliteName:
-      'Старший грибник',
-    area:
-      'Грибная чаща',
-    weakness:
-      'Кинжалы ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '3 монеты · элита 12',
-    texture:
-      'ruinstead-enemy-mushroom',
-    eliteTexture:
-      'ruinstead-enemy-elder-mushroom',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:beetle',
-    kind: 'species',
-    entityId: 'beetle',
-    name: 'Панцирник',
-    eliteName:
-      'Матёрый панцирник',
-    area:
-      'Сердце леса',
-    weakness:
-      'Кинжалы ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '4 монеты · элита 16',
-    texture:
-      'ruinstead-enemy-beetle',
-    eliteTexture:
-      'ruinstead-enemy-beetle-elite',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'boss:moss-ogre',
-    kind: 'boss',
-    entityId: 'moss-ogre',
-    name:
-      'Мшистый громила',
-    area:
-      'Северная окраина леса',
-    weakness:
-      'Меч ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '24 монеты',
-    texture:
-      'ruinstead-boss-moss-ogre',
-    thresholds:
-      BOSS_THRESHOLDS,
-  },
-  {
-    entryId:
-      'boss:crystal-boar',
-    kind: 'boss',
-    entityId:
-      'crystal-boar',
-    name:
-      'Кристальный вепрь',
-    area:
-      'Северо-восток леса',
-    weakness:
-      'Молот ×2',
-    resistance:
-      'Меч ×0.5',
-    dropText:
-      '32 монеты',
-    texture:
-      'ruinstead-boss-crystal-boar',
-    thresholds:
-      BOSS_THRESHOLDS,
-  },
-  {
-    entryId:
-      'boss:root-colossus',
-    kind: 'boss',
-    entityId:
-      'root-colossus',
-    name:
-      'Корневой колосс',
-    area:
-      'Южные корни',
-    weakness:
-      'Копьё ×2',
-    resistance:
-      'Молот ×0.5',
-    dropText:
-      '55 монет · открывает кинжалы',
-    texture:
-      'ruinstead-boss-root-colossus',
-    thresholds:
-      BOSS_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:dust-jackal',
-    kind: 'species',
-    entityId: 'dust-jackal',
-    name: 'Пыльный шакал',
-    eliteName: 'Вожак шакалов',
-    area: 'Пыльная тропа',
-    weakness: 'Молот ×2',
-    resistance: 'Топор ×0.5',
-    dropText:
-      '5 монет · элита 20',
-    texture:
-      'ruinstead-enemy-dust-jackal',
-    eliteTexture:
-      'ruinstead-enemy-dust-jackal-elite',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:sandling',
-    kind: 'species',
-    entityId: 'sandling',
-    name: 'Песчаник',
-    eliteName:
-      'Древний песчаник',
-    area: 'Соляная низина',
-    weakness: 'Молот ×2',
-    resistance: 'Топор ×0.5',
-    dropText:
-      '5 монет · элита 20',
-    texture:
-      'ruinstead-enemy-sandling',
-    eliteTexture:
-      'ruinstead-enemy-sandling-elite',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:sun-scorpion',
-    kind: 'species',
-    entityId: 'sun-scorpion',
-    name:
-      'Солнечный скорпион',
-    eliteName:
-      'Золотой скорпион',
-    area:
-      'Скорпионья лощина',
-    weakness: 'Молот ×2',
-    resistance: 'Топор ×0.5',
-    dropText:
-      '6 монет · элита 24',
-    texture:
-      'ruinstead-enemy-sun-scorpion',
-    eliteTexture:
-      'ruinstead-enemy-sun-scorpion-elite',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:ruin-gargoyle',
-    kind: 'species',
-    entityId: 'ruin-gargoyle',
-    name: 'Руинный страж',
-    eliteName:
-      'Крылатый страж',
-    area:
-      'Кристальные руины',
-    weakness: 'Молот ×2',
-    resistance: 'Топор ×0.5',
-    dropText:
-      '7 монет · элита 28',
-    texture:
-      'ruinstead-enemy-ruin-gargoyle',
-    eliteTexture:
-      'ruinstead-enemy-ruin-gargoyle-elite',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'species:emberling',
-    kind: 'species',
-    entityId: 'emberling',
-    name: 'Искровик',
-    eliteName:
-      'Пылающий искровик',
-    area:
-      'Солнечный кратер',
-    weakness: 'Молот ×2',
-    resistance: 'Топор ×0.5',
-    dropText:
-      '7 монет · элита 28',
-    texture:
-      'ruinstead-enemy-emberling',
-    eliteTexture:
-      'ruinstead-enemy-emberling-elite',
-    thresholds:
-      SPECIES_THRESHOLDS,
-  },
-  {
-    entryId:
-      'boss:ash-matriarch',
-    kind: 'boss',
-    entityId: 'ash-matriarch',
-    name:
-      'Пепельная матриархиня',
-    area:
-      'Север Пепельных нагорий',
-    weakness:
-      'Копьё ×2',
-    resistance:
-      'Молот ×0.5',
-    dropText:
-      '45 монет · копия кинжалов · волокно/кристалл',
-    texture:
-      'ruinstead-boss-ash-matriarch',
-    thresholds:
-      BOSS_THRESHOLDS,
-  },
-  {
-    entryId:
-      'boss:prism-golem',
-    kind: 'boss',
-    entityId: 'prism-golem',
-    name:
-      'Призменный голем',
-    area:
-      'Кристальные руины',
-    weakness:
-      'Молот ×2',
-    resistance:
-      'Топор ×0.5',
-    dropText:
-      '58 монет · копия кинжалов · солнечные кристаллы',
-    texture:
-      'ruinstead-boss-prism-golem',
-    thresholds:
-      BOSS_THRESHOLDS,
-  },
-  {
-    entryId:
-      'boss:sun-tyrant',
-    kind: 'boss',
-    entityId: 'sun-tyrant',
-    name:
-      'Солнечный тиран',
-    area:
-      'Солнечный кратер',
-    weakness:
-      'Меч ×2',
-    resistance:
-      'Копьё ×0.5',
-    dropText:
-      '82 монеты · открывает молот',
-    texture:
-      'ruinstead-boss-sun-tyrant',
-    thresholds:
-      BOSS_THRESHOLDS,
-  }
-];
+  readonly BestiaryDefinition[] =
+  buildBestiaryDefinitions();
 
 export class BestiarySystem {
   constructor(

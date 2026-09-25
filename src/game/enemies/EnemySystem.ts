@@ -375,36 +375,49 @@ function buildHabitats():
               2 +
             habitatIndex *
               0.31;
-          groups.push([
-            Math.round(
+          const groupPoint =
+            moveOutsideSettlement(
+              regionId,
               centerX +
               Math.cos(
                 angle,
               ) *
                 125,
-            ),
-            Math.round(
               centerY +
               Math.sin(
                 angle,
               ) *
                 95,
-            ),
-          ]);
-          elites.push([
-            Math.round(
+            );
+          const elitePoint =
+            moveOutsideSettlement(
+              regionId,
               centerX +
               Math.cos(
                 angle + 0.55,
               ) *
                 205,
-            ),
-            Math.round(
               centerY +
               Math.sin(
                 angle + 0.55,
               ) *
                 155,
+            );
+
+          groups.push([
+            Math.round(
+              groupPoint.x,
+            ),
+            Math.round(
+              groupPoint.y,
+            ),
+          ]);
+          elites.push([
+            Math.round(
+              elitePoint.x,
+            ),
+            Math.round(
+              elitePoint.y,
             ),
           ]);
         }
@@ -424,6 +437,55 @@ function buildHabitats():
 const HABITATS:
   readonly HabitatDefinition[] =
   buildHabitats();
+
+function moveOutsideSettlement(
+  regionId: number,
+  x: number,
+  y: number,
+): Phaser.Math.Vector2 {
+  const point =
+    new Phaser.Math.Vector2(
+      x,
+      y,
+    );
+
+  if (regionId !== 1) {
+    return point;
+  }
+
+  const dx =
+    x -
+    SETTLEMENT_CENTER.x;
+  const dy =
+    y -
+    SETTLEMENT_CENTER.y;
+  const distance =
+    Math.max(
+      1,
+      Math.hypot(dx, dy),
+    );
+  const minimumDistance =
+    SETTLEMENT_SAFE_RADIUS +
+    150;
+
+  if (
+    distance >=
+    minimumDistance
+  ) {
+    return point;
+  }
+
+  return new Phaser.Math.Vector2(
+    SETTLEMENT_CENTER.x +
+      dx /
+        distance *
+        minimumDistance,
+    SETTLEMENT_CENTER.y +
+      dy /
+        distance *
+        minimumDistance,
+  );
+}
 
 const GROUP_MEMBER_OFFSETS:
   ReadonlyArray<

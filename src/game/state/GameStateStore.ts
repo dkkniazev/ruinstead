@@ -266,6 +266,12 @@ export function sanitizeGameState(value: unknown): GameState {
       defaults.world
         .defeatedBosses,
     );
+  const unlockedZones =
+    stringArray(
+      world?.unlockedZones,
+      defaults.world
+        .unlockedZones,
+    );
   const sourceSchemaVersion =
     nonNegativeInt(
       root?.schemaVersion,
@@ -388,6 +394,36 @@ export function sanitizeGameState(value: unknown): GameState {
       )
       ? playerPosition.y
       : undefined;
+
+  const normalizedPlayerPosition =
+    positionX !== undefined &&
+    positionY !== undefined
+      ? sourceSchemaVersion < 22
+        ? positionX >= 5600 &&
+          unlockedZones.includes(
+            'stage-3',
+          )
+          ? {
+              x: 1900,
+              y: 2350,
+            }
+          : positionX >= 2980 &&
+              unlockedZones.includes(
+                'stage-2',
+              )
+            ? {
+                x: 2170,
+                y: 3930,
+              }
+            : {
+                x: 3650,
+                y: 4560,
+              }
+        : {
+            x: positionX,
+            y: positionY,
+          }
+      : null;
 
   const buildings = {
     ...defaults.settlement.buildings,
@@ -578,10 +614,7 @@ export function sanitizeGameState(value: unknown): GameState {
       },
     },
     world: {
-      unlockedZones: stringArray(
-        world?.unlockedZones,
-        defaults.world.unlockedZones,
-      ),
+      unlockedZones,
       defeatedBosses,
       bossRespawnAt: numberRecord(
         world?.bossRespawnAt,
@@ -605,13 +638,7 @@ export function sanitizeGameState(value: unknown): GameState {
             .openedChests,
         ),
       playerPosition:
-        positionX !== undefined &&
-        positionY !== undefined
-          ? {
-              x: positionX,
-              y: positionY,
-            }
-          : null,
+        normalizedPlayerPosition,
     },
     resources: {
       wood: nonNegativeInt(

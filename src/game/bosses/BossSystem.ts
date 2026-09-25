@@ -129,7 +129,7 @@ function buildBossDefinitions():
         > = [
         [-0.52, -0.48],
         [0.52, -0.38],
-        [0.18, 0.52],
+        [0.18, 0.68],
       ];
       const offset =
         offsets[index];

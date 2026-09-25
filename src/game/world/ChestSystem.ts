@@ -41,8 +41,8 @@ function buildChests():
       ReadonlyArray<
         readonly [number, number]
       > = [
-      [-0.18, 0.1],
-      [0.48, 0.2],
+      [-0.46, -0.12],
+      [0.5, 0.25],
     ];
 
     positions.forEach(

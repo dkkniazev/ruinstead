@@ -647,6 +647,20 @@ export function sanitizeGameState(value: unknown): GameState {
           defaults.monetization
             .lastBossRespawnAdAt,
         ),
+      lastSupplyAdAt:
+        nonNegativeInt(
+          monetization
+            ?.lastSupplyAdAt,
+          defaults.monetization
+            .lastSupplyAdAt,
+        ),
+      lastForgeWeaponAdAt:
+        nonNegativeInt(
+          monetization
+            ?.lastForgeWeaponAdAt,
+          defaults.monetization
+            .lastForgeWeaponAdAt,
+        ),
       grantedPurchaseTokens:
         stringArray(
           monetization

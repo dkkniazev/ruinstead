@@ -95,6 +95,10 @@ export const HUD_BLESSING_EVENT =
   'ruinstead:hud:blessing';
 export const HUD_BOSS_RESPAWN_EVENT =
   'ruinstead:hud:boss-respawn';
+export const HUD_SUPPLY_EVENT =
+  'ruinstead:hud:supply';
+export const HUD_FORGE_WEAPON_REWARD_EVENT =
+  'ruinstead:hud:forge-weapon-reward';
 export const HUD_MONETIZATION_STATE_EVENT =
   'ruinstead:hud:monetization-state';
 export const HUD_MONETIZATION_ACTION_EVENT =
@@ -152,6 +156,13 @@ export type BlessingKind =
   | 'speed'
   | 'gathering';
 
+export type SupplyResourceType =
+  | 'wood'
+  | 'stone'
+  | 'metal'
+  | 'crystal'
+  | 'fiber';
+
 export type MonetizationOfferPlacement =
   | 'death_revive'
   | 'boss_reward'
@@ -169,6 +180,10 @@ export type MonetizationHudState = {
     expiresAt: number;
   } | null;
   bossRespawnResetCooldownRemainingMs:
+    number;
+  supplyCooldownRemainingMs:
+    number;
+  forgeWeaponCooldownRemainingMs:
     number;
   offer: {
     placement:
@@ -192,6 +207,13 @@ export type HudBlessingHandler =
   (kind: BlessingKind) => void;
 export type HudBossRespawnHandler =
   () => void;
+export type HudSupplyHandler =
+  (
+    resource:
+      SupplyResourceType,
+  ) => void;
+export type HudForgeWeaponRewardHandler =
+  (weaponId: WeaponId) => void;
 export type HudMonetizationStateHandler =
   (state: MonetizationHudState) => void;
 export type HudMonetizationActionHandler =

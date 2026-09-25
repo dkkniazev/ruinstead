@@ -15,6 +15,17 @@ export const MONETIZATION_CONFIG = {
   bossRewardMultiplier: 2,
   bossRespawnResetAdCooldownMs:
     60 * 60 * 1000,
+  supplyAdCooldownMs:
+    15 * 60 * 1000,
+  forgeWeaponAdCooldownMs:
+    30 * 60 * 1000,
+  supplyRewards: {
+    wood: 30,
+    stone: 20,
+    metal: 10,
+    crystal: 6,
+    fiber: 10,
+  },
   bossTicketDropChance: 0.08,
   returnTicketPackSize: 5,
   returnTicketProductId:

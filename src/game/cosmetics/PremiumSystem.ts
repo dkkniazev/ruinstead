@@ -191,12 +191,11 @@ export function getShardShopOffers(
         ([id, definition]) =>
           definition.source ===
             'chest' &&
-          allowed.includes(
-            definition.rarity as
-              'common' |
-              'uncommon' |
-              'rare' |
-              'epic',
+          (
+            allowed as
+              readonly string[]
+          ).includes(
+            definition.rarity,
           ) &&
           !used.has(id),
       );

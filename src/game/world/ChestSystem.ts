@@ -5,6 +5,13 @@ import type {
 import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
+import {
+  getRegionResourceProfile,
+} from '../economy/RegionEconomy';
+import {
+  getRegionDefinition,
+  type RegionId,
+} from './ReleaseRegionMap';
 
 type ChestDefinition = {
   id: string;
@@ -13,48 +20,129 @@ type ChestDefinition = {
   rewards: ResourceCounts;
 };
 
+function buildChests():
+  ChestDefinition[] {
+  const result:
+    ChestDefinition[] = [];
+
+  for (
+    let regionId = 1;
+    regionId <= 8;
+    regionId += 1
+  ) {
+    const id =
+      regionId as RegionId;
+    const region =
+      getRegionDefinition(id);
+    const profile =
+      getRegionResourceProfile(id);
+
+    const positions:
+      ReadonlyArray<
+        readonly [number, number]
+      > = [
+      [-0.18, 0.1],
+      [0.48, 0.2],
+    ];
+
+    positions.forEach(
+      (
+        [ox, oy],
+        index,
+      ) => {
+        const scale =
+          regionId +
+          index +
+          1;
+        const rewards:
+          ResourceCounts = {
+          wood:
+            profile.abundance
+              .wood > 0
+              ? Math.max(
+                  0,
+                  profile.abundance
+                    .wood *
+                    2 +
+                  index,
+                )
+              : 0,
+          stone:
+            profile.abundance
+              .stone > 0
+              ? Math.max(
+                  0,
+                  profile.abundance
+                    .stone +
+                  index,
+                )
+              : 0,
+          metal:
+            profile.abundance
+              .metal > 0
+              ? Math.max(
+                  1,
+                  Math.ceil(
+                    profile.abundance
+                      .metal /
+                      2,
+                  ),
+                )
+              : 0,
+          crystal:
+            profile.abundance
+              .crystal > 0
+              ? Math.max(
+                  1,
+                  Math.ceil(
+                    profile.abundance
+                      .crystal /
+                      2,
+                  ),
+                )
+              : 0,
+          fiber:
+            profile.abundance
+              .fiber > 0
+              ? Math.max(
+                  1,
+                  profile.abundance
+                    .fiber +
+                  index,
+                )
+              : 0,
+          coins:
+            12 *
+            scale,
+        };
+
+        result.push({
+          id:
+            `region-${regionId}-cache-${index + 1}`,
+          x:
+            Math.round(
+              region.center[0] +
+              region.radiusX *
+                ox,
+            ),
+          y:
+            Math.round(
+              region.center[1] +
+              region.radiusY *
+                oy,
+            ),
+          rewards,
+        });
+      },
+    );
+  }
+
+  return result;
+}
+
 const CHESTS:
-  readonly ChestDefinition[] = [
-  {
-    id: 'stage-2-entry-cache',
-    x: 3150,
-    y: 1470,
-    rewards: {
-      wood: 0,
-      stone: 0,
-      metal: 2,
-      coins: 30,
-      crystal: 5,
-      fiber: 8,
-    },
-  },
-  {
-    id: 'stage-2-crystal-cache',
-    x: 3700,
-    y: 870,
-    rewards: {
-      wood: 0,
-      stone: 0,
-      metal: 1,
-      coins: 12,
-      crystal: 5,
-      fiber: 3,
-    },
-  },
-  {
-    id: 'stage-2-caravan-cache',
-    x: 4860,
-    y: 1110,
-    rewards: {
-      wood: 0,
-      stone: 2,
-      metal: 1,
-      coins: 18,
-      crystal: 3,
-      fiber: 7,
-    },
-  },
-];
+  readonly ChestDefinition[] =
+  buildChests();
 
 const OPEN_RANGE = 82;
 

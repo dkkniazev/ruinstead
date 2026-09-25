@@ -21,6 +21,7 @@ import {
 } from '../world/ReleaseWorldContent';
 import {
   getRegionDefinition,
+  regionIsUnlocked,
   type RegionId,
 } from '../world/ReleaseRegionMap';
 
@@ -1795,13 +1796,18 @@ export class BossSystem {
 
   private readonly bosses:
     BossUnit[] = [];
+  private readonly activeRegions =
+    new Set<RegionId>();
   private playerThreatened = false;
 
   constructor(
-    scene: Phaser.Scene,
-    bossRespawnAt:
+    private readonly scene:
+      Phaser.Scene,
+    private readonly bossRespawnAt:
       Record<string, number>,
-    onDefeated:
+    unlockedZones:
+      readonly string[],
+    private readonly onDefeated:
       (event: BossDefeatEvent) => void,
     private readonly onEncounter?:
       (bossId: string) => void,
@@ -1812,21 +1818,64 @@ export class BossSystem {
       scene.physics.add.group();
 
     for (
+      let region = 1;
+      region <= 8;
+      region += 1
+    ) {
+      const id =
+        region as RegionId;
+
+      if (
+        regionIsUnlocked(
+          unlockedZones,
+          id,
+        )
+      ) {
+        this.unlockRegion(id);
+      }
+    }
+  }
+
+  unlockRegion(
+    regionId: RegionId,
+  ): boolean {
+    if (
+      this.activeRegions.has(
+        regionId,
+      )
+    ) {
+      return false;
+    }
+
+    this.activeRegions.add(
+      regionId,
+    );
+
+    for (
       const definition of
       BOSS_DEFINITIONS
     ) {
+      if (
+        definition.region !==
+          regionId
+      ) {
+        continue;
+      }
+
       this.bosses.push(
         new BossUnit(
-          scene,
+          this.scene,
           this.group,
           definition,
-          bossRespawnAt[
+          this.bossRespawnAt[
             definition.id
           ] ?? 0,
-          onDefeated,
+          this.onDefeated,
         ),
       );
     }
+
+    return true;
   }
 
   isPlayerThreatened(): boolean {

@@ -20,6 +20,7 @@ import {
 } from '../world/ReleaseWorldContent';
 import {
   getRegionDefinition,
+  regionIsUnlocked,
   type RegionId,
 } from '../world/ReleaseRegionMap';
 
@@ -540,6 +541,9 @@ function buildSpawns():
 
   return spawns;
 }
+
+const ALL_SPAWNS =
+  buildSpawns();
 
 export class EnemyUnit {
   readonly sprite:
@@ -1444,10 +1448,15 @@ export class EnemySystem {
     EnemyUnit[] = [];
   private readonly engagedGroups =
     new Set<string>();
+  private readonly activeRegions =
+    new Set<RegionId>();
   private playerThreatened = false;
 
   constructor(
-    scene: Phaser.Scene,
+    private readonly scene:
+      Phaser.Scene,
+    unlockedZones:
+      readonly string[],
     private readonly onEncounter?:
       (
         speciesId:
@@ -1461,17 +1470,61 @@ export class EnemySystem {
       scene.physics.add.group();
 
     for (
-      const spawn of
-      buildSpawns()
+      let region = 1;
+      region <= 8;
+      region += 1
     ) {
+      const id =
+        region as RegionId;
+
+      if (
+        regionIsUnlocked(
+          unlockedZones,
+          id,
+        )
+      ) {
+        this.unlockRegion(id);
+      }
+    }
+  }
+
+  unlockRegion(
+    regionId: RegionId,
+  ): boolean {
+    if (
+      this.activeRegions.has(
+        regionId,
+      )
+    ) {
+      return false;
+    }
+
+    this.activeRegions.add(
+      regionId,
+    );
+
+    for (
+      const spawn of
+      ALL_SPAWNS
+    ) {
+      if (
+        DEFINITIONS[
+          spawn.species
+        ].region !== regionId
+      ) {
+        continue;
+      }
+
       this.enemies.push(
         new EnemyUnit(
-          scene,
+          this.scene,
           this.group,
           spawn,
         ),
       );
     }
+
+    return true;
   }
 
   isPlayerThreatened(): boolean {

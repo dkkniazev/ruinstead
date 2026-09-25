@@ -547,6 +547,8 @@ export class WorldScene
     this.enemies =
       new EnemySystem(
         this,
+        this.gameState.world
+          .unlockedZones,
         (
           speciesId,
           rank,
@@ -564,6 +566,8 @@ export class WorldScene
         this,
         this.gameState.world
           .bossRespawnAt,
+        this.gameState.world
+          .unlockedZones,
         (event) => {
           this.handleBossDefeated(
             event,
@@ -5164,6 +5168,14 @@ export class WorldScene
       ?.sync(
         this.gameState.world
           .unlockedZones,
+      );
+    this.enemies
+      ?.unlockRegion(
+        regionId,
+      );
+    this.bosses
+      ?.unlockRegion(
+        regionId,
       );
 
     return true;

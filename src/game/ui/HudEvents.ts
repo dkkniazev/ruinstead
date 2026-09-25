@@ -287,6 +287,16 @@ export type PremiumHudState = {
   ownedPets: string[];
   equippedPet:
     PetId | null;
+  purchaseCatalog:
+    Record<
+      string,
+      {
+        title: string;
+        description: string;
+        price: string;
+        currencyIconUrl: string;
+      }
+    >;
 };
 
 export type HudPlayerProgressStateHandler =

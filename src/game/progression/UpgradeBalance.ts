@@ -323,6 +323,66 @@ export function getWeaponUpgradeCost(
   };
 }
 
+export function getWeaponFusionCost(
+  stars: number,
+): ResourceCounts | null {
+  const safeStars =
+    Math.max(
+      0,
+      Math.floor(stars),
+    );
+
+  switch (safeStars) {
+    case 0:
+      return {
+        wood: 0,
+        stone: 2,
+        metal: 4,
+        crystal: 0,
+        fiber: 0,
+        coins: 60,
+      };
+    case 1:
+      return {
+        wood: 0,
+        stone: 6,
+        metal: 8,
+        crystal: 0,
+        fiber: 0,
+        coins: 120,
+      };
+    case 2:
+      return {
+        wood: 0,
+        stone: 8,
+        metal: 12,
+        crystal: 6,
+        fiber: 6,
+        coins: 220,
+      };
+    case 3:
+      return {
+        wood: 0,
+        stone: 12,
+        metal: 20,
+        crystal: 12,
+        fiber: 12,
+        coins: 380,
+      };
+    case 4:
+      return {
+        wood: 0,
+        stone: 18,
+        metal: 30,
+        crystal: 24,
+        fiber: 20,
+        coins: 650,
+      };
+    default:
+      return null;
+  }
+}
+
 export function canAffordUpgrade(
   storage: ResourceCounts,
   cost: ResourceCounts | null,

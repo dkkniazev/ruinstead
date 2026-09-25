@@ -4,6 +4,7 @@ export type YandexPlayer = {
     data: Record<string, unknown>,
     flush?: boolean,
   ): Promise<void>;
+  isAuthorized?(): boolean;
 };
 
 type AdCallbacks = {
@@ -11,6 +12,10 @@ type AdCallbacks = {
   onClose?: (wasShown?: boolean) => void;
   onError?: (error: unknown) => void;
 };
+
+export type YandexGameApiEvent =
+  | 'game_api_pause'
+  | 'game_api_resume';
 
 export type YandexSdk = {
   environment?: {
@@ -20,6 +25,38 @@ export type YandexSdk = {
   };
   getPlayer(): Promise<YandexPlayer>;
   getStorage?(): Promise<Storage>;
+  auth?: {
+    openAuthDialog(): Promise<void>;
+  };
+  on?(
+    event: YandexGameApiEvent,
+    callback: () => void,
+  ): void;
+  off?(
+    event: YandexGameApiEvent,
+    callback: () => void,
+  ): void;
+  screen?: {
+    fullscreen?: {
+      status?: string;
+      STATUS_ON?: string;
+      STATUS_OFF?: string;
+      request?(): Promise<void>;
+      exit?(): Promise<void>;
+    };
+  };
+  deviceInfo?(): {
+    type?:
+      | 'desktop'
+      | 'mobile'
+      | 'tablet'
+      | 'tv'
+      | string;
+    isMobile?(): boolean;
+    isDesktop?(): boolean;
+    isTablet?(): boolean;
+    isTV?(): boolean;
+  };
   adv: {
     showRewardedVideo(options: {
       callbacks: AdCallbacks & {

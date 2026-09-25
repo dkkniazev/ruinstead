@@ -9,6 +9,8 @@ import {
   setLanguageFromCode,
 } from './i18n/I18n';
 import {
+  YANDEX_PLATFORM_PAUSE_EVENT,
+  YANDEX_PLATFORM_RESUME_EVENT,
   initializeYandexPlatform,
   resumeYandexGameplay,
   suspendYandexGameplay,
@@ -16,6 +18,12 @@ import {
 import {
   flushYandexCloudSave,
 } from './platform/yandex/YandexCloudSave';
+
+type RuntimePauseReason =
+  | 'visibility'
+  | 'focus'
+  | 'advertisement'
+  | 'platform';
 
 async function bootstrap(): Promise<void> {
   const languageOverride =
@@ -36,6 +44,46 @@ async function bootstrap(): Promise<void> {
   const game =
     new Phaser.Game(gameConfig);
 
+  const runtimePauseReasons =
+    new Set<RuntimePauseReason>();
+
+  const syncRuntimePause =
+    (): void => {
+      const paused =
+        runtimePauseReasons
+          .size > 0;
+
+      if (paused) {
+        game.loop.sleep();
+        game.sound.mute = true;
+      } else {
+        game.loop.wake();
+        game.sound.mute = false;
+      }
+    };
+
+  const addRuntimePause =
+    (
+      reason:
+        RuntimePauseReason,
+    ): void => {
+      runtimePauseReasons.add(
+        reason,
+      );
+      syncRuntimePause();
+    };
+
+  const removeRuntimePause =
+    (
+      reason:
+        RuntimePauseReason,
+    ): void => {
+      runtimePauseReasons.delete(
+        reason,
+      );
+      syncRuntimePause();
+    };
+
   let resizeFrame:
     number | undefined;
 
@@ -52,8 +100,11 @@ async function bootstrap(): Promise<void> {
       resizeFrame =
         window.requestAnimationFrame(
           () => {
-            resizeFrame = undefined;
-            syncGameViewport(game);
+            resizeFrame =
+              undefined;
+            syncGameViewport(
+              game,
+            );
           },
         );
     };
@@ -68,8 +119,30 @@ async function bootstrap(): Promise<void> {
       scheduleViewportSync,
     );
   window.addEventListener(
-    'focus',
+    'orientationchange',
     scheduleViewportSync,
+  );
+  document.addEventListener(
+    'fullscreenchange',
+    scheduleViewportSync,
+  );
+
+  window.addEventListener(
+    'focus',
+    () => {
+      removeRuntimePause(
+        'focus',
+      );
+      scheduleViewportSync();
+    },
+  );
+  window.addEventListener(
+    'blur',
+    () => {
+      addRuntimePause(
+        'focus',
+      );
+    },
   );
 
   document
@@ -91,15 +164,39 @@ async function bootstrap(): Promise<void> {
   window.addEventListener(
     'yandex-ad-open',
     () => {
-      game.sound.mute = true;
+      addRuntimePause(
+        'advertisement',
+      );
+      void flushYandexCloudSave();
     },
   );
 
   window.addEventListener(
     'yandex-ad-close',
     () => {
-      game.sound.mute =
-        document.hidden;
+      removeRuntimePause(
+        'advertisement',
+      );
+    },
+  );
+
+  window.addEventListener(
+    YANDEX_PLATFORM_PAUSE_EVENT,
+    () => {
+      addRuntimePause(
+        'platform',
+      );
+      void flushYandexCloudSave();
+    },
+  );
+
+  window.addEventListener(
+    YANDEX_PLATFORM_RESUME_EVENT,
+    () => {
+      removeRuntimePause(
+        'platform',
+      );
+      scheduleViewportSync();
     },
   );
 
@@ -110,11 +207,15 @@ async function bootstrap(): Promise<void> {
         suspendYandexGameplay(
           'visibility',
         );
+        addRuntimePause(
+          'visibility',
+        );
         void flushYandexCloudSave();
-        game.sound.mute = true;
       } else {
-        game.sound.mute = false;
         resumeYandexGameplay(
+          'visibility',
+        );
+        removeRuntimePause(
           'visibility',
         );
         scheduleViewportSync();

@@ -49,6 +49,12 @@ import type {
   CityBuildingId,
 } from '../game/settlement/CityBuilderSystem';
 import {
+  YANDEX_PLATFORM_STATE_EVENT,
+  getYandexPlatformState,
+  requestYandexAuthorization,
+  type YandexPlatformState,
+} from '../platform/yandex/YandexPlatform';
+import {
   MAX_PLAYER_UPGRADE_LEVEL,
   getPlayerUpgradeCost,
   getWeaponUpgradeCost,
@@ -111,6 +117,12 @@ export class HudScene
   private cityPanelOpen = false;
   private cityOpenButton?:
     Phaser.GameObjects.Text;
+  private yandexAuthButton?:
+    Phaser.GameObjects.Text;
+  private yandexPlatformState:
+    YandexPlatformState =
+      getYandexPlatformState();
+  private yandexAuthBusy = false;
   private cityPanel?:
     Phaser.GameObjects.Container;
   private cityHeaderText?:
@@ -291,6 +303,7 @@ export class HudScene
     this.createQuestPanel();
     this.createBestiaryUi();
     this.createCityBuilderUi();
+    this.createYandexPlatformUi();
     this.createControlsHint();
     this.createNoticeLayer();
 
@@ -328,6 +341,11 @@ export class HudScene
       HUD_CITY_STATE_EVENT,
       this.handleCityState,
       this,
+    );
+
+    window.addEventListener(
+      YANDEX_PLATFORM_STATE_EVENT,
+      this.handleYandexPlatformState,
     );
     this.game.events.on(
       HUD_AREA_EVENT,
@@ -2087,6 +2105,43 @@ export class HudScene
       panel;
   }
 
+  private createYandexPlatformUi(): void {
+    this.yandexAuthButton =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          346,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#4b465fee',
+            padding: {
+              x: 10,
+              y: 7,
+            },
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(110)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.yandexAuthButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        void this.handleYandexAuthClick();
+      },
+    );
+
+    this.renderYandexPlatformState();
+  }
+
   private createControlsHint(): void {
     this.add
       .text(
@@ -2141,6 +2196,138 @@ export class HudScene
     this.game.events.emit(
       HUD_HEALTH_POTION_EVENT,
     );
+  }
+
+  private handleYandexPlatformState =
+    (
+      event: Event,
+    ): void => {
+      const custom =
+        event as
+          CustomEvent<
+            YandexPlatformState
+          >;
+
+      this.yandexPlatformState = {
+        ...custom.detail,
+      };
+      this.renderYandexPlatformState();
+    };
+
+  private renderYandexPlatformState(): void {
+    const button =
+      this.yandexAuthButton;
+
+    if (!button) {
+      return;
+    }
+
+    const state =
+      this.yandexPlatformState;
+
+    button.setVisible(
+      state.available,
+    );
+
+    if (!state.available) {
+      return;
+    }
+
+    if (this.yandexAuthBusy) {
+      button
+        .setText(
+          'Yandex ID · вход…',
+        )
+        .setStyle({
+          backgroundColor:
+            '#4b465fee',
+          color: '#d7d5dd',
+        });
+      return;
+    }
+
+    if (state.authorized) {
+      button
+        .setText(
+          'Yandex ID · облако ✓',
+        )
+        .setStyle({
+          backgroundColor:
+            '#315b43ee',
+          color: '#d9ffdf',
+        });
+      return;
+    }
+
+    button
+      .setText(
+        'Войти · облачное сохранение',
+      )
+      .setStyle({
+        backgroundColor:
+          '#5d4f78ee',
+        color: '#fff4ce',
+      });
+  }
+
+  private async handleYandexAuthClick():
+    Promise<void> {
+    if (
+      this.yandexAuthBusy ||
+      !this.yandexPlatformState
+        .available ||
+      this.yandexPlatformState
+        .authorized
+    ) {
+      return;
+    }
+
+    this.yandexAuthBusy = true;
+    this.renderYandexPlatformState();
+
+    const result =
+      await requestYandexAuthorization();
+
+    this.yandexAuthBusy = false;
+    this.yandexPlatformState =
+      getYandexPlatformState();
+    this.renderYandexPlatformState();
+
+    if (
+      result === 'authorized' ||
+      result ===
+        'already-authorized'
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Yandex ID подключён · облачное сохранение синхронизировано',
+      );
+
+      window.setTimeout(
+        () => {
+          window.location.reload();
+        },
+        350,
+      );
+      return;
+    }
+
+    if (result === 'declined') {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Вход отменён · локальное сохранение продолжает работать',
+      );
+      return;
+    }
+
+    if (
+      result === 'error'
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Не удалось выполнить вход в Yandex ID',
+      );
+    }
   }
 
   private handleCityState(
@@ -3136,6 +3323,11 @@ export class HudScene
       HUD_CITY_STATE_EVENT,
       this.handleCityState,
       this,
+    );
+
+    window.removeEventListener(
+      YANDEX_PLATFORM_STATE_EVENT,
+      this.handleYandexPlatformState,
     );
     this.game.events.off(
       HUD_COMBAT_STATE_EVENT,

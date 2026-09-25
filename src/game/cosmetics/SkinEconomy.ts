@@ -34,17 +34,17 @@ export const SKIN_RARITIES:
   },
   uncommon: {
     statBonus: 0.10,
-    fragmentsToUnlock: 50,
+    fragmentsToUnlock: 30,
     directPurchaseOnly: false,
   },
   rare: {
     statBonus: 0.15,
-    fragmentsToUnlock: 80,
+    fragmentsToUnlock: 30,
     directPurchaseOnly: false,
   },
   epic: {
     statBonus: 0.20,
-    fragmentsToUnlock: 120,
+    fragmentsToUnlock: 30,
     directPurchaseOnly: false,
   },
   legendary: {
@@ -103,6 +103,7 @@ export const SKIN_CHESTS = {
 
 export const PREMIUM_ECONOMY_CONFIG = {
   currencyId: 'gems',
+  skinFragmentsPerDrop: 10,
   levelReward: 5,
   sideBossFirstClearReward: 10,
   mainBossFirstClearReward: 20,

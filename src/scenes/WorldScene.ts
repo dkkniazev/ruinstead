@@ -94,11 +94,17 @@ import {
   WEAPON_RARITIES,
   addWeaponDrop,
   canFuseWeapon,
+  clearWeaponSlot,
+  equipWeaponInSlot,
   equipWeaponVariant,
   fuseWeapon,
+  getEquippedLoadoutProfiles,
   getEquippedWeaponProfile,
+  getUnlockedWeaponSlotCount,
   getWeaponDamageMultiplier,
   listOwnedWeaponOptions,
+  normalizeWeaponLoadoutForPlayerLevel,
+  setPrimaryWeaponSlot,
   upgradeEquippedWeaponLevel,
   type EquippedWeaponProfile,
   type WeaponRarityId,
@@ -159,8 +165,13 @@ import {
   HUD_WEAPON_UPGRADE_EVENT,
   HUD_WEAPON_VARIANT_SELECT_EVENT,
   HUD_WEAPON_FUSE_EVENT,
+  HUD_CHARACTER_STATE_EVENT,
+  HUD_WEAPON_SLOT_EQUIP_EVENT,
+  HUD_WEAPON_SLOT_CLEAR_EVENT,
+  HUD_WEAPON_SLOT_PRIMARY_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type BlessingKind,
+  type CharacterHudState,
   type GatheringHudState,
   type MonetizationHudState,
   type MonetizationOfferPlacement,
@@ -296,13 +307,8 @@ export class WorldScene
   private bridgeRepairKey?:
     Phaser.Input.Keyboard.Key;
 
-  private weaponKeys:
-    Partial<
-      Record<
-        WeaponId,
-        Phaser.Input.Keyboard.Key
-      >
-    > = {};
+  private weaponSlotKeys:
+    Phaser.Input.Keyboard.Key[] = [];
 
   constructor() {
     super('WorldScene');
@@ -670,6 +676,12 @@ export class WorldScene
               .maxHealthLevel,
           weaponProfiles:
             this.weaponCombatProfiles,
+          loadoutProfiles:
+            this.weaponLoadoutProfiles,
+          primarySlot:
+            this.gameState.player
+              .weaponInventory
+              .primarySlot,
         },
         this.gameState
           .consumables
@@ -753,6 +765,21 @@ export class WorldScene
     this.game.events.on(
       HUD_WEAPON_FUSE_EVENT,
       this.handleWeaponFuse,
+      this,
+    );
+    this.game.events.on(
+      HUD_WEAPON_SLOT_EQUIP_EVENT,
+      this.handleWeaponSlotEquip,
+      this,
+    );
+    this.game.events.on(
+      HUD_WEAPON_SLOT_CLEAR_EVENT,
+      this.handleWeaponSlotClear,
+      this,
+    );
+    this.game.events.on(
+      HUD_WEAPON_SLOT_PRIMARY_EVENT,
+      this.handleWeaponSlotPrimary,
       this,
     );
     this.game.events.on(
@@ -888,6 +915,8 @@ export class WorldScene
           this.playerProgressHudState,
         initialPremiumState:
           this.premiumHudState,
+        initialCharacterState:
+          this.characterHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -1476,6 +1505,67 @@ export class WorldScene
     };
   }
 
+  private get weaponLoadoutProfiles():
+    Array<
+      EquippedWeaponProfile |
+      null
+    > {
+    if (!this.gameState) {
+      return [
+        {
+          weaponId: 'axe',
+          rarity: 'common',
+          level: 1,
+          stars: 0,
+        },
+        null,
+        null,
+        null,
+        null,
+      ];
+    }
+
+    return getEquippedLoadoutProfiles(
+      this.gameState.player
+        .weaponInventory,
+      this.gameState.progression
+        .playerLevel,
+    );
+  }
+
+  private get characterHudState():
+    CharacterHudState {
+    const state =
+      this.gameState;
+    const level =
+      state?.progression
+        .playerLevel ?? 1;
+
+    return {
+      level,
+      unlockedSlots:
+        getUnlockedWeaponSlotCount(
+          level,
+        ),
+      primarySlot:
+        state?.player
+          .weaponInventory
+          .primarySlot ?? 0,
+      slots:
+        this.weaponLoadoutProfiles,
+      inventory:
+        state
+          ? listOwnedWeaponOptions(
+              state.player
+                .weaponInventory,
+            )
+          : [],
+      storage:
+        this.gatheringHudState
+          .storage,
+    };
+  }
+
   private get upgradeHudState():
     UpgradeHudState {
     const state =
@@ -1813,23 +1903,17 @@ export class WorldScene
       return;
     }
 
-    const keyCodes = [
+    this.weaponSlotKeys = [
       Phaser.Input.Keyboard.KeyCodes.ONE,
       Phaser.Input.Keyboard.KeyCodes.TWO,
       Phaser.Input.Keyboard.KeyCodes.THREE,
       Phaser.Input.Keyboard.KeyCodes.FOUR,
       Phaser.Input.Keyboard.KeyCodes.FIVE,
-    ];
-
-    WEAPON_ORDER.forEach(
-      (weaponId, index) => {
-        this.weaponKeys[
-          weaponId
-        ] =
-          keyboard.addKey(
-            keyCodes[index],
-          );
-      },
+    ].map(
+      (keyCode) =>
+        keyboard.addKey(
+          keyCode,
+        ),
     );
   }
 
@@ -1860,6 +1944,15 @@ export class WorldScene
     this.game.events.emit(
       HUD_UPGRADE_STATE_EVENT,
       this.upgradeHudState,
+    );
+    this.emitCharacterState();
+  }
+
+  private emitCharacterState():
+    void {
+    this.game.events.emit(
+      HUD_CHARACTER_STATE_EVENT,
+      this.characterHudState,
     );
   }
 
@@ -3962,6 +4055,13 @@ export class WorldScene
       );
 
     if (result.levelsGained > 0) {
+      normalizeWeaponLoadoutForPlayerLevel(
+        this.gameState.player
+          .weaponInventory,
+        this.gameState.progression
+          .playerLevel,
+      );
+
       const passNotices =
         claimLevelPassRewards(
           this.gameState,
@@ -4825,6 +4925,10 @@ export class WorldScene
       this.gameState.player
         .maxHealthLevel,
       this.weaponCombatProfiles,
+      this.weaponLoadoutProfiles,
+      this.gameState.player
+        .weaponInventory
+        .primarySlot,
     );
 
     this.applyMetaProgression();
@@ -5241,34 +5345,140 @@ export class WorldScene
   }
 
   private handleWeaponKeys(): void {
-    for (
-      const weaponId of
-      WEAPON_ORDER
-    ) {
-      const key =
-        this.weaponKeys[
-          weaponId
-        ];
-
-      if (
-        key &&
-        Phaser.Input.Keyboard.JustDown(
-          key,
-        )
-      ) {
-        this.combat?.setWeapon(
-          weaponId,
-        );
-      }
-    }
+    this.weaponSlotKeys.forEach(
+      (key, index) => {
+        if (
+          Phaser.Input.Keyboard.JustDown(
+            key,
+          )
+        ) {
+          this.handleWeaponSlotPrimary(
+            index,
+          );
+        }
+      },
+    );
   }
 
   private handleHudWeaponSelect(
     weaponId: WeaponId,
   ): void {
-    this.combat?.setWeapon(
-      weaponId,
+    const slot =
+      this.weaponLoadoutProfiles
+        .findIndex(
+          (profile) =>
+            profile?.weaponId ===
+            weaponId,
+        );
+
+    if (slot >= 0) {
+      this.handleWeaponSlotPrimary(
+        slot,
+      );
+    }
+  }
+
+  private handleWeaponSlotEquip(
+    slot: number,
+    weaponId: WeaponId,
+    rarity: WeaponRarityId,
+    stars: number,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      equipWeaponInSlot(
+        this.gameState.player
+          .weaponInventory,
+        slot,
+        {
+          weaponId,
+          rarity,
+          stars,
+        },
+        this.gameState.progression
+          .playerLevel,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.success
+        ? `Слот ${slot + 1}: ${WEAPON_RARITIES[rarity].name} ${WEAPON_DEFINITIONS[weaponId].name} экипирован`
+        : result.reason ??
+          'Оружие не экипировано',
     );
+
+    if (!result.success) {
+      return;
+    }
+
+    this.applyProgression();
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private handleWeaponSlotClear(
+    slot: number,
+  ): void {
+    if (
+      !this.gameState ||
+      !clearWeaponSlot(
+        this.gameState.player
+          .weaponInventory,
+        slot,
+      )
+    ) {
+      return;
+    }
+
+    this.applyProgression();
+    this.emitProgressionState();
+    this.saveState();
+  }
+
+  private handleWeaponSlotPrimary(
+    slot: number,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const inventory =
+      this.gameState.player
+        .weaponInventory;
+
+    if (
+      !setPrimaryWeaponSlot(
+        inventory,
+        slot,
+        this.gameState.progression
+          .playerLevel,
+      )
+    ) {
+      return;
+    }
+
+    const profile =
+      getEquippedLoadoutProfiles(
+        inventory,
+        this.gameState.progression
+          .playerLevel,
+      )[slot];
+
+    if (!profile) {
+      return;
+    }
+
+    this.gameState.player
+      .weaponId =
+        profile.weaponId;
+    this.combat?.setPrimarySlot(
+      slot,
+    );
+    this.emitCharacterState();
+    this.saveState();
   }
 
   private updateAreaName(): void {
@@ -5388,6 +5598,21 @@ export class WorldScene
     this.game.events.off(
       HUD_WEAPON_FUSE_EVENT,
       this.handleWeaponFuse,
+      this,
+    );
+    this.game.events.off(
+      HUD_WEAPON_SLOT_EQUIP_EVENT,
+      this.handleWeaponSlotEquip,
+      this,
+    );
+    this.game.events.off(
+      HUD_WEAPON_SLOT_CLEAR_EVENT,
+      this.handleWeaponSlotClear,
+      this,
+    );
+    this.game.events.off(
+      HUD_WEAPON_SLOT_PRIMARY_EVENT,
+      this.handleWeaponSlotPrimary,
       this,
     );
     this.game.events.off(

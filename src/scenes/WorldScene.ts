@@ -889,6 +889,7 @@ export class WorldScene
           capacity: 20,
           used: 0,
           canCollect: false,
+          canBoost: false,
           cycleSeconds: 30,
         },
         buildings: [],

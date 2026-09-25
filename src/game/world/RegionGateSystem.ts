@@ -4,6 +4,7 @@ import {
   RELEASE_REGIONS,
   getRegionDefinition,
   regionIsUnlocked,
+  type RegionId,
   type RegionPassage,
 } from './ReleaseRegionMap';
 
@@ -84,6 +85,7 @@ export class RegionGateSystem {
       if (!open) {
         this.createGate(
           passage,
+          unlockedZones,
         );
       }
     }
@@ -277,6 +279,8 @@ export class RegionGateSystem {
   private createGate(
     passage:
       RegionPassage,
+    unlockedZones:
+      readonly string[],
   ): void {
     const endpoints =
       passageEndpoints(
@@ -358,13 +362,27 @@ export class RegionGateSystem {
       );
     }
 
-    const lockedRegion =
+    const aUnlocked =
       regionIsUnlocked(
-        [],
+        unlockedZones,
         passage.a,
-      )
+      );
+    const bUnlocked =
+      regionIsUnlocked(
+        unlockedZones,
+        passage.b,
+      );
+    const lockedRegion =
+      aUnlocked &&
+      !bUnlocked
         ? passage.b
-        : passage.a;
+        : bUnlocked &&
+            !aUnlocked
+          ? passage.a
+          : Math.max(
+              passage.a,
+              passage.b,
+            ) as RegionId;
     const target =
       getRegionDefinition(
         lockedRegion,

@@ -181,6 +181,16 @@ import {
   StageTwoGateSystem,
 } from '../game/world/StageTwoGateSystem';
 import {
+  RegionGateSystem,
+} from '../game/world/RegionGateSystem';
+import {
+  getRegionAt,
+  getRegionDefinition,
+  regionIsUnlocked,
+  stageIdForRegion,
+  type RegionId,
+} from '../game/world/ReleaseRegionMap';
+import {
   RETURN_POINT,
   RETURN_RADIUS,
   SETTLEMENT_CENTER,
@@ -260,6 +270,8 @@ export class WorldScene
     BridgeSystem;
   private stageTwoGateSystem?:
     StageTwoGateSystem;
+  private regionGateSystem?:
+    RegionGateSystem;
   private chestSystem?:
     ChestSystem;
   private readonly questDirector =
@@ -428,6 +440,13 @@ export class WorldScene
           ),
       );
 
+    this.regionGateSystem =
+      new RegionGateSystem(
+        this,
+        this.gameState.world
+          .unlockedZones,
+      );
+
     this.player =
       new PlayerController(
         this,
@@ -574,6 +593,11 @@ export class WorldScene
         .barriers,
     );
     this.physics.add.collider(
+      this.player.sprite,
+      this.regionGateSystem
+        .barriers,
+    );
+    this.physics.add.collider(
       this.enemies.group,
       world.obstacles,
     );
@@ -588,6 +612,11 @@ export class WorldScene
         .barriers,
     );
     this.physics.add.collider(
+      this.enemies.group,
+      this.regionGateSystem
+        .barriers,
+    );
+    this.physics.add.collider(
       this.bosses.group,
       world.obstacles,
     );
@@ -599,6 +628,11 @@ export class WorldScene
     this.physics.add.collider(
       this.bosses.group,
       this.stageTwoGateSystem
+        .barriers,
+    );
+    this.physics.add.collider(
+      this.bosses.group,
+      this.regionGateSystem
         .barriers,
     );
     this.physics.add.collider(
@@ -950,8 +984,7 @@ export class WorldScene
     this.updateCityBuilder();
     this.updateForestObjective();
     this.updateBridgeRepair();
-    this.updateStageTwoTransition();
-    this.updateStageThreeTransition();
+    this.updateRegionDiscovery();
     this.updateQuestDirector();
     this.handleWeaponKeys();
     this.updateAreaName();
@@ -2343,11 +2376,12 @@ export class WorldScene
         `${event.name} повержен! Кинжалы открыты · Сердце корней получено · теперь можно восстановить мост${ticketDropped ? ' · выпал билет домой' : ''}`,
       );
     } else if (
-      event.id ===
-        'sun-tyrant' &&
-      firstClear
+      firstClear &&
+      event.isMain
     ) {
       if (
+        event.id ===
+          'sun-tyrant' &&
         !this.gameState.world
           .uniqueRewards
           .includes(
@@ -2359,28 +2393,83 @@ export class WorldScene
           .push(
             'sun-core',
           );
+      }
+
+      let specialReward = '';
+
+      if (
+        event.id ===
+          'lava-golem' &&
+        !this.gameState.world
+          .uniqueRewards
+          .includes(
+            'magma-core',
+          )
+      ) {
+        this.gameState.world
+          .uniqueRewards
+          .push(
+            'magma-core',
+          );
+        this.gameState.premium
+          .freeSkinChests.rare +=
+            1;
+        this.gameState.consumables
+          .returnTickets += 2;
+        specialReward =
+          ' · Ядро магмы: +10% добычи навсегда · Rare-сундук ×1 · билеты ×2';
       }
 
       if (
+        event.id ===
+          'fire-dragon' &&
         !this.gameState.world
-          .unlockedZones
+          .uniqueRewards
           .includes(
-            'stage-3',
+            'dragon-heart',
           )
       ) {
         this.gameState.world
-          .unlockedZones
+          .uniqueRewards
           .push(
-            'stage-3',
+            'dragon-heart',
           );
+        this.gameState.premium
+          .freeSkinChests.epic +=
+            1;
+        this.gameState.consumables
+          .returnTickets += 5;
+        this.gameState.premium
+          .gems += 80;
+        specialReward =
+          ' · Сердце дракона: +10% урона навсегда · Epic-сундук ×1 · 80 самоцветов · билеты ×5';
       }
 
-      this.stageTwoGateSystem
-        ?.unlock();
+      const nextRegion =
+        event.region < 8
+          ? (
+              event.region +
+              1
+            ) as RegionId
+          : null;
+      const regionUnlocked =
+        nextRegion
+          ? this.unlockRegion(
+              nextRegion,
+            )
+          : false;
+      const nextName =
+        nextRegion
+          ? getRegionDefinition(
+              nextRegion,
+            ).name
+          : '';
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Молот открыт · Ядро солнца получено · врата в следующую часть мира открыты${ticketDropped ? ' · выпал билет домой' : ''}`,
+        nextRegion
+          ? `${event.name} повержен!${weaponDropText ? ` · ${weaponDropText}` : ''}${specialReward}${regionUnlocked ? ` · открыт регион ${nextRegion}: ${nextName}` : ''}${ticketDropped ? ' · билет домой ×1' : ''}`
+          : `${event.name} повержен! Финальный босс мира побеждён${specialReward}${ticketDropped ? ' · билет домой ×1' : ''}`,
       );
     } else {
       this.game.events.emit(
@@ -3020,8 +3109,24 @@ export class WorldScene
     const skinBonus =
       skin.multiplier - 1;
 
+    const dragonHeartBonus =
+      state.world.uniqueRewards
+        .includes(
+          'dragon-heart',
+        )
+        ? 0.1
+        : 0;
+    const magmaCoreBonus =
+      state.world.uniqueRewards
+        .includes(
+          'magma-core',
+        )
+        ? 0.1
+        : 0;
+
     const damageMultiplier =
       1 +
+      dragonHeartBonus +
       mastery.combat *
         PLAYER_MASTERY
           .combat
@@ -3098,6 +3203,7 @@ export class WorldScene
 
     const gatheringMultiplier =
       1 +
+      magmaCoreBonus +
       mastery.gathering *
         PLAYER_MASTERY
           .gathering
@@ -5007,19 +5113,7 @@ export class WorldScene
     this.gameState.settlement
       .repairStages.bridge = 3;
 
-    if (
-      !this.gameState.world
-        .unlockedZones
-        .includes(
-          'stage-2',
-        )
-    ) {
-      this.gameState.world
-        .unlockedZones
-        .push(
-          'stage-2',
-        );
-    }
+    this.unlockRegion(2);
 
     this.bridgeSystem.unlock(
       true,
@@ -5033,73 +5127,87 @@ export class WorldScene
     );
   }
 
-  private updateStageTwoTransition(): void {
+  private unlockRegion(
+    regionId: RegionId,
+  ): boolean {
     if (
-      !this.player ||
       !this.gameState ||
-      !this.bridgeSystem
-        ?.isUnlocked ||
-      !this.bridgeSystem
-        .isStageTwoEntryReached(
-          this.player.position,
-        ) ||
-      this.gameState.world
-        .discoveredLandmarks
-        .includes(
-          'stage-2-entry',
-        )
+      regionId === 1
     ) {
-      return;
+      return false;
+    }
+
+    const zoneId =
+      stageIdForRegion(
+        regionId,
+      );
+
+    if (
+      this.gameState.world
+        .unlockedZones
+        .includes(zoneId)
+    ) {
+      return false;
     }
 
     this.gameState.world
-      .discoveredLandmarks
-      .push(
-        'stage-2-entry',
+      .unlockedZones
+      .push(zoneId);
+
+    if (regionId === 3) {
+      this.stageTwoGateSystem
+        ?.unlock();
+    }
+
+    this.regionGateSystem
+      ?.sync(
+        this.gameState.world
+          .unlockedZones,
       );
 
-    this.gameState.premium
-      .gems += 25;
-    this.grantPlayerXp(
-      PLAYER_LEVEL_CONFIG
-        .xpRewards
-        .landmarkFirstDiscovery,
-    );
-
-    this.game.events.emit(
-      HUD_NOTICE_EVENT,
-      'Открыт новый регион · +25 самоцветов',
-    );
-
-    this.emitPremiumState();
-    this.evaluatePremiumAchievements();
-    this.saveState();
+    return true;
   }
 
-  private updateStageThreeTransition(): void {
+  private updateRegionDiscovery():
+    void {
     if (
       !this.player ||
-      !this.gameState ||
-      !this.stageTwoGateSystem
-        ?.isUnlocked ||
-      !this.stageTwoGateSystem
-        .isStageThreeEntryReached(
-          this.player.position,
-        ) ||
+      !this.gameState
+    ) {
+      return;
+    }
+
+    const region =
+      getRegionAt(
+        this.player.position,
+      );
+
+    if (
+      !region ||
+      region.id === 1 ||
+      !regionIsUnlocked(
+        this.gameState.world
+          .unlockedZones,
+        region.id,
+      )
+    ) {
+      return;
+    }
+
+    const key =
+      `stage-${region.id}-entry`;
+
+    if (
       this.gameState.world
         .discoveredLandmarks
-        .includes(
-          'stage-3-entry',
-        )
+        .includes(key)
     ) {
       return;
     }
 
     this.gameState.world
       .discoveredLandmarks
-      .push(
-        'stage-3-entry',
-      );
+      .push(key);
 
     this.gameState.premium
       .gems += 25;
@@ -5111,7 +5219,7 @@ export class WorldScene
 
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      'Открыт следующий регион · +25 самоцветов',
+      `Открыт регион ${region.id}: ${region.name} · +25 самоцветов`,
     );
 
     this.emitPremiumState();
@@ -5369,6 +5477,10 @@ export class WorldScene
 
     this.stageTwoGateSystem?.destroy();
     this.stageTwoGateSystem =
+      undefined;
+
+    this.regionGateSystem?.destroy();
+    this.regionGateSystem =
       undefined;
 
     this.chestSystem?.destroy();

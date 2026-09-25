@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 20 as const;
+export const SAVE_SCHEMA_VERSION = 21 as const;
 
 export type BuildingId =
   | 'forge'
@@ -126,6 +126,10 @@ export type GameState = {
     levelPassClaimedLevels:
       number[];
     starterPackOwned: boolean;
+    founderPackOwned: boolean;
+    shardShopDay: string;
+    shardShopPurchasedSlots:
+      number[];
     regionPacksOwned: string[];
     ownedSettlementThemes:
       string[];
@@ -287,6 +291,9 @@ export function createDefaultGameState(): GameState {
       levelPassOwned: false,
       levelPassClaimedLevels: [],
       starterPackOwned: false,
+      founderPackOwned: false,
+      shardShopDay: '',
+      shardShopPurchasedSlots: [],
       regionPacksOwned: [],
       ownedSettlementThemes: [
         'default',

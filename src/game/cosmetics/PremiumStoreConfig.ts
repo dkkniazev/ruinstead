@@ -80,11 +80,13 @@ export const PETS = {
     name: 'Моховичок',
     gemCost: 300,
     pickupRangeMultiplier: 1.15,
+    tint: 0x78a85a,
   },
   firefly: {
     name: 'Светляк',
     gemCost: 450,
     pickupRangeMultiplier: 1.25,
+    tint: 0xf6cf58,
   },
 } as const;
 

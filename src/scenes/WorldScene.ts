@@ -83,6 +83,9 @@ import {
   type SettlementThemeId,
 } from '../game/cosmetics/PremiumStoreConfig';
 import {
+  PetCompanion,
+} from '../game/cosmetics/PetCompanion';
+import {
   WEAPON_RARITIES,
   addWeaponDrop,
   canFuseWeapon,
@@ -229,6 +232,8 @@ export class WorldScene
     GameState;
   private player?:
     PlayerController;
+  private petCompanion?:
+    PetCompanion;
   private enemies?:
     EnemySystem;
   private bosses?:
@@ -420,6 +425,12 @@ export class WorldScene
           .moveSpeedLevel,
         this.gameState.player
           .dashLevel,
+      );
+
+    this.petCompanion =
+      new PetCompanion(
+        this,
+        this.player,
       );
 
     this.backpack =
@@ -853,6 +864,8 @@ export class WorldScene
     delta: number,
   ): void {
     this.player?.update(time);
+    this.petCompanion
+      ?.update(delta);
 
     if (
       this.player &&
@@ -3098,6 +3111,13 @@ export class WorldScene
         pet?.pickupRangeMultiplier ??
           1,
       );
+    this.petCompanion
+      ?.setPet(
+        petId &&
+        petId in PETS
+          ? petId as PetId
+          : null,
+      );
 
     this.combat
       ?.setTemporaryModifiers(
@@ -5087,6 +5107,9 @@ export class WorldScene
 
     this.enemies?.destroy();
     this.enemies = undefined;
+
+    this.petCompanion?.destroy();
+    this.petCompanion = undefined;
 
     this.player?.destroy();
     this.player = undefined;

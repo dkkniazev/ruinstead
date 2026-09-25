@@ -3909,6 +3909,8 @@ export class WorldScene
         >
       ).find(
         ([, definition]) =>
+          'productId' in
+            definition &&
           definition.productId ===
             productId,
       );

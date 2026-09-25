@@ -76,6 +76,7 @@ import {
   openSkinChest,
 } from '../game/cosmetics/PremiumSystem';
 import {
+  GEM_PACKS,
   PETS,
   REGION_PACKS,
   SETTLEMENT_THEMES,
@@ -198,6 +199,7 @@ import {
   createPurchaseProvider,
 } from '../platform/purchases/createPurchaseProvider';
 import type {
+  PurchaseCatalogItem,
   PurchaseReceipt,
 } from '../platform/purchases/PurchaseProvider';
 import {
@@ -212,6 +214,11 @@ export class WorldScene
     createAdsProvider();
   private readonly purchaseProvider =
     createPurchaseProvider();
+  private purchaseCatalog:
+    Record<
+      string,
+      PurchaseCatalogItem
+    > = {};
 
   private monetizationOffer:
     MonetizationHudState['offer'] =
@@ -853,6 +860,7 @@ export class WorldScene
       this,
     );
 
+    void this.loadPurchaseCatalog();
     void this.reconcilePendingPurchases();
 
     markYandexGameReady();
@@ -1255,6 +1263,7 @@ export class WorldScene
           'default',
         ownedPets: [],
         equippedPet: null,
+        purchaseCatalog: {},
       };
     }
 
@@ -1337,6 +1346,24 @@ export class WorldScene
       ],
       equippedPet:
         pet,
+      purchaseCatalog:
+        Object.fromEntries(
+          Object.entries(
+            this.purchaseCatalog,
+          ).map(
+            ([id, item]) => [
+              id,
+              {
+                title: item.title,
+                description:
+                  item.description,
+                price: item.price,
+                currencyIconUrl:
+                  item.currencyIconUrl,
+              },
+            ],
+          ),
+        ),
     };
   }
 
@@ -3382,6 +3409,111 @@ export class WorldScene
     );
   }
 
+  private async loadPurchaseCatalog():
+    Promise<void> {
+    if (
+      !this.purchaseProvider
+        .isAvailable()
+    ) {
+      return;
+    }
+
+    const items =
+      await this.purchaseProvider
+        .getCatalog();
+
+    this.purchaseCatalog =
+      Object.fromEntries(
+        items.map(
+          (item) => [
+            item.id,
+            item,
+          ],
+        ),
+      );
+
+    this.emitPremiumState();
+  }
+
+  private isConsumablePurchase(
+    productId: string,
+  ): boolean {
+    return (
+      productId ===
+        MONETIZATION_CONFIG
+          .returnTicketProductId ||
+      productId ===
+        MONETIZATION_CONFIG
+          .adFreeWeekProductId ||
+      productId in GEM_PACKS
+    );
+  }
+
+  private isPermanentPurchaseOwned(
+    productId: string,
+  ): boolean {
+    if (!this.gameState) {
+      return false;
+    }
+
+    if (
+      productId ===
+        'starter_pack'
+    ) {
+      return this.gameState
+        .premium
+        .starterPackOwned;
+    }
+
+    if (
+      productId ===
+        'level_pass'
+    ) {
+      return this.gameState
+        .premium
+        .levelPassOwned;
+    }
+
+    if (
+      productId in
+        REGION_PACKS
+    ) {
+      return this.gameState
+        .premium
+        .regionPacksOwned
+        .includes(
+          productId,
+        );
+    }
+
+    const legendary =
+      (
+        Object.entries(
+          SKIN_DEFINITIONS,
+        ) as Array<
+          [
+            SkinId,
+            (typeof SKIN_DEFINITIONS)[SkinId],
+          ]
+        >
+      ).find(
+        ([, definition]) =>
+          'productId' in
+            definition &&
+          definition.productId ===
+            productId,
+      );
+
+    return Boolean(
+      legendary &&
+      this.gameState.premium
+        .unlockedSkinIds
+        .includes(
+          legendary[0],
+        ),
+    );
+  }
+
   private async purchaseProduct(
     productId: string,
   ): Promise<void> {
@@ -3426,12 +3558,27 @@ export class WorldScene
       return;
     }
 
+    const consumable =
+      this.isConsumablePurchase(
+        receipt.productId,
+      );
     const alreadyGranted =
       this.gameState.monetization
         .grantedPurchaseTokens
         .includes(
           receipt.purchaseToken,
         );
+
+    if (
+      !consumable &&
+      this.isPermanentPurchaseOwned(
+        receipt.productId,
+      )
+    ) {
+      this.emitPremiumState();
+      this.emitPlayerProgressState();
+      return;
+    }
 
     if (!alreadyGranted) {
       if (
@@ -3481,6 +3628,15 @@ export class WorldScene
         if (
           !premiumResult.success
         ) {
+          if (
+            !consumable &&
+            this.isPermanentPurchaseOwned(
+              receipt.productId,
+            )
+          ) {
+            return;
+          }
+
           this.game.events.emit(
             HUD_NOTICE_EVENT,
             premiumResult.notice,
@@ -3506,16 +3662,18 @@ export class WorldScene
       await flushYandexCloudSave();
     }
 
-    try {
-      await this.purchaseProvider
-        .consume(
-          receipt.purchaseToken,
+    if (consumable) {
+      try {
+        await this.purchaseProvider
+          .consume(
+            receipt.purchaseToken,
+          );
+      } catch {
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Покупка начислена · подтверждение будет повторено при следующем запуске',
         );
-    } catch {
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        'Покупка начислена · подтверждение будет повторено при следующем запуске',
-      );
+      }
     }
 
     this.emitMonetizationState();

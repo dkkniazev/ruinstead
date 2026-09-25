@@ -383,12 +383,20 @@ function buildHabitats():
               Math.cos(
                 angle,
               ) *
-                125,
+                Math.min(
+                  430,
+                  region.radiusX *
+                    0.12,
+                ),
               centerY +
               Math.sin(
                 angle,
               ) *
-                95,
+                Math.min(
+                  330,
+                  region.radiusY *
+                    0.1,
+                ),
             );
           const elitePoint =
             moveOutsideSettlement(
@@ -397,12 +405,20 @@ function buildHabitats():
               Math.cos(
                 angle + 0.55,
               ) *
-                205,
+                Math.min(
+                  650,
+                  region.radiusX *
+                    0.18,
+                ),
               centerY +
               Math.sin(
                 angle + 0.55,
               ) *
-                155,
+                Math.min(
+                  500,
+                  region.radiusY *
+                    0.15,
+                ),
             );
 
           groups.push([

@@ -15,9 +15,9 @@ type GateVisual = {
     Phaser.GameObjects.Text;
 };
 
-const BOUNDARY_SEGMENTS = 42;
-const BOUNDARY_BLOCK = 105;
-const PASSAGE_APERTURE_RAD = 0.22;
+const BOUNDARY_BLOCK = 210;
+const BOUNDARY_TARGET_SPACING = 175;
+const PASSAGE_APERTURE_RAD = 0.085;
 
 export class RegionGateSystem {
   readonly barriers:
@@ -137,15 +137,45 @@ export class RegionGateSystem {
           },
         );
 
+      const circumference =
+        Math.PI *
+        (
+          3 *
+            (
+              region.radiusX +
+              region.radiusY
+            ) -
+          Math.sqrt(
+            (
+              3 *
+                region.radiusX +
+              region.radiusY
+            ) *
+            (
+              region.radiusX +
+              3 *
+                region.radiusY
+            ),
+          )
+        );
+      const boundarySegments =
+        Math.max(
+          64,
+          Math.ceil(
+            circumference /
+              BOUNDARY_TARGET_SPACING,
+          ),
+        );
+
       for (
         let index = 0;
         index <
-          BOUNDARY_SEGMENTS;
+          boundarySegments;
         index += 1
       ) {
         const angle =
           index /
-            BOUNDARY_SEGMENTS *
+            boundarySegments *
           Math.PI *
           2;
 

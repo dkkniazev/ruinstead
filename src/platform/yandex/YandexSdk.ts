@@ -17,6 +17,25 @@ export type YandexGameApiEvent =
   | 'game_api_pause'
   | 'game_api_resume';
 
+export type YandexPurchase = {
+  productID: string;
+  purchaseToken: string;
+  developerPayload?: string;
+};
+
+export type YandexPayments = {
+  purchase(options: {
+    id: string;
+    developerPayload?: string;
+  }): Promise<YandexPurchase>;
+  getPurchases(): Promise<
+    YandexPurchase[]
+  >;
+  consumePurchase(
+    purchaseToken: string,
+  ): Promise<void>;
+};
+
 export type YandexSdk = {
   environment?: {
     i18n?: {
@@ -25,6 +44,12 @@ export type YandexSdk = {
   };
   getPlayer(): Promise<YandexPlayer>;
   getStorage?(): Promise<Storage>;
+  payments?: YandexPayments;
+  getPayments?(
+    options?: {
+      signed?: boolean;
+    },
+  ): Promise<YandexPayments>;
   auth?: {
     openAuthDialog(): Promise<void>;
   };

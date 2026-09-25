@@ -20,6 +20,9 @@ import {
   LOCAL_SAVE_KEY,
   LOCAL_SAVE_META_KEY,
 } from './SaveKeys';
+import {
+  SETTLEMENT_CENTER,
+} from '../world/WorldPrototype';
 
 const BUILDING_IDS: BuildingId[] = [
   'forge',
@@ -398,27 +401,14 @@ export function sanitizeGameState(value: unknown): GameState {
   const normalizedPlayerPosition =
     positionX !== undefined &&
     positionY !== undefined
-      ? sourceSchemaVersion < 22
-        ? positionX >= 5600 &&
-          unlockedZones.includes(
-            'stage-3',
-          )
-          ? {
-              x: 1900,
-              y: 2350,
-            }
-          : positionX >= 2980 &&
-              unlockedZones.includes(
-                'stage-2',
-              )
-            ? {
-                x: 2170,
-                y: 3930,
-              }
-            : {
-                x: 3650,
-                y: 4560,
-              }
+      ? sourceSchemaVersion < 23
+        ? {
+            x:
+              SETTLEMENT_CENTER.x,
+            y:
+              SETTLEMENT_CENTER.y +
+              190,
+          }
         : {
             x: positionX,
             y: positionY,

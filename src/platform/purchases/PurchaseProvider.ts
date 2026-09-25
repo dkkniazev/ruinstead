@@ -3,6 +3,16 @@ export type PurchaseReceipt = {
   purchaseToken: string;
 };
 
+export type PurchaseCatalogItem = {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  priceValue: string;
+  priceCurrencyCode: string;
+  currencyIconUrl: string;
+};
+
 export type PurchaseResult =
   | {
       success: true;
@@ -21,6 +31,8 @@ export interface PurchaseProvider {
   purchase(
     productId: string,
   ): Promise<PurchaseResult>;
+  getCatalog():
+    Promise<PurchaseCatalogItem[]>;
   getPendingPurchases():
     Promise<PurchaseReceipt[]>;
   consume(

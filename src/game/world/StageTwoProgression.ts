@@ -28,8 +28,9 @@ const REGION_THREE =
 export const STAGE_THREE_ENTRY =
   new Phaser.Math.Vector2(
     REGION_THREE.center[0],
-    REGION_THREE.center[1] + 650,
+    REGION_THREE.center[1] +
+      REGION_THREE.radiusY * 0.62,
   );
 
 export const STAGE_THREE_ENTRY_RADIUS =
-  180;
+  260;

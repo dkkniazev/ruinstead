@@ -71,14 +71,32 @@ type HabitatDefinition = {
   >;
 };
 
-const ELITE_HEALTH_MULTIPLIER = 2.8;
-const ELITE_DAMAGE_MULTIPLIER = 1.55;
+const ELITE_HEALTH_MULTIPLIER = 2.4;
+const ELITE_DAMAGE_MULTIPLIER = 1.45;
 const ELITE_DROP_MULTIPLIER = 4;
 const NORMAL_RESPAWN_MS = 30_000;
 const ELITE_RESPAWN_MS = 120_000;
 const RESET_REGEN_MS = 5_000;
 const AGGRO_RETENTION_MULTIPLIER = 2.4;
 const MIN_AGGRO_RETENTION_RANGE = 300;
+
+const REGION_ENEMY_SCALING:
+  Record<
+    RegionId,
+    {
+      health: number;
+      damage: number;
+    }
+  > = {
+  1: { health: 1, damage: 1 },
+  2: { health: 1.35, damage: 1.2 },
+  3: { health: 1.8, damage: 1.45 },
+  4: { health: 2.45, damage: 1.8 },
+  5: { health: 3.2, damage: 2.15 },
+  6: { health: 4.1, damage: 2.55 },
+  7: { health: 5.25, damage: 3.05 },
+  8: { health: 6.7, damage: 3.7 },
+};
 
 const LEGACY_TEXTURES:
   Partial<
@@ -214,14 +232,16 @@ function buildDefinitions():
       archetypeStats(
         species.archetype,
       );
+    const regionScaling =
+      REGION_ENEMY_SCALING[
+        species.region
+      ];
     const baseHealth =
-      55 +
-      species.region * 48 +
-      index * 11;
+      92 +
+      index * 14;
     const baseDamage =
-      7 +
-      species.region * 4.4 +
-      index * 1.2;
+      9 +
+      index * 1.5;
     const textures =
       LEGACY_TEXTURES[
         species.id
@@ -244,19 +264,21 @@ function buildDefinitions():
       maxHealth:
         Math.round(
           baseHealth *
+          regionScaling.health *
           profile.health,
         ),
       moveSpeed:
         Math.round(
           (
-            88 +
-            species.region * 4
+            90 +
+            species.region * 2
           ) *
           profile.speed,
         ),
       damage:
         Math.round(
           baseDamage *
+          regionScaling.damage *
           profile.damage,
         ),
       attackRange:

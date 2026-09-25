@@ -89,6 +89,78 @@ type BossDefinition = {
 
 const RESET_REGEN_MS = 5_000;
 
+const REGION_BOSS_SCALING:
+  Record<
+    RegionId,
+    {
+      health: number;
+      damage: number;
+    }
+  > = {
+  1: { health: 1, damage: 1 },
+  2: { health: 1.45, damage: 1.2 },
+  3: { health: 2, damage: 1.45 },
+  4: { health: 2.7, damage: 1.8 },
+  5: { health: 3.5, damage: 2.15 },
+  6: { health: 4.5, damage: 2.55 },
+  7: { health: 5.7, damage: 3.05 },
+  8: { health: 7.2, damage: 3.7 },
+};
+
+const REGION_WEAPON_RARITY_WEIGHTS:
+  Record<
+    RegionId,
+    ReadonlyArray<
+      readonly [
+        WeaponRarityId,
+        number,
+      ]
+    >
+  > = {
+  1: [['common', 90], ['uncommon', 10]],
+  2: [['common', 75], ['uncommon', 23], ['rare', 2]],
+  3: [['common', 55], ['uncommon', 35], ['rare', 10]],
+  4: [['common', 35], ['uncommon', 40], ['rare', 22], ['epic', 3]],
+  5: [['common', 20], ['uncommon', 35], ['rare', 35], ['epic', 10]],
+  6: [['common', 10], ['uncommon', 25], ['rare', 45], ['epic', 18], ['legendary', 2]],
+  7: [['common', 5], ['uncommon', 15], ['rare', 45], ['epic', 30], ['legendary', 5]],
+  8: [['uncommon', 10], ['rare', 35], ['epic', 45], ['legendary', 10]],
+};
+
+function rollWeaponRarity(
+  region: RegionId,
+): WeaponRarityId {
+  const weights =
+    REGION_WEAPON_RARITY_WEIGHTS[
+      region
+    ];
+  const roll =
+    Math.random() *
+    weights.reduce(
+      (sum, [, weight]) =>
+        sum + weight,
+      0,
+    );
+  let cursor = 0;
+
+  for (
+    const [rarity, weight]
+    of weights
+  ) {
+    cursor += weight;
+
+    if (roll <= cursor) {
+      return rarity;
+    }
+  }
+
+  return (
+    weights[
+      weights.length - 1
+    ]?.[0] ?? 'common'
+  );
+}
+
 const REGION_BOSS_COLORS:
   Record<
     RegionId,
@@ -162,18 +234,16 @@ function buildBossDefinitions():
         REGION_BOSS_COLORS[
           source.region
         ];
+      const regionScaling =
+        REGION_BOSS_SCALING[
+          source.region
+        ];
       const baseHealth =
-        560 +
-        source.region *
-          430 +
-        index *
-          220;
+        900 +
+        index * 240;
       const baseDamage =
         18 +
-        source.region *
-          6 +
-        index *
-          3;
+        index * 3;
       const resourceScale =
         source.region;
 
@@ -198,6 +268,7 @@ function buildBossDefinitions():
         maxHealth:
           Math.round(
             baseHealth *
+            regionScaling.health *
             (
               special
                 ? 1.65
@@ -216,6 +287,7 @@ function buildBossDefinitions():
         damage:
           Math.round(
             baseDamage *
+            regionScaling.damage *
             (
               special
                 ? 1.35
@@ -308,9 +380,9 @@ function buildBossDefinitions():
           Math.round(
             (
               24 +
-              source.region * 5 +
               index * 4
             ) *
+            regionScaling.damage *
             (
               special
                 ? 1.35
@@ -332,8 +404,9 @@ function buildBossDefinitions():
             ? Math.round(
                 (
                   26 +
-                  source.region * 5
+                  index * 3
                 ) *
+                regionScaling.damage *
                 (
                   special
                     ? 1.4
@@ -1491,8 +1564,15 @@ export class BossUnit {
         this.definition
           .weaponDrop
           ? {
-              ...this.definition
-                .weaponDrop,
+              weaponId:
+                this.definition
+                  .weaponDrop
+                  .weaponId,
+              rarity:
+                rollWeaponRarity(
+                  this.definition
+                    .region,
+                ),
             }
           : undefined,
     });

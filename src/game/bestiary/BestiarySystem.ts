@@ -275,7 +275,7 @@ const DEFINITIONS:
     name: 'Пыльный шакал',
     eliteName: 'Вожак шакалов',
     area: 'Пыльная тропа',
-    weakness: 'Меч ×2',
+    weakness: 'Кинжалы ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '5 монет · элита 20',
@@ -295,7 +295,7 @@ const DEFINITIONS:
     eliteName:
       'Древний песчаник',
     area: 'Соляная низина',
-    weakness: 'Меч ×2',
+    weakness: 'Кинжалы ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '5 монет · элита 20',
@@ -317,7 +317,7 @@ const DEFINITIONS:
       'Золотой скорпион',
     area:
       'Скорпионья лощина',
-    weakness: 'Меч ×2',
+    weakness: 'Кинжалы ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '6 монет · элита 24',
@@ -338,7 +338,7 @@ const DEFINITIONS:
       'Крылатый страж',
     area:
       'Кристальные руины',
-    weakness: 'Меч ×2',
+    weakness: 'Кинжалы ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '7 монет · элита 28',
@@ -359,7 +359,7 @@ const DEFINITIONS:
       'Пылающий искровик',
     area:
       'Солнечный кратер',
-    weakness: 'Меч ×2',
+    weakness: 'Кинжалы ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '7 монет · элита 28',
@@ -384,7 +384,7 @@ const DEFINITIONS:
     resistance:
       'Молот ×0.5',
     dropText:
-      '45 монет · волокно/кристалл',
+      '45 монет · копия кинжалов · волокно/кристалл',
     texture:
       'ruinstead-boss-ash-matriarch',
     thresholds:
@@ -404,7 +404,7 @@ const DEFINITIONS:
     resistance:
       'Топор ×0.5',
     dropText:
-      '58 монет · солнечные кристаллы',
+      '58 монет · копия кинжалов · солнечные кристаллы',
     texture:
       'ruinstead-boss-prism-golem',
     thresholds:
@@ -424,7 +424,7 @@ const DEFINITIONS:
     resistance:
       'Копьё ×0.5',
     dropText:
-      '82 монеты · открывает меч',
+      '82 монеты · открывает молот',
     texture:
       'ruinstead-boss-sun-tyrant',
     thresholds:

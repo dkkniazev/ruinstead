@@ -8,8 +8,12 @@ import {
 import {
   MAX_PLAYER_UPGRADE_LEVEL,
 } from '../progression/UpgradeBalance';
+import type {
+  WeaponId,
+} from '../combat/WeaponDefinitions';
 import {
   MAX_WEAPON_LEVEL,
+  normalizeWeaponInventoryForCurrentProgression,
   sanitizeWeaponInventory,
 } from '../progression/WeaponInventory';
 import {
@@ -174,7 +178,7 @@ export function sanitizeGameState(value: unknown): GameState {
     asRecord(
       player?.weaponLevels,
     );
-  const weaponInventory =
+  let weaponInventory =
     sanitizeWeaponInventory(
       player?.weaponInventory,
       {
@@ -226,6 +230,85 @@ export function sanitizeGameState(value: unknown): GameState {
         ?.pending,
     );
   const world = asRecord(root?.world);
+  const defeatedBosses =
+    stringArray(
+      world?.defeatedBosses,
+      defaults.world
+        .defeatedBosses,
+    );
+  const sourceSchemaVersion =
+    nonNegativeInt(
+      root?.schemaVersion,
+      0,
+    );
+
+  const progressionWeaponIds:
+    WeaponId[] = ['axe'];
+
+  if (
+    defeatedBosses.includes(
+      'root-colossus',
+    ) ||
+    defeatedBosses.includes(
+      'sun-tyrant',
+    )
+  ) {
+    progressionWeaponIds.push(
+      'daggers',
+    );
+  }
+
+  if (
+    defeatedBosses.includes(
+      'sun-tyrant',
+    )
+  ) {
+    progressionWeaponIds.push(
+      'hammer',
+    );
+  }
+
+  if (
+    sourceSchemaVersion < 15
+  ) {
+    weaponInventory =
+      normalizeWeaponInventoryForCurrentProgression(
+        weaponInventory,
+        progressionWeaponIds,
+      );
+  }
+
+  const normalizedUnlockedWeaponIds =
+    sourceSchemaVersion < 15
+      ? progressionWeaponIds
+      : stringArray(
+          player
+            ?.unlockedWeaponIds,
+          defaults.player
+            .unlockedWeaponIds,
+        );
+
+  const requestedWeaponId =
+    player?.weaponId ===
+      'starter-blade'
+      ? 'axe'
+      : stringValue(
+          player?.weaponId,
+          defaults.player
+            .weaponId,
+        );
+
+  const normalizedWeaponId =
+    normalizedUnlockedWeaponIds
+      .includes(
+        requestedWeaponId,
+      )
+      ? requestedWeaponId
+      : normalizedUnlockedWeaponIds[
+          normalizedUnlockedWeaponIds
+            .length - 1
+        ] ?? 'axe';
+
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
   const quests = asRecord(root?.quests);
@@ -287,16 +370,9 @@ export function sanitizeGameState(value: unknown): GameState {
     savedAt: nonNegativeInt(root?.savedAt, defaults.savedAt),
     player: {
       weaponId:
-        player?.weaponId === 'starter-blade'
-          ? 'axe'
-          : stringValue(
-              player?.weaponId,
-              defaults.player.weaponId,
-            ),
-      unlockedWeaponIds: stringArray(
-        player?.unlockedWeaponIds,
-        defaults.player.unlockedWeaponIds,
-      ),
+        normalizedWeaponId,
+      unlockedWeaponIds:
+        normalizedUnlockedWeaponIds,
       maxHealthLevel: upgradeLevel(
         player?.maxHealthLevel,
         defaults.player.maxHealthLevel,
@@ -448,10 +524,7 @@ export function sanitizeGameState(value: unknown): GameState {
         world?.unlockedZones,
         defaults.world.unlockedZones,
       ),
-      defeatedBosses: stringArray(
-        world?.defeatedBosses,
-        defaults.world.defeatedBosses,
-      ),
+      defeatedBosses,
       bossRespawnAt: numberRecord(
         world?.bossRespawnAt,
       ),

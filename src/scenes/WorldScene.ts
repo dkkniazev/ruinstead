@@ -1635,22 +1635,28 @@ export class WorldScene
         );
     }
 
-    const weaponDrop =
-      addWeaponDrop(
-        this.gameState.player
-          .weaponInventory,
+    let weaponDropText:
+      string | undefined;
+
+    if (event.weaponDrop) {
+      const weaponDrop =
+        addWeaponDrop(
+          this.gameState.player
+            .weaponInventory,
+          event.weaponDrop
+            .weaponId,
+          event.weaponDrop
+            .rarity,
+        );
+
+      this.combat?.unlockWeapon(
         event.weaponDrop
           .weaponId,
-        event.weaponDrop
-          .rarity,
       );
 
-    this.combat?.unlockWeapon(
-      event.weaponDrop.weaponId,
-    );
-
-    const dropText =
-      `${weaponDrop.rarityName} · ${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Lv.1`;
+      weaponDropText =
+        `${weaponDrop.rarityName} · ${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Lv.1`;
+    }
 
     if (
       event.id ===
@@ -1673,7 +1679,7 @@ export class WorldScene
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Выпало: ${dropText} · Сердце корней получено · теперь можно восстановить мост`,
+        `${event.name} повержен! Кинжалы открыты · Сердце корней получено · теперь можно восстановить мост`,
       );
     } else if (
       event.id ===
@@ -1713,12 +1719,14 @@ export class WorldScene
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Выпало: ${dropText} · Ядро солнца получено · врата в следующую часть мира открыты`,
+        `${event.name} повержен! Молот открыт · Ядро солнца получено · врата в следующую часть мира открыты`,
       );
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен · выпало: ${dropText} · босс возродится позже`,
+        weaponDropText
+          ? `${event.name} повержен · выпало: ${weaponDropText} · босс возродится позже`
+          : `${event.name} повержен · босс возродится позже`,
       );
     }
 

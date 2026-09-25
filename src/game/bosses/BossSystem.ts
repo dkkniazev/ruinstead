@@ -40,7 +40,7 @@ export type BossDefeatEvent = {
   y: number;
   dropResources:
     ResourceCounts;
-  weaponDrop: {
+  weaponDrop?: {
     weaponId: WeaponId;
     rarity: WeaponRarityId;
   };
@@ -64,7 +64,7 @@ type BossDefinition = {
   dropCoins: number;
   dropResources:
     ResourceCounts;
-  weaponDrop: {
+  weaponDrop?: {
     weaponId: WeaponId;
     rarity: WeaponRarityId;
   };
@@ -115,7 +115,6 @@ const BOSS_DEFINITIONS:
     leashRange: 300,
     dropCoins: 24,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
-    weaponDrop: { weaponId: 'axe', rarity: 'common' },
     respawnCooldownMs: bossRespawnCooldownMs(0),
     weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
@@ -144,7 +143,6 @@ const BOSS_DEFINITIONS:
     leashRange: 320,
     dropCoins: 32,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
-    weaponDrop: { weaponId: 'hammer', rarity: 'common' },
     respawnCooldownMs: bossRespawnCooldownMs(1),
     weaknessWeaponId: 'hammer',
     resistanceWeaponId: 'sword',
@@ -217,8 +215,8 @@ const BOSS_DEFINITIONS:
       fiber: 4,
     },
     weaponDrop: {
-      weaponId: 'axe',
-      rarity: 'uncommon',
+      weaponId: 'daggers',
+      rarity: 'common',
     },
     respawnCooldownMs:
       bossRespawnCooldownMs(3),
@@ -258,8 +256,8 @@ const BOSS_DEFINITIONS:
       fiber: 0,
     },
     weaponDrop: {
-      weaponId: 'hammer',
-      rarity: 'uncommon',
+      weaponId: 'daggers',
+      rarity: 'common',
     },
     respawnCooldownMs:
       bossRespawnCooldownMs(4),
@@ -299,8 +297,8 @@ const BOSS_DEFINITIONS:
       fiber: 6,
     },
     weaponDrop: {
-      weaponId: 'sword',
-      rarity: 'uncommon',
+      weaponId: 'hammer',
+      rarity: 'common',
     },
     respawnCooldownMs:
       bossRespawnCooldownMs(5),
@@ -1394,10 +1392,14 @@ export class BossUnit {
         ...this.definition
           .dropResources,
       },
-      weaponDrop: {
-        ...this.definition
-          .weaponDrop,
-      },
+      weaponDrop:
+        this.definition
+          .weaponDrop
+          ? {
+              ...this.definition
+                .weaponDrop,
+            }
+          : undefined,
     });
 
     this.scene.tweens.add({

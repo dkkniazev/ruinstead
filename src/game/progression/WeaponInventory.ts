@@ -741,6 +741,113 @@ export function sanitizeWeaponInventory(
   return inventory;
 }
 
+export function normalizeWeaponInventoryForCurrentProgression(
+  inventory: WeaponInventoryState,
+  allowedWeaponIds:
+    readonly WeaponId[],
+): WeaponInventoryState {
+  const allowed =
+    new Set<WeaponId>(
+      allowedWeaponIds,
+    );
+  const variants:
+    WeaponVariantState[] = [];
+  const equipped:
+    WeaponInventoryState[
+      'equipped'
+    ] = {};
+
+  for (
+    const weaponId of
+    WEAPON_ORDER
+  ) {
+    if (!allowed.has(weaponId)) {
+      continue;
+    }
+
+    const sources =
+      inventory.variants
+        .filter(
+          (variant) =>
+            variant.weaponId ===
+            weaponId,
+        );
+
+    const starCounts =
+      emptyStarCounts();
+    let level = 1;
+
+    for (
+      const source of
+      sources
+    ) {
+      level = Math.max(
+        level,
+        clampWeaponLevel(
+          source.level,
+        ),
+      );
+
+      for (
+        let stars = 0;
+        stars <=
+        MAX_WEAPON_STARS;
+        stars += 1
+      ) {
+        starCounts[stars] +=
+          source.starCounts[
+            stars
+          ] ?? 0;
+      }
+    }
+
+    if (
+      starCounts.every(
+        (count) =>
+          count <= 0,
+      )
+    ) {
+      starCounts[0] = 1;
+    }
+
+    variants.push({
+      weaponId,
+      rarity: 'common',
+      level,
+      starCounts,
+    });
+
+    let selectedStars = 0;
+
+    for (
+      let stars =
+        MAX_WEAPON_STARS;
+      stars >= 0;
+      stars -= 1
+    ) {
+      if (
+        starCounts[stars] >
+        0
+      ) {
+        selectedStars =
+          stars;
+        break;
+      }
+    }
+
+    equipped[weaponId] = {
+      rarity: 'common',
+      stars:
+        selectedStars,
+    };
+  }
+
+  return {
+    variants,
+    equipped,
+  };
+}
+
 function getWeaponVariant(
   inventory: WeaponInventoryState,
   weaponId: WeaponId,

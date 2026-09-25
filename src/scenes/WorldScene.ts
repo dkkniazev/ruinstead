@@ -68,14 +68,17 @@ import {
   applyPremiumPurchase,
   buyPet,
   buySettlementTheme,
+  buyShardShopOffer,
   claimLevelPassRewards,
   equipSkin,
   evaluateAchievements,
   getEquippedSkinBonus,
   getRewardedCommonChestRemaining,
+  getShardShopOffers,
   openSkinChest,
 } from '../game/cosmetics/PremiumSystem';
 import {
+  FOUNDER_PACK,
   GEM_PACKS,
   PETS,
   REGION_PACKS,
@@ -143,6 +146,7 @@ import {
   HUD_SKIN_CHEST_OPEN_EVENT,
   HUD_SKIN_EQUIP_EVENT,
   HUD_PREMIUM_PURCHASE_EVENT,
+  HUD_SHARD_SHOP_BUY_EVENT,
   HUD_SETTLEMENT_THEME_EVENT,
   HUD_PET_EVENT,
   HUD_NOTICE_EVENT,
@@ -783,6 +787,11 @@ export class WorldScene
       this,
     );
     this.game.events.on(
+      HUD_SHARD_SHOP_BUY_EVENT,
+      this.handleShardShopBuy,
+      this,
+    );
+    this.game.events.on(
       HUD_SETTLEMENT_THEME_EVENT,
       this.handleSettlementTheme,
       this,
@@ -1253,6 +1262,7 @@ export class WorldScene
         unlockedSkinIds: [],
         equippedSkinId: null,
         starterPackOwned: false,
+        founderPackOwned: false,
         levelPassOwned: false,
         regionPackStage2Owned: false,
         regionPackStage2Available: false,
@@ -1263,6 +1273,7 @@ export class WorldScene
           'default',
         ownedPets: [],
         equippedPet: null,
+        shardShopOffers: [],
         purchaseCatalog: {},
       };
     }
@@ -1317,6 +1328,9 @@ export class WorldScene
       starterPackOwned:
         state.premium
           .starterPackOwned,
+      founderPackOwned:
+        state.premium
+          .founderPackOwned,
       levelPassOwned:
         state.premium
           .levelPassOwned,
@@ -1346,6 +1360,10 @@ export class WorldScene
       ],
       equippedPet:
         pet,
+      shardShopOffers:
+        getShardShopOffers(
+          state,
+        ),
       purchaseCatalog:
         Object.fromEntries(
           Object.entries(
@@ -3491,6 +3509,15 @@ export class WorldScene
     }
 
     if (
+      productId ===
+        FOUNDER_PACK.productId
+    ) {
+      return this.gameState
+        .premium
+        .founderPackOwned;
+    }
+
+    if (
       productId in
         REGION_PACKS
     ) {
@@ -4060,6 +4087,19 @@ export class WorldScene
 
     if (
       productId ===
+        FOUNDER_PACK.productId &&
+      this.gameState.premium
+        .founderPackOwned
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Founder Pack уже получен',
+      );
+      return;
+    }
+
+    if (
+      productId ===
         'region_pack_stage_2'
     ) {
       if (
@@ -4127,6 +4167,35 @@ export class WorldScene
     await this.purchaseProduct(
       productId,
     );
+  }
+
+  private handleShardShopBuy(
+    slot: number,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      buyShardShopOffer(
+        this.gameState,
+        slot,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      this.emitPremiumState();
+      return;
+    }
+
+    this.evaluatePremiumAchievements();
+    this.emitPremiumState();
+    this.emitPlayerProgressState();
+    this.saveState();
   }
 
   private handleSettlementTheme(
@@ -5227,6 +5296,11 @@ export class WorldScene
     this.game.events.off(
       HUD_PREMIUM_PURCHASE_EVENT,
       this.handlePremiumPurchase,
+      this,
+    );
+    this.game.events.off(
+      HUD_SHARD_SHOP_BUY_EVENT,
+      this.handleShardShopBuy,
       this,
     );
     this.game.events.off(

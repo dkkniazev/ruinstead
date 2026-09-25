@@ -830,13 +830,13 @@ export class CityBuilderSystem {
           height,
         )
         .setFillStyle(
-          active
-            ? BUILDING_COLORS[id]
-            : 0x6e6e64,
+          multiplyColor(
+            active
+              ? BUILDING_COLORS[id]
+              : 0x6e6e64,
+            this.themeTint,
+          ),
           active ? 1 : 0.52,
-        )
-        .setTint(
-          this.themeTint,
         )
         .setStrokeStyle(
           active ? 4 : 3,
@@ -881,6 +881,36 @@ function canAfford(
     storage.stone >= cost.stone &&
     storage.metal >= cost.metal &&
     storage.coins >= cost.coins
+  );
+}
+
+function multiplyColor(
+  base: number,
+  tint: number,
+): number {
+  const r =
+    Math.round(
+      ((base >> 16) & 0xff) *
+        ((tint >> 16) & 0xff) /
+        255,
+    );
+  const g =
+    Math.round(
+      ((base >> 8) & 0xff) *
+        ((tint >> 8) & 0xff) /
+        255,
+    );
+  const b =
+    Math.round(
+      (base & 0xff) *
+        (tint & 0xff) /
+        255,
+    );
+
+  return (
+    (r << 16) |
+    (g << 8) |
+    b
   );
 }
 

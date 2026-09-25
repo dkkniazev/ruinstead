@@ -780,6 +780,13 @@ export class HudScene
 
   update(): void {
     this.updatePotionCooldownVisual();
+
+    if (
+      this.monetizationState
+        .activeBlessing
+    ) {
+      this.renderBlessingState();
+    }
   }
 
   private updatePotionCooldownVisual(): void {
@@ -3942,15 +3949,6 @@ export class HudScene
 
   private handleResize(): void {
     configureLogicalCamera(this);
-  }
-
-  update(): void {
-    if (
-      this.monetizationState
-        .activeBlessing
-    ) {
-      this.renderBlessingState();
-    }
   }
 
   private cleanup(): void {

@@ -221,11 +221,13 @@ const MAIN_QUESTS:
           .backpackLevel > 0 ||
         state.player
           .dashLevel > 0 ||
-        Object.values(
-          state.player.weaponLevels,
-        ).some(
-          (level) => level > 0,
-        ),
+        state.player
+          .weaponInventory
+          .variants
+          .some(
+            (variant) =>
+              variant.level > 1,
+          ),
     progress:
       (state) =>
         (
@@ -761,20 +763,26 @@ const OPTIONAL_QUESTS:
     },
     complete:
       (state) =>
-        Math.max(
-          ...Object.values(
-            state.player.weaponLevels,
+        state.player
+          .weaponInventory
+          .variants
+          .some(
+            (variant) =>
+              variant.level >= 3,
           ),
-        ) >= 3,
     progress:
       (state) =>
         `${Math.min(
           3,
           Math.max(
-            ...Object.values(
-              state.player
-                .weaponLevels,
-            ),
+            1,
+            ...state.player
+              .weaponInventory
+              .variants
+              .map(
+                (variant) =>
+                  variant.level,
+              ),
           ),
         )} / 3 уровень`,
   },

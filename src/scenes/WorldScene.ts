@@ -1658,8 +1658,9 @@ export class WorldScene
           (sum, item) =>
             sum +
             (
-              item.id ===
-                'defeat-root-colossus'
+              item.id.startsWith(
+                'defeat-',
+              )
                 ? PLAYER_LEVEL_CONFIG
                     .xpRewards
                     .majorQuest

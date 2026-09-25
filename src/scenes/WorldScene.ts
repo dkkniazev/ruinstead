@@ -2390,6 +2390,9 @@ export class WorldScene
         this.formatResources(
           rewardResources,
         ),
+        event.weaponDrop
+          ? `${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Common ☆ ×1`
+          : '',
         ticketDropped
           ? 'билет домой ×1'
           : '',
@@ -2401,7 +2404,7 @@ export class WorldScene
         title:
           'Удвоить обычную награду босса?',
         description:
-          'Повторяются ресурсы, монеты и выпавший билет. Оружие, уникальные предметы и прогресс региона не дублируются.',
+          'Повторяются ресурсы, монеты, выпавший билет и обычная копия оружия. Уникальные предметы и прогресс региона не дублируются.',
         rewardText:
           pieces.join(' · '),
       });
@@ -2717,6 +2720,19 @@ export class WorldScene
     if (pending.ticketDropped) {
       this.gameState.consumables
         .returnTickets += 1;
+    }
+
+    if (event.weaponDrop) {
+      addWeaponDrop(
+        this.gameState.player
+          .weaponInventory,
+        event.weaponDrop.weaponId,
+        event.weaponDrop.rarity,
+      );
+      this.combat?.unlockWeapon(
+        event.weaponDrop.weaponId,
+      );
+      this.emitProgressionState();
     }
 
     trackAnalyticsEvent(

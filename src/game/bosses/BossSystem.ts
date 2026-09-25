@@ -1,6 +1,5 @@
 import Phaser from 'phaser';
 import type {
-  DamageEffectiveness,
   DamageProfile,
 } from '../combat/StageCombatProfile';
 import type {
@@ -17,24 +16,22 @@ import {
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
 import {
-  ROOT_COLOSSUS_ARENA_CENTER,
-} from '../world/StageOneProgression';
+  RELEASE_BOSSES,
+} from '../world/ReleaseWorldContent';
+import {
+  getRegionDefinition,
+  type RegionId,
+} from '../world/ReleaseRegionMap';
 
 export type BossId =
-  | 'moss-ogre'
-  | 'crystal-boar'
-  | 'root-colossus'
-  | 'ash-matriarch'
-  | 'prism-golem'
-  | 'sun-tyrant';
+  (typeof RELEASE_BOSSES)[number]['id'];
 
 export type BossDefeatEvent = {
   id: BossId;
   name: string;
   isMain: boolean;
-  stageId:
-    | 'stage-1'
-    | 'stage-2';
+  region: RegionId;
+  stageId: string;
   respawnAt: number;
   x: number;
   y: number;
@@ -50,9 +47,8 @@ export type BossDefeatEvent = {
 type BossDefinition = {
   id: BossId;
   name: string;
-  stageId:
-    | 'stage-1'
-    | 'stage-2';
+  region: RegionId;
+  stageId: string;
   x: number;
   y: number;
   maxHealth: number;
@@ -86,250 +82,309 @@ type BossDefinition = {
   primaryColor: number;
   accentColor: number;
   isMain: boolean;
+  specialBoss: boolean;
 };
 
 const RESET_REGEN_MS = 5_000;
 
-function bossRespawnCooldownMs(
-  globalBossIndex: number,
-): number {
-  return (
-    15 +
-    globalBossIndex * 5
-  ) * 60 * 1000;
+const REGION_BOSS_COLORS:
+  Record<
+    RegionId,
+    readonly [number, number]
+  > = {
+  1: [0x506e3c, 0xb8d36f],
+  2: [0x8b5639, 0xe9b65f],
+  3: [0x454957, 0x9d7aac],
+  4: [0x693329, 0xff7338],
+  5: [0x737767, 0xd6d2a8],
+  6: [0x67473e, 0xd77a52],
+  7: [0x765039, 0xd3a069],
+  8: [0x4d2c30, 0xff643b],
+};
+
+function buildBossDefinitions():
+  BossDefinition[] {
+  const perRegionIndex =
+    new Map<number, number>();
+
+  return RELEASE_BOSSES.map(
+    (source) => {
+      const index =
+        perRegionIndex.get(
+          source.region,
+        ) ?? 0;
+      perRegionIndex.set(
+        source.region,
+        index + 1,
+      );
+
+      const region =
+        getRegionDefinition(
+          source.region,
+        );
+      const offsets:
+        ReadonlyArray<
+          readonly [number, number]
+        > = [
+        [-0.52, -0.48],
+        [0.52, -0.38],
+        [0.18, 0.52],
+      ];
+      const offset =
+        offsets[index];
+      const special =
+        Boolean(
+          source.specialBoss,
+        );
+      const normalMinutes =
+        15 +
+        (
+          source.region -
+          1
+        ) *
+          5 +
+        index *
+          5;
+      const cooldownMinutes =
+        special
+          ? normalMinutes * 2
+          : normalMinutes;
+      const [primary, accent] =
+        REGION_BOSS_COLORS[
+          source.region
+        ];
+      const baseHealth =
+        560 +
+        source.region *
+          430 +
+        index *
+          220;
+      const baseDamage =
+        18 +
+        source.region *
+          6 +
+        index *
+          3;
+      const resourceScale =
+        source.region;
+
+      return {
+        id: source.id,
+        name: source.name,
+        region: source.region,
+        stageId:
+          `stage-${source.region}`,
+        x:
+          Math.round(
+            region.center[0] +
+            region.radiusX *
+              offset[0],
+          ),
+        y:
+          Math.round(
+            region.center[1] +
+            region.radiusY *
+              offset[1],
+          ),
+        maxHealth:
+          Math.round(
+            baseHealth *
+            (
+              special
+                ? 1.65
+                : source.isMain
+                  ? 1.2
+                  : 1
+            ),
+          ),
+        moveSpeed:
+          Math.max(
+            62,
+            92 -
+            source.region * 2 -
+            index * 5,
+          ),
+        damage:
+          Math.round(
+            baseDamage *
+            (
+              special
+                ? 1.35
+                : 1
+            ),
+          ),
+        attackRange:
+          82 +
+          index * 4,
+        attackCooldownMs:
+          1080 +
+          index * 90,
+        aggroRange:
+          198 +
+          source.region * 4 +
+          index * 6,
+        leashRange:
+          315 +
+          source.region * 8 +
+          index * 15,
+        dropCoins:
+          18 +
+          source.region *
+            16 +
+          index * 12,
+        dropResources: {
+          wood:
+            source.region <= 2
+              ? Math.max(
+                  0,
+                  4 - source.region,
+                )
+              : 0,
+          stone:
+            Math.max(
+              0,
+              Math.floor(
+                resourceScale / 2,
+              ),
+            ),
+          metal:
+            Math.max(
+              0,
+              resourceScale - 1,
+            ),
+          crystal:
+            source.region >= 2
+              ? Math.max(
+                  1,
+                  Math.floor(
+                    resourceScale / 2,
+                  ),
+                )
+              : 0,
+          fiber:
+            source.region >= 2
+              ? Math.max(
+                  1,
+                  Math.floor(
+                    (
+                      resourceScale +
+                      index
+                    ) / 2,
+                  ),
+                )
+              : 0,
+          coins: 0,
+        },
+        weaponDrop:
+          source.weaponDrop
+            ? {
+                weaponId:
+                  source.weaponDrop,
+                rarity: 'common',
+              }
+            : undefined,
+        respawnCooldownMs:
+          cooldownMinutes *
+          60 *
+          1000,
+        weaknessWeaponId:
+          source.weaknessWeaponId,
+        resistanceWeaponId:
+          source.resistanceWeaponId,
+        specialRadius:
+          108 +
+          source.region * 6 +
+          index * 12,
+        specialDamage:
+          Math.round(
+            (
+              24 +
+              source.region * 5 +
+              index * 4
+            ) *
+            (
+              special
+                ? 1.35
+                : 1
+            ),
+          ),
+        specialCooldownMs:
+          special
+            ? 3900
+            : 4300 +
+              index * 250,
+        specialWindupMs:
+          special
+            ? 720
+            : 650 +
+              index * 80,
+        lineSpecialDamage:
+          source.isMain
+            ? Math.round(
+                (
+                  26 +
+                  source.region * 5
+                ) *
+                (
+                  special
+                    ? 1.4
+                    : 1
+                ),
+              )
+            : undefined,
+        lineSpecialLength:
+          source.isMain
+            ? special
+              ? 330
+              : 275
+            : undefined,
+        lineSpecialWidth:
+          source.isMain
+            ? special
+              ? 100
+              : 82
+            : undefined,
+        lineSpecialCooldownMs:
+          source.isMain
+            ? special
+              ? 5100
+              : 6200
+            : undefined,
+        lineSpecialWindupMs:
+          source.isMain
+            ? 780
+            : undefined,
+        bodyRadius:
+          special
+            ? 52
+            : source.isMain
+              ? 46
+              : 40,
+        texture:
+          `ruinstead-boss-${source.id}`,
+        primaryColor:
+          special
+            ? darkenColor(
+                primary,
+                0.82,
+              )
+            : primary,
+        accentColor:
+          special
+            ? 0xff7a35
+            : accent,
+        isMain:
+          source.isMain,
+        specialBoss:
+          special,
+      };
+    },
+  );
 }
 
 const BOSS_DEFINITIONS:
-  readonly BossDefinition[] = [
-  {
-    id: 'moss-ogre',
-    name: 'Мшистый громила',
-    stageId: 'stage-1',
-    x: 890,
-    y: 315,
-    maxHealth: 620,
-    moveSpeed: 82,
-    damage: 22,
-    attackRange: 78,
-    attackCooldownMs: 1150,
-    aggroRange: 190,
-    leashRange: 300,
-    dropCoins: 24,
-    dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
-    weaponDrop: {
-      weaponId: 'axe',
-      rarity: 'common',
-    },
-    respawnCooldownMs: bossRespawnCooldownMs(0),
-    weaknessWeaponId: 'sword',
-    resistanceWeaponId: 'spear',
-    specialRadius: 112,
-    specialDamage: 30,
-    specialCooldownMs: 4300,
-    specialWindupMs: 720,
-    bodyRadius: 37,
-    texture: 'ruinstead-boss-moss-ogre',
-    primaryColor: 0x506e3c,
-    accentColor: 0xb8d36f,
-    isMain: false,
-  },
-  {
-    id: 'crystal-boar',
-    name: 'Кристальный вепрь',
-    stageId: 'stage-1',
-    x: 2510,
-    y: 630,
-    maxHealth: 790,
-    moveSpeed: 108,
-    damage: 20,
-    attackRange: 76,
-    attackCooldownMs: 960,
-    aggroRange: 205,
-    leashRange: 320,
-    dropCoins: 32,
-    dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
-    weaponDrop: {
-      weaponId: 'axe',
-      rarity: 'common',
-    },
-    respawnCooldownMs: bossRespawnCooldownMs(1),
-    weaknessWeaponId: 'hammer',
-    resistanceWeaponId: 'sword',
-    specialRadius: 96,
-    specialDamage: 34,
-    specialCooldownMs: 3900,
-    specialWindupMs: 560,
-    bodyRadius: 38,
-    texture: 'ruinstead-boss-crystal-boar',
-    primaryColor: 0x5d647d,
-    accentColor: 0x8fe5ef,
-    isMain: false,
-  },
-  {
-    id: 'root-colossus',
-    name: 'Корневой колосс',
-    stageId: 'stage-1',
-    x:
-      ROOT_COLOSSUS_ARENA_CENTER.x,
-    y:
-      ROOT_COLOSSUS_ARENA_CENTER.y,
-    maxHealth: 1000,
-    moveSpeed: 66,
-    damage: 24,
-    attackRange: 84,
-    attackCooldownMs: 1280,
-    aggroRange: 220,
-    leashRange: 360,
-    dropCoins: 55,
-    dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
-    weaponDrop: { weaponId: 'daggers', rarity: 'common' },
-    respawnCooldownMs: bossRespawnCooldownMs(2),
-    weaknessWeaponId: 'spear',
-    resistanceWeaponId: 'hammer',
-    specialRadius: 145,
-    specialDamage: 36,
-    specialCooldownMs: 4700,
-    specialWindupMs: 880,
-    lineSpecialDamage: 32,
-    lineSpecialLength: 245,
-    lineSpecialWidth: 74,
-    lineSpecialCooldownMs: 6100,
-    lineSpecialWindupMs: 760,
-    bodyRadius: 44,
-    texture: 'ruinstead-boss-root-colossus',
-    primaryColor: 0x61462f,
-    accentColor: 0xe7b85e,
-    isMain: true,
-  },
-  {
-    id: 'ash-matriarch',
-    name: 'Пепельная матриархиня',
-    stageId: 'stage-2',
-    x: 3540,
-    y: 300,
-    maxHealth: 1240,
-    moveSpeed: 94,
-    damage: 29,
-    attackRange: 82,
-    attackCooldownMs: 1080,
-    aggroRange: 205,
-    leashRange: 320,
-    dropCoins: 45,
-    dropResources: {
-      wood: 0,
-      stone: 0,
-      metal: 0,
-      coins: 0,
-      crystal: 1,
-      fiber: 4,
-    },
-    weaponDrop: {
-      weaponId: 'daggers',
-      rarity: 'common',
-    },
-    respawnCooldownMs:
-      bossRespawnCooldownMs(3),
-    weaknessWeaponId: 'spear',
-    resistanceWeaponId: 'hammer',
-    specialRadius: 118,
-    specialDamage: 39,
-    specialCooldownMs: 4200,
-    specialWindupMs: 650,
-    bodyRadius: 39,
-    texture:
-      'ruinstead-boss-ash-matriarch',
-    primaryColor: 0x8b5639,
-    accentColor: 0xe9b65f,
-    isMain: false,
-  },
-  {
-    id: 'prism-golem',
-    name: 'Призменный голем',
-    stageId: 'stage-2',
-    x: 4860,
-    y: 340,
-    maxHealth: 1540,
-    moveSpeed: 70,
-    damage: 34,
-    attackRange: 88,
-    attackCooldownMs: 1250,
-    aggroRange: 210,
-    leashRange: 335,
-    dropCoins: 58,
-    dropResources: {
-      wood: 0,
-      stone: 0,
-      metal: 1,
-      coins: 0,
-      crystal: 4,
-      fiber: 0,
-    },
-    weaponDrop: {
-      weaponId: 'daggers',
-      rarity: 'common',
-    },
-    respawnCooldownMs:
-      bossRespawnCooldownMs(4),
-    weaknessWeaponId: 'hammer',
-    resistanceWeaponId: 'axe',
-    specialRadius: 138,
-    specialDamage: 45,
-    specialCooldownMs: 4650,
-    specialWindupMs: 820,
-    bodyRadius: 43,
-    texture:
-      'ruinstead-boss-prism-golem',
-    primaryColor: 0x6d6b74,
-    accentColor: 0xf0c95e,
-    isMain: false,
-  },
-  {
-    id: 'sun-tyrant',
-    name: 'Солнечный тиран',
-    stageId: 'stage-2',
-    x: 5250,
-    y: 1450,
-    maxHealth: 1880,
-    moveSpeed: 76,
-    damage: 36,
-    attackRange: 90,
-    attackCooldownMs: 1180,
-    aggroRange: 225,
-    leashRange: 370,
-    dropCoins: 82,
-    dropResources: {
-      wood: 0,
-      stone: 0,
-      metal: 2,
-      coins: 0,
-      crystal: 6,
-      fiber: 6,
-    },
-    weaponDrop: {
-      weaponId: 'hammer',
-      rarity: 'common',
-    },
-    respawnCooldownMs:
-      bossRespawnCooldownMs(5),
-    weaknessWeaponId: 'sword',
-    resistanceWeaponId: 'spear',
-    specialRadius: 155,
-    specialDamage: 48,
-    specialCooldownMs: 4800,
-    specialWindupMs: 900,
-    lineSpecialDamage: 42,
-    lineSpecialLength: 270,
-    lineSpecialWidth: 82,
-    lineSpecialCooldownMs: 6200,
-    lineSpecialWindupMs: 780,
-    bodyRadius: 46,
-    texture:
-      'ruinstead-boss-sun-tyrant',
-    primaryColor: 0x9c4e2f,
-    accentColor: 0xffcf50,
-    isMain: true,
-  }
-];
+  readonly BossDefinition[] =
+  buildBossDefinitions();
 
 export class BossUnit {
   readonly sprite:
@@ -409,9 +464,11 @@ export class BossUnit {
 
     this.sprite
       .setScale(
-        definition.isMain
-          ? 1.2
-          : 1.05,
+        definition.specialBoss
+          ? 1.38
+          : definition.isMain
+            ? 1.2
+            : 1.05,
       )
       .setCollideWorldBounds(true);
 
@@ -1407,6 +1464,8 @@ export class BossUnit {
       name: this.definition.name,
       isMain:
         this.definition.isMain,
+      region:
+        this.definition.region,
       stageId:
         this.definition.stageId,
       respawnAt:
@@ -1513,9 +1572,11 @@ export class BossUnit {
     );
 
     const baseScale =
-      this.definition.isMain
-        ? 1.2
-        : 1.05;
+      this.definition.specialBoss
+        ? 1.38
+        : this.definition.isMain
+          ? 1.2
+          : 1.05;
 
     this.sprite
       .setVisible(true)
@@ -2043,6 +2104,21 @@ function ensureBossTextures(
     );
 
     if (
+      definition.specialBoss
+    ) {
+      g.lineStyle(
+        8,
+        0xffa44f,
+        1,
+      );
+      g.strokeCircle(
+        70,
+        77,
+        58,
+      );
+    }
+
+    if (
       definition.isMain
     ) {
       g.lineStyle(
@@ -2071,4 +2147,32 @@ function ensureBossTextures(
     );
     g.destroy();
   }
+}
+
+
+function darkenColor(
+  color: number,
+  factor: number,
+): number {
+  const r =
+    Math.round(
+      ((color >> 16) & 0xff) *
+      factor,
+    );
+  const g =
+    Math.round(
+      ((color >> 8) & 0xff) *
+      factor,
+    );
+  const b =
+    Math.round(
+      (color & 0xff) *
+      factor,
+    );
+
+  return (
+    (r << 16) |
+    (g << 8) |
+    b
+  );
 }

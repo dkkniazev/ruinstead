@@ -6,6 +6,10 @@ import {
 
 export const MAX_WEAPON_LEVEL = 10;
 export const MAX_WEAPON_STARS = 5;
+export const MAX_WEAPON_SLOTS = 5;
+
+export const WEAPON_SLOT_UNLOCK_LEVELS =
+  [1, 5, 10, 15, 20] as const;
 
 export const WEAPON_RARITY_ORDER = [
   'common',
@@ -39,25 +43,25 @@ export const WEAPON_RARITIES:
   uncommon: {
     id: 'uncommon',
     name: 'Необычное',
-    multiplier: 2,
+    multiplier: 1.2,
     color: '#79dc77',
   },
   rare: {
     id: 'rare',
     name: 'Редкое',
-    multiplier: 4,
+    multiplier: 1.45,
     color: '#73b9ff',
   },
   epic: {
     id: 'epic',
     name: 'Эпическое',
-    multiplier: 8,
+    multiplier: 1.75,
     color: '#d99cff',
   },
   legendary: {
     id: 'legendary',
     name: 'Легендарное',
-    multiplier: 16,
+    multiplier: 2.1,
     color: '#ffd45c',
   },
 };
@@ -74,8 +78,18 @@ export type WeaponSelection = {
   stars: number;
 };
 
+export type WeaponLoadoutSelection = {
+  weaponId: WeaponId;
+  rarity: WeaponRarityId;
+  stars: number;
+};
+
 export type WeaponInventoryState = {
   variants: WeaponVariantState[];
+  /**
+   * Legacy per-family selection. Kept for migration and the forge panel.
+   * Runtime combat equipment uses loadout.
+   */
   equipped:
     Partial<
       Record<
@@ -83,6 +97,12 @@ export type WeaponInventoryState = {
         WeaponSelection
       >
     >;
+  loadout:
+    Array<
+      WeaponLoadoutSelection |
+      null
+    >;
+  primarySlot: number;
 };
 
 export type EquippedWeaponProfile = {
@@ -118,7 +138,72 @@ export function createDefaultWeaponInventory():
         stars: 0,
       },
     },
+    loadout: [
+      {
+        weaponId: 'axe',
+        rarity: 'common',
+        stars: 0,
+      },
+      null,
+      null,
+      null,
+      null,
+    ],
+    primarySlot: 0,
   };
+}
+
+export function getUnlockedWeaponSlotCount(
+  playerLevel: number,
+): number {
+  const level =
+    Math.max(
+      1,
+      Math.floor(playerLevel),
+    );
+
+  let count = 1;
+
+  for (
+    let index = 1;
+    index <
+      WEAPON_SLOT_UNLOCK_LEVELS.length;
+    index += 1
+  ) {
+    if (
+      level >=
+      WEAPON_SLOT_UNLOCK_LEVELS[
+        index
+      ]
+    ) {
+      count =
+        index + 1;
+    }
+  }
+
+  return Math.min(
+    MAX_WEAPON_SLOTS,
+    count,
+  );
+}
+
+export function getWeaponSlotUnlockLevel(
+  slotIndex: number,
+): number {
+  const safe =
+    Math.max(
+      0,
+      Math.min(
+        MAX_WEAPON_SLOTS - 1,
+        Math.floor(slotIndex),
+      ),
+    );
+
+  return (
+    WEAPON_SLOT_UNLOCK_LEVELS[
+      safe
+    ] ?? 20
+  );
 }
 
 export function isWeaponRarityId(
@@ -148,22 +233,24 @@ export function getWeaponDamageMultiplier(
       safeLevel - 1
     ) *
       0.15;
+  const starMultiplier =
+    Math.pow(
+      1.15,
+      safeStars,
+    );
 
   return (
     levelMultiplier *
     WEAPON_RARITIES[
       rarity
     ].multiplier *
-    Math.pow(
-      1.5,
-      safeStars,
-    )
+    starMultiplier
   );
 }
 
 export function listOwnedWeaponOptions(
   inventory: WeaponInventoryState,
-  weaponId: WeaponId,
+  weaponId?: WeaponId,
 ): OwnedWeaponOption[] {
   const options:
     OwnedWeaponOption[] = [];
@@ -172,54 +259,75 @@ export function listOwnedWeaponOptions(
     const rarity of
     WEAPON_RARITY_ORDER
   ) {
-    const variant =
-      getWeaponVariant(
-        inventory,
-        weaponId,
-        rarity,
+    const variants =
+      inventory.variants.filter(
+        (variant) =>
+          variant.rarity ===
+            rarity &&
+          (
+            !weaponId ||
+            variant.weaponId ===
+              weaponId
+          ),
       );
 
-    if (!variant) {
-      continue;
+    for (
+      const variant of variants
+    ) {
+      variant.starCounts.forEach(
+        (count, stars) => {
+          if (count <= 0) {
+            return;
+          }
+
+          options.push({
+            weaponId:
+              variant.weaponId,
+            rarity,
+            level:
+              clampWeaponLevel(
+                variant.level,
+              ),
+            stars:
+              clampStars(stars),
+            count,
+            rarityName:
+              WEAPON_RARITIES[
+                rarity
+              ].name,
+            rarityColor:
+              WEAPON_RARITIES[
+                rarity
+              ].color,
+            damageMultiplier:
+              getWeaponDamageMultiplier(
+                variant.level,
+                rarity,
+                stars,
+              ),
+          });
+        },
+      );
     }
-
-    variant.starCounts.forEach(
-      (count, stars) => {
-        if (count <= 0) {
-          return;
-        }
-
-        options.push({
-          weaponId,
-          rarity,
-          level:
-            clampWeaponLevel(
-              variant.level,
-            ),
-          stars:
-            clampStars(stars),
-          count,
-          rarityName:
-            WEAPON_RARITIES[
-              rarity
-            ].name,
-          rarityColor:
-            WEAPON_RARITIES[
-              rarity
-            ].color,
-          damageMultiplier:
-            getWeaponDamageMultiplier(
-              variant.level,
-              rarity,
-              stars,
-            ),
-        });
-      },
-    );
   }
 
   return options.sort(
     (a, b) => {
+      const weaponDiff =
+        WEAPON_ORDER.indexOf(
+          a.weaponId,
+        ) -
+        WEAPON_ORDER.indexOf(
+          b.weaponId,
+        );
+
+      if (
+        weaponId === undefined &&
+        weaponDiff !== 0
+      ) {
+        return weaponDiff;
+      }
+
       const rarityDiff =
         WEAPON_RARITY_ORDER
           .indexOf(a.rarity) -
@@ -262,26 +370,16 @@ export function getEquippedWeaponProfile(
       selection,
     )
   ) {
-    const variant =
-      getWeaponVariant(
-        inventory,
+    return profileFromSelection(
+      inventory,
+      {
         weaponId,
-        selection.rarity,
-      );
-
-    return {
-      weaponId,
-      rarity:
-        selection.rarity,
-      level:
-        clampWeaponLevel(
-          variant?.level ?? 1,
-        ),
-      stars:
-        clampStars(
+        rarity:
+          selection.rarity,
+        stars:
           selection.stars,
-        ),
-    };
+      },
+    );
   }
 
   const best =
@@ -314,6 +412,71 @@ export function getEquippedWeaponProfile(
   };
 }
 
+export function getEquippedLoadoutProfiles(
+  inventory: WeaponInventoryState,
+  playerLevel: number,
+): Array<
+  EquippedWeaponProfile | null
+> {
+  normalizeWeaponLoadoutForPlayerLevel(
+    inventory,
+    playerLevel,
+  );
+
+  return inventory.loadout.map(
+    (selection, index) => {
+      if (
+        !selection ||
+        index >=
+          getUnlockedWeaponSlotCount(
+            playerLevel,
+          ) ||
+        !hasOwnedLoadoutSelection(
+          inventory,
+          selection,
+        )
+      ) {
+        return null;
+      }
+
+      return profileFromSelection(
+        inventory,
+        selection,
+      );
+    },
+  );
+}
+
+export function getPrimaryWeaponProfile(
+  inventory: WeaponInventoryState,
+  playerLevel: number,
+): EquippedWeaponProfile {
+  const profiles =
+    getEquippedLoadoutProfiles(
+      inventory,
+      playerLevel,
+    );
+  const primary =
+    profiles[
+      inventory.primarySlot
+    ] ??
+    profiles.find(
+      (
+        profile,
+      ): profile is EquippedWeaponProfile =>
+        Boolean(profile),
+    );
+
+  return (
+    primary ?? {
+      weaponId: 'axe',
+      rarity: 'common',
+      level: 1,
+      stars: 0,
+    }
+  );
+}
+
 export function equipWeaponVariant(
   inventory: WeaponInventoryState,
   weaponId: WeaponId,
@@ -341,6 +504,261 @@ export function equipWeaponVariant(
   ] = selection;
 
   return true;
+}
+
+export function equipWeaponInSlot(
+  inventory: WeaponInventoryState,
+  slotIndex: number,
+  selection:
+    WeaponLoadoutSelection,
+  playerLevel: number,
+): {
+  success: boolean;
+  reason?: string;
+} {
+  const safeSlot =
+    Math.floor(slotIndex);
+  const unlocked =
+    getUnlockedWeaponSlotCount(
+      playerLevel,
+    );
+
+  if (
+    safeSlot < 0 ||
+    safeSlot >= unlocked
+  ) {
+    return {
+      success: false,
+      reason:
+        `Слот откроется на Lv.${getWeaponSlotUnlockLevel(safeSlot)}`,
+    };
+  }
+
+  const normalized = {
+    weaponId:
+      selection.weaponId,
+    rarity:
+      selection.rarity,
+    stars:
+      clampStars(
+        selection.stars,
+      ),
+  };
+
+  if (
+    !hasOwnedLoadoutSelection(
+      inventory,
+      normalized,
+    )
+  ) {
+    return {
+      success: false,
+      reason:
+        'Такого оружия нет в инвентаре',
+    };
+  }
+
+  const duplicateSlot =
+    inventory.loadout.findIndex(
+      (entry, index) =>
+        index !== safeSlot &&
+        entry?.weaponId ===
+          normalized.weaponId &&
+        entry.rarity ===
+          normalized.rarity,
+    );
+
+  if (duplicateSlot >= 0) {
+    return {
+      success: false,
+      reason:
+        'Один тип и одна редкость нельзя экипировать дважды',
+    };
+  }
+
+  inventory.loadout[
+    safeSlot
+  ] = normalized;
+  inventory.equipped[
+    normalized.weaponId
+  ] = {
+    rarity:
+      normalized.rarity,
+    stars:
+      normalized.stars,
+  };
+
+  if (
+    !inventory.loadout[
+      inventory.primarySlot
+    ]
+  ) {
+    inventory.primarySlot =
+      safeSlot;
+  }
+
+  return {
+    success: true,
+  };
+}
+
+export function clearWeaponSlot(
+  inventory: WeaponInventoryState,
+  slotIndex: number,
+): boolean {
+  const safe =
+    Math.floor(slotIndex);
+
+  if (
+    safe < 0 ||
+    safe >=
+      MAX_WEAPON_SLOTS ||
+    !inventory.loadout[safe]
+  ) {
+    return false;
+  }
+
+  inventory.loadout[safe] =
+    null;
+
+  if (
+    inventory.primarySlot ===
+      safe
+  ) {
+    inventory.primarySlot =
+      firstOccupiedSlot(
+        inventory.loadout,
+      );
+  }
+
+  return true;
+}
+
+export function setPrimaryWeaponSlot(
+  inventory: WeaponInventoryState,
+  slotIndex: number,
+  playerLevel: number,
+): boolean {
+  const safe =
+    Math.floor(slotIndex);
+
+  if (
+    safe < 0 ||
+    safe >=
+      getUnlockedWeaponSlotCount(
+        playerLevel,
+      ) ||
+    !inventory.loadout[safe]
+  ) {
+    return false;
+  }
+
+  inventory.primarySlot =
+    safe;
+
+  return true;
+}
+
+export function normalizeWeaponLoadoutForPlayerLevel(
+  inventory: WeaponInventoryState,
+  playerLevel: number,
+): void {
+  const unlocked =
+    getUnlockedWeaponSlotCount(
+      playerLevel,
+    );
+
+  while (
+    inventory.loadout.length <
+    MAX_WEAPON_SLOTS
+  ) {
+    inventory.loadout.push(
+      null,
+    );
+  }
+  inventory.loadout.length =
+    MAX_WEAPON_SLOTS;
+
+  const seen =
+    new Set<string>();
+
+  for (
+    let index = 0;
+    index <
+      MAX_WEAPON_SLOTS;
+    index += 1
+  ) {
+    const selection =
+      inventory.loadout[
+        index
+      ];
+
+    if (
+      index >= unlocked ||
+      !selection ||
+      !hasOwnedLoadoutSelection(
+        inventory,
+        selection,
+      )
+    ) {
+      inventory.loadout[
+        index
+      ] = null;
+      continue;
+    }
+
+    const key =
+      `${selection.weaponId}:${selection.rarity}`;
+
+    if (seen.has(key)) {
+      inventory.loadout[
+        index
+      ] = null;
+      continue;
+    }
+
+    seen.add(key);
+  }
+
+  if (
+    !inventory.loadout.some(
+      Boolean,
+    )
+  ) {
+    const fallback =
+      getStrongestOwnedOption(
+        inventory,
+        'axe',
+      ) ??
+      listOwnedWeaponOptions(
+        inventory,
+      )[0];
+
+    if (fallback) {
+      inventory.loadout[0] = {
+        weaponId:
+          fallback.weaponId,
+        rarity:
+          fallback.rarity,
+        stars:
+          fallback.stars,
+      };
+    }
+  }
+
+  if (
+    inventory.primarySlot < 0 ||
+    inventory.primarySlot >=
+      unlocked ||
+    !inventory.loadout[
+      inventory.primarySlot
+    ]
+  ) {
+    inventory.primarySlot =
+      firstOccupiedSlot(
+        inventory.loadout,
+      );
+  }
 }
 
 export function addWeaponDrop(
@@ -519,6 +937,36 @@ export function fuseWeapon(
       profile.stars + 1,
   };
 
+  for (
+    let index = 0;
+    index <
+      inventory.loadout.length;
+    index += 1
+  ) {
+    const equipped =
+      inventory.loadout[
+        index
+      ];
+
+    if (
+      equipped?.weaponId ===
+        profile.weaponId &&
+      equipped.rarity ===
+        profile.rarity &&
+      equipped.stars ===
+        profile.stars
+    ) {
+      inventory.loadout[
+        index
+      ] = {
+        ...equipped,
+        stars:
+          profile.stars + 1,
+      };
+      break;
+    }
+  }
+
   return {
     weaponId:
       profile.weaponId,
@@ -680,6 +1128,11 @@ export function sanitizeWeaponInventory(
     WeaponInventoryState = {
     variants,
     equipped: {},
+    loadout:
+      new Array(
+        MAX_WEAPON_SLOTS,
+      ).fill(null),
+    primarySlot: 0,
   };
 
   const rawEquipped =
@@ -737,6 +1190,119 @@ export function sanitizeWeaponInventory(
       }
     }
   }
+
+  const rawLoadout =
+    Array.isArray(
+      raw?.loadout,
+    )
+      ? raw.loadout
+      : [];
+
+  rawLoadout
+    .slice(
+      0,
+      MAX_WEAPON_SLOTS,
+    )
+    .forEach(
+      (entry, index) => {
+        const item =
+          asRecord(entry);
+
+        if (
+          !isWeaponId(
+            item?.weaponId,
+          ) ||
+          !isWeaponRarityId(
+            item?.rarity,
+          )
+        ) {
+          return;
+        }
+
+        const selection = {
+          weaponId:
+            item.weaponId,
+          rarity:
+            item.rarity,
+          stars:
+            clampStars(
+              nonNegativeInt(
+                item.stars,
+                0,
+              ),
+            ),
+        };
+
+        if (
+          hasOwnedLoadoutSelection(
+            inventory,
+            selection,
+          )
+        ) {
+          inventory.loadout[
+            index
+          ] = selection;
+        }
+      },
+    );
+
+  if (
+    !inventory.loadout.some(
+      Boolean,
+    )
+  ) {
+    const legacyCandidates =
+      WEAPON_ORDER
+        .map(
+          (weaponId) => {
+            const selection =
+              inventory.equipped[
+                weaponId
+              ];
+
+            return selection
+              ? {
+                  weaponId,
+                  rarity:
+                    selection.rarity,
+                  stars:
+                    selection.stars,
+                }
+              : null;
+          },
+        )
+        .filter(
+          (
+            entry,
+          ): entry is WeaponLoadoutSelection =>
+            Boolean(entry),
+        );
+
+    legacyCandidates
+      .slice(
+        0,
+        MAX_WEAPON_SLOTS,
+      )
+      .forEach(
+        (entry, index) => {
+          inventory.loadout[
+            index
+          ] = entry;
+        },
+      );
+  }
+
+  inventory.primarySlot =
+    Math.max(
+      0,
+      Math.min(
+        MAX_WEAPON_SLOTS - 1,
+        nonNegativeInt(
+          raw?.primarySlot,
+          0,
+        ),
+      ),
+    );
 
   return inventory;
 }
@@ -842,9 +1408,66 @@ export function normalizeWeaponInventoryForCurrentProgression(
     };
   }
 
+  const loadout:
+    WeaponInventoryState[
+      'loadout'
+    ] =
+    new Array(
+      MAX_WEAPON_SLOTS,
+    ).fill(null);
+  const first =
+    allowedWeaponIds.find(
+      (weaponId) =>
+        Boolean(
+          equipped[weaponId],
+        ),
+    ) ?? 'axe';
+  const firstSelection =
+    equipped[first];
+
+  if (firstSelection) {
+    loadout[0] = {
+      weaponId: first,
+      rarity:
+        firstSelection.rarity,
+      stars:
+        firstSelection.stars,
+    };
+  }
+
   return {
     variants,
     equipped,
+    loadout,
+    primarySlot: 0,
+  };
+}
+
+function profileFromSelection(
+  inventory: WeaponInventoryState,
+  selection:
+    WeaponLoadoutSelection,
+): EquippedWeaponProfile {
+  const variant =
+    getWeaponVariant(
+      inventory,
+      selection.weaponId,
+      selection.rarity,
+    );
+
+  return {
+    weaponId:
+      selection.weaponId,
+    rarity:
+      selection.rarity,
+    level:
+      clampWeaponLevel(
+        variant?.level ?? 1,
+      ),
+    stars:
+      clampStars(
+        selection.stars,
+      ),
   };
 }
 
@@ -876,6 +1499,23 @@ function getStrongestOwnedOption(
   )[0];
 }
 
+function hasOwnedLoadoutSelection(
+  inventory: WeaponInventoryState,
+  selection:
+    WeaponLoadoutSelection,
+): boolean {
+  return hasOwnedSelection(
+    inventory,
+    selection.weaponId,
+    {
+      rarity:
+        selection.rarity,
+      stars:
+        selection.stars,
+    },
+  );
+}
+
 function hasOwnedSelection(
   inventory: WeaponInventoryState,
   weaponId: WeaponId,
@@ -896,6 +1536,24 @@ function hasOwnedSelection(
         )
       ] ?? 0
     ) > 0
+  );
+}
+
+function firstOccupiedSlot(
+  loadout:
+    WeaponInventoryState[
+      'loadout'
+    ],
+): number {
+  const index =
+    loadout.findIndex(
+      Boolean,
+    );
+
+  return (
+    index >= 0
+      ? index
+      : 0
   );
 }
 

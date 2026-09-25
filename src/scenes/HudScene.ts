@@ -16,11 +16,14 @@ import {
   HUD_BESTIARY_CLAIM_EVENT,
   HUD_BESTIARY_STATE_EVENT,
   HUD_CITY_COLLECT_EVENT,
+  HUD_CITY_PRODUCTION_BOOST_EVENT,
   HUD_CITY_STATE_EVENT,
   HUD_CITY_UPGRADE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_HEALTH_POTION_EVENT,
+  HUD_MONETIZATION_ACTION_EVENT,
+  HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
@@ -32,6 +35,7 @@ import {
   HUD_WEAPON_FUSE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
+  type MonetizationHudState,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import type {
@@ -68,6 +72,9 @@ import {
 import {
   WEAPON_DEFINITIONS,
 } from '../game/combat/WeaponDefinitions';
+import {
+  MONETIZATION_CONFIG,
+} from '../game/monetization/MonetizationConfig';
 
 const WEAPON_ICON_TEXTURES:
   Record<WeaponId, string> = {
@@ -93,6 +100,8 @@ type HudSceneData = {
     BestiaryHudState;
   initialCityState:
     CityBuilderHudState;
+  initialMonetizationState:
+    MonetizationHudState;
   initialAreaName: string;
 };
 
@@ -114,6 +123,21 @@ export class HudScene
     BestiaryHudState;
   private cityState?:
     CityBuilderHudState;
+  private monetizationState:
+    MonetizationHudState = {
+      enabled:
+        MONETIZATION_CONFIG.enabled,
+      busy: false,
+      offer: null,
+    };
+  private monetizationPanel?:
+    Phaser.GameObjects.Container;
+  private monetizationText?:
+    Phaser.GameObjects.Text;
+  private monetizationWatchButton?:
+    Phaser.GameObjects.Text;
+  private monetizationDismissButton?:
+    Phaser.GameObjects.Text;
   private cityPanelOpen = false;
   private cityOpenButton?:
     Phaser.GameObjects.Text;
@@ -130,6 +154,8 @@ export class HudScene
   private cityProductionText?:
     Phaser.GameObjects.Text;
   private cityCollectButton?:
+    Phaser.GameObjects.Text;
+  private cityProductionBoostButton?:
     Phaser.GameObjects.Text;
   private cityBuildingButtons:
     Partial<
@@ -279,6 +305,8 @@ export class HudScene
       data.initialBestiaryState;
     this.cityState =
       data.initialCityState;
+    this.monetizationState =
+      data.initialMonetizationState;
     this.selectedBestiaryId =
       data.initialBestiaryState
         .entries.find(
@@ -306,6 +334,7 @@ export class HudScene
     this.createYandexPlatformUi();
     this.createControlsHint();
     this.createNoticeLayer();
+    this.createMonetizationUi();
 
     this.game.events.on(
       HUD_COMBAT_STATE_EVENT,
@@ -340,6 +369,11 @@ export class HudScene
     this.game.events.on(
       HUD_CITY_STATE_EVENT,
       this.handleCityState,
+      this,
+    );
+    this.game.events.on(
+      HUD_MONETIZATION_STATE_EVENT,
+      this.handleMonetizationState,
       this,
     );
 
@@ -421,6 +455,10 @@ export class HudScene
         this.cityState,
       );
     }
+
+    this.handleMonetizationState(
+      this.monetizationState,
+    );
 
     this.input.keyboard?.on(
       'keydown-C',
@@ -2025,6 +2063,49 @@ export class HudScene
       },
     );
 
+    this.cityProductionBoostButton =
+      this.add
+        .text(
+          245,
+          -150,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#76538d',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+            fixedWidth: 250,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.cityProductionBoostButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        if (
+          this.cityState
+            ?.production.canBoost &&
+          !this.monetizationState
+            .busy
+        ) {
+          this.game.events.emit(
+            HUD_CITY_PRODUCTION_BOOST_EVENT,
+          );
+        }
+      },
+    );
+
     const buildingObjects:
       Phaser.GameObjects.Text[] = [];
     const ids: CityBuildingId[] = [
@@ -2094,6 +2175,7 @@ export class HudScene
       close,
       this.cityProductionText,
       this.cityCollectButton,
+      this.cityProductionBoostButton,
       ...buildingObjects,
     ]);
 
@@ -2330,6 +2412,218 @@ export class HudScene
     }
   }
 
+  private createMonetizationUi():
+    void {
+    const panel =
+      this.add.container(
+        LOGICAL_WIDTH / 2,
+        LOGICAL_HEIGHT - 82,
+      );
+
+    const bg =
+      this.add
+        .rectangle(
+          0,
+          0,
+          760,
+          118,
+          0x252b27,
+          0.97,
+        )
+        .setStrokeStyle(
+          3,
+          0xe2c86f,
+          0.92,
+        );
+
+    this.monetizationText =
+      this.add
+        .text(
+          -350,
+          -42,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#fff4d7',
+            lineSpacing: 3,
+            fixedWidth: 450,
+            wordWrap: {
+              width: 440,
+            },
+          },
+        );
+
+    this.monetizationWatchButton =
+      this.add
+        .text(
+          245,
+          -20,
+          'Смотреть рекламу',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#76538d',
+            padding: {
+              x: 12,
+              y: 9,
+            },
+            fixedWidth: 230,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.monetizationDismissButton =
+      this.add
+        .text(
+          245,
+          29,
+          'Не сейчас',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            color: '#d7ddd8',
+            backgroundColor:
+              '#454c47',
+            padding: {
+              x: 10,
+              y: 7,
+            },
+            fixedWidth: 230,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.monetizationWatchButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const placement =
+          this.monetizationState
+            .offer?.placement;
+
+        if (
+          placement &&
+          !this.monetizationState
+            .busy
+        ) {
+          this.game.events.emit(
+            HUD_MONETIZATION_ACTION_EVENT,
+            'watch',
+            placement,
+          );
+        }
+      },
+    );
+
+    this.monetizationDismissButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const placement =
+          this.monetizationState
+            .offer?.placement;
+
+        if (
+          placement &&
+          !this.monetizationState
+            .busy
+        ) {
+          this.game.events.emit(
+            HUD_MONETIZATION_ACTION_EVENT,
+            'dismiss',
+            placement,
+          );
+        }
+      },
+    );
+
+    panel.add([
+      bg,
+      this.monetizationText,
+      this.monetizationWatchButton,
+      this.monetizationDismissButton,
+    ]);
+
+    panel
+      .setDepth(320)
+      .setVisible(false);
+
+    this.monetizationPanel =
+      panel;
+  }
+
+  private handleMonetizationState(
+    state: MonetizationHudState,
+  ): void {
+    this.monetizationState =
+      state;
+
+    const offer =
+      state.offer;
+    const visible =
+      state.enabled &&
+      Boolean(offer);
+
+    this.monetizationPanel
+      ?.setVisible(visible);
+
+    if (!offer) {
+      return;
+    }
+
+    this.monetizationText?.setText(
+      `${offer.title}\n${offer.description}\nНаграда за просмотр: ${offer.rewardText}`,
+    );
+
+    this.monetizationWatchButton
+      ?.setText(
+        state.busy
+          ? 'Реклама открывается…'
+          : 'Смотреть рекламу',
+      )
+      .setStyle({
+        backgroundColor:
+          state.busy
+            ? '#514a58'
+            : '#76538d',
+        color:
+          state.busy
+            ? '#b9b2bd'
+            : '#ffffff',
+      });
+
+    this.monetizationDismissButton
+      ?.setStyle({
+        backgroundColor:
+          state.busy
+            ? '#3d413f'
+            : '#454c47',
+        color:
+          state.busy
+            ? '#858b87'
+            : '#d7ddd8',
+      });
+
+    if (this.cityState) {
+      this.handleCityState(
+        this.cityState,
+      );
+    }
+  }
+
   private handleCityState(
     state: CityBuilderHudState,
   ): void {
@@ -2378,6 +2672,34 @@ export class HudScene
             .canCollect
             ? '#ffffff'
             : '#a9afa9',
+      });
+
+    const boostSeconds =
+      state.production
+        .cycleSeconds *
+      MONETIZATION_CONFIG
+        .productionBoostCycles;
+
+    this.cityProductionBoostButton
+      ?.setVisible(
+        MONETIZATION_CONFIG.enabled,
+      )
+      .setText(
+        state.production.canBoost
+          ? `Реклама: +${boostSeconds}с производства`
+          : 'Реклама: буст недоступен',
+      )
+      .setStyle({
+        backgroundColor:
+          state.production.canBoost &&
+          !this.monetizationState
+            .busy
+            ? '#76538d'
+            : '#4a4650',
+        color:
+          state.production.canBoost
+            ? '#ffffff'
+            : '#aaa5ad',
       });
 
     for (
@@ -3322,6 +3644,11 @@ export class HudScene
     this.game.events.off(
       HUD_CITY_STATE_EVENT,
       this.handleCityState,
+      this,
+    );
+    this.game.events.off(
+      HUD_MONETIZATION_STATE_EVENT,
+      this.handleMonetizationState,
       this,
     );
 

@@ -63,6 +63,13 @@ import {
 import { PlayerController } from '../game/player/PlayerController';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
+  trackAnalyticsEvent,
+} from '../game/analytics/Analytics';
+import {
+  MONETIZATION_CONFIG,
+  isReturnInterstitialDue,
+} from '../game/monetization/MonetizationConfig';
+import {
   type GameState,
 } from '../game/state/GameState';
 import {
@@ -81,10 +88,13 @@ import {
   HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_CITY_COLLECT_EVENT,
+  HUD_CITY_PRODUCTION_BOOST_EVENT,
   HUD_CITY_STATE_EVENT,
   HUD_CITY_UPGRADE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_HEALTH_POTION_EVENT,
+  HUD_MONETIZATION_ACTION_EVENT,
+  HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
@@ -96,6 +106,8 @@ import {
   HUD_WEAPON_FUSE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
   type GatheringHudState,
+  type MonetizationHudState,
+  type MonetizationOfferPlacement,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import {
@@ -123,11 +135,28 @@ import {
   markYandexGameReady,
   startYandexGameplay,
 } from '../platform/yandex/YandexPlatform';
+import {
+  createAdsProvider,
+} from '../platform/ads/createAdsProvider';
+import type {
+  RewardedAdPlacement,
+} from '../platform/ads/AdsProvider';
 
 export class WorldScene
   extends Phaser.Scene {
   private readonly stateStore =
     new GameStateStore();
+  private readonly adsProvider =
+    createAdsProvider();
+
+  private monetizationOffer:
+    MonetizationHudState['offer'] =
+      null;
+  private monetizationBusy = false;
+  private pendingExpeditionBonus?:
+    ResourceCounts;
+  private pendingDeathDropBatchId?:
+    number;
 
   private gameState?:
     GameState;
@@ -600,6 +629,16 @@ export class WorldScene
       this.handleCityCollect,
       this,
     );
+    this.game.events.on(
+      HUD_CITY_PRODUCTION_BOOST_EVENT,
+      this.handleProductionBoost,
+      this,
+    );
+    this.game.events.on(
+      HUD_MONETIZATION_ACTION_EVENT,
+      this.handleMonetizationAction,
+      this,
+    );
 
     this.lastAreaName =
       getAreaName(
@@ -642,6 +681,8 @@ export class WorldScene
           this.bestiaryHudState,
         initialCityState:
           this.cityHudState,
+        initialMonetizationState:
+          this.monetizationHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -895,6 +936,18 @@ export class WorldScene
         buildings: [],
       }
     );
+  }
+
+  private get monetizationHudState():
+    MonetizationHudState {
+    return {
+      enabled:
+        MONETIZATION_CONFIG.enabled,
+      busy:
+        this.monetizationBusy,
+      offer:
+        this.monetizationOffer,
+    };
   }
 
   private get weaponCombatProfiles():
@@ -1410,10 +1463,12 @@ export class WorldScene
     const dropped =
       this.backpack.takeAll();
 
-    this.resourceSystem.spawnDeathDrop(
-      deathPosition,
-      dropped,
-    );
+    const deathDropBatchId =
+      this.resourceSystem
+        .spawnDeathDrop(
+          deathPosition,
+          dropped,
+        );
 
     this.enemies?.resetCombat(
       this.time.now,
@@ -1433,6 +1488,29 @@ export class WorldScene
         HUD_NOTICE_EVENT,
         `Поражение: весь рюкзак выпал на месте смерти — ${this.formatResources(dropped)}`,
       );
+
+      if (
+        MONETIZATION_CONFIG.enabled &&
+        this.adsProvider
+          .isRewardedAvailable()
+      ) {
+        this.pendingExpeditionBonus =
+          undefined;
+        this.pendingDeathDropBatchId =
+          deathDropBatchId;
+        this.setMonetizationOffer({
+          placement:
+            'death_recovery',
+          title:
+            'Вернуть потерянную добычу?',
+          description:
+            'Можно вернуться за death-drop обычным способом или посмотреть рекламу и сразу отправить его на склад.',
+          rewardText:
+            this.formatResources(
+              dropped,
+            ),
+        });
+      }
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
@@ -1524,6 +1602,56 @@ export class WorldScene
       );
 
       this.saveState();
+
+      const expeditionCount =
+        this.gameState.progression
+          .expeditionCount;
+
+      if (
+        isReturnInterstitialDue(
+          expeditionCount,
+        ) &&
+        this.adsProvider
+          .isInterstitialAvailable()
+      ) {
+        this.clearMonetizationOffer();
+        void this
+          .tryShowReturnInterstitial(
+            expeditionCount,
+          );
+      } else if (
+        MONETIZATION_CONFIG.enabled &&
+        this.adsProvider
+          .isRewardedAvailable()
+      ) {
+        const bonus =
+          this.createExpeditionBonus(
+            deposited,
+          );
+
+        if (
+          totalResourceUnits(
+            bonus,
+          ) > 0
+        ) {
+          this.pendingDeathDropBatchId =
+            undefined;
+          this.pendingExpeditionBonus =
+            bonus;
+          this.setMonetizationOffer({
+            placement:
+              'expedition_reward',
+            title:
+              'Бонус за успешную вылазку',
+            description:
+              'Посмотрите рекламу, чтобы добавить бонус к только что сохранённой добыче.',
+            rewardText:
+              this.formatResources(
+                bonus,
+              ),
+          });
+        }
+      }
     }
 
     this.wasAtReturnPoint =
@@ -1734,6 +1862,395 @@ export class WorldScene
     this.applyProgression();
     this.emitProgressionState();
     this.saveState();
+  }
+
+  private createExpeditionBonus(
+    deposited: ResourceCounts,
+  ): ResourceCounts {
+    const bonus:
+      ResourceCounts = {
+      wood: 0,
+      stone: 0,
+      metal: 0,
+      crystal: 0,
+      fiber: 0,
+      coins: 0,
+    };
+
+    for (
+      const type of
+      RESOURCE_TYPES
+    ) {
+      const amount =
+        deposited[type] ?? 0;
+
+      bonus[type] =
+        amount > 0
+          ? Math.max(
+              1,
+              Math.ceil(
+                amount *
+                  MONETIZATION_CONFIG
+                    .expeditionBonusRatio,
+              ),
+            )
+          : 0;
+    }
+
+    return bonus;
+  }
+
+  private setMonetizationOffer(
+    offer:
+      NonNullable<
+        MonetizationHudState['offer']
+      >,
+  ): void {
+    this.monetizationOffer =
+      offer;
+
+    trackAnalyticsEvent(
+      'ad_offer_shown',
+      {
+        placement:
+          offer.placement,
+        reward:
+          offer.rewardText,
+      },
+    );
+
+    this.emitMonetizationState();
+  }
+
+  private clearMonetizationOffer():
+    void {
+    this.monetizationOffer =
+      null;
+    this.emitMonetizationState();
+  }
+
+  private emitMonetizationState():
+    void {
+    this.game.events.emit(
+      HUD_MONETIZATION_STATE_EVENT,
+      this.monetizationHudState,
+    );
+  }
+
+  private async requestRewarded(
+    placement:
+      RewardedAdPlacement,
+  ): Promise<boolean> {
+    if (
+      !MONETIZATION_CONFIG.enabled ||
+      this.monetizationBusy ||
+      !this.adsProvider
+        .isRewardedAvailable()
+    ) {
+      return false;
+    }
+
+    this.monetizationBusy = true;
+    this.emitMonetizationState();
+
+    trackAnalyticsEvent(
+      'ad_started',
+      {
+        placement,
+        provider:
+          this.adsProvider.name,
+      },
+    );
+
+    const result =
+      await this.adsProvider
+        .showRewarded(
+          placement,
+        );
+
+    trackAnalyticsEvent(
+      'ad_result',
+      {
+        placement,
+        rewarded:
+          result.rewarded,
+        reason:
+          result.reason,
+      },
+    );
+
+    this.monetizationBusy = false;
+    this.emitMonetizationState();
+
+    return result.rewarded;
+  }
+
+  private async handleMonetizationAction(
+    action:
+      'watch' | 'dismiss',
+    placement:
+      MonetizationOfferPlacement,
+  ): Promise<void> {
+    const offer =
+      this.monetizationOffer;
+
+    if (
+      !offer ||
+      offer.placement !==
+        placement ||
+      this.monetizationBusy
+    ) {
+      return;
+    }
+
+    if (action === 'dismiss') {
+      if (
+        placement ===
+          'death_recovery'
+      ) {
+        this.pendingDeathDropBatchId =
+          undefined;
+      } else {
+        this.pendingExpeditionBonus =
+          undefined;
+      }
+
+      this.clearMonetizationOffer();
+      return;
+    }
+
+    if (
+      placement ===
+        'death_recovery'
+    ) {
+      const batchId =
+        this.pendingDeathDropBatchId;
+
+      if (
+        !batchId ||
+        !this.resourceSystem
+          ?.hasDeathDrop(
+            batchId,
+          )
+      ) {
+        this.pendingDeathDropBatchId =
+          undefined;
+        this.clearMonetizationOffer();
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Death-drop уже подобран или недоступен',
+        );
+        return;
+      }
+    }
+
+    const rewarded =
+      await this.requestRewarded(
+        placement,
+      );
+
+    if (!rewarded) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Награда не получена · игру можно продолжать без рекламы',
+      );
+      this.clearMonetizationOffer();
+      return;
+    }
+
+    if (
+      placement ===
+        'expedition_reward'
+    ) {
+      const bonus =
+        this.pendingExpeditionBonus;
+
+      if (
+        bonus &&
+        this.gameState
+      ) {
+        for (
+          const type of
+          RESOURCE_TYPES
+        ) {
+          this.gameState.resources[
+            type
+          ] +=
+            bonus[type] ?? 0;
+        }
+
+        trackAnalyticsEvent(
+          'ad_reward_granted',
+          {
+            placement,
+            reward:
+              this.formatResources(
+                bonus,
+              ),
+          },
+        );
+
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          `Рекламный бонус получен: ${this.formatResources(bonus)}`,
+        );
+      }
+
+      this.pendingExpeditionBonus =
+        undefined;
+    } else {
+      const batchId =
+        this.pendingDeathDropBatchId;
+
+      if (
+        batchId &&
+        this.resourceSystem &&
+        this.gameState
+      ) {
+        const recovered =
+          this.resourceSystem
+            .recoverDeathDrop(
+              batchId,
+            );
+
+        for (
+          const type of
+          RESOURCE_TYPES
+        ) {
+          this.gameState.resources[
+            type
+          ] +=
+            recovered[type] ?? 0;
+        }
+
+        trackAnalyticsEvent(
+          'ad_reward_granted',
+          {
+            placement,
+            reward:
+              this.formatResources(
+                recovered,
+              ),
+          },
+        );
+
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          `Потерянная добыча возвращена на склад: ${this.formatResources(recovered)}`,
+        );
+      }
+
+      this.pendingDeathDropBatchId =
+        undefined;
+    }
+
+    this.clearMonetizationOffer();
+    this.emitProgressionState();
+    this.emitCityState();
+    this.saveState();
+  }
+
+  private async handleProductionBoost():
+    Promise<void> {
+    if (
+      !MONETIZATION_CONFIG.enabled ||
+      this.monetizationBusy ||
+      !this.cityBuilderSystem ||
+      !this.gameState ||
+      !this.cityBuilderSystem
+        .canBoostProduction()
+    ) {
+      return;
+    }
+
+    const rewarded =
+      await this.requestRewarded(
+        'production_boost',
+      );
+
+    if (!rewarded) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Буст производства не получен',
+      );
+      return;
+    }
+
+    const boosted =
+      this.cityBuilderSystem
+        .boostProduction(
+          MONETIZATION_CONFIG
+            .productionBoostCycles,
+        );
+
+    trackAnalyticsEvent(
+      'ad_reward_granted',
+      {
+        placement:
+          'production_boost',
+        reward:
+          this.formatResources(
+            boosted,
+          ),
+      },
+    );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Производство ускорено: ${this.formatResources(boosted)}`,
+    );
+
+    this.emitCityState();
+    this.saveState();
+  }
+
+  private async tryShowReturnInterstitial(
+    expeditionCount: number,
+  ): Promise<void> {
+    if (
+      !MONETIZATION_CONFIG.enabled ||
+      this.monetizationBusy ||
+      !this.adsProvider
+        .isInterstitialAvailable()
+    ) {
+      return;
+    }
+
+    this.monetizationBusy = true;
+    this.emitMonetizationState();
+
+    trackAnalyticsEvent(
+      'interstitial_requested',
+      {
+        placement:
+          'return_to_settlement',
+        expeditionCount,
+        provider:
+          this.adsProvider.name,
+      },
+    );
+
+    const result =
+      await this.adsProvider
+        .showInterstitial(
+          'return_to_settlement',
+        );
+
+    trackAnalyticsEvent(
+      'interstitial_result',
+      {
+        placement:
+          'return_to_settlement',
+        expeditionCount,
+        shown:
+          result.shown,
+        reason:
+          result.reason,
+      },
+    );
+
+    this.monetizationBusy = false;
+    this.emitMonetizationState();
   }
 
   private updateSettlement(): void {
@@ -2695,6 +3212,16 @@ export class WorldScene
     this.game.events.off(
       HUD_CITY_COLLECT_EVENT,
       this.handleCityCollect,
+      this,
+    );
+    this.game.events.off(
+      HUD_CITY_PRODUCTION_BOOST_EVENT,
+      this.handleProductionBoost,
+      this,
+    );
+    this.game.events.off(
+      HUD_MONETIZATION_ACTION_EVENT,
+      this.handleMonetizationAction,
       this,
     );
 

@@ -421,6 +421,16 @@ export class ResourceSystem {
     return batchId;
   }
 
+  hasDeathDrop(
+    batchId: number,
+  ): boolean {
+    return this.pickups.some(
+      (pickup) =>
+        pickup.deathDropBatchId ===
+        batchId,
+    );
+  }
+
   recoverDeathDrop(
     batchId: number,
   ): ResourceCounts {

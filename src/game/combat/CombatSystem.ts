@@ -120,6 +120,9 @@ export class CombatSystem {
   private healthPotions =
     MAX_HEALTH_POTIONS;
   private nextHealthPotionAt = 0;
+  private temporaryDamageMultiplier = 1;
+  private temporaryHealthMultiplier = 1;
+  private rewardedReviveUsed = false;
 
   private readonly drops:
     DropSystem;
@@ -232,6 +235,13 @@ export class CombatSystem {
     this.emitState();
   }
 
+  get canRewardedRevive(): boolean {
+    return (
+      this.dead &&
+      !this.rewardedReviveUsed
+    );
+  }
+
   get state(): CombatState {
     return {
       health:
@@ -266,8 +276,14 @@ export class CombatSystem {
     const previousMax =
       this.maxHealth;
     this.maxHealth =
-      getMaxHealth(
-        maxHealthLevel,
+      Math.max(
+        1,
+        Math.round(
+          getMaxHealth(
+            maxHealthLevel,
+          ) *
+            this.temporaryHealthMultiplier,
+        ),
       );
 
     if (
@@ -300,6 +316,27 @@ export class CombatSystem {
       this.maxHealth,
     );
     this.emitState();
+  }
+
+  setTemporaryModifiers(
+    damageMultiplier: number,
+    healthMultiplier: number,
+    maxHealthLevel: number,
+  ): void {
+    this.temporaryDamageMultiplier =
+      Math.max(
+        0.1,
+        damageMultiplier,
+      );
+    this.temporaryHealthMultiplier =
+      Math.max(
+        0.1,
+        healthMultiplier,
+      );
+    this.setProgression(
+      maxHealthLevel,
+      this.weaponProfiles,
+    );
   }
 
   setWeapon(
@@ -674,6 +711,7 @@ export class CombatSystem {
         1,
         Math.round(
           baseDamage *
+            this.temporaryDamageMultiplier *
             getWeaponDamageMultiplier(
               this.weaponProfiles[
                 this.weaponId
@@ -894,75 +932,117 @@ export class CombatSystem {
     }
   }
 
+  reviveHere(
+    healthRatio: number,
+    invulnerabilityMs: number,
+  ): boolean {
+    if (
+      !this.dead ||
+      this.rewardedReviveUsed
+    ) {
+      return false;
+    }
+
+    this.rewardedReviveUsed =
+      true;
+    this.dead = false;
+    this.health =
+      Math.max(
+        1,
+        Math.round(
+          this.maxHealth *
+            Phaser.Math.Clamp(
+              healthRatio,
+              0.1,
+              1,
+            ),
+        ),
+      );
+    this.invulnerableUntil =
+      this.scene.time.now +
+      Math.max(
+        0,
+        invulnerabilityMs,
+      );
+    this.lastCombatAt =
+      this.scene.time.now;
+    this.nextRegenTickAt =
+      this.scene.time.now + 500;
+
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+    this.player.sprite
+      .setAlpha(1)
+      .setScale(1)
+      .clearTint();
+    this.player.setEnabled(true);
+    this.player
+      .setAliveVisualsVisible(true);
+
+    this.scene.cameras.main.flash(
+      220,
+      155,
+      235,
+      170,
+    );
+    this.emitState();
+    return true;
+  }
+
+  respawnAtHome(): void {
+    if (!this.dead) {
+      return;
+    }
+
+    this.player.teleport(
+      this.respawn.x,
+      this.respawn.y,
+    );
+    this.health =
+      this.maxHealth;
+    this.dead = false;
+    this.rewardedReviveUsed =
+      false;
+    this.invulnerableUntil =
+      this.scene.time.now + 1200;
+    this.lastCombatAt =
+      this.scene.time.now;
+    this.nextRegenTickAt =
+      this.scene.time.now + 500;
+
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+    this.player.sprite
+      .setAlpha(1)
+      .setScale(1)
+      .clearTint();
+    this.player.setEnabled(true);
+    this.player
+      .setAliveVisualsVisible(true);
+
+    this.onPlayerRespawned?.();
+
+    this.scene.cameras.main.flash(
+      220,
+      255,
+      245,
+      190,
+    );
+    this.emitState();
+  }
+
   private handleDeath(): void {
     this.dead = true;
+    this.player.setEnabled(false);
+    this.player.sprite
+      .setAlpha(0.42)
+      .setTint(0x9e8f99);
     this.onPlayerDefeated?.();
-    this.player.setEnabled(
-      false,
-    );
-    this.player.setAliveVisualsVisible(
-      false,
-    );
-
-    this.scene.tweens.add({
-      targets:
-        this.player.sprite,
-      alpha: 0,
-      scaleX: 0.78,
-      scaleY: 0.78,
-      duration: 300,
-      ease: 'Quad.In',
-    });
-
-    this.scene.time.delayedCall(
-      520,
-      () => {
-        this.player.teleport(
-          this.respawn.x,
-          this.respawn.y,
-        );
-
-        this.health =
-          this.maxHealth;
-
-        this.player.setHealth(
-          this.health,
-          this.maxHealth,
-        );
-        this.player.sprite
-          .setAlpha(1)
-          .setScale(1)
-          .clearTint();
-
-        this.dead = false;
-        this.invulnerableUntil =
-          this.scene.time.now +
-          1200;
-        this.lastCombatAt =
-          this.scene.time.now;
-        this.nextRegenTickAt =
-          this.scene.time.now +
-          500;
-
-        this.player.setEnabled(
-          true,
-        );
-        this.player.setAliveVisualsVisible(
-          true,
-        );
-
-        this.onPlayerRespawned?.();
-
-        this.scene.cameras.main.flash(
-          220,
-          255,
-          245,
-          190,
-        );
-
-        this.emitState();
-      },
-    );
+    this.emitState();
   }
 
   private showPlayerHeal(

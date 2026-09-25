@@ -87,8 +87,14 @@ export const HUD_CITY_UPGRADE_EVENT =
   'ruinstead:hud:city-upgrade';
 export const HUD_CITY_COLLECT_EVENT =
   'ruinstead:hud:city-collect';
-export const HUD_CITY_PRODUCTION_BOOST_EVENT =
-  'ruinstead:hud:city-production-boost';
+export const HUD_CITY_PRODUCTION_DOUBLE_EVENT =
+  'ruinstead:hud:city-production-double';
+export const HUD_RETURN_HOME_EVENT =
+  'ruinstead:hud:return-home';
+export const HUD_BLESSING_EVENT =
+  'ruinstead:hud:blessing';
+export const HUD_BOSS_RESPAWN_EVENT =
+  'ruinstead:hud:boss-respawn';
 export const HUD_MONETIZATION_STATE_EVENT =
   'ruinstead:hud:monetization-state';
 export const HUD_MONETIZATION_ACTION_EVENT =
@@ -140,13 +146,28 @@ export type HudCityCollectHandler =
   () => void;
 
 
+export type BlessingKind =
+  | 'damage'
+  | 'health'
+  | 'speed'
+  | 'gathering';
+
 export type MonetizationOfferPlacement =
-  | 'expedition_reward'
-  | 'death_recovery';
+  | 'death_revive'
+  | 'boss_reward'
+  | 'chest_reward'
+  | 'boss_respawn';
 
 export type MonetizationHudState = {
   enabled: boolean;
   busy: boolean;
+  returnTickets: number;
+  activeBlessing: {
+    kind: BlessingKind;
+    expiresAt: number;
+  } | null;
+  bossRespawnResetCooldownRemainingMs:
+    number;
   offer: {
     placement:
       MonetizationOfferPlacement;
@@ -156,7 +177,18 @@ export type MonetizationHudState = {
   } | null;
 };
 
-export type HudCityProductionBoostHandler =
+export type HudCityProductionDoubleHandler =
+  () => void;
+export type HudReturnHomeHandler =
+  (
+    action:
+      | 'ticket'
+      | 'rewarded'
+      | 'buy',
+  ) => void;
+export type HudBlessingHandler =
+  (kind: BlessingKind) => void;
+export type HudBossRespawnHandler =
   () => void;
 export type HudMonetizationStateHandler =
   (state: MonetizationHudState) => void;

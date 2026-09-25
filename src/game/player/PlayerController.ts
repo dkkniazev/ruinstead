@@ -59,6 +59,8 @@ export class PlayerController {
   private damageTintUntil = 0;
   private enabled = true;
   private moveSpeed = 225;
+  private baseMoveSpeed = 225;
+  private temporarySpeedMultiplier = 1;
   private dashCooldownMs = 850;
   private weaponId:
     WeaponId = 'axe';
@@ -274,13 +276,33 @@ export class PlayerController {
     moveSpeedLevel: number,
     dashLevel: number,
   ): void {
-    this.moveSpeed =
+    this.baseMoveSpeed =
       getMoveSpeed(
         moveSpeedLevel,
+      );
+    this.moveSpeed =
+      Math.round(
+        this.baseMoveSpeed *
+          this.temporarySpeedMultiplier,
       );
     this.dashCooldownMs =
       getDashCooldownMs(
         dashLevel,
+      );
+  }
+
+  setTemporarySpeedMultiplier(
+    multiplier: number,
+  ): void {
+    this.temporarySpeedMultiplier =
+      Math.max(
+        0.1,
+        multiplier,
+      );
+    this.moveSpeed =
+      Math.round(
+        this.baseMoveSpeed *
+          this.temporarySpeedMultiplier,
       );
   }
 

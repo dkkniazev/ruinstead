@@ -79,6 +79,11 @@ export class ChestSystem {
       () => void,
     private readonly onNotice:
       (message: string) => void,
+    private readonly onOpened?:
+      (
+        chestId: string,
+        rewards: ResourceCounts,
+      ) => void,
   ) {
     for (
       const definition of
@@ -245,6 +250,13 @@ export class ChestSystem {
           chest.definition
             .rewards,
         )}`,
+      );
+      this.onOpened?.(
+        chest.definition.id,
+        {
+          ...chest.definition
+            .rewards,
+        },
       );
     }
   }

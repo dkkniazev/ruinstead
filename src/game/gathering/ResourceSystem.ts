@@ -266,6 +266,7 @@ class ResourceNode {
 
 export class ResourceSystem {
   private nextDeathDropBatchId = 1;
+  private gatheringMultiplier = 1;
   private readonly nodes:
     ResourceNode[] = [];
   private readonly pickups:
@@ -339,6 +340,16 @@ export class ResourceSystem {
         node.definition,
       );
     }
+  }
+
+  setGatheringMultiplier(
+    multiplier: number,
+  ): void {
+    this.gatheringMultiplier =
+      Math.max(
+        1,
+        multiplier,
+      );
   }
 
   spawnResourceDrop(
@@ -598,7 +609,12 @@ export class ResourceSystem {
           Math.cos(angle) * radius,
         definition.y +
           Math.sin(angle) * radius,
-        1,
+        Math.max(
+          1,
+          Math.round(
+            this.gatheringMultiplier,
+          ),
+        ),
         this.scene.time.now +
           PICKUP_LIFETIME_MS,
         false,

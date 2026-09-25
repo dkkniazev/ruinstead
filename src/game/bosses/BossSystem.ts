@@ -40,6 +40,7 @@ export type BossDefeatEvent = {
   y: number;
   dropResources:
     ResourceCounts;
+  dropCoins: number;
   weaponDrop?: {
     weaponId: WeaponId;
     rarity: WeaponRarityId;
@@ -518,6 +519,22 @@ export class BossUnit {
 
   get alive(): boolean {
     return this._alive;
+  }
+
+  get respawnAt(): number {
+    return this.respawnAtEpochMs;
+  }
+
+  resetRespawn(): boolean {
+    if (
+      this._alive ||
+      this.respawnAtEpochMs <= 0
+    ) {
+      return false;
+    }
+
+    this.respawn();
+    return true;
   }
 
   get engaged(): boolean {
@@ -1400,6 +1417,8 @@ export class BossUnit {
         ...this.definition
           .dropResources,
       },
+      dropCoins:
+        this.definition.dropCoins,
       weaponDrop:
         this.definition
           .weaponDrop
@@ -1798,6 +1817,80 @@ export class BossSystem {
           boss.alive &&
           boss.engaged,
       );
+  }
+
+  getNearestDormant(
+    origin: Phaser.Math.Vector2,
+    range: number,
+  ): {
+    id: BossId;
+    name: string;
+    respawnAt: number;
+    distance: number;
+  } | undefined {
+    let best:
+      BossUnit | undefined;
+    let bestDistance =
+      range;
+
+    for (
+      const boss of
+      this.bosses
+    ) {
+      if (
+        boss.alive ||
+        boss.respawnAt <=
+          Date.now()
+      ) {
+        continue;
+      }
+
+      const distance =
+        Phaser.Math.Distance.Between(
+          origin.x,
+          origin.y,
+          boss.spawn.x,
+          boss.spawn.y,
+        );
+
+      if (
+        distance <=
+        bestDistance
+      ) {
+        best = boss;
+        bestDistance =
+          distance;
+      }
+    }
+
+    return best
+      ? {
+          id:
+            best.definition.id,
+          name:
+            best.definition.name,
+          respawnAt:
+            best.respawnAt,
+          distance:
+            bestDistance,
+        }
+      : undefined;
+  }
+
+  resetRespawn(
+    bossId: BossId,
+  ): boolean {
+    const boss =
+      this.bosses.find(
+        (candidate) =>
+          candidate.definition.id ===
+          bossId,
+      );
+
+    return (
+      boss?.resetRespawn() ??
+      false
+    );
   }
 
   findNearest(

@@ -1,8 +1,11 @@
 export type RewardedAdPlacement =
-  | 'expedition_reward'
-  | 'death_recovery'
-  | 'production_boost'
-  | 'quest_bonus';
+  | 'death_revive'
+  | 'boss_reward'
+  | 'chest_reward'
+  | 'production_double'
+  | 'blessing'
+  | 'return_home'
+  | 'boss_respawn';
 
 export type InterstitialAdPlacement =
   | 'return_to_settlement'

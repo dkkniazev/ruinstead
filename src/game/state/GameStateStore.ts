@@ -137,6 +137,36 @@ function numberArrayRecord(
   return result;
 }
 
+function nonNegativeNumberRecord(
+  value: unknown,
+): Record<string, number> {
+  const record =
+    asRecord(value);
+
+  if (!record) {
+    return {};
+  }
+
+  const result:
+    Record<string, number> = {};
+
+  for (
+    const [key, entry]
+    of Object.entries(record)
+  ) {
+    if (
+      typeof entry === 'number' &&
+      Number.isFinite(entry) &&
+      entry >= 0
+    ) {
+      result[key] =
+        Math.floor(entry);
+    }
+  }
+
+  return result;
+}
+
 function numberRecord(
   value: unknown,
 ): Record<string, number> {
@@ -311,6 +341,20 @@ export function sanitizeGameState(value: unknown): GameState {
 
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
+  const masteryRanks =
+    asRecord(
+      progression?.masteryRanks,
+    );
+  const premium =
+    asRecord(root?.premium);
+  const skinFragments =
+    asRecord(
+      premium?.skinFragments,
+    );
+  const freeSkinChests =
+    asRecord(
+      premium?.freeSkinChests,
+    );
   const monetization =
     asRecord(root?.monetization);
   const activeBlessing =
@@ -610,6 +654,226 @@ export function sanitizeGameState(value: unknown): GameState {
               ?.expeditionCount,
           defaults.progression
             .settlementReturnCount,
+        ),
+      playerLevel:
+        Math.max(
+          1,
+          Math.min(
+            50,
+            nonNegativeInt(
+              progression
+                ?.playerLevel,
+              defaults.progression
+                .playerLevel,
+            ),
+          ),
+        ),
+      playerXp:
+        nonNegativeInt(
+          progression?.playerXp,
+          defaults.progression
+            .playerXp,
+        ),
+      masteryRanks: {
+        combat:
+          Math.min(
+            5,
+            nonNegativeInt(
+              masteryRanks?.combat,
+              0,
+            ),
+          ),
+        vitality:
+          Math.min(
+            5,
+            nonNegativeInt(
+              masteryRanks?.vitality,
+              0,
+            ),
+          ),
+        mobility:
+          Math.min(
+            5,
+            nonNegativeInt(
+              masteryRanks?.mobility,
+              0,
+            ),
+          ),
+        gathering:
+          Math.min(
+            5,
+            nonNegativeInt(
+              masteryRanks?.gathering,
+              0,
+            ),
+          ),
+        settlement:
+          Math.min(
+            5,
+            nonNegativeInt(
+              masteryRanks
+                ?.settlement,
+              0,
+            ),
+          ),
+      },
+      claimedLevelMilestones:
+        Array.isArray(
+          progression
+            ?.claimedLevelMilestones,
+        )
+          ? progression
+              .claimedLevelMilestones
+              .filter(
+                (
+                  value,
+                ): value is number =>
+                  typeof value ===
+                    'number' &&
+                  Number.isFinite(
+                    value,
+                  ),
+              )
+              .map((value) =>
+                Math.floor(value),
+              )
+          : [],
+    },
+    premium: {
+      gems:
+        nonNegativeInt(
+          premium?.gems,
+          defaults.premium.gems,
+        ),
+      skinFragments:
+        nonNegativeNumberRecord(
+          skinFragments,
+        ),
+      unlockedSkinIds:
+        stringArray(
+          premium
+            ?.unlockedSkinIds,
+          defaults.premium
+            .unlockedSkinIds,
+        ),
+      equippedSkinId:
+        nullableString(
+          premium
+            ?.equippedSkinId,
+          defaults.premium
+            .equippedSkinId,
+        ),
+      freeSkinChests: {
+        common:
+          nonNegativeInt(
+            freeSkinChests
+              ?.common,
+            0,
+          ),
+        rare:
+          nonNegativeInt(
+            freeSkinChests
+              ?.rare,
+            0,
+          ),
+        epic:
+          nonNegativeInt(
+            freeSkinChests
+              ?.epic,
+            0,
+          ),
+      },
+      epicChestPity:
+        nonNegativeInt(
+          premium
+            ?.epicChestPity,
+          0,
+        ),
+      rewardedCommonChestDay:
+        typeof premium
+          ?.rewardedCommonChestDay ===
+          'string'
+          ? premium
+              .rewardedCommonChestDay
+          : '',
+      rewardedCommonChestCount:
+        nonNegativeInt(
+          premium
+            ?.rewardedCommonChestCount,
+          0,
+        ),
+      achievements:
+        stringArray(
+          premium?.achievements,
+          [],
+        ),
+      levelPassOwned:
+        booleanValue(
+          premium
+            ?.levelPassOwned,
+          false,
+        ),
+      levelPassClaimedLevels:
+        Array.isArray(
+          premium
+            ?.levelPassClaimedLevels,
+        )
+          ? premium
+              .levelPassClaimedLevels
+              .filter(
+                (
+                  value,
+                ): value is number =>
+                  typeof value ===
+                    'number' &&
+                  Number.isFinite(
+                    value,
+                  ),
+              )
+              .map((value) =>
+                Math.floor(value),
+              )
+          : [],
+      starterPackOwned:
+        booleanValue(
+          premium
+            ?.starterPackOwned,
+          false,
+        ),
+      regionPacksOwned:
+        stringArray(
+          premium
+            ?.regionPacksOwned,
+          [],
+        ),
+      ownedSettlementThemes:
+        Array.from(
+          new Set([
+            'default',
+            ...stringArray(
+              premium
+                ?.ownedSettlementThemes,
+              [],
+            ),
+          ]),
+        ),
+      equippedSettlementTheme:
+        typeof premium
+          ?.equippedSettlementTheme ===
+          'string'
+          ? premium
+              .equippedSettlementTheme
+          : 'default',
+      ownedPets:
+        stringArray(
+          premium?.ownedPets,
+          [],
+        ),
+      equippedPet:
+        nullableString(
+          premium
+            ?.equippedPet,
+          null,
         ),
     },
     monetization: {

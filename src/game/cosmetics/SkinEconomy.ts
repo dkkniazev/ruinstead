@@ -17,6 +17,22 @@ export type SkinChestTier =
   | 'rare'
   | 'epic';
 
+export type SkinSource =
+  | 'chest'
+  | 'legendary-direct'
+  | 'starter-pack'
+  | 'level-pass'
+  | 'region-pack';
+
+export type SkinDefinition = {
+  name: string;
+  rarity: SkinRarityId;
+  bonusStat: SkinBonusStat;
+  tint: number;
+  source: SkinSource;
+  productId?: string;
+};
+
 export const SKIN_RARITIES:
   Record<
     SkinRarityId,
@@ -53,6 +69,224 @@ export const SKIN_RARITIES:
     directPurchaseOnly: true,
   },
 };
+
+export const SKIN_DEFINITIONS = {
+  'ember-initiate': {
+    name: 'Ученик углей',
+    rarity: 'common',
+    bonusStat: 'damage',
+    tint: 0xc98c62,
+    source: 'chest',
+  },
+  'moss-guard': {
+    name: 'Моховой страж',
+    rarity: 'common',
+    bonusStat: 'max-health',
+    tint: 0x82a76a,
+    source: 'chest',
+  },
+  'trail-scout': {
+    name: 'Следопыт',
+    rarity: 'common',
+    bonusStat: 'move-speed',
+    tint: 0x89a7b8,
+    source: 'chest',
+  },
+  'wood-runner': {
+    name: 'Лесной сборщик',
+    rarity: 'common',
+    bonusStat: 'gathering',
+    tint: 0xa78b63,
+    source: 'chest',
+  },
+  'village-hand': {
+    name: 'Мастер поселения',
+    rarity: 'common',
+    bonusStat: 'production',
+    tint: 0xb59a73,
+    source: 'chest',
+  },
+
+  'bronze-raider': {
+    name: 'Бронзовый налётчик',
+    rarity: 'uncommon',
+    bonusStat: 'damage',
+    tint: 0xd27e4f,
+    source: 'chest',
+  },
+  'iron-heart': {
+    name: 'Железное сердце',
+    rarity: 'uncommon',
+    bonusStat: 'max-health',
+    tint: 0x798897,
+    source: 'chest',
+  },
+  'wind-stalker': {
+    name: 'Идущий с ветром',
+    rarity: 'uncommon',
+    bonusStat: 'move-speed',
+    tint: 0x75adc4,
+    source: 'chest',
+  },
+  'deep-forager': {
+    name: 'Глубинный добытчик',
+    rarity: 'uncommon',
+    bonusStat: 'gathering',
+    tint: 0x8fab68,
+    source: 'chest',
+  },
+  'craftsman': {
+    name: 'Ремесленник',
+    rarity: 'uncommon',
+    bonusStat: 'production',
+    tint: 0xc09c63,
+    source: 'chest',
+  },
+
+  'crimson-duelist': {
+    name: 'Багровый дуэлянт',
+    rarity: 'rare',
+    bonusStat: 'damage',
+    tint: 0xc95561,
+    source: 'chest',
+  },
+  'stone-bastion': {
+    name: 'Каменный бастион',
+    rarity: 'rare',
+    bonusStat: 'max-health',
+    tint: 0x6f7d85,
+    source: 'chest',
+  },
+  'gale-runner': {
+    name: 'Бегущий в буре',
+    rarity: 'rare',
+    bonusStat: 'move-speed',
+    tint: 0x54a8c7,
+    source: 'chest',
+  },
+  'golden-harvester': {
+    name: 'Золотой добытчик',
+    rarity: 'rare',
+    bonusStat: 'gathering',
+    tint: 0xc5a747,
+    source: 'chest',
+  },
+  'guild-master': {
+    name: 'Гильдейский мастер',
+    rarity: 'rare',
+    bonusStat: 'production',
+    tint: 0x9f72b5,
+    source: 'chest',
+  },
+
+  'void-blade': {
+    name: 'Клинок пустоты',
+    rarity: 'epic',
+    bonusStat: 'damage',
+    tint: 0x8256b8,
+    source: 'chest',
+  },
+  'sun-warden': {
+    name: 'Солнечный хранитель',
+    rarity: 'epic',
+    bonusStat: 'max-health',
+    tint: 0xe0a84c,
+    source: 'chest',
+  },
+  'storm-runner': {
+    name: 'Штормовой бегун',
+    rarity: 'epic',
+    bonusStat: 'move-speed',
+    tint: 0x5d73d4,
+    source: 'chest',
+  },
+  'ancient-forager': {
+    name: 'Древний собиратель',
+    rarity: 'epic',
+    bonusStat: 'gathering',
+    tint: 0x558a65,
+    source: 'chest',
+  },
+  'architect': {
+    name: 'Архитектор руин',
+    rarity: 'epic',
+    bonusStat: 'production',
+    tint: 0xb167a4,
+    source: 'chest',
+  },
+
+  'phoenix-sovereign': {
+    name: 'Владыка феникса',
+    rarity: 'legendary',
+    bonusStat: 'damage',
+    tint: 0xff7551,
+    source: 'legendary-direct',
+    productId:
+      'legendary_skin_phoenix',
+  },
+  'titan-warden': {
+    name: 'Страж титанов',
+    rarity: 'legendary',
+    bonusStat: 'max-health',
+    tint: 0x5d8ea6,
+    source: 'legendary-direct',
+    productId:
+      'legendary_skin_titan',
+  },
+  'astral-runner': {
+    name: 'Астральный бегун',
+    rarity: 'legendary',
+    bonusStat: 'move-speed',
+    tint: 0x8d72e5,
+    source: 'legendary-direct',
+    productId:
+      'legendary_skin_astral',
+  },
+  'worldroot-sage': {
+    name: 'Мудрец мирового корня',
+    rarity: 'legendary',
+    bonusStat: 'gathering',
+    tint: 0x54a96d,
+    source: 'legendary-direct',
+    productId:
+      'legendary_skin_worldroot',
+  },
+  'ruin-king': {
+    name: 'Король руин',
+    rarity: 'legendary',
+    bonusStat: 'production',
+    tint: 0xd0a948,
+    source: 'legendary-direct',
+    productId:
+      'legendary_skin_ruin_king',
+  },
+
+  'starter-warden': {
+    name: 'Хранитель руин',
+    rarity: 'rare',
+    bonusStat: 'max-health',
+    tint: 0x6fa28a,
+    source: 'starter-pack',
+  },
+  'pass-champion': {
+    name: 'Чемпион пути',
+    rarity: 'epic',
+    bonusStat: 'damage',
+    tint: 0xb060d1,
+    source: 'level-pass',
+  },
+  'ashborn': {
+    name: 'Рождённый в пепле',
+    rarity: 'epic',
+    bonusStat: 'gathering',
+    tint: 0xc8754d,
+    source: 'region-pack',
+  },
+} as const satisfies
+  Record<string, SkinDefinition>;
+
+export type SkinId =
+  keyof typeof SKIN_DEFINITIONS;
 
 export const SKIN_CHESTS = {
   common: {
@@ -104,6 +338,7 @@ export const SKIN_CHESTS = {
 export const PREMIUM_ECONOMY_CONFIG = {
   currencyId: 'gems',
   skinFragmentsPerDrop: 10,
+  duplicateSkinGemCompensation: 5,
   levelReward: 5,
   sideBossFirstClearReward: 10,
   mainBossFirstClearReward: 20,
@@ -113,6 +348,41 @@ export const PREMIUM_ECONOMY_CONFIG = {
     max: 25,
   },
   epicChestPity: 5,
-  equippedSkinOnly:
-    true,
+  equippedSkinOnly: true,
 } as const;
+
+export function isSkinId(
+  value: unknown,
+): value is SkinId {
+  return (
+    typeof value === 'string' &&
+    value in SKIN_DEFINITIONS
+  );
+}
+
+export function getChestSkinIds(
+  rarity:
+    Exclude<
+      SkinRarityId,
+      'legendary'
+    >,
+): SkinId[] {
+  return (
+    Object.entries(
+      SKIN_DEFINITIONS,
+    ) as Array<
+      [
+        SkinId,
+        (typeof SKIN_DEFINITIONS)[SkinId],
+      ]
+    >
+  )
+    .filter(
+      ([, definition]) =>
+        definition.source ===
+          'chest' &&
+        definition.rarity ===
+          rarity,
+    )
+    .map(([id]) => id);
+}

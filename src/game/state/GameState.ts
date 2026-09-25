@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 19 as const;
+export const SAVE_SCHEMA_VERSION = 20 as const;
 
 export type BuildingId =
   | 'forge'
@@ -94,6 +94,46 @@ export type GameState = {
   progression: {
     settlementXp: number;
     settlementReturnCount: number;
+    playerLevel: number;
+    playerXp: number;
+    masteryRanks: {
+      combat: number;
+      vitality: number;
+      mobility: number;
+      gathering: number;
+      settlement: number;
+    };
+    claimedLevelMilestones:
+      number[];
+  };
+  premium: {
+    gems: number;
+    skinFragments:
+      Record<string, number>;
+    unlockedSkinIds: string[];
+    equippedSkinId:
+      string | null;
+    freeSkinChests: {
+      common: number;
+      rare: number;
+      epic: number;
+    };
+    epicChestPity: number;
+    rewardedCommonChestDay: string;
+    rewardedCommonChestCount: number;
+    achievements: string[];
+    levelPassOwned: boolean;
+    levelPassClaimedLevels:
+      number[];
+    starterPackOwned: boolean;
+    regionPacksOwned: string[];
+    ownedSettlementThemes:
+      string[];
+    equippedSettlementTheme:
+      string;
+    ownedPets: string[];
+    equippedPet:
+      string | null;
   };
   monetization: {
     activeBlessing: {
@@ -219,6 +259,42 @@ export function createDefaultGameState(): GameState {
     progression: {
       settlementXp: 0,
       settlementReturnCount: 0,
+      playerLevel: 1,
+      playerXp: 0,
+      masteryRanks: {
+        combat: 0,
+        vitality: 0,
+        mobility: 0,
+        gathering: 0,
+        settlement: 0,
+      },
+      claimedLevelMilestones: [],
+    },
+    premium: {
+      gems: 0,
+      skinFragments: {},
+      unlockedSkinIds: [],
+      equippedSkinId: null,
+      freeSkinChests: {
+        common: 0,
+        rare: 0,
+        epic: 0,
+      },
+      epicChestPity: 0,
+      rewardedCommonChestDay: '',
+      rewardedCommonChestCount: 0,
+      achievements: [],
+      levelPassOwned: false,
+      levelPassClaimedLevels: [],
+      starterPackOwned: false,
+      regionPacksOwned: [],
+      ownedSettlementThemes: [
+        'default',
+      ],
+      equippedSettlementTheme:
+        'default',
+      ownedPets: [],
+      equippedPet: null,
     },
     monetization: {
       activeBlessing: null,

@@ -79,7 +79,7 @@ const MAIN_QUESTS:
       (state, context) =>
         context.outsideSettlement ||
         state.progression
-          .expeditionCount > 0 ||
+          .settlementReturnCount > 0 ||
         state.settlement
           .repairStages.forge > 0 ||
         state.world
@@ -320,13 +320,13 @@ const OPTIONAL_QUESTS:
     complete:
       (state) =>
         state.progression
-          .expeditionCount >= 3,
+          .settlementReturnCount >= 3,
     progress:
       (state) =>
         `${Math.min(
           3,
           state.progression
-            .expeditionCount,
+            .settlementReturnCount,
         )} / 3 возвращения`,
   },
   {

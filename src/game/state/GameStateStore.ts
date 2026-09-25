@@ -647,6 +647,13 @@ export function sanitizeGameState(value: unknown): GameState {
           defaults.monetization
             .lastBossRespawnAdAt,
         ),
+      grantedPurchaseTokens:
+        stringArray(
+          monetization
+            ?.grantedPurchaseTokens,
+          defaults.monetization
+            .grantedPurchaseTokens,
+        ),
     },
     quests: {
       activeId: nullableString(

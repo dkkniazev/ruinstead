@@ -162,6 +162,8 @@ export type MonetizationHudState = {
   enabled: boolean;
   busy: boolean;
   returnTickets: number;
+  canFastReturn: boolean;
+  purchaseAvailable: boolean;
   activeBlessing: {
     kind: BlessingKind;
     expiresAt: number;

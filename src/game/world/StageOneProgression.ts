@@ -15,12 +15,14 @@ const BRIDGE =
 
 export const ROOT_COLOSSUS_ARENA_CENTER =
   new Phaser.Math.Vector2(
-    REGION_ONE.center[0] + 520,
-    REGION_ONE.center[1] + 280,
+    REGION_ONE.center[0] +
+      REGION_ONE.radiusX * 0.55,
+    REGION_ONE.center[1] +
+      REGION_ONE.radiusY * 0.5,
   );
 
 export const ROOT_COLOSSUS_ARENA_RADIUS =
-  285;
+  430;
 
 export const STAGE_ONE_BRIDGE_CENTER =
   getPassageMidpoint(BRIDGE);
@@ -41,9 +43,11 @@ const REGION_TWO =
 
 export const STAGE_TWO_ENTRY =
   new Phaser.Math.Vector2(
-    REGION_TWO.center[0] + 520,
-    REGION_TWO.center[1] + 180,
+    REGION_TWO.center[0] +
+      REGION_TWO.radiusX * 0.55,
+    REGION_TWO.center[1] +
+      REGION_TWO.radiusY * 0.3,
   );
 
 export const STAGE_TWO_ENTRY_RADIUS =
-  180;
+  260;

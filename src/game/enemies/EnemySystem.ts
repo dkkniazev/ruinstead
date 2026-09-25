@@ -1,11 +1,8 @@
 import Phaser from 'phaser';
 import type {
-  DamageEffectiveness,
   DamageProfile,
 } from '../combat/StageCombatProfile';
 import {
-  STAGE_ONE_COMBAT_PROFILE,
-  STAGE_TWO_COMBAT_PROFILE,
   getStageDamageProfile,
 } from '../combat/StageCombatProfile';
 import type {
@@ -15,18 +12,18 @@ import {
   SETTLEMENT_CENTER,
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
+import {
+  REGION_WEAPON_PROFILES,
+  RELEASE_SPECIES,
+  type ReleaseEnemyArchetype,
+} from '../world/ReleaseWorldContent';
+import {
+  getRegionDefinition,
+  type RegionId,
+} from '../world/ReleaseRegionMap';
 
 export type EnemySpeciesId =
-  | 'goblin'
-  | 'slime'
-  | 'boar'
-  | 'mushroom'
-  | 'beetle'
-  | 'dust-jackal'
-  | 'sandling'
-  | 'sun-scorpion'
-  | 'ruin-gargoyle'
-  | 'emberling';
+  (typeof RELEASE_SPECIES)[number]['id'];
 
 export type EnemyRank =
   | 'normal'
@@ -36,9 +33,8 @@ export type EnemyDefinition = {
   id: EnemySpeciesId;
   name: string;
   eliteName: string;
-  stageId:
-    | 'stage-1'
-    | 'stage-2';
+  region: RegionId;
+  stageId: string;
   maxHealth: number;
   moveSpeed: number;
   damage: number;
@@ -51,6 +47,8 @@ export type EnemyDefinition = {
   eliteTexture: string;
   bodyRadius: number;
   baselineOffset: number;
+  primaryColor: number;
+  accentColor: number;
 };
 
 type GroupSpawn = {
@@ -80,346 +78,351 @@ const RESET_REGEN_MS = 5_000;
 const AGGRO_RETENTION_MULTIPLIER = 2.4;
 const MIN_AGGRO_RETENTION_RANGE = 300;
 
-const DEFINITIONS:
+const LEGACY_TEXTURES:
+  Partial<
+    Record<
+      EnemySpeciesId,
+      readonly [string, string]
+    >
+  > = {
+  goblin: [
+    'ruinstead-enemy-goblin',
+    'ruinstead-enemy-hobgoblin',
+  ],
+  slime: [
+    'ruinstead-enemy-slime',
+    'ruinstead-enemy-elder-slime',
+  ],
+  boar: [
+    'ruinstead-enemy-boar',
+    'ruinstead-enemy-boar-alpha',
+  ],
+  mushroom: [
+    'ruinstead-enemy-mushroom',
+    'ruinstead-enemy-elder-mushroom',
+  ],
+  beetle: [
+    'ruinstead-enemy-beetle',
+    'ruinstead-enemy-beetle-elite',
+  ],
+  'dust-jackal': [
+    'ruinstead-enemy-dust-jackal',
+    'ruinstead-enemy-dust-jackal-elite',
+  ],
+  sandling: [
+    'ruinstead-enemy-sandling',
+    'ruinstead-enemy-sandling-elite',
+  ],
+  'sun-scorpion': [
+    'ruinstead-enemy-sun-scorpion',
+    'ruinstead-enemy-sun-scorpion-elite',
+  ],
+  'ruin-gargoyle': [
+    'ruinstead-enemy-ruin-gargoyle',
+    'ruinstead-enemy-ruin-gargoyle-elite',
+  ],
+  emberling: [
+    'ruinstead-enemy-emberling',
+    'ruinstead-enemy-emberling-elite',
+  ],
+};
+
+function archetypeStats(
+  archetype:
+    ReleaseEnemyArchetype,
+): {
+  health: number;
+  speed: number;
+  damage: number;
+  range: number;
+  cooldown: number;
+} {
+  switch (archetype) {
+    case 'fast':
+      return {
+        health: 0.82,
+        speed: 1.28,
+        damage: 0.92,
+        range: 76,
+        cooldown: 780,
+      };
+    case 'tank':
+      return {
+        health: 1.38,
+        speed: 0.72,
+        damage: 1.16,
+        range: 88,
+        cooldown: 1160,
+      };
+    case 'ranged':
+      return {
+        health: 0.94,
+        speed: 0.92,
+        damage: 1.08,
+        range: 96,
+        cooldown: 1040,
+      };
+    case 'charger':
+      return {
+        health: 1.08,
+        speed: 1.18,
+        damage: 1.18,
+        range: 84,
+        cooldown: 940,
+      };
+    default:
+      return {
+        health: 1,
+        speed: 1,
+        damage: 1,
+        range: 82,
+        cooldown: 920,
+      };
+  }
+}
+
+function buildDefinitions():
   Record<
     EnemySpeciesId,
     EnemyDefinition
-  > = {
-  goblin: {
-    id: 'goblin',
-    name: 'Гоблин',
-    eliteName: 'Хобгоблин',
-    stageId: 'stage-1',
-    maxHealth: 72,
-    moveSpeed: 112,
-    damage: 11,
-    attackRange: 78,
-    attackCooldownMs: 880,
-    aggroRange: 145,
-    leashRange: 255,
-    dropCoins: 2,
-    texture:
-      'ruinstead-enemy-goblin',
-    eliteTexture:
-      'ruinstead-enemy-hobgoblin',
-    bodyRadius: 22,
-    baselineOffset: 31,
-  },
-  slime: {
-    id: 'slime',
-    name: 'Слизень',
-    eliteName: 'Старший слизень',
-    stageId: 'stage-1',
-    maxHealth: 58,
-    moveSpeed: 92,
-    damage: 9,
-    attackRange: 74,
-    attackCooldownMs: 760,
-    aggroRange: 140,
-    leashRange: 245,
-    dropCoins: 2,
-    texture:
-      'ruinstead-enemy-slime',
-    eliteTexture:
-      'ruinstead-enemy-elder-slime',
-    bodyRadius: 20,
-    baselineOffset: 25,
-  },
-  boar: {
-    id: 'boar',
-    name: 'Кабан',
-    eliteName: 'Вожак кабанов',
-    stageId: 'stage-1',
-    maxHealth: 92,
-    moveSpeed: 142,
-    damage: 14,
-    attackRange: 84,
-    attackCooldownMs: 960,
-    aggroRange: 155,
-    leashRange: 285,
-    dropCoins: 3,
-    texture:
-      'ruinstead-enemy-boar',
-    eliteTexture:
-      'ruinstead-enemy-boar-alpha',
-    bodyRadius: 25,
-    baselineOffset: 30,
-  },
-  mushroom: {
-    id: 'mushroom',
-    name: 'Грибник',
-    eliteName: 'Старший грибник',
-    stageId: 'stage-1',
-    maxHealth: 76,
-    moveSpeed: 82,
-    damage: 13,
-    attackRange: 80,
-    attackCooldownMs: 1040,
-    aggroRange: 138,
-    leashRange: 240,
-    dropCoins: 3,
-    texture:
-      'ruinstead-enemy-mushroom',
-    eliteTexture:
-      'ruinstead-enemy-elder-mushroom',
-    bodyRadius: 22,
-    baselineOffset: 31,
-  },
-  beetle: {
-    id: 'beetle',
-    name: 'Панцирник',
-    eliteName: 'Матёрый панцирник',
-    stageId: 'stage-1',
-    maxHealth: 125,
-    moveSpeed: 74,
-    damage: 18,
-    attackRange: 88,
-    attackCooldownMs: 1180,
-    aggroRange: 135,
-    leashRange: 230,
-    dropCoins: 4,
-    texture:
-      'ruinstead-enemy-beetle',
-    eliteTexture:
-      'ruinstead-enemy-beetle-elite',
-    bodyRadius: 28,
-    baselineOffset: 34,
-  },
-  'dust-jackal': {
-    id: 'dust-jackal',
-    name: 'Пыльный шакал',
-    eliteName: 'Вожак шакалов',
-    stageId: 'stage-2',
-    maxHealth: 150,
-    moveSpeed: 136,
-    damage: 20,
-    attackRange: 84,
-    attackCooldownMs: 850,
-    aggroRange: 160,
-    leashRange: 300,
-    dropCoins: 5,
-    texture:
-      'ruinstead-enemy-dust-jackal',
-    eliteTexture:
-      'ruinstead-enemy-dust-jackal-elite',
-    bodyRadius: 25,
-    baselineOffset: 31,
-  },
-  sandling: {
-    id: 'sandling',
-    name: 'Песчаник',
-    eliteName: 'Древний песчаник',
-    stageId: 'stage-2',
-    maxHealth: 138,
-    moveSpeed: 98,
-    damage: 21,
-    attackRange: 82,
-    attackCooldownMs: 940,
-    aggroRange: 150,
-    leashRange: 285,
-    dropCoins: 5,
-    texture:
-      'ruinstead-enemy-sandling',
-    eliteTexture:
-      'ruinstead-enemy-sandling-elite',
-    bodyRadius: 23,
-    baselineOffset: 31,
-  },
-  'sun-scorpion': {
-    id: 'sun-scorpion',
-    name: 'Солнечный скорпион',
-    eliteName: 'Золотой скорпион',
-    stageId: 'stage-2',
-    maxHealth: 184,
-    moveSpeed: 112,
-    damage: 24,
-    attackRange: 91,
-    attackCooldownMs: 1030,
-    aggroRange: 155,
-    leashRange: 300,
-    dropCoins: 6,
-    texture:
-      'ruinstead-enemy-sun-scorpion',
-    eliteTexture:
-      'ruinstead-enemy-sun-scorpion-elite',
-    bodyRadius: 28,
-    baselineOffset: 32,
-  },
-  'ruin-gargoyle': {
-    id: 'ruin-gargoyle',
-    name: 'Руинный страж',
-    eliteName: 'Крылатый страж',
-    stageId: 'stage-2',
-    maxHealth: 225,
-    moveSpeed: 84,
-    damage: 28,
-    attackRange: 88,
-    attackCooldownMs: 1160,
-    aggroRange: 145,
-    leashRange: 280,
-    dropCoins: 7,
-    texture:
-      'ruinstead-enemy-ruin-gargoyle',
-    eliteTexture:
-      'ruinstead-enemy-ruin-gargoyle-elite',
-    bodyRadius: 29,
-    baselineOffset: 35,
-  },
-  emberling: {
-    id: 'emberling',
-    name: 'Искровик',
-    eliteName: 'Пылающий искровик',
-    stageId: 'stage-2',
-    maxHealth: 168,
-    moveSpeed: 122,
-    damage: 25,
-    attackRange: 86,
-    attackCooldownMs: 900,
-    aggroRange: 158,
-    leashRange: 295,
-    dropCoins: 7,
-    texture:
-      'ruinstead-enemy-emberling',
-    eliteTexture:
-      'ruinstead-enemy-emberling-elite',
-    bodyRadius: 24,
-    baselineOffset: 30,
+  > {
+  const definitions =
+    {} as Record<
+      EnemySpeciesId,
+      EnemyDefinition
+    >;
+
+  const regionIndexes =
+    new Map<number, number>();
+
+  for (
+    const species of
+    RELEASE_SPECIES
+  ) {
+    const index =
+      regionIndexes.get(
+        species.region,
+      ) ?? 0;
+    regionIndexes.set(
+      species.region,
+      index + 1,
+    );
+
+    const profile =
+      archetypeStats(
+        species.archetype,
+      );
+    const baseHealth =
+      55 +
+      species.region * 48 +
+      index * 11;
+    const baseDamage =
+      7 +
+      species.region * 4.4 +
+      index * 1.2;
+    const textures =
+      LEGACY_TEXTURES[
+        species.id
+      ] ?? [
+        `ruinstead-enemy-${species.id}`,
+        `ruinstead-enemy-${species.id}-elite`,
+      ];
+
+    definitions[
+      species.id
+    ] = {
+      id: species.id,
+      name: species.name,
+      eliteName:
+        species.eliteName,
+      region:
+        species.region,
+      stageId:
+        `stage-${species.region}`,
+      maxHealth:
+        Math.round(
+          baseHealth *
+          profile.health,
+        ),
+      moveSpeed:
+        Math.round(
+          (
+            88 +
+            species.region * 4
+          ) *
+          profile.speed,
+        ),
+      damage:
+        Math.round(
+          baseDamage *
+          profile.damage,
+        ),
+      attackRange:
+        profile.range,
+      attackCooldownMs:
+        profile.cooldown,
+      aggroRange:
+        142 +
+        species.region * 4,
+      leashRange:
+        245 +
+        species.region * 10,
+      dropCoins:
+        1 +
+        species.region * 2 +
+        Math.floor(
+          index / 2,
+        ),
+      texture:
+        textures[0],
+      eliteTexture:
+        textures[1],
+      bodyRadius:
+        profile.health > 1.2
+          ? 29
+          : profile.speed > 1.15
+            ? 23
+            : 25,
+      baselineOffset: 31,
+      primaryColor:
+        species.primaryColor,
+      accentColor:
+        species.accentColor,
+    };
   }
-};
+
+  return definitions;
+}
+
+const DEFINITIONS =
+  buildDefinitions();
+
+function buildHabitats():
+  HabitatDefinition[] {
+  const habitats:
+    HabitatDefinition[] = [];
+
+  for (
+    let regionId = 1;
+    regionId <= 8;
+    regionId += 1
+  ) {
+    const region =
+      getRegionDefinition(
+        regionId as RegionId,
+      );
+    const species =
+      RELEASE_SPECIES.filter(
+        (entry) =>
+          entry.region ===
+          regionId,
+      );
+
+    const habitatOffsets:
+      ReadonlyArray<
+        readonly [number, number]
+      > = [
+      [-0.43, -0.25],
+      [0.05, -0.48],
+      [0.42, -0.18],
+      [-0.34, 0.36],
+      [0.34, 0.37],
+    ];
+
+    species.forEach(
+      (
+        entry,
+        habitatIndex,
+      ) => {
+        const offset =
+          habitatOffsets[
+            habitatIndex
+          ];
+        const centerX =
+          region.center[0] +
+          region.radiusX *
+            offset[0];
+        const centerY =
+          region.center[1] +
+          region.radiusY *
+            offset[1];
+
+        const groups:
+          Array<
+            readonly [
+              number,
+              number,
+            ]
+          > = [];
+        const elites:
+          Array<
+            readonly [
+              number,
+              number,
+            ]
+          > = [];
+
+        for (
+          let index = 0;
+          index < 3;
+          index += 1
+        ) {
+          const angle =
+            index /
+              3 *
+              Math.PI *
+              2 +
+            habitatIndex *
+              0.31;
+          groups.push([
+            Math.round(
+              centerX +
+              Math.cos(
+                angle,
+              ) *
+                125,
+            ),
+            Math.round(
+              centerY +
+              Math.sin(
+                angle,
+              ) *
+                95,
+            ),
+          ]);
+          elites.push([
+            Math.round(
+              centerX +
+              Math.cos(
+                angle + 0.55,
+              ) *
+                205,
+            ),
+            Math.round(
+              centerY +
+              Math.sin(
+                angle + 0.55,
+              ) *
+                155,
+            ),
+          ]);
+        }
+
+        habitats.push({
+          species: entry.id,
+          groups,
+          elites,
+        });
+      },
+    );
+  }
+
+  return habitats;
+}
 
 const HABITATS:
-  readonly HabitatDefinition[] = [
-  {
-    species: 'goblin',
-    groups: [
-      [1180, 760],
-      [1320, 900],
-      [1190, 1090],
-    ],
-    elites: [
-      [1360, 690],
-      [1430, 1010],
-      [1260, 1220],
-    ],
-  },
-  {
-    species: 'slime',
-    groups: [
-      [1510, 390],
-      [1690, 470],
-      [1580, 650],
-    ],
-    elites: [
-      [1410, 510],
-      [1790, 380],
-      [1770, 680],
-    ],
-  },
-  {
-    species: 'boar',
-    groups: [
-      [1570, 1240],
-      [1780, 1370],
-      [1900, 1160],
-    ],
-    elites: [
-      [1470, 1430],
-      [1980, 1330],
-      [1800, 1060],
-    ],
-  },
-  {
-    species: 'mushroom',
-    groups: [
-      [1980, 430],
-      [2170, 540],
-      [2050, 735],
-    ],
-    elites: [
-      [1890, 590],
-      [2280, 410],
-      [2260, 770],
-    ],
-  },
-  {
-    species: 'beetle',
-    groups: [
-      [2180, 1020],
-      [2390, 1130],
-      [2240, 1390],
-    ],
-    elites: [
-      [2110, 1220],
-      [2580, 1050],
-      [2440, 1450],
-    ],
-  },
-  {
-    species: 'dust-jackal',
-    groups: [
-      [3260, 760],
-      [3420, 900],
-      [3310, 1080],
-    ],
-    elites: [
-      [3450, 680],
-      [3520, 1020],
-      [3370, 1210],
-    ],
-  },
-  {
-    species: 'sandling',
-    groups: [
-      [3650, 390],
-      [3830, 500],
-      [3720, 650],
-    ],
-    elites: [
-      [3550, 510],
-      [3930, 380],
-      [3900, 690],
-    ],
-  },
-  {
-    species: 'sun-scorpion',
-    groups: [
-      [3820, 1220],
-      [4050, 1350],
-      [4170, 1130],
-    ],
-    elites: [
-      [3710, 1420],
-      [4250, 1310],
-      [4020, 1040],
-    ],
-  },
-  {
-    species: 'ruin-gargoyle',
-    groups: [
-      [4280, 420],
-      [4490, 540],
-      [4380, 720],
-    ],
-    elites: [
-      [4180, 590],
-      [4620, 410],
-      [4580, 770],
-    ],
-  },
-  {
-    species: 'emberling',
-    groups: [
-      [4720, 1030],
-      [4950, 1150],
-      [4810, 1380],
-    ],
-    elites: [
-      [4630, 1210],
-      [5110, 1040],
-      [5020, 1460],
-    ],
-  }
-];
+  readonly HabitatDefinition[] =
+  buildHabitats();
 
 const GROUP_MEMBER_OFFSETS:
   ReadonlyArray<
@@ -728,11 +731,22 @@ export class EnemyUnit {
   getDamageProfile(
     weaponId: WeaponId,
   ): DamageProfile {
+    const profile =
+      REGION_WEAPON_PROFILES[
+        this.definition.region
+      ];
+
     return getStageDamageProfile(
-      this.definition.stageId ===
-        'stage-2'
-        ? STAGE_TWO_COMBAT_PROFILE
-        : STAGE_ONE_COMBAT_PROFILE,
+      {
+        id:
+          this.definition.stageId,
+        weaknessWeaponId:
+          profile.weakness,
+        resistanceWeaponId:
+          profile.resistance,
+        startingWeaponId:
+          profile.weakness,
+      },
       weaponId,
     );
   }
@@ -1699,6 +1713,38 @@ function ensureEnemyTextures(
     0xffdf62,
     true,
   );
+
+  for (
+    const species of
+    RELEASE_SPECIES
+  ) {
+    if (species.region <= 2) {
+      continue;
+    }
+
+    const definition =
+      DEFINITIONS[
+        species.id
+      ];
+
+    ensureStageTwoCreatureTexture(
+      scene,
+      definition,
+      definition.primaryColor,
+      definition.accentColor,
+      false,
+    );
+    ensureStageTwoCreatureTexture(
+      scene,
+      definition,
+      darkenColor(
+        definition.primaryColor,
+        0.72,
+      ),
+      0xffd86b,
+      true,
+    );
+  }
 }
 
 function createGraphics(
@@ -2199,4 +2245,41 @@ function ensureStageTwoCreatureTexture(
     112,
   );
   g.destroy();
+}
+
+
+function darkenColor(
+  color: number,
+  factor: number,
+): number {
+  const r =
+    Math.round(
+      (
+        (color >> 16) &
+        0xff
+      ) *
+      factor,
+    );
+  const g =
+    Math.round(
+      (
+        (color >> 8) &
+        0xff
+      ) *
+      factor,
+    );
+  const b =
+    Math.round(
+      (
+        color &
+        0xff
+      ) *
+      factor,
+    );
+
+  return (
+    (r << 16) |
+    (g << 8) |
+    b
+  );
 }

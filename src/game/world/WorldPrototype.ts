@@ -13,18 +13,21 @@ export const WORLD_WIDTH =
 export const WORLD_HEIGHT =
   RELEASE_WORLD_HEIGHT;
 
+const REGION_ONE =
+  getRegionDefinition(1);
+
 export const SETTLEMENT_CENTER =
   new Phaser.Math.Vector2(
-    3650,
-    4470,
+    REGION_ONE.center[0],
+    REGION_ONE.center[1] + 380,
   );
 export const SETTLEMENT_SAFE_RADIUS =
-  320;
+  520;
 
 export const RETURN_POINT =
   new Phaser.Math.Vector2(
-    3540,
-    4530,
+    SETTLEMENT_CENTER.x - 150,
+    SETTLEMENT_CENTER.y + 90,
   );
 export const RETURN_RADIUS = 92;
 
@@ -56,8 +59,8 @@ export function createPrototypeWorld(
     obstacles,
     spawn:
       new Phaser.Math.Vector2(
-        3650,
-        4560,
+        SETTLEMENT_CENTER.x,
+        SETTLEMENT_CENTER.y + 190,
       ),
   };
 }

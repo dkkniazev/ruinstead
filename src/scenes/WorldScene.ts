@@ -67,7 +67,7 @@ import {
 } from '../game/analytics/Analytics';
 import {
   MONETIZATION_CONFIG,
-  isReturnInterstitialDue,
+  MONETIZATION_CONFIG,
 } from '../game/monetization/MonetizationConfig';
 import {
   type GameState,
@@ -1570,7 +1570,7 @@ export class WorldScene
       }
 
       this.gameState.progression
-        .expeditionCount += 1;
+        .settlementReturnCount += 1;
 
       const carried =
         this.backpack.state
@@ -1603,13 +1603,13 @@ export class WorldScene
 
       this.saveState();
 
-      const expeditionCount =
+      const settlementReturnCount =
         this.gameState.progression
-          .expeditionCount;
+        .settlementReturnCount;
 
       if (
         isReturnInterstitialDue(
-          expeditionCount,
+          settlementReturnCount,
         ) &&
         this.adsProvider
           .isInterstitialAvailable()
@@ -1617,7 +1617,7 @@ export class WorldScene
         this.clearMonetizationOffer();
         void this
           .tryShowReturnInterstitial(
-            expeditionCount,
+            settlementReturnCount,
           );
       } else if (
         MONETIZATION_CONFIG.enabled &&
@@ -2202,55 +2202,6 @@ export class WorldScene
 
     this.emitCityState();
     this.saveState();
-  }
-
-  private async tryShowReturnInterstitial(
-    expeditionCount: number,
-  ): Promise<void> {
-    if (
-      !MONETIZATION_CONFIG.enabled ||
-      this.monetizationBusy ||
-      !this.adsProvider
-        .isInterstitialAvailable()
-    ) {
-      return;
-    }
-
-    this.monetizationBusy = true;
-    this.emitMonetizationState();
-
-    trackAnalyticsEvent(
-      'interstitial_requested',
-      {
-        placement:
-          'return_to_settlement',
-        expeditionCount,
-        provider:
-          this.adsProvider.name,
-      },
-    );
-
-    const result =
-      await this.adsProvider
-        .showInterstitial(
-          'return_to_settlement',
-        );
-
-    trackAnalyticsEvent(
-      'interstitial_result',
-      {
-        placement:
-          'return_to_settlement',
-        expeditionCount,
-        shown:
-          result.shown,
-        reason:
-          result.reason,
-      },
-    );
-
-    this.monetizationBusy = false;
-    this.emitMonetizationState();
   }
 
   private updateSettlement(): void {

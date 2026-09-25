@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 15 as const;
+export const SAVE_SCHEMA_VERSION = 16 as const;
 
 export type BuildingId =
   | 'forge'
@@ -50,6 +50,7 @@ export type GameState = {
   };
   consumables: {
     healthPotions: number;
+    returnTickets: number;
   };
   settlement: {
     level: number;
@@ -92,7 +93,18 @@ export type GameState = {
   };
   progression: {
     settlementXp: number;
-    expeditionCount: number;
+    settlementReturnCount: number;
+  };
+  monetization: {
+    activeBlessing: {
+      kind:
+        | 'damage'
+        | 'health'
+        | 'speed'
+        | 'gathering';
+      expiresAt: number;
+    } | null;
+    lastBossRespawnAdAt: number;
   };
   quests: {
     activeId: string | null;
@@ -149,6 +161,7 @@ export function createDefaultGameState(): GameState {
     },
     consumables: {
       healthPotions: 3,
+      returnTickets: 0,
     },
     settlement: {
       level: 0,
@@ -201,7 +214,11 @@ export function createDefaultGameState(): GameState {
     },
     progression: {
       settlementXp: 0,
-      expeditionCount: 0,
+      settlementReturnCount: 0,
+    },
+    monetization: {
+      activeBlessing: null,
+      lastBossRespawnAdAt: 0,
     },
     quests: {
       activeId: 'restore-forge',

@@ -115,6 +115,10 @@ const BOSS_DEFINITIONS:
     leashRange: 300,
     dropCoins: 24,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
+    weaponDrop: {
+      weaponId: 'axe',
+      rarity: 'common',
+    },
     respawnCooldownMs: bossRespawnCooldownMs(0),
     weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
@@ -143,6 +147,10 @@ const BOSS_DEFINITIONS:
     leashRange: 320,
     dropCoins: 32,
     dropResources: { wood: 0, stone: 0, metal: 0, coins: 0 },
+    weaponDrop: {
+      weaponId: 'axe',
+      rarity: 'common',
+    },
     respawnCooldownMs: bossRespawnCooldownMs(1),
     weaknessWeaponId: 'hammer',
     resistanceWeaponId: 'sword',

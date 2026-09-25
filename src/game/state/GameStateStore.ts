@@ -311,6 +311,13 @@ export function sanitizeGameState(value: unknown): GameState {
 
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
+  const monetization =
+    asRecord(root?.monetization);
+  const activeBlessing =
+    asRecord(
+      monetization
+        ?.activeBlessing,
+    );
   const quests = asRecord(root?.quests);
   const bestiary =
     asRecord(root?.bestiary);
@@ -466,6 +473,13 @@ export function sanitizeGameState(value: unknown): GameState {
               .healthPotions,
           ),
         ),
+      returnTickets:
+        nonNegativeInt(
+          consumables
+            ?.returnTickets,
+          defaults.consumables
+            .returnTickets,
+        ),
     },
     settlement: {
       level: nonNegativeInt(
@@ -588,10 +602,51 @@ export function sanitizeGameState(value: unknown): GameState {
         progression?.settlementXp,
         defaults.progression.settlementXp,
       ),
-      expeditionCount: nonNegativeInt(
-        progression?.expeditionCount,
-        defaults.progression.expeditionCount,
-      ),
+      settlementReturnCount:
+        nonNegativeInt(
+          progression
+            ?.settlementReturnCount ??
+            progression
+              ?.expeditionCount,
+          defaults.progression
+            .settlementReturnCount,
+        ),
+    },
+    monetization: {
+      activeBlessing:
+        activeBlessing &&
+        (
+          activeBlessing.kind ===
+            'damage' ||
+          activeBlessing.kind ===
+            'health' ||
+          activeBlessing.kind ===
+            'speed' ||
+          activeBlessing.kind ===
+            'gathering'
+        ) &&
+        nonNegativeInt(
+          activeBlessing.expiresAt,
+          0,
+        ) > Date.now()
+          ? {
+              kind:
+                activeBlessing.kind,
+              expiresAt:
+                nonNegativeInt(
+                  activeBlessing
+                    .expiresAt,
+                  0,
+                ),
+            }
+          : null,
+      lastBossRespawnAdAt:
+        nonNegativeInt(
+          monetization
+            ?.lastBossRespawnAdAt,
+          defaults.monetization
+            .lastBossRespawnAdAt,
+        ),
     },
     quests: {
       activeId: nullableString(

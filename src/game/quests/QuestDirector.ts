@@ -280,7 +280,7 @@ const MAIN_QUESTS:
     objective:
       'Победите Корневого колосса.',
     hint:
-      'Подготовьтесь в кузнице и найдите главного босса в глубине этапа.',
+      'Подготовьтесь в кузнице и найдите главного босса в глубине региона 1.',
     reward: {
       coins: 45,
       settlementXp: 50,
@@ -298,6 +298,425 @@ const MAIN_QUESTS:
           .defeatedBosses
           .includes(
             'root-colossus',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'repair-region-two-bridge',
+    title: 'Дорога в Пепельные нагорья',
+    objective:
+      'Восстановите мост между регионами 1 и 2.',
+    hint:
+      'После победы над Корневым колоссом подойдите к разрушенному мосту и вложите 20 дерева, 10 камня и 4 металла.',
+    reward: {
+      coins: 30,
+      settlementXp: 25,
+    },
+    complete:
+      (state) =>
+        state.settlement
+          .buildings.bridge > 0 &&
+        state.world
+          .unlockedZones
+          .includes(
+            'stage-2',
+          ),
+    progress:
+      (state) =>
+        state.settlement
+          .buildings.bridge > 0
+          ? 'Мост восстановлен'
+          : 'Мост разрушен',
+  },
+  {
+    id: 'enter-region-2',
+    title: 'Пепельные нагорья',
+    objective:
+      'Перейдите в регион 2.',
+    hint:
+      'Пройдите по восстановленному мосту. Кристалл и волокно доступны сразу за входом.',
+    reward: {
+      coins: 35,
+      settlementXp: 25,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-2-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-2-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-sun-tyrant',
+    title: 'Солнечный тиран',
+    objective:
+      'Победите главного босса региона 2.',
+    hint:
+      'Ищите Солнечного тирана в дальней части Пепельных нагорий.',
+    reward: {
+      coins: 70,
+      settlementXp: 70,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'sun-tyrant',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'sun-tyrant',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'enter-region-3',
+    title: 'Теневой перевал',
+    objective:
+      'Войдите в регион 3 через открытые Солнечные врата.',
+    hint:
+      'Проход из региона 2 ведёт на север, в Теневой перевал.',
+    reward: {
+      coins: 45,
+      settlementXp: 30,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-3-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-3-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-pass-warden',
+    title: 'Страж перевала',
+    objective:
+      'Победите главного босса региона 3.',
+    hint:
+      'Страж перевала охраняет путь к центральному Магмовому сердцу.',
+    reward: {
+      coins: 90,
+      settlementXp: 85,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'pass-warden',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'pass-warden',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'enter-region-4',
+    title: 'Магмовое сердце',
+    objective:
+      'Войдите в регион 4.',
+    hint:
+      'После открытия региона одновременно становится доступен короткий путь 4 ↔ 1.',
+    reward: {
+      coins: 55,
+      settlementXp: 35,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-4-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-4-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-lava-golem',
+    title: 'Лавовый голем',
+    objective:
+      'Победите усиленного босса региона 4.',
+    hint:
+      'Лавовый голем сильнее обычных главных боссов и возрождается вдвое дольше.',
+    reward: {
+      coins: 130,
+      settlementXp: 110,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'lava-golem',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'lava-golem',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'enter-region-5',
+    title: 'Ветреные высоты',
+    objective:
+      'Войдите в регион 5.',
+    hint:
+      'После открытия региона работают оба прохода: из 4 и из уже открытого 3.',
+    reward: {
+      coins: 65,
+      settlementXp: 40,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-5-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-5-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-sky-lord',
+    title: 'Повелитель ветров',
+    objective:
+      'Победите главного босса региона 5.',
+    hint:
+      'Ищите его на дальней площадке Ветреных высот.',
+    reward: {
+      coins: 130,
+      settlementXp: 120,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'sky-lord',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'sky-lord',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'enter-region-6',
+    title: 'Пепельные русла',
+    objective:
+      'Войдите в регион 6.',
+    hint:
+      'К региону ведут проходы из 5 и центрального региона 4.',
+    reward: {
+      coins: 75,
+      settlementXp: 45,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-6-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-6-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-ash-serpent',
+    title: 'Пепельный змей',
+    objective:
+      'Победите главного босса региона 6.',
+    hint:
+      'Исследуйте русла и найдите арену Пепельного змея.',
+    reward: {
+      coins: 160,
+      settlementXp: 135,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'ash-serpent',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'ash-serpent',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'enter-region-7',
+    title: 'Сухой каньон',
+    objective:
+      'Войдите в регион 7.',
+    hint:
+      'После открытия становятся доступны пути 6 ↔ 7, 4 ↔ 7 и короткая дорога 7 ↔ 1.',
+    reward: {
+      coins: 85,
+      settlementXp: 50,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-7-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-7-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-canyon-lord',
+    title: 'Хозяин каньона',
+    objective:
+      'Победите главного босса региона 7.',
+    hint:
+      'Эта победа открывает путь из стартового региона к Драконьей кальдере.',
+    reward: {
+      coins: 190,
+      settlementXp: 150,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'canyon-lord',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'canyon-lord',
+          )
+          ? 'Побеждён'
+          : 'Жив',
+  },
+  {
+    id: 'enter-region-8',
+    title: 'Драконья кальдера',
+    objective:
+      'Войдите в регион 8.',
+    hint:
+      'Единственный путь в кальдеру идёт из региона 1.',
+    reward: {
+      coins: 100,
+      settlementXp: 60,
+    },
+    complete:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-8-entry',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .discoveredLandmarks
+          .includes(
+            'stage-8-entry',
+          )
+          ? 'Регион исследован'
+          : 'Не посещён',
+  },
+  {
+    id: 'defeat-fire-dragon',
+    title: 'Огненный дракон',
+    objective:
+      'Победите финального усиленного босса.',
+    hint:
+      'Огненный дракон — самый опасный противник релизной карты и возрождается вдвое дольше.',
+    reward: {
+      coins: 300,
+      settlementXp: 250,
+    },
+    complete:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'fire-dragon',
+          ),
+    progress:
+      (state) =>
+        state.world
+          .defeatedBosses
+          .includes(
+            'fire-dragon',
           )
           ? 'Побеждён'
           : 'Жив',
@@ -506,10 +925,10 @@ export class QuestDirector {
         active?.id ?? null,
       title:
         active?.title ??
-        'Первый этап завершён',
+        'Релизная цепочка завершена',
       objective:
         active?.objective ??
-        'Главная цепочка текущего этапа выполнена.',
+        'Все восемь регионов и Огненный дракон пройдены.',
       progress:
         active
           ? active.progress(
@@ -519,7 +938,7 @@ export class QuestDirector {
           : 'Готово',
       hint:
         active?.hint ??
-        'Можно заниматься улучшениями, фармом и исследованием.',
+        'Можно усиливать оружие, закрывать бестиарий и повторно фармить боссов.',
       sequenceProgress:
         `${completedMain} / ${MAIN_QUESTS.length}`,
       rewardText:

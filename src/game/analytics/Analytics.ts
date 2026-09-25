@@ -2,6 +2,8 @@ export type AnalyticsEventName =
   | 'bestiary_discovered'
   | 'bestiary_level_up'
   | 'bestiary_reward_claimed'
+  | 'player_level_up'
+  | 'skin_chest_opened'
   | 'ad_offer_shown'
   | 'ad_started'
   | 'ad_result'

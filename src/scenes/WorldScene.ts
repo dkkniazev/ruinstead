@@ -59,11 +59,9 @@ import {
   getAvailableMasteryPoints,
   spendMasteryPoint,
 } from '../game/progression/PlayerProgressionSystem';
-import {
-  SKIN_DEFINITIONS,
-  SKIN_RARITIES,
-  type SkinChestTier,
-  type SkinId,
+import type {
+  SkinChestTier,
+  SkinId,
 } from '../game/cosmetics/SkinEconomy';
 import {
   applyPremiumPurchase,

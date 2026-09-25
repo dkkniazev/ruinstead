@@ -13,6 +13,10 @@ import {
 import {
   getRegionDefinition,
 } from '../world/ReleaseRegionMap';
+import {
+  SETTLEMENT_CENTER,
+  SETTLEMENT_SAFE_RADIUS,
+} from '../world/WorldPrototype';
 
 type HarvestResourceType =
   Exclude<ResourceType, 'coins'>;
@@ -69,10 +73,12 @@ function buildNodeDefinitions():
       type: 'crystal',
       x:
         regionTwo.center[0] +
-        430,
+        regionTwo.radiusX *
+          0.52,
       y:
         regionTwo.center[1] +
-        420,
+        regionTwo.radiusY *
+          0.42,
       durability: 4,
       dropCount: 4,
       respawnMs: 75_000,
@@ -82,10 +88,12 @@ function buildNodeDefinitions():
       type: 'fiber',
       x:
         regionTwo.center[0] +
-        360,
+        regionTwo.radiusX *
+          0.46,
       y:
         regionTwo.center[1] +
-        500,
+        regionTwo.radiusY *
+          0.48,
       durability: 3,
       dropCount: 6,
       respawnMs: 60_000,
@@ -164,10 +172,11 @@ function buildNodeDefinitions():
             Phaser.Math.Distance.Between(
               x,
               y,
-              3650,
-              4470,
+              SETTLEMENT_CENTER.x,
+              SETTLEMENT_CENTER.y,
             ) <
-              430
+              SETTLEMENT_SAFE_RADIUS +
+              180
           ) {
             continue;
           }

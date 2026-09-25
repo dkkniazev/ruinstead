@@ -75,10 +75,10 @@ const BUILDING_POSITIONS:
     CityBuildingId,
     readonly [number, number]
   > = {
-  storage: [520, 1080],
-  sawmill: [340, 955],
-  workshop: [930, 1040],
-  house: [545, 735],
+  storage: [3450, 4610],
+  sawmill: [3290, 4440],
+  workshop: [4010, 4570],
+  house: [3480, 4240],
 };
 
 const BUILDING_COLORS:

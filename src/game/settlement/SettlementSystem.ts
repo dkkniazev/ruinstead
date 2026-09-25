@@ -4,7 +4,7 @@ import type {
 } from '../gathering/ResourceTypes';
 
 export const FORGE_POSITION =
-  new Phaser.Math.Vector2(850, 845);
+  new Phaser.Math.Vector2(3840, 4410);
 export const FORGE_INTERACTION_RADIUS = 145;
 export const FORGE_MAX_REPAIR_STAGE = 3;
 

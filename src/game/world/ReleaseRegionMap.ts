@@ -29,19 +29,19 @@ export type RegionPassage = {
     | 'lava-gate';
 };
 
-export const RELEASE_WORLD_WIDTH = 7600;
-export const RELEASE_WORLD_HEIGHT = 6800;
+export const RELEASE_WORLD_WIDTH = 32000;
+export const RELEASE_WORLD_HEIGHT = 34500;
 
 export const RELEASE_REGIONS:
   readonly RegionDefinition[] = [
-  { id: 1, stageId: 'stage-1', name: 'Заросший лес', center: [3650, 4350], radiusX: 1050, radiusY: 820, groundColor: 0x69bd52, accentColor: 0x3f8f43, danger: 1 },
-  { id: 2, stageId: 'stage-2', name: 'Пепельные нагорья', center: [1650, 3750], radiusX: 900, radiusY: 1080, groundColor: 0xc8a86a, accentColor: 0x9c7549, danger: 2 },
-  { id: 3, stageId: 'stage-3', name: 'Теневой перевал', center: [1900, 1700], radiusX: 760, radiusY: 1050, groundColor: 0x68726c, accentColor: 0x3f4d4b, danger: 3 },
-  { id: 4, stageId: 'stage-4', name: 'Магмовое сердце', center: [3650, 2950], radiusX: 820, radiusY: 650, groundColor: 0x87513c, accentColor: 0xe06b35, danger: 5 },
-  { id: 5, stageId: 'stage-5', name: 'Ветреные высоты', center: [3950, 1050], radiusX: 1050, radiusY: 850, groundColor: 0x9faf85, accentColor: 0xd5d0a4, danger: 4 },
-  { id: 6, stageId: 'stage-6', name: 'Пепельные русла', center: [6020, 2050], radiusX: 900, radiusY: 1100, groundColor: 0x8e715b, accentColor: 0x5f7c84, danger: 5 },
-  { id: 7, stageId: 'stage-7', name: 'Сухой каньон', center: [5850, 4150], radiusX: 1020, radiusY: 850, groundColor: 0xb77b4e, accentColor: 0x7c4d35, danger: 6 },
-  { id: 8, stageId: 'stage-8', name: 'Драконья кальдера', center: [3650, 5900], radiusX: 790, radiusY: 650, groundColor: 0x6d3b37, accentColor: 0xff6c32, danger: 8 },
+  { id: 1, stageId: 'stage-1', name: 'Заросший лес', center: [15500, 21500], radiusX: 3800, radiusY: 3400, groundColor: 0x69bd52, accentColor: 0x3f8f43, danger: 1 },
+  { id: 2, stageId: 'stage-2', name: 'Пепельные нагорья', center: [5000, 13000], radiusX: 3500, radiusY: 3400, groundColor: 0xc8a86a, accentColor: 0x9c7549, danger: 2 },
+  { id: 3, stageId: 'stage-3', name: 'Теневой перевал', center: [7000, 5000], radiusX: 3200, radiusY: 3300, groundColor: 0x68726c, accentColor: 0x3f4d4b, danger: 3 },
+  { id: 4, stageId: 'stage-4', name: 'Магмовое сердце', center: [16000, 12000], radiusX: 3500, radiusY: 3200, groundColor: 0x87513c, accentColor: 0xe06b35, danger: 5 },
+  { id: 5, stageId: 'stage-5', name: 'Ветреные высоты', center: [16000, 4500], radiusX: 3700, radiusY: 3200, groundColor: 0x9faf85, accentColor: 0xd5d0a4, danger: 4 },
+  { id: 6, stageId: 'stage-6', name: 'Пепельные русла', center: [26000, 7000], radiusX: 3400, radiusY: 3500, groundColor: 0x8e715b, accentColor: 0x5f7c84, danger: 5 },
+  { id: 7, stageId: 'stage-7', name: 'Сухой каньон', center: [26000, 16000], radiusX: 3700, radiusY: 3300, groundColor: 0xb77b4e, accentColor: 0x7c4d35, danger: 6 },
+  { id: 8, stageId: 'stage-8', name: 'Драконья кальдера', center: [15500, 29000], radiusX: 3500, radiusY: 3200, groundColor: 0x6d3b37, accentColor: 0xff6c32, danger: 8 },
 ] as const;
 
 export const RELEASE_PASSAGES:

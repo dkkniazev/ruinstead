@@ -3183,8 +3183,8 @@ export class HudScene
     this.profileOpenButton =
       this.add
         .text(
-          26,
-          270,
+          LOGICAL_WIDTH - 26,
+          72,
           'P · Герой',
           {
             fontFamily:
@@ -3198,11 +3198,11 @@ export class HudScene
               x: 12,
               y: 8,
             },
-            fixedWidth: 146,
+            fixedWidth: 160,
             align: 'center',
           },
         )
-        .setOrigin(0, 0)
+        .setOrigin(1, 0)
         .setDepth(110)
         .setInteractive({
           useHandCursor: true,
@@ -3226,10 +3226,10 @@ export class HudScene
         .rectangle(
           0,
           0,
-          820,
-          560,
+          1040,
+          690,
           0x223341,
-          0.99,
+          0.995,
         )
         .setStrokeStyle(
           3,
@@ -3240,9 +3240,9 @@ export class HudScene
     const title =
       this.add
         .text(
-          -365,
-          -245,
-          'Уровень героя',
+          -470,
+          -310,
+          'Герой',
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -3255,8 +3255,8 @@ export class HudScene
     const close =
       this.add
         .text(
-          378,
-          -260,
+          486,
+          -323,
           '×',
           {
             fontFamily:
@@ -3288,24 +3288,541 @@ export class HudScene
     this.profileProgressText =
       this.add
         .text(
-          -365,
-          -190,
+          -470,
+          -265,
           '',
           {
             fontFamily:
               'system-ui, sans-serif',
-            fontSize: '16px',
+            fontSize: '14px',
             color: '#e8f4e0',
-            lineSpacing: 6,
-            fixedWidth: 730,
+            fixedWidth: 940,
           },
         );
+
+    const equipmentTabButton =
+      this.add
+        .text(
+          -175,
+          -310,
+          'Экипировка',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#4d6474',
+            padding: {
+              x: 16,
+              y: 7,
+            },
+            fixedWidth: 150,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    const masteryTabButton =
+      this.add
+        .text(
+          -15,
+          -310,
+          'Мастерство',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#3d4a53',
+            padding: {
+              x: 16,
+              y: 7,
+            },
+            fixedWidth: 150,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.profileTabButtons
+      .equipment =
+        equipmentTabButton;
+    this.profileTabButtons
+      .mastery =
+        masteryTabButton;
+
+    equipmentTabButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.setProfileTab(
+          'equipment',
+        ),
+    );
+    masteryTabButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.setProfileTab(
+          'mastery',
+        ),
+    );
+
+    const equipment =
+      this.add.container(
+        0,
+        0,
+      );
+
+    const slotTitle =
+      this.add
+        .text(
+          -465,
+          -215,
+          'Оружейные слоты · все занятые слоты активны одновременно',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const slotObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    for (
+      let slot = 0;
+      slot < 5;
+      slot += 1
+    ) {
+      const button =
+        this.add
+          .text(
+            -465 +
+              slot * 190,
+            -180,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '11px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#3c5360',
+              padding: {
+                x: 8,
+                y: 8,
+              },
+              fixedWidth: 178,
+              fixedHeight: 58,
+              align: 'center',
+              wordWrap: {
+                width: 162,
+              },
+            },
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () => {
+          this.selectedCharacterSlot =
+            slot;
+          this.renderCharacterState();
+        },
+      );
+
+      this.characterSlotButtons.push(
+        button,
+      );
+      slotObjects.push(button);
+    }
+
+    const inventoryTitle =
+      this.add
+        .text(
+          -465,
+          -100,
+          'Инвентарь оружия',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const inventoryObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    for (
+      let row = 0;
+      row < 8;
+      row += 1
+    ) {
+      const button =
+        this.add
+          .text(
+            -465,
+            -66 +
+              row * 43,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '11px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#354d5b',
+              padding: {
+                x: 8,
+                y: 6,
+              },
+              fixedWidth: 430,
+              fixedHeight: 36,
+              wordWrap: {
+                width: 414,
+              },
+            },
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () => {
+          const index =
+            this.characterInventoryScroll +
+            row;
+
+          if (
+            index >=
+            this.characterState
+              .inventory.length
+          ) {
+            return;
+          }
+
+          this.selectedCharacterInventoryIndex =
+            index;
+          this.renderCharacterState();
+        },
+      );
+
+      this.characterInventoryButtons
+        .push(button);
+      inventoryObjects.push(
+        button,
+      );
+    }
+
+    const invPrev =
+      this.add
+        .text(
+          -465,
+          280,
+          '◀',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#405965',
+            padding: {
+              x: 9,
+              y: 5,
+            },
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        );
+    const invNext =
+      this.add
+        .text(
+          -345,
+          280,
+          '▶',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#405965',
+            padding: {
+              x: 9,
+              y: 5,
+            },
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    invPrev.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.scrollCharacterInventory(
+          -8,
+        ),
+    );
+    invNext.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.scrollCharacterInventory(
+          8,
+        ),
+    );
+
+    this.characterInventoryPageText =
+      this.add
+        .text(
+          -415,
+          287,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '10px',
+            color: '#c7d6dd',
+            fixedWidth: 60,
+            align: 'center',
+          },
+        );
+
+    const detailsTitle =
+      this.add
+        .text(
+          10,
+          -100,
+          'Выбранное оружие',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    this.characterWeaponInfoText =
+      this.add
+        .text(
+          10,
+          -65,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#e7f0f4',
+            lineSpacing: 6,
+            fixedWidth: 455,
+            wordWrap: {
+              width: 455,
+            },
+          },
+        );
+
+    const makeAction = (
+      y: number,
+      width: number,
+    ) =>
+      this.add
+        .text(
+          10,
+          y,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#536b7b',
+            padding: {
+              x: 10,
+              y: 8,
+            },
+            fixedWidth: width,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.characterEquipButton =
+      makeAction(
+        65,
+        455,
+      );
+    this.characterPrimaryButton =
+      makeAction(
+        110,
+        220,
+      );
+    this.characterClearButton =
+      this.add
+        .text(
+          245,
+          110,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#5b4c4c',
+            padding: {
+              x: 10,
+              y: 8,
+            },
+            fixedWidth: 220,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        );
+    this.characterFuseButton =
+      makeAction(
+        165,
+        455,
+      );
+
+    this.characterEquipButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const option =
+          this.characterState
+            .inventory[
+              this.selectedCharacterInventoryIndex
+            ];
+
+        if (!option) {
+          return;
+        }
+
+        this.game.events.emit(
+          HUD_WEAPON_SLOT_EQUIP_EVENT,
+          this.selectedCharacterSlot,
+          option.weaponId,
+          option.rarity,
+          option.stars,
+        );
+      },
+    );
+
+    this.characterPrimaryButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.game.events.emit(
+          HUD_WEAPON_SLOT_PRIMARY_EVENT,
+          this.selectedCharacterSlot,
+        );
+      },
+    );
+
+    this.characterClearButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.game.events.emit(
+          HUD_WEAPON_SLOT_CLEAR_EVENT,
+          this.selectedCharacterSlot,
+        );
+      },
+    );
+
+    this.characterFuseButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const option =
+          this.characterState
+            .inventory[
+              this.selectedCharacterInventoryIndex
+            ];
+
+        if (!option) {
+          return;
+        }
+
+        this.game.events.emit(
+          HUD_WEAPON_FUSE_EVENT,
+          option.weaponId,
+          option.rarity,
+          option.stars,
+        );
+      },
+    );
+
+    const equipmentHint =
+      this.add
+        .text(
+          10,
+          225,
+          'Основной слот — оружие в руках. Остальные занятые слоты вращаются вокруг героя и наносят 65% своего урона. Один тип + одна редкость может занимать только один слот.',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#b9c9cf',
+            fixedWidth: 455,
+            wordWrap: {
+              width: 455,
+            },
+          },
+        );
+
+    equipment.add([
+      slotTitle,
+      ...slotObjects,
+      inventoryTitle,
+      ...inventoryObjects,
+      invPrev,
+      invNext,
+      this.characterInventoryPageText,
+      detailsTitle,
+      this.characterWeaponInfoText,
+      this.characterEquipButton,
+      this.characterPrimaryButton,
+      this.characterClearButton,
+      this.characterFuseButton,
+      equipmentHint,
+    ]);
+
+    const mastery =
+      this.add.container(
+        0,
+        0,
+      );
 
     const masteryTitle =
       this.add
         .text(
-          -365,
-          -88,
+          -465,
+          -205,
           'Мастерство · 1 очко каждые 5 уровней',
           {
             fontFamily:
@@ -3351,6 +3868,9 @@ export class HudScene
       },
     ];
 
+    const masteryObjects:
+      Phaser.GameObjects.Text[] = [];
+
     masteryDefs.forEach(
       (definition, index) => {
         const col =
@@ -3360,10 +3880,10 @@ export class HudScene
         const button =
           this.add
             .text(
-              -360 +
-                col * 375,
-              -45 +
-                row * 76,
+              -460 +
+                col * 475,
+              -155 +
+                row * 90,
               '',
               {
                 fontFamily:
@@ -3377,10 +3897,10 @@ export class HudScene
                   x: 10,
                   y: 8,
                 },
-                fixedWidth: 350,
-                fixedHeight: 60,
+                fixedWidth: 450,
+                fixedHeight: 72,
                 wordWrap: {
-                  width: 330,
+                  width: 430,
                 },
               },
             )
@@ -3406,37 +3926,48 @@ export class HudScene
         this.masteryButtons[
           definition.id
         ] = button;
+        masteryObjects.push(button);
       },
     );
 
-    const hint =
+    const masteryHint =
       this.add
         .text(
-          -365,
-          208,
-          'Постоянные бонусы мастерства складываются с экипированным скином. Оружейные звёзды за уровень не выдаются.',
+          -465,
+          155,
+          'Постоянные бонусы мастерства складываются с экипированным скином. Оружейные слоты открываются отдельно по уровням: 1 / 5 / 10 / 15 / 20.',
           {
             fontFamily:
               'system-ui, sans-serif',
             fontSize: '12px',
             color: '#b9c9cf',
-            fixedWidth: 730,
+            fixedWidth: 920,
             wordWrap: {
-              width: 730,
+              width: 920,
             },
           },
         );
+
+    mastery.add([
+      masteryTitle,
+      ...masteryObjects,
+      masteryHint,
+    ]);
+
+    this.profileEquipmentTab =
+      equipment;
+    this.profileMasteryTab =
+      mastery;
 
     panel.add([
       bg,
       title,
       close,
       this.profileProgressText,
-      masteryTitle,
-      ...Object.values(
-        this.masteryButtons,
-      ),
-      hint,
+      equipmentTabButton,
+      masteryTabButton,
+      equipment,
+      mastery,
     ]);
 
     panel
@@ -3445,6 +3976,371 @@ export class HudScene
 
     this.profilePanel =
       panel;
+    this.setProfileTab(
+      'equipment',
+    );
+  }
+
+  private setProfileTab(
+    tab:
+      'equipment' | 'mastery',
+  ): void {
+    this.profileTab = tab;
+    this.profileEquipmentTab
+      ?.setVisible(
+        tab === 'equipment',
+      );
+    this.profileMasteryTab
+      ?.setVisible(
+        tab === 'mastery',
+      );
+
+    (
+      [
+        'equipment',
+        'mastery',
+      ] as const
+    ).forEach(
+      (id) => {
+        this.profileTabButtons[
+          id
+        ]?.setStyle({
+          backgroundColor:
+            id === tab
+              ? '#607b8d'
+              : '#3d4a53',
+          color: '#ffffff',
+        });
+      },
+    );
+  }
+
+  private scrollCharacterInventory(
+    delta: number,
+  ): void {
+    const total =
+      this.characterState
+        .inventory.length;
+    const max =
+      Math.max(
+        0,
+        total - 8,
+      );
+
+    this.characterInventoryScroll =
+      Phaser.Math.Clamp(
+        this.characterInventoryScroll +
+          delta,
+        0,
+        max,
+      );
+
+    this.renderCharacterState();
+  }
+
+  private handleCharacterState(
+    state:
+      CharacterHudState,
+  ): void {
+    this.characterState =
+      state;
+
+    if (
+      this.selectedCharacterSlot >=
+      state.unlockedSlots
+    ) {
+      this.selectedCharacterSlot =
+        Math.max(
+          0,
+          state.unlockedSlots - 1,
+        );
+    }
+
+    if (
+      this.selectedCharacterInventoryIndex >=
+      state.inventory.length
+    ) {
+      this.selectedCharacterInventoryIndex =
+        Math.max(
+          0,
+          state.inventory.length - 1,
+        );
+    }
+
+    this.renderCharacterState();
+    this.renderWeaponSlotHud();
+  }
+
+  private renderCharacterState():
+    void {
+    const state =
+      this.characterState;
+
+    this.characterSlotButtons
+      .forEach(
+        (button, slot) => {
+          const unlocked =
+            slot <
+            state.unlockedSlots;
+          const profile =
+            unlocked
+              ? state.slots[
+                  slot
+                ]
+              : null;
+          const selected =
+            slot ===
+            this.selectedCharacterSlot;
+          const primary =
+            profile &&
+            slot ===
+              state.primarySlot;
+
+          if (!unlocked) {
+            button
+              .setText(
+                `Слот ${slot + 1}\n🔒 Lv.${getWeaponSlotUnlockLevel(slot)}`,
+              )
+              .setStyle({
+                backgroundColor:
+                  selected
+                    ? '#55525d'
+                    : '#34383b',
+                color:
+                  '#8f9699',
+              });
+            return;
+          }
+
+          if (!profile) {
+            button
+              .setText(
+                `Слот ${slot + 1}\nПусто`,
+              )
+              .setStyle({
+                backgroundColor:
+                  selected
+                    ? '#577083'
+                    : '#3c5360',
+                color:
+                  '#dfe9ed',
+              });
+            return;
+          }
+
+          const rarity =
+            WEAPON_RARITIES[
+              profile.rarity
+            ];
+          button
+            .setText(
+              `${primary ? '★ ' : ''}Слот ${slot + 1}\n${WEAPON_DEFINITIONS[profile.weaponId].name} · ${rarity.name} · ${profile.stars > 0 ? '★'.repeat(profile.stars) : '☆'}`,
+            )
+            .setStyle({
+              backgroundColor:
+                selected
+                  ? '#657f90'
+                  : primary
+                    ? '#624f78'
+                    : '#3c5360',
+              color:
+                rarity.color,
+            });
+        },
+      );
+
+    const total =
+      state.inventory.length;
+    const maxScroll =
+      Math.max(
+        0,
+        total - 8,
+      );
+    this.characterInventoryScroll =
+      Phaser.Math.Clamp(
+        this.characterInventoryScroll,
+        0,
+        maxScroll,
+      );
+
+    this.characterInventoryButtons
+      .forEach(
+        (button, row) => {
+          const index =
+            this.characterInventoryScroll +
+            row;
+          const option =
+            state.inventory[
+              index
+            ];
+
+          if (!option) {
+            button.setVisible(
+              false,
+            );
+            return;
+          }
+
+          const selected =
+            index ===
+            this.selectedCharacterInventoryIndex;
+
+          button
+            .setVisible(true)
+            .setText(
+              `${WEAPON_DEFINITIONS[option.weaponId].name} · ${option.rarityName} · Lv.${option.level} · ${option.stars > 0 ? '★'.repeat(option.stars) : '☆'} · копий ${option.count}`,
+            )
+            .setStyle({
+              backgroundColor:
+                selected
+                  ? '#637d91'
+                  : '#354d5b',
+              color:
+                option.rarityColor,
+            });
+        },
+      );
+
+    const first =
+      total > 0
+        ? this.characterInventoryScroll +
+          1
+        : 0;
+    const last =
+      Math.min(
+        total,
+        this.characterInventoryScroll +
+          8,
+      );
+    this.characterInventoryPageText
+      ?.setText(
+        `${first}–${last}/${total}`,
+      );
+
+    const option =
+      state.inventory[
+        this.selectedCharacterInventoryIndex
+      ];
+    const slotProfile =
+      state.slots[
+        this.selectedCharacterSlot
+      ];
+    const slotUnlocked =
+      this.selectedCharacterSlot <
+      state.unlockedSlots;
+
+    if (!option) {
+      this.characterWeaponInfoText
+        ?.setText(
+          'Оружие ещё не найдено.',
+        );
+      this.characterEquipButton
+        ?.setText(
+          'Нет оружия',
+        );
+      this.characterFuseButton
+        ?.setText(
+          'Слияние недоступно',
+        );
+    } else {
+      const fusionCost =
+        getWeaponFusionCost(
+          option.stars,
+        );
+      const canFuse =
+        option.count >= 2 &&
+        option.stars <
+          MAX_WEAPON_STARS &&
+        canAffordUpgrade(
+          state.storage,
+          fusionCost,
+        );
+      const costText =
+        fusionCost
+          ? `●${fusionCost.coins} · К${fusionCost.stone} · М${fusionCost.metal}${fusionCost.crystal ? ` · Кр${fusionCost.crystal}` : ''}${fusionCost.fiber ? ` · В${fusionCost.fiber}` : ''}`
+          : 'MAX';
+
+      this.characterWeaponInfoText
+        ?.setText(
+          `${WEAPON_DEFINITIONS[option.weaponId].name}\nРедкость: ${option.rarityName}\nУровень оружия: ${option.level} / ${MAX_WEAPON_LEVEL}\nЗвёзды: ${option.stars} / ${MAX_WEAPON_STARS}\nКопий этой версии: ${option.count}\nМножитель силы: ×${option.damageMultiplier.toFixed(2)}`,
+        );
+
+      this.characterEquipButton
+        ?.setText(
+          slotUnlocked
+            ? `Экипировать в слот ${this.selectedCharacterSlot + 1}`
+            : `Слот откроется на Lv.${getWeaponSlotUnlockLevel(this.selectedCharacterSlot)}`,
+        )
+        .setStyle({
+          backgroundColor:
+            slotUnlocked
+              ? '#536b7b'
+              : '#44484b',
+          color:
+            slotUnlocked
+              ? '#ffffff'
+              : '#999fa2',
+        });
+
+      this.characterFuseButton
+        ?.setText(
+          option.stars >=
+            MAX_WEAPON_STARS
+            ? 'Звёздность MAX'
+            : option.count < 2
+              ? `Слияние: нужно 2 копии · есть ${option.count}`
+              : canFuse
+                ? `Слить → ★${option.stars + 1} · ${costText}`
+                : `Не хватает ресурсов · ${costText}`,
+        )
+        .setStyle({
+          backgroundColor:
+            canFuse
+              ? '#755a34'
+              : '#44484b',
+          color:
+            canFuse
+              ? '#fff0ae'
+              : '#999fa2',
+        });
+    }
+
+    this.characterPrimaryButton
+      ?.setText(
+        slotProfile
+          ? this.selectedCharacterSlot ===
+              state.primarySlot
+            ? 'Основное оружие ✓'
+            : 'Сделать основным'
+          : 'Основное недоступно',
+      )
+      .setStyle({
+        backgroundColor:
+          slotProfile
+            ? '#665080'
+            : '#44484b',
+        color:
+          slotProfile
+            ? '#ffffff'
+            : '#999fa2',
+      });
+
+    this.characterClearButton
+      ?.setText(
+        slotProfile
+          ? 'Снять из слота'
+          : 'Слот пуст',
+      )
+      .setStyle({
+        backgroundColor:
+          slotProfile
+            ? '#654a4a'
+            : '#44484b',
+        color:
+          slotProfile
+            ? '#ffffff'
+            : '#999fa2',
+      });
   }
 
   private createPremiumUi():

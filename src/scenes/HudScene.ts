@@ -34,6 +34,7 @@ import {
   HUD_SKIN_CHEST_OPEN_EVENT,
   HUD_SKIN_EQUIP_EVENT,
   HUD_PREMIUM_PURCHASE_EVENT,
+  HUD_SHARD_SHOP_BUY_EVENT,
   HUD_SETTLEMENT_THEME_EVENT,
   HUD_PET_EVENT,
   HUD_NOTICE_EVENT,
@@ -102,6 +103,7 @@ import {
   type SkinId,
 } from '../game/cosmetics/SkinEconomy';
 import {
+  FOUNDER_PACK,
   LEVEL_PASS,
   STARTER_PACK,
 } from '../game/cosmetics/PremiumStoreConfig';
@@ -204,6 +206,7 @@ export class HudScene
       unlockedSkinIds: [],
       equippedSkinId: null,
       starterPackOwned: false,
+      founderPackOwned: false,
       levelPassOwned: false,
       regionPackStage2Owned: false,
       regionPackStage2Available: false,
@@ -214,6 +217,7 @@ export class HudScene
         'default',
       ownedPets: [],
       equippedPet: null,
+      shardShopOffers: [],
       purchaseCatalog: {},
     };
   private monetizationPanel?:
@@ -289,6 +293,13 @@ export class HudScene
     Partial<
       Record<
         string,
+        Phaser.GameObjects.Text
+      >
+    > = {};
+  private shardShopButtons:
+    Partial<
+      Record<
+        number,
         Phaser.GameObjects.Text
       >
     > = {};
@@ -3514,6 +3525,14 @@ export class HudScene
         x: 0,
         y: 82,
       },
+      {
+        key: 'founder',
+        label: 'Founder Pack',
+        product:
+          FOUNDER_PACK.productId,
+        x: 215,
+        y: 82,
+      },
     ];
 
     const storeObjects:
@@ -3716,7 +3735,7 @@ export class HudScene
         .text(
           -430,
           225,
-          'Legendary не выпадает из сундуков: выберите Legendary скин стрелками и купите его напрямую. Цены реальных товаров задаются в консоли Яндекс Игр.',
+          'Legendary не выпадает из сундуков. Ротационный магазин ниже позволяет добирать конкретные осколки без RNG.',
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -3728,6 +3747,75 @@ export class HudScene
             },
           },
         );
+
+    const shardTitle =
+      this.add
+        .text(
+          -430,
+          270,
+          'Осколки дня · 1 покупка каждого слота',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '15px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const shardObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    for (
+      let slot = 0;
+      slot < 3;
+      slot += 1
+    ) {
+      const button =
+        this.add
+          .text(
+            -430 + slot * 290,
+            302,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '10px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#5b4e68',
+              padding: {
+                x: 8,
+                y: 7,
+              },
+              fixedWidth: 270,
+              fixedHeight: 42,
+              align: 'center',
+              wordWrap: {
+                width: 252,
+              },
+            },
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () => {
+          this.game.events.emit(
+            HUD_SHARD_SHOP_BUY_EVENT,
+            slot,
+          );
+        },
+      );
+
+      this.shardShopButtons[
+        slot
+      ] = button;
+      shardObjects.push(button);
+    }
 
     panel.add([
       bg,
@@ -3749,6 +3837,8 @@ export class HudScene
       mossling,
       firefly,
       note,
+      shardTitle,
+      ...shardObjects,
     ]);
 
     panel
@@ -3824,7 +3914,7 @@ export class HudScene
 
     this.profileProgressText
       ?.setText(
-        `Lv.${state.level} / 50 · ${xpText}\nСамоцветы: ◆${state.gems} · свободно очков мастерства: ${state.masteryAvailable}`,
+        `Lv.${state.level} / 50 · ${xpText}${this.premiumState.founderPackOwned ? ' · Основатель' : ''}\nСамоцветы: ◆${state.gems} · свободно очков мастерства: ${state.masteryAvailable}`,
       );
 
     for (
@@ -3870,6 +3960,9 @@ export class HudScene
       state;
     this.renderPremiumState();
     this.ensurePortalCurrencyIcon();
+    this.handlePlayerProgressState(
+      this.playerProgressState,
+    );
     this.handleMonetizationState(
       this.monetizationState,
     );
@@ -4008,6 +4101,12 @@ export class HudScene
             ? `Ash Region Pack${productPrice('region_pack_stage_2') ? ` · ${productPrice('region_pack_stage_2')}` : ''}`
             : 'Ash Pack · открой регион',
       );
+    this.storeButtons.founder
+      ?.setText(
+        state.founderPackOwned
+          ? 'Founder Pack · получен'
+          : `Founder Pack${productPrice(FOUNDER_PACK.productId) ? ` · ${productPrice(FOUNDER_PACK.productId)}` : ''}`,
+      );
 
     const ids =
       Object.keys(
@@ -4057,6 +4156,66 @@ export class HudScene
       legendary:
         'Легендарный',
     };
+
+    for (
+      let slot = 0;
+      slot < 3;
+      slot += 1
+    ) {
+      const button =
+        this.shardShopButtons[
+          slot
+        ];
+      const offer =
+        state.shardShopOffers
+          .find(
+            (entry) =>
+              entry.slot === slot,
+          );
+
+      if (!offer) {
+        button
+          ?.setText(
+            'Нет предложения',
+          )
+          .setStyle({
+            backgroundColor:
+              '#3f3d3a',
+            color:
+              '#8f8b84',
+          });
+        continue;
+      }
+
+      const definition =
+        SKIN_DEFINITIONS[
+          offer.skinId
+        ];
+      const available =
+        !offer.purchased &&
+        !offer.unlocked &&
+        state.gems >=
+          offer.gemCost;
+
+      button
+        ?.setText(
+          offer.unlocked
+            ? `${definition.name} · уже открыт`
+            : offer.purchased
+              ? `${definition.name} · куплено`
+              : `${definition.name} · +${offer.fragments} оск. · ${offer.gemCost}◆`,
+        )
+        .setStyle({
+          backgroundColor:
+            available
+              ? '#5b4e68'
+              : '#3f3d3a',
+          color:
+            available
+              ? '#ffffff'
+              : '#8f8b84',
+        });
+    }
     const statNames:
       Record<string, string> = {
       damage: 'урон',

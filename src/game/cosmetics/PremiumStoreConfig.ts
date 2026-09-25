@@ -20,6 +20,15 @@ export const STARTER_PACK = {
     'starter-warden' as SkinId,
 } as const;
 
+export const FOUNDER_PACK = {
+  productId: 'founder_pack',
+  gems: 300,
+  returnTickets: 10,
+  skinId:
+    'founder-keeper' as SkinId,
+  title: 'Основатель',
+} as const;
+
 export const LEVEL_PASS = {
   productId: 'level_pass',
   rewards: [
@@ -92,3 +101,20 @@ export const PETS = {
 
 export type PetId =
   keyof typeof PETS;
+
+
+export const SHARD_SHOP_CONFIG = {
+  slotsPerDay: 3,
+  fragmentsPerPurchase: 10,
+  gemCostByRarity: {
+    common: 60,
+    uncommon: 100,
+    rare: 180,
+    epic: 300,
+  },
+  slotRarityPools: [
+    ['common', 'uncommon'],
+    ['uncommon', 'rare'],
+    ['rare', 'epic'],
+  ],
+} as const;

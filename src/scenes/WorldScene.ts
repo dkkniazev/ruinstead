@@ -95,6 +95,8 @@ import {
   HUD_HEALTH_POTION_EVENT,
   HUD_BLESSING_EVENT,
   HUD_RETURN_HOME_EVENT,
+  HUD_SUPPLY_EVENT,
+  HUD_FORGE_WEAPON_REWARD_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -111,6 +113,7 @@ import {
   type GatheringHudState,
   type MonetizationHudState,
   type MonetizationOfferPlacement,
+  type SupplyResourceType,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import {
@@ -675,6 +678,16 @@ export class WorldScene
       this,
     );
     this.game.events.on(
+      HUD_SUPPLY_EVENT,
+      this.handleSupplyRequest,
+      this,
+    );
+    this.game.events.on(
+      HUD_FORGE_WEAPON_REWARD_EVENT,
+      this.handleForgeWeaponReward,
+      this,
+    );
+    this.game.events.on(
       HUD_MONETIZATION_ACTION_EVENT,
       this.handleMonetizationAction,
       this,
@@ -1035,6 +1048,30 @@ export class WorldScene
           ) +
             MONETIZATION_CONFIG
               .bossRespawnResetAdCooldownMs -
+            now,
+        ),
+      supplyCooldownRemainingMs:
+        Math.max(
+          0,
+          (
+            state?.monetization
+              .lastSupplyAdAt ??
+            0
+          ) +
+            MONETIZATION_CONFIG
+              .supplyAdCooldownMs -
+            now,
+        ),
+      forgeWeaponCooldownRemainingMs:
+        Math.max(
+          0,
+          (
+            state?.monetization
+              .lastForgeWeaponAdAt ??
+            0
+          ) +
+            MONETIZATION_CONFIG
+              .forgeWeaponAdCooldownMs -
             now,
         ),
       offer:
@@ -2916,6 +2953,147 @@ export class WorldScene
     }
   }
 
+  private async handleSupplyRequest(
+    resource:
+      SupplyResourceType,
+  ): Promise<void> {
+    if (
+      !this.gameState ||
+      this.monetizationHudState
+        .supplyCooldownRemainingMs >
+        0
+    ) {
+      return;
+    }
+
+    const rare =
+      resource === 'crystal' ||
+      resource === 'fiber';
+
+    if (
+      rare &&
+      !this.gameState.world
+        .unlockedZones
+        .includes(
+          'stage-2',
+        )
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Редкое снабжение откроется вместе со вторым регионом',
+      );
+      return;
+    }
+
+    const rewarded =
+      await this.requestRewarded(
+        'supply',
+      );
+
+    if (!rewarded) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Поставка не получена',
+      );
+      return;
+    }
+
+    const amount =
+      MONETIZATION_CONFIG
+        .supplyRewards[
+          resource
+        ];
+
+    this.gameState.resources[
+      resource
+    ] += amount;
+    this.gameState.monetization
+      .lastSupplyAdAt =
+        Date.now();
+
+    trackAnalyticsEvent(
+      'ad_reward_granted',
+      {
+        placement:
+          'supply',
+        resource,
+        amount,
+      },
+    );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Снабжение доставлено: ${resource} +${amount}`,
+    );
+
+    this.emitProgressionState();
+    this.emitCityState();
+    this.saveState();
+    this.emitMonetizationState();
+  }
+
+  private async handleForgeWeaponReward(
+    weaponId: WeaponId,
+  ): Promise<void> {
+    if (
+      !this.gameState ||
+      !this.settlementSystem
+        ?.restored ||
+      this.monetizationHudState
+        .forgeWeaponCooldownRemainingMs >
+        0 ||
+      !this.gameState.player
+        .unlockedWeaponIds
+        .includes(
+          weaponId,
+        )
+    ) {
+      return;
+    }
+
+    const rewarded =
+      await this.requestRewarded(
+        'forge_weapon',
+      );
+
+    if (!rewarded) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Оружие от кузнеца не получено',
+      );
+      return;
+    }
+
+    addWeaponDrop(
+      this.gameState.player
+        .weaponInventory,
+      weaponId,
+      'common',
+    );
+    this.gameState.monetization
+      .lastForgeWeaponAdAt =
+        Date.now();
+
+    trackAnalyticsEvent(
+      'ad_reward_granted',
+      {
+        placement:
+          'forge_weapon',
+        weapon:
+          weaponId,
+      },
+    );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Кузнец изготовил: ${WEAPON_DEFINITIONS[weaponId].name} · Common ☆`,
+    );
+
+    this.emitProgressionState();
+    this.saveState();
+    this.emitMonetizationState();
+  }
+
   private updateSettlement(): void {
     if (
       !this.player ||
@@ -3892,6 +4070,16 @@ export class WorldScene
     this.game.events.off(
       HUD_BLESSING_EVENT,
       this.handleBlessingRequest,
+      this,
+    );
+    this.game.events.off(
+      HUD_SUPPLY_EVENT,
+      this.handleSupplyRequest,
+      this,
+    );
+    this.game.events.off(
+      HUD_FORGE_WEAPON_REWARD_EVENT,
+      this.handleForgeWeaponReward,
       this,
     );
     this.game.events.off(

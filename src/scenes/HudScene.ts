@@ -505,11 +505,6 @@ export class HudScene
     Phaser.GameObjects.Container;
   private bestiaryHeaderText?:
     Phaser.GameObjects.Text;
-  private bestiaryEntryButtons:
-    Record<
-      string,
-      Phaser.GameObjects.Text
-    > = {};
   private bestiaryImage?:
     Phaser.GameObjects.Image;
   private bestiaryEliteImage?:
@@ -2029,7 +2024,7 @@ export class HudScene
       this.add
         .text(
           LOGICAL_WIDTH - 26,
-          262,
+          156,
           'B · Бестиарий',
           {
             fontFamily:
@@ -2043,6 +2038,8 @@ export class HudScene
               x: 12,
               y: 8,
             },
+            fixedWidth: 160,
+            align: 'center',
           },
         )
         .setOrigin(1, 0)
@@ -2138,59 +2135,142 @@ export class HudScene
       },
     );
 
-    const entryObjects:
-      Phaser.GameObjects.Text[] = [];
+    const scrollUp =
+      this.add
+        .text(
+          -105,
+          -205,
+          '▲',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+            backgroundColor:
+              '#45614bee',
+            padding: {
+              x: 7,
+              y: 4,
+            },
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
 
-    const entries =
-      this.bestiaryState
-        ?.entries ?? [];
+    const scrollDown =
+      this.add
+        .text(
+          -105,
+          218,
+          '▼',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+            backgroundColor:
+              '#45614bee',
+            padding: {
+              x: 7,
+              y: 4,
+            },
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
 
-    entries.forEach(
-      (entry, index) => {
-        const button =
-          this.add
-            .text(
-              -390,
-              -205 +
-                index * 28,
-              '',
-              {
-                fontFamily:
-                  'system-ui, sans-serif',
-                fontSize: '11px',
-                fontStyle: 'bold',
-                color: '#ffffff',
-                backgroundColor:
-                  '#34553c',
-                padding: {
-                  x: 8,
-                  y: 4,
-                },
-                fixedWidth: 270,
-                fixedHeight: 24,
-              },
-            )
-            .setInteractive({
-              useHandCursor: true,
-            });
+    scrollUp.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.scrollBestiary(-5),
+    );
+    scrollDown.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.scrollBestiary(5),
+    );
 
-        button.on(
-          Phaser.Input.Events.POINTER_DOWN,
-          () => {
-            this.selectedBestiaryId =
-              entry.entryId;
-            this.renderBestiary();
+    this.bestiaryPageText =
+      this.add
+        .text(
+          -250,
+          226,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '10px',
+            color: '#c9d8c5',
+            fixedWidth: 145,
+            align: 'right',
           },
         );
 
-        this.bestiaryEntryButtons[
-          entry.entryId
-        ] = button;
-        entryObjects.push(
-          button,
-        );
-      },
-    );
+    const entryObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    for (
+      let row = 0;
+      row < 15;
+      row += 1
+    ) {
+      const button =
+        this.add
+          .text(
+            -390,
+            -205 +
+              row * 28,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '11px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#34553c',
+              padding: {
+                x: 8,
+                y: 4,
+              },
+              fixedWidth: 270,
+              fixedHeight: 24,
+            },
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () => {
+          const entry =
+            this.bestiaryState
+              ?.entries[
+                this.bestiaryScrollIndex +
+                row
+              ];
+
+          if (!entry) {
+            return;
+          }
+
+          this.selectedBestiaryId =
+            entry.entryId;
+          this.renderBestiary();
+        },
+      );
+
+      this.bestiaryVisibleButtons
+        .push(button);
+      entryObjects.push(
+        button,
+      );
+    }
 
     this.bestiaryImage =
       this.add
@@ -2337,6 +2417,9 @@ export class HudScene
       title,
       this.bestiaryHeaderText,
       close,
+      scrollUp,
+      scrollDown,
+      this.bestiaryPageText,
       ...entryObjects,
       this.bestiaryImage,
       this.bestiaryEliteImage,
@@ -2354,6 +2437,60 @@ export class HudScene
 
     this.bestiaryPanel =
       panel;
+
+    this.input.on(
+      'wheel',
+      this.handleBestiaryWheel,
+      this,
+    );
+  }
+
+  private scrollBestiary(
+    delta: number,
+  ): void {
+    const total =
+      this.bestiaryState
+        ?.entries.length ?? 0;
+    const max =
+      Math.max(
+        0,
+        total - 15,
+      );
+
+    this.bestiaryScrollIndex =
+      Phaser.Math.Clamp(
+        this.bestiaryScrollIndex +
+          delta,
+        0,
+        max,
+      );
+
+    this.renderBestiary();
+  }
+
+  private handleBestiaryWheel(
+    pointer: Phaser.Input.Pointer,
+    gameObjects:
+      Phaser.GameObjects.GameObject[],
+    deltaX: number,
+    deltaY: number,
+  ): void {
+    void pointer;
+    void gameObjects;
+    void deltaX;
+
+    if (
+      !this.bestiaryPanelOpen ||
+      Math.abs(deltaY) < 1
+    ) {
+      return;
+    }
+
+    this.scrollBestiary(
+      deltaY > 0
+        ? 3
+        : -3,
+    );
   }
 
   private createCityBuilderUi(): void {
@@ -5491,40 +5628,77 @@ export class HudScene
             : '#fff2c0',
       });
 
-    for (
-      const entry of
-      state.entries
-    ) {
-      const button =
-        this.bestiaryEntryButtons[
-          entry.entryId
-        ];
+    const maxScroll =
+      Math.max(
+        0,
+        state.entries.length -
+          15,
+      );
+    this.bestiaryScrollIndex =
+      Phaser.Math.Clamp(
+        this.bestiaryScrollIndex,
+        0,
+        maxScroll,
+      );
 
-      button
-        ?.setText(
-          `${entry.claimableLevel ? '◆ ' : entry.mastery ? '★ ' : ''}${entry.name}   Lv.${entry.level}`,
-        )
-        .setStyle({
-          backgroundColor:
-            entry.claimableLevel
-              ? entry.entryId ===
-                this.selectedBestiaryId
-                ? '#a17f24'
-                : '#79651f'
-              : entry.entryId ===
-                  this.selectedBestiaryId
-                ? '#6b5a86'
-                : entry.discovered
-                  ? '#34553c'
-                  : '#343b36',
-          color:
-            entry.claimableLevel
-              ? '#fff3ad'
-              : entry.discovered
-                ? '#ffffff'
-                : '#8d958e',
-        });
-    }
+    this.bestiaryVisibleButtons
+      .forEach(
+        (button, row) => {
+          const entry =
+            state.entries[
+              this.bestiaryScrollIndex +
+              row
+            ];
+
+          if (!entry) {
+            button
+              .setVisible(false);
+            return;
+          }
+
+          button
+            .setVisible(true)
+            .setText(
+              `${entry.claimableLevel ? '◆ ' : entry.mastery ? '★ ' : ''}${entry.name}   Lv.${entry.level}`,
+            )
+            .setStyle({
+              backgroundColor:
+                entry.claimableLevel
+                  ? entry.entryId ===
+                    this.selectedBestiaryId
+                    ? '#a17f24'
+                    : '#79651f'
+                  : entry.entryId ===
+                      this.selectedBestiaryId
+                    ? '#6b5a86'
+                    : entry.discovered
+                      ? '#34553c'
+                      : '#343b36',
+              color:
+                entry.claimableLevel
+                  ? '#fff3ad'
+                  : entry.discovered
+                    ? '#ffffff'
+                    : '#8d958e',
+            });
+        },
+      );
+
+    const first =
+      state.entries.length > 0
+        ? this.bestiaryScrollIndex +
+          1
+        : 0;
+    const last =
+      Math.min(
+        state.entries.length,
+        this.bestiaryScrollIndex +
+          15,
+      );
+    this.bestiaryPageText
+      ?.setText(
+        `${first}–${last} / ${state.entries.length}`,
+      );
 
     const entry =
       this.getSelectedBestiaryEntry();
@@ -6383,6 +6557,11 @@ export class HudScene
     this.input.keyboard?.off(
       'keydown-M',
       this.handlePremiumToggle,
+      this,
+    );
+    this.input.off(
+      'wheel',
+      this.handleBestiaryWheel,
       this,
     );
     this.scale.off(

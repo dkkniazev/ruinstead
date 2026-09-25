@@ -14,11 +14,13 @@ import {
   type SkinRarityId,
 } from './SkinEconomy';
 import {
+  FOUNDER_PACK,
   GEM_PACKS,
   LEVEL_PASS,
   PETS,
   REGION_PACKS,
   SETTLEMENT_THEMES,
+  SHARD_SHOP_CONFIG,
   STARTER_PACK,
   type PetId,
   type SettlementThemeId,
@@ -50,8 +52,23 @@ export type EquippedSkinBonus = {
   tint: number | null;
 };
 
-function localDayKey(): string {
-  const now = new Date();
+export type ShardShopOffer = {
+  slot: number;
+  skinId: SkinId;
+  rarity:
+    Exclude<
+      SkinRarityId,
+      'legendary'
+    >;
+  fragments: number;
+  gemCost: number;
+  purchased: boolean;
+  unlocked: boolean;
+};
+
+function localDayKey(
+  now = new Date(),
+): string {
   return [
     now.getFullYear(),
     String(
@@ -65,23 +82,33 @@ function localDayKey(): string {
 
 export function resetDailyPremiumCounters(
   state: GameState,
+  now = new Date(),
 ): void {
   const today =
-    localDayKey();
+    localDayKey(now);
 
   if (
     state.premium
-      .rewardedCommonChestDay ===
+      .rewardedCommonChestDay !==
       today
   ) {
-    return;
+    state.premium
+      .rewardedCommonChestDay =
+        today;
+    state.premium
+      .rewardedCommonChestCount = 0;
   }
 
-  state.premium
-    .rewardedCommonChestDay =
-      today;
-  state.premium
-    .rewardedCommonChestCount = 0;
+  if (
+    state.premium
+      .shardShopDay !== today
+  ) {
+    state.premium
+      .shardShopDay = today;
+    state.premium
+      .shardShopPurchasedSlots =
+        [];
+  }
 }
 
 export function getRewardedCommonChestRemaining(
@@ -98,6 +125,227 @@ export function getRewardedCommonChestRemaining(
       state.premium
         .rewardedCommonChestCount,
   );
+}
+
+function stableHash(
+  value: string,
+): number {
+  let hash = 2166136261;
+
+  for (
+    let index = 0;
+    index < value.length;
+    index += 1
+  ) {
+    hash ^=
+      value.charCodeAt(index);
+    hash =
+      Math.imul(
+        hash,
+        16777619,
+      ) >>> 0;
+  }
+
+  return hash >>> 0;
+}
+
+export function getShardShopOffers(
+  state: GameState,
+  now = new Date(),
+): ShardShopOffer[] {
+  resetDailyPremiumCounters(
+    state,
+    now,
+  );
+
+  const day =
+    localDayKey(now);
+  const used =
+    new Set<SkinId>();
+  const offers:
+    ShardShopOffer[] = [];
+
+  for (
+    let slot = 0;
+    slot <
+      SHARD_SHOP_CONFIG
+        .slotsPerDay;
+    slot += 1
+  ) {
+    const allowed =
+      SHARD_SHOP_CONFIG
+        .slotRarityPools[
+          slot
+        ];
+    const candidates =
+      (
+        Object.entries(
+          SKIN_DEFINITIONS,
+        ) as Array<
+          [
+            SkinId,
+            (typeof SKIN_DEFINITIONS)[SkinId],
+          ]
+        >
+      ).filter(
+        ([id, definition]) =>
+          definition.source ===
+            'chest' &&
+          allowed.includes(
+            definition.rarity as
+              'common' |
+              'uncommon' |
+              'rare' |
+              'epic',
+          ) &&
+          !used.has(id),
+      );
+
+    if (
+      candidates.length <= 0
+    ) {
+      continue;
+    }
+
+    const index =
+      stableHash(
+        `${day}:${slot}`,
+      ) %
+      candidates.length;
+    const [
+      skinId,
+      definition,
+    ] = candidates[index];
+    const rarity =
+      definition.rarity as
+        Exclude<
+          SkinRarityId,
+          'legendary'
+        >;
+
+    used.add(skinId);
+    offers.push({
+      slot,
+      skinId,
+      rarity,
+      fragments:
+        SHARD_SHOP_CONFIG
+          .fragmentsPerPurchase,
+      gemCost:
+        SHARD_SHOP_CONFIG
+          .gemCostByRarity[
+            rarity
+          ],
+      purchased:
+        state.premium
+          .shardShopPurchasedSlots
+          .includes(slot),
+      unlocked:
+        state.premium
+          .unlockedSkinIds
+          .includes(skinId),
+    });
+  }
+
+  return offers;
+}
+
+export function buyShardShopOffer(
+  state: GameState,
+  slot: number,
+  now = new Date(),
+): PremiumActionResult {
+  const offer =
+    getShardShopOffers(
+      state,
+      now,
+    ).find(
+      (entry) =>
+        entry.slot === slot,
+    );
+
+  if (!offer) {
+    return {
+      success: false,
+      notice:
+        'Предложение осколков недоступно',
+    };
+  }
+
+  if (offer.purchased) {
+    return {
+      success: false,
+      notice:
+        'Это предложение уже куплено сегодня',
+    };
+  }
+
+  if (offer.unlocked) {
+    return {
+      success: false,
+      notice:
+        'Этот скин уже открыт',
+    };
+  }
+
+  if (
+    state.premium.gems <
+      offer.gemCost
+  ) {
+    return {
+      success: false,
+      notice:
+        'Не хватает самоцветов',
+    };
+  }
+
+  state.premium.gems -=
+    offer.gemCost;
+  state.premium
+    .shardShopPurchasedSlots
+    .push(slot);
+
+  const previous =
+    state.premium
+      .skinFragments[
+        offer.skinId
+      ] ?? 0;
+  const next =
+    previous +
+    offer.fragments;
+
+  state.premium
+    .skinFragments[
+      offer.skinId
+    ] = next;
+
+  const threshold =
+    SKIN_RARITIES[
+      offer.rarity
+    ].fragmentsToUnlock ??
+    Number.POSITIVE_INFINITY;
+  const unlocked =
+    next >= threshold;
+
+  if (unlocked) {
+    unlockSkin(
+      state,
+      offer.skinId,
+    );
+  }
+
+  const name =
+    SKIN_DEFINITIONS[
+      offer.skinId
+    ].name;
+
+  return {
+    success: true,
+    notice:
+      unlocked
+        ? `Скин открыт: ${name}`
+        : `${name}: осколки +${offer.fragments} (${next} / ${threshold})`,
+  };
 }
 
 export function openSkinChest(
@@ -482,6 +730,41 @@ export function applyPremiumPurchase(
       success: true,
       notice:
         'Стартовый набор получен',
+    };
+  }
+
+  if (
+    productId ===
+      FOUNDER_PACK.productId
+  ) {
+    if (
+      state.premium
+        .founderPackOwned
+    ) {
+      return {
+        success: false,
+        notice:
+          'Founder Pack уже получен',
+      };
+    }
+
+    state.premium
+      .founderPackOwned = true;
+    state.premium.gems +=
+      FOUNDER_PACK.gems;
+    state.consumables
+      .returnTickets +=
+        FOUNDER_PACK
+          .returnTickets;
+    unlockSkin(
+      state,
+      FOUNDER_PACK.skinId,
+    );
+
+    return {
+      success: true,
+      notice:
+        `Founder Pack получен · титул «${FOUNDER_PACK.title}» открыт`,
     };
   }
 

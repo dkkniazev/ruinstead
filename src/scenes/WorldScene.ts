@@ -4068,7 +4068,8 @@ export class WorldScene
 
       this.combat
         ?.restoreForLevelUp();
-      this.applyMetaProgression();
+      this.applyProgression();
+      this.emitCharacterState();
 
       const notices = [
         `Уровень героя: Lv.${this.gameState.progression.playerLevel} · +${result.gemsGained} самоцветов`,

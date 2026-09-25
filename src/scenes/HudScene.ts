@@ -283,9 +283,6 @@ export class HudScene
     > = {};
 
   private profilePanelOpen = false;
-  private profileTab:
-    'equipment' | 'mastery' =
-      'equipment';
   private profileEquipmentTab?:
     Phaser.GameObjects.Container;
   private profileMasteryTab?:
@@ -331,11 +328,6 @@ export class HudScene
     > = {};
 
   private premiumPanelOpen = false;
-  private premiumTab:
-    'chests' |
-    'purchases' |
-    'cosmetics' =
-      'chests';
   private premiumTabContainers:
     Partial<
       Record<
@@ -3963,7 +3955,6 @@ export class HudScene
     tab:
       'equipment' | 'mastery',
   ): void {
-    this.profileTab = tab;
     this.profileEquipmentTab
       ?.setVisible(
         tab === 'equipment',
@@ -5228,7 +5219,6 @@ export class HudScene
       'purchases' |
       'cosmetics',
   ): void {
-    this.premiumTab = tab;
 
     (
       [
@@ -7357,6 +7347,14 @@ export class HudScene
     this.renderWeaponSlotHud();
     this.renderCharacterState();
 
+  }
+
+  private handleAreaName(
+    areaName: string,
+  ): void {
+    this.areaText?.setText(
+      areaName,
+    );
   }
 
   private handleNotice(

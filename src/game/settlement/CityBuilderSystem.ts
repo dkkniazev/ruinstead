@@ -47,6 +47,7 @@ export type CityBuilderHudState = {
     capacity: number;
     used: number;
     canCollect: boolean;
+    canBoost: boolean;
     cycleSeconds: number;
   };
   buildings: CityBuildingHudState[];
@@ -290,6 +291,8 @@ export class CityBuilderSystem {
         used,
         canCollect:
           used > 0,
+        canBoost:
+          this.canBoostProduction(),
         cycleSeconds:
           PRODUCTION_CYCLE_MS /
           1000,
@@ -405,6 +408,58 @@ export class CityBuilderSystem {
       success: true,
       buildingId: id,
       newLevel: level + 1,
+    };
+  }
+
+  canBoostProduction(): boolean {
+    return (
+      totalPending(
+        this.production.pending,
+      ) <
+        this.productionCapacity &&
+      (
+        this.level('sawmill') > 0 ||
+        this.level('workshop') > 0 ||
+        this.level('house') > 0
+      )
+    );
+  }
+
+  boostProduction(
+    cycles: number,
+  ): ResourceCounts {
+    const before = {
+      ...this.production.pending,
+    };
+    const safeCycles =
+      Math.max(
+        0,
+        Math.floor(cycles),
+      );
+
+    for (
+      let cycle = 0;
+      cycle < safeCycles;
+      cycle += 1
+    ) {
+      this.produceOneCycle();
+    }
+
+    return {
+      wood:
+        this.production.pending.wood -
+        before.wood,
+      stone:
+        this.production.pending.stone -
+        before.stone,
+      metal:
+        this.production.pending.metal -
+        before.metal,
+      crystal: 0,
+      fiber: 0,
+      coins:
+        this.production.pending.coins -
+        before.coins,
     };
   }
 

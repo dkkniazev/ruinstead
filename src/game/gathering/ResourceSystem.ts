@@ -35,6 +35,7 @@ type ResourcePickup = {
   label?: Phaser.GameObjects.Text;
   expiresAt: number;
   deathDrop: boolean;
+  deathDropBatchId?: number;
   pickupEnabled: boolean;
   requiresExitAfterRespawn: boolean;
 };
@@ -264,6 +265,7 @@ class ResourceNode {
 }
 
 export class ResourceSystem {
+  private nextDeathDropBatchId = 1;
   private readonly nodes:
     ResourceNode[] = [];
   private readonly pickups:
@@ -380,7 +382,9 @@ export class ResourceSystem {
   spawnDeathDrop(
     position: Phaser.Math.Vector2,
     contents: ResourceCounts,
-  ): void {
+  ): number {
+    const batchId =
+      this.nextDeathDropBatchId++;
     let slot = 0;
 
     for (
@@ -408,10 +412,55 @@ export class ResourceSystem {
         amount,
         Number.POSITIVE_INFINITY,
         true,
+        batchId,
       );
 
       slot += 1;
     }
+
+    return batchId;
+  }
+
+  recoverDeathDrop(
+    batchId: number,
+  ): ResourceCounts {
+    const recovered:
+      ResourceCounts = {
+      wood: 0,
+      stone: 0,
+      metal: 0,
+      crystal: 0,
+      fiber: 0,
+      coins: 0,
+    };
+
+    for (
+      let index =
+        this.pickups.length - 1;
+      index >= 0;
+      index -= 1
+    ) {
+      const pickup =
+        this.pickups[index];
+
+      if (
+        pickup.deathDropBatchId !==
+        batchId
+      ) {
+        continue;
+      }
+
+      recovered[pickup.type] =
+        (recovered[pickup.type] ?? 0) +
+        pickup.amount;
+
+      this.removePickup(
+        index,
+        false,
+      );
+    }
+
+    return recovered;
   }
 
   handlePlayerRespawned(
@@ -554,6 +603,7 @@ export class ResourceSystem {
     amount: number,
     expiresAt: number,
     persistent: boolean,
+    deathDropBatchId?: number,
   ): void {
     const sprite =
       this.scene.add
@@ -617,6 +667,7 @@ export class ResourceSystem {
       expiresAt,
       deathDrop:
         persistent,
+      deathDropBatchId,
       pickupEnabled:
         !persistent,
       requiresExitAfterRespawn:

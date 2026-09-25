@@ -87,6 +87,12 @@ export const HUD_CITY_UPGRADE_EVENT =
   'ruinstead:hud:city-upgrade';
 export const HUD_CITY_COLLECT_EVENT =
   'ruinstead:hud:city-collect';
+export const HUD_CITY_PRODUCTION_BOOST_EVENT =
+  'ruinstead:hud:city-production-boost';
+export const HUD_MONETIZATION_STATE_EVENT =
+  'ruinstead:hud:monetization-state';
+export const HUD_MONETIZATION_ACTION_EVENT =
+  'ruinstead:hud:monetization-action';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -132,3 +138,31 @@ export type HudCityUpgradeHandler =
   (id: CityBuildingId) => void;
 export type HudCityCollectHandler =
   () => void;
+
+
+export type MonetizationOfferPlacement =
+  | 'expedition_reward'
+  | 'death_recovery';
+
+export type MonetizationHudState = {
+  enabled: boolean;
+  busy: boolean;
+  offer: {
+    placement:
+      MonetizationOfferPlacement;
+    title: string;
+    description: string;
+    rewardText: string;
+  } | null;
+};
+
+export type HudCityProductionBoostHandler =
+  () => void;
+export type HudMonetizationStateHandler =
+  (state: MonetizationHudState) => void;
+export type HudMonetizationActionHandler =
+  (
+    action: 'watch' | 'dismiss',
+    placement:
+      MonetizationOfferPlacement,
+  ) => void;

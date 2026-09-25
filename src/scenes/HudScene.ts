@@ -1910,20 +1910,19 @@ export class HudScene
   }
 
   private createQuestPanel(): void {
-    const right =
-      LOGICAL_WIDTH - 26;
-    const top = 72;
+    const left = 26;
+    const top = 270;
 
     this.add
       .rectangle(
-        right,
+        left,
         top,
         350,
         174,
         0x203e27,
         0.9,
       )
-      .setOrigin(1, 0)
+      .setOrigin(0, 0)
       .setStrokeStyle(
         2,
         0xf4f0cf,
@@ -1934,7 +1933,7 @@ export class HudScene
     this.questTitleText =
       this.add
         .text(
-          right - 16,
+          left + 16,
           top + 14,
           '',
           {
@@ -1943,16 +1942,16 @@ export class HudScene
             fontSize: '16px',
             fontStyle: 'bold',
             color: '#fff2b5',
-            align: 'right',
+            align: 'left',
           },
         )
-        .setOrigin(1, 0)
+        .setOrigin(0, 0)
         .setDepth(101);
 
     this.questObjectiveText =
       this.add
         .text(
-          right - 16,
+          left + 16,
           top + 42,
           '',
           {
@@ -1960,19 +1959,19 @@ export class HudScene
               'system-ui, sans-serif',
             fontSize: '14px',
             color: '#ffffff',
-            align: 'right',
+            align: 'left',
             wordWrap: {
               width: 316,
             },
           },
         )
-        .setOrigin(1, 0)
+        .setOrigin(0, 0)
         .setDepth(101);
 
     this.questProgressText =
       this.add
         .text(
-          right - 16,
+          left + 16,
           top + 88,
           '',
           {
@@ -1981,16 +1980,16 @@ export class HudScene
             fontSize: '13px',
             fontStyle: 'bold',
             color: '#bde4a9',
-            align: 'right',
+            align: 'left',
           },
         )
-        .setOrigin(1, 0)
+        .setOrigin(0, 0)
         .setDepth(101);
 
     this.questHintText =
       this.add
         .text(
-          right - 16,
+          left + 16,
           top + 111,
           '',
           {
@@ -1998,19 +1997,19 @@ export class HudScene
               'system-ui, sans-serif',
             fontSize: '11px',
             color: '#cad7c6',
-            align: 'right',
+            align: 'left',
             wordWrap: {
               width: 316,
             },
           },
         )
-        .setOrigin(1, 0)
+        .setOrigin(0, 0)
         .setDepth(101);
 
     this.questOptionalText =
       this.add
         .text(
-          right - 16,
+          left + 16,
           top + 148,
           '',
           {
@@ -2018,10 +2017,10 @@ export class HudScene
               'system-ui, sans-serif',
             fontSize: '11px',
             color: '#d9c9f0',
-            align: 'right',
+            align: 'left',
           },
         )
-        .setOrigin(1, 0)
+        .setOrigin(0, 0)
         .setDepth(101);
   }
 

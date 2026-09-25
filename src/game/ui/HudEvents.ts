@@ -126,6 +126,8 @@ export const HUD_SKIN_EQUIP_EVENT =
   'ruinstead:hud:skin-equip';
 export const HUD_PREMIUM_PURCHASE_EVENT =
   'ruinstead:hud:premium-purchase';
+export const HUD_SHARD_SHOP_BUY_EVENT =
+  'ruinstead:hud:shard-shop-buy';
 export const HUD_SETTLEMENT_THEME_EVENT =
   'ruinstead:hud:settlement-theme';
 export const HUD_PET_EVENT =
@@ -277,6 +279,7 @@ export type PremiumHudState = {
   equippedSkinId:
     SkinId | null;
   starterPackOwned: boolean;
+  founderPackOwned: boolean;
   levelPassOwned: boolean;
   regionPackStage2Owned: boolean;
   regionPackStage2Available: boolean;
@@ -287,6 +290,20 @@ export type PremiumHudState = {
   ownedPets: string[];
   equippedPet:
     PetId | null;
+  shardShopOffers:
+    Array<{
+      slot: number;
+      skinId: SkinId;
+      rarity:
+        'common' |
+        'uncommon' |
+        'rare' |
+        'epic';
+      fragments: number;
+      gemCost: number;
+      purchased: boolean;
+      unlocked: boolean;
+    }>;
   purchaseCatalog:
     Record<
       string,
@@ -326,6 +343,8 @@ export type HudSkinEquipHandler =
   (skinId: SkinId | null) => void;
 export type HudPremiumPurchaseHandler =
   (productId: string) => void;
+export type HudShardShopBuyHandler =
+  (slot: number) => void;
 export type HudSettlementThemeHandler =
   (
     id:

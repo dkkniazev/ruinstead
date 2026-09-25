@@ -20,6 +20,7 @@ import {
   getMaxHealth,
 } from '../progression/UpgradeBalance';
 import {
+  WEAPON_RARITIES,
   getWeaponDamageMultiplier,
   type EquippedWeaponProfile,
 } from '../progression/WeaponInventory';
@@ -33,6 +34,14 @@ import {
 type CombatTarget =
   | EnemyUnit
   | BossUnit;
+
+type OrbitingWeaponVisual = {
+  slot: number;
+  profile: EquippedWeaponProfile;
+  container:
+    Phaser.GameObjects.Container;
+  nextHitAt: number;
+};
 
 export type HealthPotionUseResult =
   | 'used'
@@ -52,6 +61,12 @@ export type CombatProgression = {
       WeaponId,
       EquippedWeaponProfile
     >;
+  loadoutProfiles?:
+    Array<
+      EquippedWeaponProfile |
+      null
+    >;
+  primarySlot?: number;
 };
 
 export type CombatState = {
@@ -62,6 +77,12 @@ export type CombatState = {
   healthPotionCooldownRemainingMs: number;
   weaponId: WeaponId;
   unlockedWeaponIds: WeaponId[];
+  weaponSlots:
+    Array<
+      EquippedWeaponProfile |
+      null
+    >;
+  primarySlot: number;
 };
 
 export class CombatSystem {
@@ -106,6 +127,25 @@ export class CombatSystem {
   };
   private weaponId:
     WeaponId = 'axe';
+  private loadoutProfiles:
+    Array<
+      EquippedWeaponProfile |
+      null
+    > = [
+      {
+        weaponId: 'axe',
+        rarity: 'common',
+        level: 1,
+        stars: 0,
+      },
+      null,
+      null,
+      null,
+      null,
+    ];
+  private primarySlot = 0;
+  private orbitals:
+    OrbitingWeaponVisual[] = [];
 
   private readonly unlockedWeapons =
     new Set<WeaponId>([
@@ -180,6 +220,24 @@ export class CombatSystem {
     this.weaponProfiles = {
       ...progression.weaponProfiles,
     };
+    this.loadoutProfiles =
+      progression.loadoutProfiles
+        ? [...progression.loadoutProfiles]
+        : [
+            this.weaponProfiles.axe,
+            null,
+            null,
+            null,
+            null,
+          ];
+    this.primarySlot =
+      Math.max(
+        0,
+        Math.min(
+          this.loadoutProfiles.length - 1,
+          progression.primarySlot ?? 0,
+        ),
+      );
     this.healthPotions =
       Phaser.Math.Clamp(
         Math.floor(
@@ -212,7 +270,7 @@ export class CombatSystem {
       );
     }
 
-    this.weaponId =
+    const requestedWeaponId =
       isWeaponId(initialWeaponId) &&
       this.unlockedWeapons.has(
         initialWeaponId,
@@ -224,9 +282,28 @@ export class CombatSystem {
       'axe',
     );
 
+    const requestedSlot =
+      this.loadoutProfiles
+        .findIndex(
+          (profile) =>
+            profile?.weaponId ===
+            requestedWeaponId,
+        );
+
+    if (requestedSlot >= 0) {
+      this.primarySlot =
+        requestedSlot;
+    }
+
+    const primary =
+      this.getPrimaryProfile();
+    this.weaponId =
+      primary.weaponId;
+
     this.player.setWeapon(
       this.weaponId,
     );
+    this.rebuildOrbitals();
     this.player.setHealth(
       this.health,
       this.maxHealth,
@@ -262,6 +339,10 @@ export class CombatSystem {
         this.weaponId,
       unlockedWeaponIds:
         [...this.unlockedWeapons],
+      weaponSlots:
+        [...this.loadoutProfiles],
+      primarySlot:
+        this.primarySlot,
     };
   }
 
@@ -272,6 +353,13 @@ export class CombatSystem {
         WeaponId,
         EquippedWeaponProfile
       >,
+    loadoutProfiles?:
+      Array<
+        EquippedWeaponProfile |
+        null
+      >,
+    primarySlot?:
+      number,
   ): void {
     const previousMax =
       this.maxHealth;
@@ -311,6 +399,33 @@ export class CombatSystem {
       ...weaponProfiles,
     };
 
+    if (loadoutProfiles) {
+      this.loadoutProfiles =
+        [...loadoutProfiles];
+    }
+
+    if (
+      primarySlot !== undefined
+    ) {
+      this.primarySlot =
+        Math.max(
+          0,
+          Math.min(
+            this.loadoutProfiles.length - 1,
+            Math.floor(primarySlot),
+          ),
+        );
+    }
+
+    const primary =
+      this.getPrimaryProfile();
+    this.weaponId =
+      primary.weaponId;
+    this.player.setWeapon(
+      this.weaponId,
+    );
+    this.rebuildOrbitals();
+
     this.player.setHealth(
       this.health,
       this.maxHealth,
@@ -336,6 +451,8 @@ export class CombatSystem {
     this.setProgression(
       maxHealthLevel,
       this.weaponProfiles,
+      this.loadoutProfiles,
+      this.primarySlot,
     );
   }
 
@@ -350,21 +467,47 @@ export class CombatSystem {
       return false;
     }
 
-    if (
-      this.weaponId ===
-      weaponId
-    ) {
-      return true;
+    const slot =
+      this.loadoutProfiles
+        .findIndex(
+          (profile) =>
+            profile?.weaponId ===
+            weaponId,
+        );
+
+    if (slot < 0) {
+      return false;
     }
 
+    return this.setPrimarySlot(
+      slot,
+    );
+  }
+
+  setPrimarySlot(
+    slotIndex: number,
+  ): boolean {
+    const safe =
+      Math.floor(slotIndex);
+    const profile =
+      this.loadoutProfiles[
+        safe
+      ];
+
+    if (!profile) {
+      return false;
+    }
+
+    this.primarySlot =
+      safe;
     this.weaponId =
-      weaponId;
+      profile.weaponId;
     this.nextAttackAt = 0;
 
     this.player.setWeapon(
-      weaponId,
+      this.weaponId,
     );
-
+    this.rebuildOrbitals();
     this.emitState();
     return true;
   }
@@ -394,6 +537,10 @@ export class CombatSystem {
     this.drops.update(
       delta,
       this.player.position,
+    );
+
+    this.updateOrbitals(
+      time,
     );
 
     if (this.dead) {
@@ -426,9 +573,11 @@ export class CombatSystem {
       return;
     }
 
+    const primaryProfile =
+      this.getPrimaryProfile();
     const definition =
       WEAPON_DEFINITIONS[
-        this.weaponId
+        primaryProfile.weaponId
       ];
 
     const target =
@@ -458,6 +607,7 @@ export class CombatSystem {
 
     this.attackMelee(
       target,
+      primaryProfile,
       definition.damage,
       definition.attackStyle,
     );
@@ -614,6 +764,7 @@ export class CombatSystem {
   }
 
   destroy(): void {
+    this.destroyOrbitals();
     this.drops.destroy();
   }
 
@@ -651,11 +802,19 @@ export class CombatSystem {
   private findNearestTarget(
     range: number,
   ): CombatTarget | undefined {
-    const origin =
-      this.player.combatPosition;
-    const originRadius =
-      this.player.combatRadius;
+    return this.findNearestTargetFrom(
+      this.player.combatPosition,
+      range,
+      this.player.combatRadius,
+    );
+  }
 
+  private findNearestTargetFrom(
+    origin:
+      Phaser.Math.Vector2,
+    range: number,
+    originRadius = 0,
+  ): CombatTarget | undefined {
     const enemy =
       this.enemies.findNearest(
         origin,
@@ -697,6 +856,8 @@ export class CombatSystem {
 
   private attackMelee(
     target: CombatTarget,
+    profile:
+      EquippedWeaponProfile,
     baseDamage: number,
     style: WeaponAttackStyle,
   ): void {
@@ -720,56 +881,11 @@ export class CombatSystem {
       style,
     );
 
-    const damageProfile =
-      target.getDamageProfile(
-        this.weaponId,
-      );
-
-    const finalDamage =
-      Math.max(
-        1,
-        Math.round(
-          baseDamage *
-            this.temporaryDamageMultiplier *
-            getWeaponDamageMultiplier(
-              this.weaponProfiles[
-                this.weaponId
-              ].level,
-              this.weaponProfiles[
-                this.weaponId
-              ].rarity,
-              this.weaponProfiles[
-                this.weaponId
-              ].stars,
-            ) *
-            damageProfile.multiplier,
-        ),
-      );
-
-    const killed =
-      target.takeDamage(
-        finalDamage,
-        damageProfile.effectiveness,
-      );
-
-    this.audio.playHit();
-
-    if (!killed) {
-      return;
-    }
-
-    this.audio.playKill();
-
-    this.onTargetKilled?.(
-      target.bestiaryKind,
-      target.bestiaryId,
-      target.bestiaryElite,
-    );
-
-    this.drops.spawn(
-      target.sprite.x,
-      target.sprite.y,
-      target.dropCoins,
+    this.damageTarget(
+      target,
+      profile,
+      baseDamage,
+      1,
     );
   }
 
@@ -949,6 +1065,329 @@ export class CombatSystem {
         },
       });
     }
+  }
+
+  private getPrimaryProfile():
+    EquippedWeaponProfile {
+    return (
+      this.loadoutProfiles[
+        this.primarySlot
+      ] ??
+      this.loadoutProfiles.find(
+        (
+          profile,
+        ): profile is EquippedWeaponProfile =>
+          Boolean(profile),
+      ) ??
+      this.weaponProfiles[
+        this.weaponId
+      ]
+    );
+  }
+
+  private rebuildOrbitals():
+    void {
+    this.destroyOrbitals();
+
+    const secondary =
+      this.loadoutProfiles
+        .map(
+          (profile, slot) => ({
+            profile,
+            slot,
+          }),
+        )
+        .filter(
+          (
+            entry,
+          ): entry is {
+            profile:
+              EquippedWeaponProfile;
+            slot: number;
+          } =>
+            Boolean(
+              entry.profile,
+            ) &&
+            entry.slot !==
+              this.primarySlot,
+        );
+
+    for (
+      const entry of secondary
+    ) {
+      const rarity =
+        WEAPON_RARITIES[
+          entry.profile.rarity
+        ];
+      const color =
+        Number.parseInt(
+          rarity.color.slice(1),
+          16,
+        );
+      const circle =
+        this.scene.add.circle(
+          0,
+          0,
+          17,
+          color,
+          0.9,
+        )
+        .setStrokeStyle(
+          3,
+          0xfff1c2,
+          0.8,
+        );
+      const label =
+        this.scene.add.text(
+          0,
+          0,
+          WEAPON_DEFINITIONS[
+            entry.profile.weaponId
+          ].shortName
+            .slice(0, 1),
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '16px',
+            fontStyle: 'bold',
+            color: '#1f2722',
+          },
+        )
+        .setOrigin(0.5);
+      const container =
+        this.scene.add
+          .container(
+            this.player.position.x,
+            this.player.position.y,
+            [
+              circle,
+              label,
+            ],
+          )
+          .setDepth(
+            this.player.position.y +
+            150,
+          );
+
+      this.orbitals.push({
+        slot:
+          entry.slot,
+        profile:
+          entry.profile,
+        container,
+        nextHitAt: 0,
+      });
+    }
+  }
+
+  private destroyOrbitals():
+    void {
+    for (
+      const orbital of
+      this.orbitals
+    ) {
+      orbital.container.destroy(
+        true,
+      );
+    }
+
+    this.orbitals = [];
+  }
+
+  private updateOrbitals(
+    time: number,
+  ): void {
+    const count =
+      this.orbitals.length;
+
+    if (count <= 0) {
+      return;
+    }
+
+    const center =
+      this.player.combatPosition;
+    const radius =
+      82 +
+      Math.min(
+        22,
+        count * 4,
+      );
+
+    this.orbitals.forEach(
+      (
+        orbital,
+        index,
+      ) => {
+        const angle =
+          time * 0.00215 +
+          index *
+            (
+              Math.PI *
+              2 /
+              count
+            );
+        const x =
+          center.x +
+          Math.cos(angle) *
+            radius;
+        const y =
+          center.y +
+          Math.sin(angle) *
+            radius *
+            0.72;
+
+        orbital.container
+          .setPosition(x, y)
+          .setRotation(
+            angle +
+            Math.PI / 2,
+          )
+          .setDepth(y + 150)
+          .setVisible(
+            !this.dead,
+          );
+
+        if (
+          this.dead ||
+          time <
+            orbital.nextHitAt
+        ) {
+          return;
+        }
+
+        const target =
+          this.findNearestTargetFrom(
+            new Phaser.Math.Vector2(
+              x,
+              y,
+            ),
+            34,
+            17,
+          );
+
+        if (!target) {
+          return;
+        }
+
+        const definition =
+          WEAPON_DEFINITIONS[
+            orbital.profile
+              .weaponId
+          ];
+
+        orbital.nextHitAt =
+          time +
+          Math.max(
+            280,
+            definition.cooldownMs *
+              1.25,
+          );
+
+        this.damageTarget(
+          target,
+          orbital.profile,
+          definition.damage,
+          0.65,
+        );
+
+        this.showOrbitalHit(
+          x,
+          y,
+          orbital.profile,
+        );
+      },
+    );
+  }
+
+  private damageTarget(
+    target: CombatTarget,
+    profile:
+      EquippedWeaponProfile,
+    baseDamage: number,
+    damageScale: number,
+  ): void {
+    const damageProfile =
+      target.getDamageProfile(
+        profile.weaponId,
+      );
+    const finalDamage =
+      Math.max(
+        1,
+        Math.round(
+          baseDamage *
+            damageScale *
+            this.temporaryDamageMultiplier *
+            getWeaponDamageMultiplier(
+              profile.level,
+              profile.rarity,
+              profile.stars,
+            ) *
+            damageProfile.multiplier,
+        ),
+      );
+    const killed =
+      target.takeDamage(
+        finalDamage,
+        damageProfile.effectiveness,
+      );
+
+    this.audio.playHit();
+
+    if (!killed) {
+      return;
+    }
+
+    this.audio.playKill();
+    this.onTargetKilled?.(
+      target.bestiaryKind,
+      target.bestiaryId,
+      target.bestiaryElite,
+    );
+    this.drops.spawn(
+      target.sprite.x,
+      target.sprite.y,
+      target.dropCoins,
+    );
+  }
+
+  private showOrbitalHit(
+    x: number,
+    y: number,
+    profile:
+      EquippedWeaponProfile,
+  ): void {
+    const color =
+      Number.parseInt(
+        WEAPON_RARITIES[
+          profile.rarity
+        ].color.slice(1),
+        16,
+      );
+    const pulse =
+      this.scene.add.circle(
+        x,
+        y,
+        14,
+        color,
+        0.18,
+      )
+      .setStrokeStyle(
+        3,
+        color,
+        0.85,
+      )
+      .setDepth(y + 190);
+
+    this.scene.tweens.add({
+      targets: pulse,
+      scale: 1.7,
+      alpha: 0,
+      duration: 120,
+      ease: 'Quad.Out',
+      onComplete: () => {
+        pulse.destroy();
+      },
+    });
   }
 
   reviveHere(

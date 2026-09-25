@@ -22,7 +22,8 @@ export type SkinSource =
   | 'legendary-direct'
   | 'starter-pack'
   | 'level-pass'
-  | 'region-pack';
+  | 'region-pack'
+  | 'founder-pack';
 
 export type SkinDefinition = {
   name: string;
@@ -281,6 +282,13 @@ export const SKIN_DEFINITIONS = {
     bonusStat: 'gathering',
     tint: 0xc8754d,
     source: 'region-pack',
+  },
+  'founder-keeper': {
+    name: 'Хранитель основания',
+    rarity: 'epic',
+    bonusStat: 'production',
+    tint: 0xd6b65f,
+    source: 'founder-pack',
   },
 } as const satisfies
   Record<string, SkinDefinition>;

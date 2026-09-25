@@ -8,31 +8,45 @@ const REGION_ONE =
 
 export const FOREST_HEART =
   new Phaser.Math.Vector2(
-    REGION_ONE.center[0] + 470,
-    REGION_ONE.center[1] - 120,
+    REGION_ONE.center[0] +
+      REGION_ONE.radiusX * 0.48,
+    REGION_ONE.center[1] -
+      REGION_ONE.radiusY * 0.12,
   );
 
 export const FOREST_HEART_DISCOVERY_RADIUS =
-  155;
+  220;
 
 export const FOREST_LANDMARKS = [
   {
     id: 'forest-gate',
     name: 'Заросшие ворота',
-    x: REGION_ONE.center[0] - 620,
-    y: REGION_ONE.center[1] - 40,
+    x:
+      REGION_ONE.center[0] -
+      REGION_ONE.radiusX * 0.58,
+    y:
+      REGION_ONE.center[1] -
+      REGION_ONE.radiusY * 0.05,
   },
   {
     id: 'old-stump',
     name: 'Старый пень',
-    x: REGION_ONE.center[0] - 260,
-    y: REGION_ONE.center[1] - 430,
+    x:
+      REGION_ONE.center[0] -
+      REGION_ONE.radiusX * 0.3,
+    y:
+      REGION_ONE.center[1] -
+      REGION_ONE.radiusY * 0.48,
   },
   {
     id: 'stone-ring',
     name: 'Каменный круг',
-    x: REGION_ONE.center[0] + 170,
-    y: REGION_ONE.center[1] + 390,
+    x:
+      REGION_ONE.center[0] +
+      REGION_ONE.radiusX * 0.22,
+    y:
+      REGION_ONE.center[1] +
+      REGION_ONE.radiusY * 0.45,
   },
   {
     id: 'forest-heart',

@@ -17,8 +17,6 @@ export const MONETIZATION_CONFIG = {
     60 * 60 * 1000,
   supplyAdCooldownMs:
     15 * 60 * 1000,
-  forgeWeaponAdCooldownMs:
-    30 * 60 * 1000,
   supplyRewards: {
     wood: 30,
     stone: 20,
@@ -30,4 +28,8 @@ export const MONETIZATION_CONFIG = {
   returnTicketPackSize: 5,
   returnTicketProductId:
     'return_tickets_5',
+  adFreeWeekProductId:
+    'ad_free_week',
+  adFreeWeekDurationMs:
+    7 * 24 * 60 * 60 * 1000,
 } as const;

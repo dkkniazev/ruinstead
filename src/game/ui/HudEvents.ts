@@ -97,8 +97,8 @@ export const HUD_BOSS_RESPAWN_EVENT =
   'ruinstead:hud:boss-respawn';
 export const HUD_SUPPLY_EVENT =
   'ruinstead:hud:supply';
-export const HUD_FORGE_WEAPON_REWARD_EVENT =
-  'ruinstead:hud:forge-weapon-reward';
+export const HUD_BUY_AD_FREE_WEEK_EVENT =
+  'ruinstead:hud:buy-ad-free-week';
 export const HUD_MONETIZATION_STATE_EVENT =
   'ruinstead:hud:monetization-state';
 export const HUD_MONETIZATION_ACTION_EVENT =
@@ -183,8 +183,7 @@ export type MonetizationHudState = {
     number;
   supplyCooldownRemainingMs:
     number;
-  forgeWeaponCooldownRemainingMs:
-    number;
+  adFreeUntil: number;
   offer: {
     placement:
       MonetizationOfferPlacement;
@@ -212,8 +211,8 @@ export type HudSupplyHandler =
     resource:
       SupplyResourceType,
   ) => void;
-export type HudForgeWeaponRewardHandler =
-  (weaponId: WeaponId) => void;
+export type HudBuyAdFreeWeekHandler =
+  () => void;
 export type HudMonetizationStateHandler =
   (state: MonetizationHudState) => void;
 export type HudMonetizationActionHandler =

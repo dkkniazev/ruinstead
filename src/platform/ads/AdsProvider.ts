@@ -6,8 +6,7 @@ export type RewardedAdPlacement =
   | 'blessing'
   | 'return_home'
   | 'boss_respawn'
-  | 'supply'
-  | 'forge_weapon';
+  | 'supply';
 
 export type InterstitialAdPlacement =
   | 'return_to_settlement'

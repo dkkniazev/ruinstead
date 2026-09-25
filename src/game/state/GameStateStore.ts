@@ -654,12 +654,12 @@ export function sanitizeGameState(value: unknown): GameState {
           defaults.monetization
             .lastSupplyAdAt,
         ),
-      lastForgeWeaponAdAt:
+      adFreeUntil:
         nonNegativeInt(
           monetization
-            ?.lastForgeWeaponAdAt,
+            ?.adFreeUntil,
           defaults.monetization
-            .lastForgeWeaponAdAt,
+            .adFreeUntil,
         ),
       grantedPurchaseTokens:
         stringArray(

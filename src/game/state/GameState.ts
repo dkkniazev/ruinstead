@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 18 as const;
+export const SAVE_SCHEMA_VERSION = 19 as const;
 
 export type BuildingId =
   | 'forge'
@@ -106,7 +106,7 @@ export type GameState = {
     } | null;
     lastBossRespawnAdAt: number;
     lastSupplyAdAt: number;
-    lastForgeWeaponAdAt: number;
+    adFreeUntil: number;
     grantedPurchaseTokens:
       string[];
   };
@@ -224,7 +224,7 @@ export function createDefaultGameState(): GameState {
       activeBlessing: null,
       lastBossRespawnAdAt: 0,
       lastSupplyAdAt: 0,
-      lastForgeWeaponAdAt: 0,
+      adFreeUntil: 0,
       grantedPurchaseTokens: [],
     },
     quests: {

@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type {
+  DamageEffectiveness,
   DamageProfile,
 } from '../combat/StageCombatProfile';
 import {

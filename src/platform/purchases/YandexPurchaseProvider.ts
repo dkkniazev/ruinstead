@@ -1,4 +1,5 @@
 import type {
+  PurchaseCatalogItem,
   PurchaseProvider,
   PurchaseReceipt,
   PurchaseResult,
@@ -78,6 +79,43 @@ export class YandexPurchaseProvider
         reason:
           'cancelled-or-failed',
       };
+    }
+  }
+
+  async getCatalog():
+    Promise<PurchaseCatalogItem[]> {
+    const payments =
+      await getPayments();
+
+    if (!payments) {
+      return [];
+    }
+
+    try {
+      const products =
+        await payments.getCatalog();
+
+      return products.map(
+        (product) => ({
+          id: product.id,
+          title: product.title,
+          description:
+            product.description,
+          price: product.price,
+          priceValue:
+            product.priceValue,
+          priceCurrencyCode:
+            product
+              .priceCurrencyCode,
+          currencyIconUrl:
+            product
+              .getPriceCurrencyImage(
+                'small',
+              ),
+        }),
+      );
+    } catch {
+      return [];
     }
   }
 

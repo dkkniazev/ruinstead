@@ -23,6 +23,7 @@ import type {
   CityBuildingId,
 } from '../settlement/CityBuilderSystem';
 import type {
+  EquippedWeaponProfile,
   OwnedWeaponOption,
   WeaponRarityId,
 } from '../progression/WeaponInventory';
@@ -60,6 +61,20 @@ export type UpgradeHudState = {
   storage: ResourceCounts;
 };
 
+export type CharacterHudState = {
+  level: number;
+  unlockedSlots: number;
+  primarySlot: number;
+  slots:
+    Array<
+      EquippedWeaponProfile |
+      null
+    >;
+  inventory:
+    OwnedWeaponOption[];
+  storage: ResourceCounts;
+};
+
 export const HUD_COMBAT_STATE_EVENT =
   'ruinstead:hud:combat-state';
 export const HUD_AREA_EVENT =
@@ -84,6 +99,14 @@ export const HUD_WEAPON_VARIANT_SELECT_EVENT =
   'ruinstead:hud:weapon-variant-select';
 export const HUD_WEAPON_FUSE_EVENT =
   'ruinstead:hud:weapon-fuse';
+export const HUD_CHARACTER_STATE_EVENT =
+  'ruinstead:hud:character-state';
+export const HUD_WEAPON_SLOT_EQUIP_EVENT =
+  'ruinstead:hud:weapon-slot-equip';
+export const HUD_WEAPON_SLOT_CLEAR_EVENT =
+  'ruinstead:hud:weapon-slot-clear';
+export const HUD_WEAPON_SLOT_PRIMARY_EVENT =
+  'ruinstead:hud:weapon-slot-primary';
 export const HUD_QUEST_STATE_EVENT =
   'ruinstead:hud:quest-state';
 export const HUD_BESTIARY_STATE_EVENT =
@@ -163,6 +186,22 @@ export type HudWeaponFuseHandler =
     rarity: WeaponRarityId,
     stars: number,
   ) => void;
+export type HudCharacterStateHandler =
+  (
+    state:
+      CharacterHudState,
+  ) => void;
+export type HudWeaponSlotEquipHandler =
+  (
+    slot: number,
+    weaponId: WeaponId,
+    rarity: WeaponRarityId,
+    stars: number,
+  ) => void;
+export type HudWeaponSlotClearHandler =
+  (slot: number) => void;
+export type HudWeaponSlotPrimaryHandler =
+  (slot: number) => void;
 export type HudQuestStateHandler =
   (state: QuestHudState) => void;
 export type HudBestiaryStateHandler =

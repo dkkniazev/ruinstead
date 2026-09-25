@@ -25,7 +25,7 @@ import {
   HUD_BLESSING_EVENT,
   HUD_RETURN_HOME_EVENT,
   HUD_SUPPLY_EVENT,
-  HUD_FORGE_WEAPON_REWARD_EVENT,
+  HUD_BUY_AD_FREE_WEEK_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -142,8 +142,7 @@ export class HudScene
         0,
       supplyCooldownRemainingMs:
         0,
-      forgeWeaponCooldownRemainingMs:
-        0,
+      adFreeUntil: 0,
       offer: null,
     };
   private monetizationPanel?:
@@ -157,6 +156,8 @@ export class HudScene
   private returnHomeButton?:
     Phaser.GameObjects.Text;
   private buyTicketsButton?:
+    Phaser.GameObjects.Text;
+  private buyAdFreeButton?:
     Phaser.GameObjects.Text;
   private blessingStatusText?:
     Phaser.GameObjects.Text;
@@ -174,8 +175,6 @@ export class HudScene
         Phaser.GameObjects.Text
       >
     > = {};
-  private forgeWeaponRewardButton?:
-    Phaser.GameObjects.Text;
   private cityPanelOpen = false;
   private cityOpenButton?:
     Phaser.GameObjects.Text;
@@ -1050,7 +1049,7 @@ export class HudScene
           0,
           0,
           620,
-          750,
+          680,
           0x233b2a,
           0.97,
         )
@@ -1469,56 +1468,6 @@ export class HudScene
       },
     );
 
-    this.forgeWeaponRewardButton =
-      this.add
-        .text(
-          0,
-          356,
-          '',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '13px',
-            fontStyle: 'bold',
-            color: '#ffffff',
-            backgroundColor:
-              '#6a4f7b',
-            padding: {
-              x: 12,
-              y: 8,
-            },
-            fixedWidth: 500,
-            align: 'center',
-          },
-        )
-        .setOrigin(0.5)
-        .setInteractive({
-          useHandCursor: true,
-        });
-
-    this.forgeWeaponRewardButton.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () => {
-        const weaponId =
-          this.upgradeState
-            ?.selectedWeaponId;
-
-        if (
-          weaponId &&
-          !this.monetizationState
-            .busy &&
-          this.monetizationState
-            .forgeWeaponCooldownRemainingMs <=
-            0
-        ) {
-          this.game.events.emit(
-            HUD_FORGE_WEAPON_REWARD_EVENT,
-            weaponId,
-          );
-        }
-      },
-    );
-
     panel.add([
       bg,
       title,
@@ -1535,7 +1484,6 @@ export class HudScene
       this.weaponUpgradeButton,
       this.weaponVariantButton,
       this.weaponFuseButton,
-      this.forgeWeaponRewardButton,
       close,
     ]);
 
@@ -2782,11 +2730,56 @@ export class HudScene
       },
     );
 
-    this.blessingStatusText =
+    this.buyAdFreeButton =
       this.add
         .text(
           LOGICAL_WIDTH - 26,
           469,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            fontStyle: 'bold',
+            color: '#fff5c9',
+            backgroundColor:
+              '#5b4b2fee',
+            padding: {
+              x: 9,
+              y: 6,
+            },
+            fixedWidth: 235,
+            align: 'center',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(111)
+        .setVisible(false)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.buyAdFreeButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        if (
+          this.monetizationState
+            .purchaseAvailable &&
+          !this.monetizationState
+            .busy
+        ) {
+          this.game.events.emit(
+            HUD_BUY_AD_FREE_WEEK_EVENT,
+          );
+        }
+      },
+    );
+
+    this.blessingStatusText =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          507,
           '',
           {
             fontFamily:
@@ -2974,6 +2967,10 @@ export class HudScene
     this.monetizationPanel
       ?.setVisible(visible);
 
+    const adFreeActive =
+      state.adFreeUntil >
+      Date.now();
+
     this.returnHomeButton
       ?.setVisible(
         state.enabled &&
@@ -2982,7 +2979,9 @@ export class HudScene
       .setText(
         state.returnTickets > 0
           ? `⌂ Дом · билет ×${state.returnTickets}`
-          : '▶ Дом · реклама',
+          : adFreeActive
+            ? '⌂ Дом · без рекламы'
+            : '▶ Дом · реклама',
       )
       .setStyle({
         backgroundColor:
@@ -3005,19 +3004,47 @@ export class HudScene
         `Купить ×${MONETIZATION_CONFIG.returnTicketPackSize} билетов`,
       );
 
+    this.buyAdFreeButton
+      ?.setVisible(
+        state.enabled &&
+        state.purchaseAvailable,
+      )
+      .setText(
+        adFreeActive
+          ? `Без рекламы: ${this.formatAdFreeRemaining(
+              state.adFreeUntil -
+                Date.now(),
+            )} · +7 дней`
+          : 'Купить 7 дней без рекламы',
+      )
+      .setStyle({
+        backgroundColor:
+          adFreeActive
+            ? '#715f32'
+            : '#5b4b2f',
+        color:
+          state.busy
+            ? '#b6ad93'
+            : '#fff5c9',
+      });
+
     this.renderBlessingState();
     this.renderRewardedExtras();
 
     if (offer) {
       this.monetizationText?.setText(
-        `${offer.title}\n${offer.description}\nНаграда за просмотр: ${offer.rewardText}`,
+        `${offer.title}\n${offer.description}\n${adFreeActive ? 'Награда' : 'Награда за просмотр'}: ${offer.rewardText}`,
       );
 
       this.monetizationWatchButton
         ?.setText(
           state.busy
-            ? 'Реклама открывается…'
-            : 'Смотреть рекламу',
+            ? adFreeActive
+              ? 'Получение…'
+              : 'Реклама открывается…'
+            : adFreeActive
+              ? 'Получить'
+              : 'Смотреть рекламу',
         )
         .setStyle({
           backgroundColor:
@@ -3123,6 +3150,29 @@ export class HudScene
     }
   }
 
+  private formatAdFreeRemaining(
+    ms: number,
+  ): string {
+    const hours =
+      Math.max(
+        0,
+        Math.ceil(
+          ms /
+            (60 * 60 * 1000),
+        ),
+      );
+    const days =
+      Math.floor(
+        hours / 24,
+      );
+    const restHours =
+      hours % 24;
+
+    return days > 0
+      ? `${days}д ${restHours}ч`
+      : `${restHours}ч`;
+  }
+
   private formatCooldown(
     ms: number,
   ): string {
@@ -3146,9 +3196,6 @@ export class HudScene
     const supplyCooldown =
       this.monetizationState
         .supplyCooldownRemainingMs;
-    const forgeCooldown =
-      this.monetizationState
-        .forgeWeaponCooldownRemainingMs;
 
     const supplyLabels:
       Record<
@@ -3202,30 +3249,6 @@ export class HudScene
         });
     }
 
-    const weaponId =
-      this.upgradeState
-        ?.selectedWeaponId;
-
-    this.forgeWeaponRewardButton
-      ?.setText(
-        forgeCooldown > 0
-          ? `Common ☆ от кузнеца · ${this.formatCooldown(forgeCooldown)}`
-          : weaponId
-            ? `▶ Реклама: Common ☆ ${WEAPON_DEFINITIONS[weaponId].name}`
-            : 'Common ☆ от кузнеца',
-      )
-      .setStyle({
-        backgroundColor:
-          forgeCooldown <= 0 &&
-          !this.monetizationState
-            .busy
-            ? '#6a4f7b'
-            : '#49444c',
-        color:
-          forgeCooldown <= 0
-            ? '#ffffff'
-            : '#aaa5ad',
-      });
   }
 
   private handleCityState(
@@ -3284,7 +3307,11 @@ export class HudScene
       )
       .setText(
         state.production.canCollect
-          ? 'Реклама: забрать производство ×2'
+          ? this.monetizationState
+              .adFreeUntil >
+              Date.now()
+            ? 'Забрать производство ×2'
+            : 'Реклама: забрать производство ×2'
           : '×2 недоступно · производство пусто',
       )
       .setStyle({
@@ -3916,11 +3943,6 @@ export class HudScene
     this.weaponFuseButton
       ?.setVisible(
         forge.restored,
-      );
-    this.forgeWeaponRewardButton
-      ?.setVisible(
-        forge.restored &&
-        MONETIZATION_CONFIG.enabled,
       );
 
     this.forgeRepairButton

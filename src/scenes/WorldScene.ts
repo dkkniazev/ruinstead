@@ -3701,6 +3701,15 @@ export class WorldScene
           receipt.purchaseToken,
         );
 
+      trackAnalyticsEvent(
+        'premium_purchase_granted',
+        {
+          productId:
+            receipt.productId,
+          consumable,
+        },
+      );
+
       this.saveState();
       await flushYandexCloudSave();
     }
@@ -4191,6 +4200,13 @@ export class WorldScene
       this.emitPremiumState();
       return;
     }
+
+    trackAnalyticsEvent(
+      'shard_shop_purchase',
+      {
+        slot,
+      },
+    );
 
     this.evaluatePremiumAchievements();
     this.emitPremiumState();

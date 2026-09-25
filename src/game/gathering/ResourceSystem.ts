@@ -268,6 +268,17 @@ export class ResourceSystem {
   private nextDeathDropBatchId = 1;
   private gatheringMultiplier = 1;
   private pickupRangeMultiplier = 1;
+  private readonly gatheringCarry:
+    Record<
+      HarvestResourceType,
+      number
+    > = {
+    wood: 0,
+    stone: 0,
+    metal: 0,
+    crystal: 0,
+    fiber: 0,
+  };
   private readonly nodes:
     ResourceNode[] = [];
   private readonly pickups:
@@ -602,13 +613,24 @@ export class ResourceSystem {
     definition:
       ResourceNodeDefinition,
   ): void {
+    const rawYield =
+      definition.dropCount *
+        this.gatheringMultiplier +
+      this.gatheringCarry[
+        definition.type
+      ];
     const dropCount =
       Math.max(
         definition.dropCount,
-        Math.round(
-          definition.dropCount *
-            this.gatheringMultiplier,
-        ),
+        Math.floor(rawYield),
+      );
+
+    this.gatheringCarry[
+      definition.type
+    ] =
+      Math.max(
+        0,
+        rawYield - dropCount,
       );
 
     for (

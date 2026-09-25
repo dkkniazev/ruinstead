@@ -59,9 +59,10 @@ import {
   getAvailableMasteryPoints,
   spendMasteryPoint,
 } from '../game/progression/PlayerProgressionSystem';
-import type {
-  SkinChestTier,
-  SkinId,
+import {
+  SKIN_DEFINITIONS,
+  type SkinChestTier,
+  type SkinId,
 } from '../game/cosmetics/SkinEconomy';
 import {
   applyPremiumPurchase,
@@ -3655,6 +3656,7 @@ export class WorldScene
 
     this.emitPlayerProgressState();
     this.emitPremiumState();
+    this.saveState();
   }
 
   private emitPlayerProgressState():
@@ -3733,6 +3735,20 @@ export class WorldScene
     }
 
     if (mode === 'rewarded') {
+      if (
+        tier !== 'common' ||
+        getRewardedCommonChestRemaining(
+          this.gameState,
+        ) <= 0
+      ) {
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Лимит рекламных Common-сундуков на сегодня исчерпан',
+        );
+        this.emitPremiumState();
+        return;
+      }
+
       const rewarded =
         await this.requestRewarded(
           'skin_chest',
@@ -3818,6 +3834,100 @@ export class WorldScene
   private async handlePremiumPurchase(
     productId: string,
   ): Promise<void> {
+    if (!this.gameState) {
+      return;
+    }
+
+    if (
+      productId ===
+        'starter_pack' &&
+      this.gameState.premium
+        .starterPackOwned
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Стартовый набор уже получен',
+      );
+      return;
+    }
+
+    if (
+      productId ===
+        'level_pass' &&
+      this.gameState.premium
+        .levelPassOwned
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Level Pass уже активен',
+      );
+      return;
+    }
+
+    if (
+      productId ===
+        'region_pack_stage_2'
+    ) {
+      if (
+        this.gameState.premium
+          .regionPacksOwned
+          .includes(
+            productId,
+          )
+      ) {
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Набор региона уже получен',
+        );
+        return;
+      }
+
+      if (
+        !this.gameState.world
+          .unlockedZones
+          .includes(
+            'stage-2',
+          )
+      ) {
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Сначала откройте второй регион',
+        );
+        return;
+      }
+    }
+
+    const legendary =
+      (
+        Object.entries(
+          SKIN_DEFINITIONS,
+        ) as Array<
+          [
+            SkinId,
+            (typeof SKIN_DEFINITIONS)[SkinId],
+          ]
+        >
+      ).find(
+        ([, definition]) =>
+          definition.productId ===
+            productId,
+      );
+
+    if (
+      legendary &&
+      this.gameState.premium
+        .unlockedSkinIds
+        .includes(
+          legendary[0],
+        )
+    ) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Этот Legendary скин уже открыт',
+      );
+      return;
+    }
+
     await this.purchaseProduct(
       productId,
     );

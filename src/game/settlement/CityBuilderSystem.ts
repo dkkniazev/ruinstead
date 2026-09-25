@@ -187,6 +187,12 @@ export class CityBuilderSystem {
   private productionMultiplier = 1;
   private capacityMultiplier = 1;
   private themeTint = 0xffffff;
+  private readonly productionCarry = {
+    wood: 0,
+    stone: 0,
+    metal: 0,
+    coins: 0,
+  };
   private readonly visuals =
     new Map<
       CityBuildingId,
@@ -638,37 +644,50 @@ export class CityBuilderSystem {
     const house =
       this.level('house');
 
-    this.addPending(
+    this.addScaledPending(
       'wood',
-      Math.round(
-        sawmill *
-          2 *
-          this.productionMultiplier,
-      ),
+      sawmill * 2,
     );
-    this.addPending(
+    this.addScaledPending(
       'stone',
-      Math.round(
-        workshop *
-          this.productionMultiplier,
-      ),
+      workshop,
     );
-    this.addPending(
+    this.addScaledPending(
       'metal',
-      Math.round(
-        Math.ceil(
-          workshop / 2,
-        ) *
-          this.productionMultiplier,
+      Math.ceil(
+        workshop / 2,
       ),
     );
-    this.addPending(
+    this.addScaledPending(
       'coins',
-      Math.round(
-        house *
-          2 *
-          this.productionMultiplier,
-      ),
+      house * 2,
+    );
+  }
+
+  private addScaledPending(
+    type:
+      keyof typeof this.productionCarry,
+    baseAmount: number,
+  ): void {
+    const raw =
+      Math.max(
+        0,
+        baseAmount,
+      ) *
+        this.productionMultiplier +
+      this.productionCarry[type];
+    const amount =
+      Math.floor(raw);
+
+    this.productionCarry[type] =
+      Math.max(
+        0,
+        raw - amount,
+      );
+
+    this.addPending(
+      type,
+      amount,
     );
   }
 

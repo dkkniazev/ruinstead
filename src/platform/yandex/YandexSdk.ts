@@ -17,6 +17,22 @@ export type YandexGameApiEvent =
   | 'game_api_pause'
   | 'game_api_resume';
 
+export type YandexProduct = {
+  id: string;
+  title: string;
+  description: string;
+  imageURI: string;
+  price: string;
+  priceValue: string;
+  priceCurrencyCode: string;
+  getPriceCurrencyImage(
+    size:
+      | 'small'
+      | 'medium'
+      | 'svg',
+  ): string;
+};
+
 export type YandexPurchase = {
   productID: string;
   purchaseToken: string;
@@ -30,6 +46,9 @@ export type YandexPayments = {
   }): Promise<YandexPurchase>;
   getPurchases(): Promise<
     YandexPurchase[]
+  >;
+  getCatalog(): Promise<
+    YandexProduct[]
   >;
   consumePurchase(
     purchaseToken: string,

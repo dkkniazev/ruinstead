@@ -4348,8 +4348,8 @@ export class HudScene
     this.premiumOpenButton =
       this.add
         .text(
-          26,
-          312,
+          LOGICAL_WIDTH - 26,
+          114,
           'M · Магазин',
           {
             fontFamily:
@@ -4363,11 +4363,11 @@ export class HudScene
               x: 12,
               y: 8,
             },
-            fixedWidth: 146,
+            fixedWidth: 160,
             align: 'center',
           },
         )
-        .setOrigin(0, 0)
+        .setOrigin(1, 0)
         .setDepth(110)
         .setInteractive({
           useHandCursor: true,
@@ -4407,7 +4407,7 @@ export class HudScene
         .text(
           -430,
           -325,
-          'Магазин и коллекция',
+          'Магазин',
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -4454,33 +4454,112 @@ export class HudScene
       this.add
         .text(
           -430,
-          -278,
+          -282,
           '',
           {
             fontFamily:
               'system-ui, sans-serif',
-            fontSize: '14px',
+            fontSize: '13px',
             color: '#f5e6b8',
             fixedWidth: 860,
           },
         );
 
-    const chestTitle =
-      this.add
-        .text(
-          -430,
-          -235,
-          'Сундуки с осколками',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '17px',
-            fontStyle: 'bold',
-            color: '#ffe29a',
-          },
-        );
+    const tabs:
+      Array<{
+        id:
+          'chests' |
+          'purchases' |
+          'cosmetics';
+        label: string;
+        x: number;
+      }> = [
+      {
+        id: 'chests',
+        label: 'Сундуки',
+        x: -430,
+      },
+      {
+        id: 'purchases',
+        label: 'Покупки',
+        x: -245,
+      },
+      {
+        id: 'cosmetics',
+        label: 'Косметика',
+        x: -60,
+      },
+    ];
 
-    const makeButton = (
+    const tabObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    for (
+      const tab of tabs
+    ) {
+      const button =
+        this.add
+          .text(
+            tab.x,
+            -245,
+            tab.label,
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '14px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#504942',
+              padding: {
+                x: 10,
+                y: 7,
+              },
+              fixedWidth: 170,
+              align: 'center',
+            },
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () =>
+          this.setPremiumTab(
+            tab.id,
+          ),
+      );
+
+      this.premiumTabButtons[
+        tab.id
+      ] = button;
+      tabObjects.push(button);
+    }
+
+    const chests =
+      this.add.container(
+        0,
+        0,
+      );
+    const purchases =
+      this.add.container(
+        0,
+        0,
+      );
+    const cosmetics =
+      this.add.container(
+        0,
+        0,
+      );
+
+    this.premiumTabContainers = {
+      chests,
+      purchases,
+      cosmetics,
+    };
+
+    const makeChestButton = (
       key: string,
       x: number,
       y: number,
@@ -4496,16 +4575,17 @@ export class HudScene
             {
               fontFamily:
                 'system-ui, sans-serif',
-              fontSize: '12px',
+              fontSize: '13px',
               fontStyle: 'bold',
               color: '#ffffff',
               backgroundColor:
                 '#5b5146',
               padding: {
                 x: 8,
-                y: 7,
+                y: 9,
               },
               fixedWidth: width,
+              fixedHeight: 48,
               align: 'center',
             },
           )
@@ -4517,18 +4597,51 @@ export class HudScene
         Phaser.Input.Events.POINTER_DOWN,
         callback,
       );
-
-      this.chestButtons[key] =
-        button;
+      this.chestButtons[
+        key
+      ] = button;
       return button;
     };
 
+    const chestTitle =
+      this.add
+        .text(
+          -410,
+          -180,
+          'Сундуки с осколками скинов',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '20px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const chestDescription =
+      this.add
+        .text(
+          -410,
+          -140,
+          'Common можно открывать за самоцветы или rewarded-награду. Rare и Epic — за самоцветы или полученные бесплатные сундуки. Legendary в случайных сундуках нет.',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            color: '#d7d0c3',
+            fixedWidth: 820,
+            wordWrap: {
+              width: 820,
+            },
+          },
+        );
+
     const chestObjects = [
-      makeButton(
+      makeChestButton(
         'common-gems',
-        -430,
-        -202,
-        185,
+        -410,
+        -78,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4536,11 +4649,11 @@ export class HudScene
             'gems',
           ),
       ),
-      makeButton(
+      makeChestButton(
         'common-ad',
-        -235,
-        -202,
-        185,
+        -145,
+        -78,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4548,11 +4661,11 @@ export class HudScene
             'rewarded',
           ),
       ),
-      makeButton(
+      makeChestButton(
         'common-free',
-        -40,
-        -202,
-        185,
+        120,
+        -78,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4560,11 +4673,11 @@ export class HudScene
             'free',
           ),
       ),
-      makeButton(
+      makeChestButton(
         'rare-gems',
-        155,
-        -202,
-        135,
+        -410,
+        0,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4572,11 +4685,11 @@ export class HudScene
             'gems',
           ),
       ),
-      makeButton(
+      makeChestButton(
         'rare-free',
-        300,
-        -202,
-        130,
+        -145,
+        0,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4584,11 +4697,11 @@ export class HudScene
             'free',
           ),
       ),
-      makeButton(
+      makeChestButton(
         'epic-gems',
-        155,
-        -160,
-        135,
+        -410,
+        78,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4596,11 +4709,11 @@ export class HudScene
             'gems',
           ),
       ),
-      makeButton(
+      makeChestButton(
         'epic-free',
-        300,
-        -160,
-        130,
+        -145,
+        78,
+        250,
         () =>
           this.game.events.emit(
             HUD_SKIN_CHEST_OPEN_EVENT,
@@ -4610,16 +4723,187 @@ export class HudScene
       ),
     ];
 
-    const skinTitle =
+    const pityInfo =
       this.add
         .text(
-          -430,
-          -115,
-          'Скины',
+          -410,
+          165,
+          'Epic pity гарантирует Epic-награду не позднее 5-го Epic-сундука.',
           {
             fontFamily:
               'system-ui, sans-serif',
-            fontSize: '17px',
+            fontSize: '12px',
+            color: '#dbc999',
+          },
+        );
+
+    chests.add([
+      chestTitle,
+      chestDescription,
+      ...chestObjects,
+      pityInfo,
+    ]);
+
+    const purchaseTitle =
+      this.add
+        .text(
+          -410,
+          -180,
+          'Покупки за реальные деньги',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '20px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const purchaseRows:
+      Array<{
+        key: string;
+        label: string;
+        product: string;
+      }> = [
+      {
+        key: 'gems80',
+        label: '+80 самоцветов',
+        product: 'gems_80',
+      },
+      {
+        key: 'gems250',
+        label: '+250 самоцветов',
+        product: 'gems_250',
+      },
+      {
+        key: 'gems650',
+        label: '+650 самоцветов',
+        product: 'gems_650',
+      },
+      {
+        key: 'gems1400',
+        label: '+1400 самоцветов',
+        product: 'gems_1400',
+      },
+      {
+        key: 'starter',
+        label: 'Starter Pack',
+        product:
+          STARTER_PACK.productId,
+      },
+      {
+        key: 'pass',
+        label: 'Level Pass',
+        product:
+          LEVEL_PASS.productId,
+      },
+      {
+        key: 'region2',
+        label: 'Ash Region Pack',
+        product:
+          'region_pack_stage_2',
+      },
+      {
+        key: 'founder',
+        label: 'Founder Pack',
+        product:
+          FOUNDER_PACK.productId,
+      },
+    ];
+
+    const storeObjects:
+      Phaser.GameObjects.Text[] = [];
+
+    purchaseRows.forEach(
+      (row, index) => {
+        const col =
+          index % 2;
+        const line =
+          Math.floor(
+            index / 2,
+          );
+        const button =
+          this.add
+            .text(
+              -410 +
+                col * 410,
+              -128 +
+                line * 72,
+              row.label,
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '12px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#6b543a',
+                padding: {
+                  x: 10,
+                  y: 10,
+                },
+                fixedWidth: 390,
+                fixedHeight: 52,
+                align: 'center',
+              },
+            )
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            this.game.events.emit(
+              HUD_PREMIUM_PURCHASE_EVENT,
+              row.product,
+            );
+          },
+        );
+
+        this.storeButtons[
+          row.key
+        ] = button;
+        storeObjects.push(
+          button,
+        );
+      },
+    );
+
+    const purchaseHint =
+      this.add
+        .text(
+          -410,
+          185,
+          'Цены и валюта берутся из каталога Yandex Games. Билеты домой и 7 дней без рекламы доступны также из контекстных кнопок HUD.',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            color: '#d7d0c3',
+            fixedWidth: 820,
+            wordWrap: {
+              width: 820,
+            },
+          },
+        );
+
+    purchases.add([
+      purchaseTitle,
+      ...storeObjects,
+      purchaseHint,
+    ]);
+
+    const skinTitle =
+      this.add
+        .text(
+          -410,
+          -180,
+          'Скины героя',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '19px',
             fontStyle: 'bold',
             color: '#ffe29a',
           },
@@ -4628,8 +4912,8 @@ export class HudScene
     const prevSkin =
       this.add
         .text(
-          -430,
-          -78,
+          -410,
+          -135,
           '‹',
           {
             fontFamily:
@@ -4658,8 +4942,8 @@ export class HudScene
     const nextSkin =
       this.add
         .text(
-          398,
-          -78,
+          395,
+          -135,
           '›',
           {
             fontFamily:
@@ -4688,17 +4972,17 @@ export class HudScene
     this.skinInfoText =
       this.add
         .text(
-          -375,
-          -75,
+          -355,
+          -132,
           '',
           {
             fontFamily:
               'system-ui, sans-serif',
             fontSize: '13px',
             color: '#edf3e8',
-            fixedWidth: 620,
+            fixedWidth: 600,
             wordWrap: {
-              width: 620,
+              width: 600,
             },
           },
         );
@@ -4706,8 +4990,8 @@ export class HudScene
     this.skinActionButton =
       this.add
         .text(
-          270,
-          -75,
+          260,
+          -132,
           '',
           {
             fontFamily:
@@ -4721,7 +5005,7 @@ export class HudScene
               x: 9,
               y: 7,
             },
-            fixedWidth: 120,
+            fixedWidth: 125,
             align: 'center',
           },
         )
@@ -4736,145 +5020,12 @@ export class HudScene
       },
     );
 
-    const storeTitle =
-      this.add
-        .text(
-          -430,
-          5,
-          'Покупки',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '17px',
-            fontStyle: 'bold',
-            color: '#ffe29a',
-          },
-        );
-
-    const purchaseRows:
-      Array<{
-        key: string;
-        label: string;
-        product: string;
-        x: number;
-        y: number;
-      }> = [
-      {
-        key: 'gems80',
-        label: '+80 самоцветов',
-        product: 'gems_80',
-        x: -430,
-        y: 40,
-      },
-      {
-        key: 'gems250',
-        label: '+250 самоцветов',
-        product: 'gems_250',
-        x: -215,
-        y: 40,
-      },
-      {
-        key: 'gems650',
-        label: '+650 самоцветов',
-        product: 'gems_650',
-        x: 0,
-        y: 40,
-      },
-      {
-        key: 'gems1400',
-        label: '+1400 самоцветов',
-        product: 'gems_1400',
-        x: 215,
-        y: 40,
-      },
-      {
-        key: 'starter',
-        label: 'Starter Pack',
-        product:
-          STARTER_PACK.productId,
-        x: -430,
-        y: 82,
-      },
-      {
-        key: 'pass',
-        label: 'Level Pass',
-        product:
-          LEVEL_PASS.productId,
-        x: -215,
-        y: 82,
-      },
-      {
-        key: 'region2',
-        label: 'Ash Region Pack',
-        product:
-          'region_pack_stage_2',
-        x: 0,
-        y: 82,
-      },
-      {
-        key: 'founder',
-        label: 'Founder Pack',
-        product:
-          FOUNDER_PACK.productId,
-        x: 215,
-        y: 82,
-      },
-    ];
-
-    const storeObjects:
-      Phaser.GameObjects.Text[] = [];
-    purchaseRows.forEach(
-      (row) => {
-        const button =
-          this.add
-            .text(
-              row.x,
-              row.y,
-              row.label,
-              {
-                fontFamily:
-                  'system-ui, sans-serif',
-                fontSize: '11px',
-                fontStyle: 'bold',
-                color: '#ffffff',
-                backgroundColor:
-                  '#6b543a',
-                padding: {
-                  x: 8,
-                  y: 7,
-                },
-                fixedWidth: 200,
-                align: 'center',
-              },
-            )
-            .setInteractive({
-              useHandCursor: true,
-            });
-
-        button.on(
-          Phaser.Input.Events.POINTER_DOWN,
-          () => {
-            this.game.events.emit(
-              HUD_PREMIUM_PURCHASE_EVENT,
-              row.product,
-            );
-          },
-        );
-        this.storeButtons[
-          row.key
-        ] = button;
-        storeObjects.push(
-          button,
-        );
-      },
-    );
-
     const cosmeticTitle =
       this.add
         .text(
-          -430,
-          135,
-          'Косметика поселения и спутники',
+          -410,
+          -55,
+          'Темы поселения и спутники',
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -4884,166 +5035,102 @@ export class HudScene
           },
         );
 
-    const verdant =
-      this.add
-        .text(
-          -430,
-          170,
-          'Тема: Зелёная · 250◆',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '11px',
-            color: '#ffffff',
-            backgroundColor:
-              '#466649',
-            padding: {
-              x: 8,
-              y: 7,
-            },
-            fixedWidth: 205,
-            align: 'center',
-          },
-        )
-        .setInteractive({
-          useHandCursor: true,
-        });
-    verdant.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () =>
-        this.game.events.emit(
+    const cosmeticButtons:
+      Phaser.GameObjects.Text[] = [];
+    const cosmeticData:
+      Array<{
+        x: number;
+        label: string;
+        event: string;
+        value: string;
+        background: string;
+      }> = [
+      {
+        x: -410,
+        label: 'Тема: Зелёная · 250◆',
+        event:
           HUD_SETTLEMENT_THEME_EVENT,
-          'verdant',
-        ),
-    );
-
-    const ember =
-      this.add
-        .text(
-          -215,
-          170,
-          'Тема: Пепел · 350◆',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '11px',
-            color: '#ffffff',
-            backgroundColor:
-              '#765041',
-            padding: {
-              x: 8,
-              y: 7,
-            },
-            fixedWidth: 205,
-            align: 'center',
-          },
-        )
-        .setInteractive({
-          useHandCursor: true,
-        });
-    ember.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () =>
-        this.game.events.emit(
+        value: 'verdant',
+        background: '#466649',
+      },
+      {
+        x: -205,
+        label: 'Тема: Пепел · 350◆',
+        event:
           HUD_SETTLEMENT_THEME_EVENT,
-          'ember',
-        ),
-    );
-
-    const mossling =
-      this.add
-        .text(
-          0,
-          170,
-          'Моховичок · 300◆',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '11px',
-            color: '#ffffff',
-            backgroundColor:
-              '#4f6750',
-            padding: {
-              x: 8,
-              y: 7,
-            },
-            fixedWidth: 200,
-            align: 'center',
-          },
-        )
-        .setInteractive({
-          useHandCursor: true,
-        });
-    mossling.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () =>
-        this.game.events.emit(
+        value: 'ember',
+        background: '#765041',
+      },
+      {
+        x: 0,
+        label: 'Моховичок · 300◆',
+        event:
           HUD_PET_EVENT,
-          'mossling',
-        ),
-    );
-
-    const firefly =
-      this.add
-        .text(
-          210,
-          170,
-          'Светляк · 450◆',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '11px',
-            color: '#ffffff',
-            backgroundColor:
-              '#70643e',
-            padding: {
-              x: 8,
-              y: 7,
-            },
-            fixedWidth: 200,
-            align: 'center',
-          },
-        )
-        .setInteractive({
-          useHandCursor: true,
-        });
-    firefly.on(
-      Phaser.Input.Events.POINTER_DOWN,
-      () =>
-        this.game.events.emit(
+        value: 'mossling',
+        background: '#4f6750',
+      },
+      {
+        x: 205,
+        label: 'Светляк · 450◆',
+        event:
           HUD_PET_EVENT,
-          'firefly',
-        ),
-    );
+        value: 'firefly',
+        background: '#70643e',
+      },
+    ];
 
-    const note =
-      this.add
-        .text(
-          -430,
-          225,
-          'Legendary не выпадает из сундуков. Ротационный магазин ниже позволяет добирать конкретные осколки без RNG.',
-          {
-            fontFamily:
-              'system-ui, sans-serif',
-            fontSize: '11px',
-            color: '#c9c1b1',
-            fixedWidth: 860,
-            wordWrap: {
-              width: 860,
+    for (
+      const item of
+      cosmeticData
+    ) {
+      const button =
+        this.add
+          .text(
+            item.x,
+            -20,
+            item.label,
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '11px',
+              color: '#ffffff',
+              backgroundColor:
+                item.background,
+              padding: {
+                x: 8,
+                y: 7,
+              },
+              fixedWidth: 195,
+              align: 'center',
             },
-          },
-        );
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () =>
+          this.game.events.emit(
+            item.event,
+            item.value,
+          ),
+      );
+      cosmeticButtons.push(
+        button,
+      );
+    }
 
     const shardTitle =
       this.add
         .text(
-          -430,
-          270,
-          'Осколки дня · 1 покупка каждого слота',
+          -410,
+          55,
+          'Осколки дня · без RNG',
           {
             fontFamily:
               'system-ui, sans-serif',
-            fontSize: '15px',
+            fontSize: '16px',
             fontStyle: 'bold',
             color: '#ffe29a',
           },
@@ -5060,8 +5147,9 @@ export class HudScene
       const button =
         this.add
           .text(
-            -430 + slot * 290,
-            302,
+            -410 +
+              slot * 275,
+            90,
             '',
             {
               fontFamily:
@@ -5075,11 +5163,11 @@ export class HudScene
                 x: 8,
                 y: 7,
               },
-              fixedWidth: 270,
-              fixedHeight: 42,
+              fixedWidth: 260,
+              fixedHeight: 45,
               align: 'center',
               wordWrap: {
-                width: 252,
+                width: 244,
               },
             },
           )
@@ -5103,28 +5191,46 @@ export class HudScene
       shardObjects.push(button);
     }
 
-    panel.add([
-      bg,
-      title,
-      close,
-      this.premiumHeaderText,
-      chestTitle,
-      ...chestObjects,
+    const cosmeticHint =
+      this.add
+        .text(
+          -410,
+          165,
+          'Legendary-скины не выпадают случайно: они покупаются напрямую. Если коллекция разрастётся, этот раздел можно вынести в отдельный Гардероб без изменения экономики.',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#c9c1b1',
+            fixedWidth: 820,
+            wordWrap: {
+              width: 820,
+            },
+          },
+        );
+
+    cosmetics.add([
       skinTitle,
       prevSkin,
       nextSkin,
       this.skinInfoText,
       this.skinActionButton,
-      storeTitle,
-      ...storeObjects,
       cosmeticTitle,
-      verdant,
-      ember,
-      mossling,
-      firefly,
-      note,
+      ...cosmeticButtons,
       shardTitle,
       ...shardObjects,
+      cosmeticHint,
+    ]);
+
+    panel.add([
+      bg,
+      title,
+      close,
+      this.premiumHeaderText,
+      ...tabObjects,
+      chests,
+      purchases,
+      cosmetics,
     ]);
 
     panel
@@ -5133,6 +5239,43 @@ export class HudScene
 
     this.premiumPanel =
       panel;
+    this.setPremiumTab(
+      'chests',
+    );
+  }
+
+  private setPremiumTab(
+    tab:
+      'chests' |
+      'purchases' |
+      'cosmetics',
+  ): void {
+    this.premiumTab = tab;
+
+    (
+      [
+        'chests',
+        'purchases',
+        'cosmetics',
+      ] as const
+    ).forEach(
+      (id) => {
+        this.premiumTabContainers[
+          id
+        ]?.setVisible(
+          id === tab,
+        );
+        this.premiumTabButtons[
+          id
+        ]?.setStyle({
+          backgroundColor:
+            id === tab
+              ? '#7a6145'
+              : '#504942',
+          color: '#ffffff',
+        });
+      },
+    );
   }
 
   private handleProfileToggle():

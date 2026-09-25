@@ -16,12 +16,14 @@ import {
   HUD_BESTIARY_CLAIM_EVENT,
   HUD_BESTIARY_STATE_EVENT,
   HUD_CITY_COLLECT_EVENT,
-  HUD_CITY_PRODUCTION_BOOST_EVENT,
+  HUD_CITY_PRODUCTION_DOUBLE_EVENT,
   HUD_CITY_STATE_EVENT,
   HUD_CITY_UPGRADE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_HEALTH_POTION_EVENT,
+  HUD_BLESSING_EVENT,
+  HUD_RETURN_HOME_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -34,6 +36,7 @@ import {
   HUD_WEAPON_VARIANT_SELECT_EVENT,
   HUD_WEAPON_FUSE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
+  type BlessingKind,
   type GatheringHudState,
   type MonetizationHudState,
   type UpgradeHudState,
@@ -128,6 +131,12 @@ export class HudScene
       enabled:
         MONETIZATION_CONFIG.enabled,
       busy: false,
+      returnTickets: 0,
+      canFastReturn: false,
+      purchaseAvailable: false,
+      activeBlessing: null,
+      bossRespawnResetCooldownRemainingMs:
+        0,
       offer: null,
     };
   private monetizationPanel?:
@@ -138,6 +147,19 @@ export class HudScene
     Phaser.GameObjects.Text;
   private monetizationDismissButton?:
     Phaser.GameObjects.Text;
+  private returnHomeButton?:
+    Phaser.GameObjects.Text;
+  private buyTicketsButton?:
+    Phaser.GameObjects.Text;
+  private blessingStatusText?:
+    Phaser.GameObjects.Text;
+  private blessingButtons:
+    Partial<
+      Record<
+        BlessingKind,
+        Phaser.GameObjects.Text
+      >
+    > = {};
   private cityPanelOpen = false;
   private cityOpenButton?:
     Phaser.GameObjects.Text;
@@ -155,7 +177,7 @@ export class HudScene
     Phaser.GameObjects.Text;
   private cityCollectButton?:
     Phaser.GameObjects.Text;
-  private cityProductionBoostButton?:
+  private cityProductionDoubleButton?:
     Phaser.GameObjects.Text;
   private cityBuildingButtons:
     Partial<
@@ -2063,7 +2085,7 @@ export class HudScene
       },
     );
 
-    this.cityProductionBoostButton =
+    this.cityProductionDoubleButton =
       this.add
         .text(
           245,
@@ -2090,19 +2112,99 @@ export class HudScene
           useHandCursor: true,
         });
 
-    this.cityProductionBoostButton.on(
+    this.cityProductionDoubleButton.on(
       Phaser.Input.Events.POINTER_DOWN,
       () => {
         if (
           this.cityState
-            ?.production.canBoost &&
+            ?.production.canCollect &&
           !this.monetizationState
             .busy
         ) {
           this.game.events.emit(
-            HUD_CITY_PRODUCTION_BOOST_EVENT,
+            HUD_CITY_PRODUCTION_DOUBLE_EVENT,
           );
         }
+      },
+    );
+
+    const blessingObjects:
+      Phaser.GameObjects.Text[] = [];
+    const blessingOptions:
+      Array<{
+        kind: BlessingKind;
+        label: string;
+      }> = [
+      {
+        kind: 'damage',
+        label: '⚔ Урон +20%\n3 мин',
+      },
+      {
+        kind: 'health',
+        label: '❤ HP +25%\n3 мин',
+      },
+      {
+        kind: 'speed',
+        label: '➤ Скорость +15%\n3 мин',
+      },
+      {
+        kind: 'gathering',
+        label: '⛏ Добыча +50%\n3 мин',
+      },
+    ];
+
+    blessingOptions.forEach(
+      (option, index) => {
+        const button =
+          this.add
+            .text(
+              -270 +
+                index * 180,
+              247,
+              option.label,
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '12px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#5b496c',
+                padding: {
+                  x: 8,
+                  y: 6,
+                },
+                fixedWidth: 165,
+                fixedHeight: 42,
+                align: 'center',
+              },
+            )
+            .setOrigin(0.5, 0)
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            if (
+              !this.monetizationState
+                .busy
+            ) {
+              this.game.events.emit(
+                HUD_BLESSING_EVENT,
+                option.kind,
+              );
+            }
+          },
+        );
+
+        this.blessingButtons[
+          option.kind
+        ] = button;
+        blessingObjects.push(
+          button,
+        );
       },
     );
 
@@ -2175,8 +2277,9 @@ export class HudScene
       close,
       this.cityProductionText,
       this.cityCollectButton,
-      this.cityProductionBoostButton,
+      this.cityProductionDoubleButton,
       ...buildingObjects,
+      ...blessingObjects,
     ]);
 
     panel
@@ -2414,10 +2517,136 @@ export class HudScene
 
   private createMonetizationUi():
     void {
+    this.returnHomeButton =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          390,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#76538dee',
+            padding: {
+              x: 11,
+              y: 8,
+            },
+            fixedWidth: 235,
+            align: 'center',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(111)
+        .setVisible(false)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.returnHomeButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        if (
+          !this.monetizationState
+            .canFastReturn ||
+          this.monetizationState
+            .busy
+        ) {
+          return;
+        }
+
+        this.game.events.emit(
+          HUD_RETURN_HOME_EVENT,
+          this.monetizationState
+              .returnTickets >
+            0
+            ? 'ticket'
+            : 'rewarded',
+        );
+      },
+    );
+
+    this.buyTicketsButton =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          431,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            fontStyle: 'bold',
+            color: '#fff1c2',
+            backgroundColor:
+              '#514a35ee',
+            padding: {
+              x: 9,
+              y: 6,
+            },
+            fixedWidth: 235,
+            align: 'center',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(111)
+        .setVisible(false)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.buyTicketsButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        if (
+          this.monetizationState
+            .canFastReturn &&
+          this.monetizationState
+            .purchaseAvailable &&
+          !this.monetizationState
+            .busy
+        ) {
+          this.game.events.emit(
+            HUD_RETURN_HOME_EVENT,
+            'buy',
+          );
+        }
+      },
+    );
+
+    this.blessingStatusText =
+      this.add
+        .text(
+          LOGICAL_WIDTH - 26,
+          469,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            fontStyle: 'bold',
+            color: '#fff1c2',
+            backgroundColor:
+              '#4f3f5ddd',
+            padding: {
+              x: 9,
+              y: 6,
+            },
+            fixedWidth: 235,
+            align: 'center',
+          },
+        )
+        .setOrigin(1, 0)
+        .setDepth(111)
+        .setVisible(false);
+
     const panel =
       this.add.container(
         LOGICAL_WIDTH / 2,
-        LOGICAL_HEIGHT - 82,
+        LOGICAL_HEIGHT - 92,
       );
 
     const bg =
@@ -2425,10 +2654,10 @@ export class HudScene
         .rectangle(
           0,
           0,
-          760,
-          118,
+          790,
+          138,
           0x252b27,
-          0.97,
+          0.985,
         )
         .setStrokeStyle(
           3,
@@ -2439,8 +2668,8 @@ export class HudScene
     this.monetizationText =
       this.add
         .text(
-          -350,
-          -42,
+          -360,
+          -52,
           '',
           {
             fontFamily:
@@ -2448,9 +2677,9 @@ export class HudScene
             fontSize: '14px',
             color: '#fff4d7',
             lineSpacing: 3,
-            fixedWidth: 450,
+            fixedWidth: 470,
             wordWrap: {
-              width: 440,
+              width: 460,
             },
           },
         );
@@ -2458,8 +2687,8 @@ export class HudScene
     this.monetizationWatchButton =
       this.add
         .text(
-          245,
-          -20,
+          250,
+          -23,
           'Смотреть рекламу',
           {
             fontFamily:
@@ -2473,7 +2702,7 @@ export class HudScene
               x: 12,
               y: 9,
             },
-            fixedWidth: 230,
+            fixedWidth: 240,
             align: 'center',
           },
         )
@@ -2485,8 +2714,8 @@ export class HudScene
     this.monetizationDismissButton =
       this.add
         .text(
-          245,
-          29,
+          250,
+          30,
           'Не сейчас',
           {
             fontFamily:
@@ -2499,7 +2728,7 @@ export class HudScene
               x: 10,
               y: 7,
             },
-            fixedWidth: 230,
+            fixedWidth: 240,
             align: 'center',
           },
         )
@@ -2580,19 +2809,15 @@ export class HudScene
     this.monetizationPanel
       ?.setVisible(visible);
 
-    if (!offer) {
-      return;
-    }
-
-    this.monetizationText?.setText(
-      `${offer.title}\n${offer.description}\nНаграда за просмотр: ${offer.rewardText}`,
-    );
-
-    this.monetizationWatchButton
-      ?.setText(
-        state.busy
-          ? 'Реклама открывается…'
-          : 'Смотреть рекламу',
+    this.returnHomeButton
+      ?.setVisible(
+        state.enabled &&
+        state.canFastReturn,
+      )
+      .setText(
+        state.returnTickets > 0
+          ? `⌂ Дом · билет ×${state.returnTickets}`
+          : '▶ Дом · реклама',
       )
       .setStyle({
         backgroundColor:
@@ -2601,26 +2826,134 @@ export class HudScene
             : '#76538d',
         color:
           state.busy
-            ? '#b9b2bd'
+            ? '#aaa5ad'
             : '#ffffff',
       });
 
-    this.monetizationDismissButton
-      ?.setStyle({
-        backgroundColor:
+    this.buyTicketsButton
+      ?.setVisible(
+        state.enabled &&
+        state.canFastReturn &&
+        state.purchaseAvailable,
+      )
+      .setText(
+        `Купить ×${MONETIZATION_CONFIG.returnTicketPackSize} билетов`,
+      );
+
+    this.renderBlessingState();
+
+    if (offer) {
+      this.monetizationText?.setText(
+        `${offer.title}\n${offer.description}\nНаграда за просмотр: ${offer.rewardText}`,
+      );
+
+      this.monetizationWatchButton
+        ?.setText(
           state.busy
-            ? '#3d413f'
-            : '#454c47',
-        color:
-          state.busy
-            ? '#858b87'
-            : '#d7ddd8',
-      });
+            ? 'Реклама открывается…'
+            : 'Смотреть рекламу',
+        )
+        .setStyle({
+          backgroundColor:
+            state.busy
+              ? '#514a58'
+              : '#76538d',
+          color:
+            state.busy
+              ? '#b9b2bd'
+              : '#ffffff',
+        });
+
+      this.monetizationDismissButton
+        ?.setText(
+          offer.placement ===
+            'death_revive'
+            ? 'Умереть'
+            : 'Не сейчас',
+        )
+        .setStyle({
+          backgroundColor:
+            state.busy
+              ? '#3d413f'
+              : offer.placement ===
+                  'death_revive'
+                ? '#78464a'
+                : '#454c47',
+          color:
+            state.busy
+              ? '#858b87'
+              : '#d7ddd8',
+        });
+    }
 
     if (this.cityState) {
       this.handleCityState(
         this.cityState,
       );
+    }
+  }
+
+  private renderBlessingState():
+    void {
+    const blessing =
+      this.monetizationState
+        .activeBlessing;
+
+    const labels:
+      Record<BlessingKind, string> = {
+      damage: '⚔ Сила',
+      health: '❤ Жизнь',
+      speed: '➤ Ветер',
+      gathering: '⛏ Добыча',
+    };
+
+    if (!blessing) {
+      this.blessingStatusText
+        ?.setVisible(false);
+    } else {
+      const seconds =
+        Math.max(
+          0,
+          Math.ceil(
+            (
+              blessing.expiresAt -
+              Date.now()
+            ) /
+              1000,
+          ),
+        );
+
+      this.blessingStatusText
+        ?.setVisible(
+          seconds > 0,
+        )
+        .setText(
+          `${labels[blessing.kind]} · ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`,
+        );
+    }
+
+    for (
+      const kind of
+      [
+        'damage',
+        'health',
+        'speed',
+        'gathering',
+      ] as const
+    ) {
+      this.blessingButtons[
+        kind
+      ]?.setStyle({
+        backgroundColor:
+          blessing?.kind === kind
+            ? '#8b6ba0'
+            : '#5b496c',
+        color:
+          this.monetizationState
+            .busy
+            ? '#b8b1bd'
+            : '#ffffff',
+      });
     }
   }
 
@@ -2674,33 +3007,29 @@ export class HudScene
             : '#a9afa9',
       });
 
-    const boostSeconds =
-      state.production
-        .cycleSeconds *
-      MONETIZATION_CONFIG
-        .productionBoostCycles;
-
-    this.cityProductionBoostButton
+    this.cityProductionDoubleButton
       ?.setVisible(
         MONETIZATION_CONFIG.enabled,
       )
       .setText(
-        state.production.canBoost
-          ? `Реклама: до +${boostSeconds}с производства`
-          : 'Реклама: буст недоступен',
+        state.production.canCollect
+          ? 'Реклама: забрать производство ×2'
+          : '×2 недоступно · производство пусто',
       )
       .setStyle({
         backgroundColor:
-          state.production.canBoost &&
+          state.production.canCollect &&
           !this.monetizationState
             .busy
             ? '#76538d'
             : '#4a4650',
         color:
-          state.production.canBoost
+          state.production.canCollect
             ? '#ffffff'
             : '#aaa5ad',
       });
+
+    this.renderBlessingState();
 
     for (
       const building of
@@ -3613,6 +3942,15 @@ export class HudScene
 
   private handleResize(): void {
     configureLogicalCamera(this);
+  }
+
+  update(): void {
+    if (
+      this.monetizationState
+        .activeBlessing
+    ) {
+      this.renderBlessingState();
+    }
   }
 
   private cleanup(): void {

@@ -380,7 +380,7 @@ const DEFINITIONS:
     area:
       'Север Пепельных нагорий',
     weakness:
-      'Кинжалы ×2',
+      'Копьё ×2',
     resistance:
       'Молот ×0.5',
     dropText:
@@ -420,7 +420,7 @@ const DEFINITIONS:
     area:
       'Солнечный кратер',
     weakness:
-      'Кинжалы ×2',
+      'Меч ×2',
     resistance:
       'Копьё ×0.5',
     dropText:

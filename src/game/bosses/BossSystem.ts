@@ -220,7 +220,7 @@ const BOSS_DEFINITIONS:
     },
     respawnCooldownMs:
       bossRespawnCooldownMs(3),
-    weaknessWeaponId: 'daggers',
+    weaknessWeaponId: 'spear',
     resistanceWeaponId: 'hammer',
     specialRadius: 118,
     specialDamage: 39,
@@ -302,7 +302,7 @@ const BOSS_DEFINITIONS:
     },
     respawnCooldownMs:
       bossRespawnCooldownMs(5),
-    weaknessWeaponId: 'daggers',
+    weaknessWeaponId: 'sword',
     resistanceWeaponId: 'spear',
     specialRadius: 155,
     specialDamage: 48,

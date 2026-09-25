@@ -958,22 +958,22 @@ export class HudScene
   }
 
   private createWeaponSelector(): void {
-    const spacing = 72;
+    const spacing = 76;
     const y =
       LOGICAL_HEIGHT - 50;
     const centerX =
       LOGICAL_WIDTH / 2;
     const panelWidth =
-      spacing * 5 + 24;
+      spacing * 5 + 30;
 
     this.add
       .rectangle(
         centerX,
         y,
         panelWidth,
-        72,
+        76,
         0x203e27,
-        0.9,
+        0.92,
       )
       .setStrokeStyle(
         2,
@@ -982,67 +982,229 @@ export class HudScene
       )
       .setDepth(100);
 
-    WEAPON_ORDER.forEach(
-      (weaponId, index) => {
-        const x =
-          centerX +
-          (
-            index -
-            (WEAPON_ORDER.length - 1) /
-              2
-          ) *
-            spacing;
+    for (
+      let slot = 0;
+      slot < 5;
+      slot += 1
+    ) {
+      const x =
+        centerX +
+        (slot - 2) *
+          spacing;
 
-        const button =
-          this.add
-            .rectangle(
-              x,
-              y,
-              58,
-              58,
-              0x315f35,
-              0.96,
-            )
-            .setStrokeStyle(
-              2,
-              0xf3f5dd,
-              0.62,
-            )
-            .setDepth(102)
-            .setInteractive({
-              useHandCursor: true,
-            });
+      const button =
+        this.add
+          .rectangle(
+            x,
+            y,
+            62,
+            62,
+            0x353a37,
+            0.9,
+          )
+          .setStrokeStyle(
+            2,
+            0x777d78,
+            0.6,
+          )
+          .setDepth(102)
+          .setInteractive({
+            useHandCursor: true,
+          });
 
-        const icon =
-          this.add
-            .image(
-              x,
-              y - 1,
-              WEAPON_ICON_TEXTURES[
-                weaponId
-              ],
-            )
-            .setScale(0.62)
-            .setDepth(103);
+      const icon =
+        this.add
+          .image(
+            x,
+            y - 4,
+            WEAPON_ICON_TEXTURES.axe,
+          )
+          .setScale(0.56)
+          .setDepth(103)
+          .setVisible(false);
 
-        button.on(
-          Phaser.Input.Events.POINTER_DOWN,
-          () => {
-            this.game.events.emit(
-              HUD_WEAPON_SELECT_EVENT,
-              weaponId,
-            );
+      const label =
+        this.add
+          .text(
+            x,
+            y + 21,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '9px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#202924cc',
+              padding: {
+                x: 4,
+                y: 2,
+              },
+              align: 'center',
+            },
+          )
+          .setOrigin(0.5)
+          .setDepth(104);
+
+      this.add
+        .text(
+          x - 25,
+          y - 28,
+          String(
+            slot + 1,
+          ),
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '9px',
+            fontStyle: 'bold',
+            color: '#dce7d7',
           },
+        )
+        .setOrigin(0.5)
+        .setDepth(104);
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        () => {
+          this.game.events.emit(
+            HUD_WEAPON_SLOT_PRIMARY_EVENT,
+            slot,
+          );
+        },
+      );
+
+      this.weaponSlotButtons.push(
+        button,
+      );
+      this.weaponSlotIcons.push(
+        icon,
+      );
+      this.weaponSlotLabels.push(
+        label,
+      );
+    }
+
+    this.renderWeaponSlotHud();
+  }
+
+  private renderWeaponSlotHud():
+    void {
+    const state =
+      this.characterState;
+
+    for (
+      let slot = 0;
+      slot < 5;
+      slot += 1
+    ) {
+      const button =
+        this.weaponSlotButtons[
+          slot
+        ];
+      const icon =
+        this.weaponSlotIcons[
+          slot
+        ];
+      const label =
+        this.weaponSlotLabels[
+          slot
+        ];
+
+      if (
+        !button ||
+        !icon ||
+        !label
+      ) {
+        continue;
+      }
+
+      const unlocked =
+        slot <
+        state.unlockedSlots;
+      const profile =
+        unlocked
+          ? state.slots[
+              slot
+            ] ?? null
+          : null;
+      const primary =
+        unlocked &&
+        slot ===
+          state.primarySlot &&
+        Boolean(profile);
+
+      button
+        .setFillStyle(
+          primary
+            ? 0x7751a1
+            : profile
+              ? 0x315f35
+              : unlocked
+                ? 0x3d4940
+                : 0x2d312f,
+          unlocked
+            ? 1
+            : 0.72,
+        )
+        .setStrokeStyle(
+          primary ? 4 : 2,
+          primary
+            ? 0xffe590
+            : profile
+              ? 0xf3f5dd
+              : 0x777d78,
+          primary ? 1 : 0.58,
         );
 
-        this.weaponButtons[
-          weaponId
-        ] = button;
-        this.weaponIcons[
-          weaponId
-        ] = icon;
-      },
-    );
+      if (!unlocked) {
+        icon.setVisible(false);
+        label.setText(
+          `Lv.${getWeaponSlotUnlockLevel(
+            slot,
+          )}`,
+        );
+        continue;
+      }
+
+      if (!profile) {
+        icon.setVisible(false);
+        label.setText(
+          'Пусто',
+        );
+        continue;
+      }
+
+      const rarity =
+        WEAPON_RARITIES[
+          profile.rarity
+        ];
+
+      icon
+        .setTexture(
+          WEAPON_ICON_TEXTURES[
+            profile.weaponId
+          ],
+        )
+        .setVisible(true)
+        .setAlpha(
+          primary
+            ? 1
+            : 0.85,
+        );
+
+      label
+        .setColor(
+          rarity.color,
+        )
+        .setText(
+          `${rarity.name.slice(
+            0,
+            3,
+          )}. ${profile.stars > 0 ? '★'.repeat(profile.stars) : '☆'}`,
+        );
+    }
   }
 
   update(): void {

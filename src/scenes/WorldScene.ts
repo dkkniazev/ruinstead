@@ -49,6 +49,41 @@ import {
   type PlayerUpgradeId,
 } from '../game/progression/UpgradeBalance';
 import {
+  PLAYER_LEVEL_CONFIG,
+  PLAYER_MASTERY,
+  getXpToNextPlayerLevel,
+  type PlayerMasteryId,
+} from '../game/progression/PlayerLevelBalance';
+import {
+  addPlayerXp,
+  getAvailableMasteryPoints,
+  spendMasteryPoint,
+} from '../game/progression/PlayerProgressionSystem';
+import {
+  SKIN_DEFINITIONS,
+  SKIN_RARITIES,
+  type SkinChestTier,
+  type SkinId,
+} from '../game/cosmetics/SkinEconomy';
+import {
+  applyPremiumPurchase,
+  buyPet,
+  buySettlementTheme,
+  claimLevelPassRewards,
+  equipSkin,
+  evaluateAchievements,
+  getEquippedSkinBonus,
+  getRewardedCommonChestRemaining,
+  openSkinChest,
+} from '../game/cosmetics/PremiumSystem';
+import {
+  PETS,
+  REGION_PACKS,
+  SETTLEMENT_THEMES,
+  type PetId,
+  type SettlementThemeId,
+} from '../game/cosmetics/PremiumStoreConfig';
+import {
   WEAPON_RARITIES,
   addWeaponDrop,
   canFuseWeapon,
@@ -99,6 +134,14 @@ import {
   HUD_BUY_AD_FREE_WEEK_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
+  HUD_PLAYER_PROGRESS_STATE_EVENT,
+  HUD_MASTERY_SPEND_EVENT,
+  HUD_PREMIUM_STATE_EVENT,
+  HUD_SKIN_CHEST_OPEN_EVENT,
+  HUD_SKIN_EQUIP_EVENT,
+  HUD_PREMIUM_PURCHASE_EVENT,
+  HUD_SETTLEMENT_THEME_EVENT,
+  HUD_PET_EVENT,
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
@@ -113,6 +156,8 @@ import {
   type GatheringHudState,
   type MonetizationHudState,
   type MonetizationOfferPlacement,
+  type PlayerProgressHudState,
+  type PremiumHudState,
   type SupplyResourceType,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
@@ -392,6 +437,12 @@ export class WorldScene
         () => {
           this.handleBackpackChanged();
         },
+        () => {
+          this.grantPlayerXp(
+            PLAYER_LEVEL_CONFIG
+              .xpRewards.resourceNode,
+          );
+        },
       );
 
     this.chestSystem =
@@ -436,6 +487,8 @@ export class WorldScene
         this.gameState.settlement
           .production,
       );
+
+    this.applyMetaProgression();
 
     if (
       this.cityBuilderSystem
@@ -584,7 +637,7 @@ export class WorldScene
         },
       );
 
-    this.applyActiveBlessing();
+    this.applyMetaProgression();
 
     this.createWeaponKeys();
     this.bridgeRepairKey =
@@ -692,6 +745,36 @@ export class WorldScene
       this.handleMonetizationAction,
       this,
     );
+    this.game.events.on(
+      HUD_MASTERY_SPEND_EVENT,
+      this.handleMasterySpend,
+      this,
+    );
+    this.game.events.on(
+      HUD_SKIN_CHEST_OPEN_EVENT,
+      this.handleSkinChestOpen,
+      this,
+    );
+    this.game.events.on(
+      HUD_SKIN_EQUIP_EVENT,
+      this.handleSkinEquip,
+      this,
+    );
+    this.game.events.on(
+      HUD_PREMIUM_PURCHASE_EVENT,
+      this.handlePremiumPurchase,
+      this,
+    );
+    this.game.events.on(
+      HUD_SETTLEMENT_THEME_EVENT,
+      this.handleSettlementTheme,
+      this,
+    );
+    this.game.events.on(
+      HUD_PET_EVENT,
+      this.handlePet,
+      this,
+    );
 
     this.lastAreaName =
       getAreaName(
@@ -736,6 +819,10 @@ export class WorldScene
           this.cityHudState,
         initialMonetizationState:
           this.monetizationHudState,
+        initialPlayerProgressState:
+          this.playerProgressHudState,
+        initialPremiumState:
+          this.premiumHudState,
         initialAreaName:
           this.lastAreaName,
       },
@@ -1070,6 +1157,177 @@ export class WorldScene
     };
   }
 
+  private get playerProgressHudState():
+    PlayerProgressHudState {
+    const state =
+      this.gameState;
+
+    if (!state) {
+      return {
+        level: 1,
+        xp: 0,
+        xpToNext:
+          getXpToNextPlayerLevel(
+            1,
+          ),
+        gems: 0,
+        masteryAvailable: 0,
+        masteryRanks: {
+          combat: 0,
+          vitality: 0,
+          mobility: 0,
+          gathering: 0,
+          settlement: 0,
+        },
+      };
+    }
+
+    return {
+      level:
+        state.progression
+          .playerLevel,
+      xp:
+        state.progression
+          .playerXp,
+      xpToNext:
+        state.progression
+          .playerLevel >=
+          PLAYER_LEVEL_CONFIG
+            .maxLevel
+          ? 0
+          : getXpToNextPlayerLevel(
+              state.progression
+                .playerLevel,
+            ),
+      gems:
+        state.premium.gems,
+      masteryAvailable:
+        getAvailableMasteryPoints(
+          state,
+        ),
+      masteryRanks: {
+        ...state.progression
+          .masteryRanks,
+      },
+    };
+  }
+
+  private get premiumHudState():
+    PremiumHudState {
+    const state =
+      this.gameState;
+
+    if (!state) {
+      return {
+        gems: 0,
+        purchaseAvailable: false,
+        rewardedCommonChestRemaining:
+          0,
+        freeSkinChests: {
+          common: 0,
+          rare: 0,
+          epic: 0,
+        },
+        epicChestPity: 0,
+        skinFragments: {},
+        unlockedSkinIds: [],
+        equippedSkinId: null,
+        starterPackOwned: false,
+        levelPassOwned: false,
+        regionPackStage2Owned: false,
+        regionPackStage2Available: false,
+        ownedSettlementThemes: [
+          'default',
+        ],
+        equippedSettlementTheme:
+          'default',
+        ownedPets: [],
+        equippedPet: null,
+      };
+    }
+
+    const skinBonus =
+      getEquippedSkinBonus(
+        state,
+      );
+    const theme =
+      state.premium
+        .equippedSettlementTheme in
+          SETTLEMENT_THEMES
+        ? state.premium
+            .equippedSettlementTheme as
+              SettlementThemeId
+        : 'default';
+    const pet =
+      state.premium.equippedPet &&
+      state.premium
+        .equippedPet in PETS
+        ? state.premium
+            .equippedPet as PetId
+        : null;
+
+    return {
+      gems:
+        state.premium.gems,
+      purchaseAvailable:
+        this.purchaseProvider
+          .isAvailable(),
+      rewardedCommonChestRemaining:
+        getRewardedCommonChestRemaining(
+          state,
+        ),
+      freeSkinChests: {
+        ...state.premium
+          .freeSkinChests,
+      },
+      epicChestPity:
+        state.premium
+          .epicChestPity,
+      skinFragments: {
+        ...state.premium
+          .skinFragments,
+      },
+      unlockedSkinIds: [
+        ...state.premium
+          .unlockedSkinIds,
+      ],
+      equippedSkinId:
+        skinBonus.skinId,
+      starterPackOwned:
+        state.premium
+          .starterPackOwned,
+      levelPassOwned:
+        state.premium
+          .levelPassOwned,
+      regionPackStage2Owned:
+        state.premium
+          .regionPacksOwned
+          .includes(
+            'region_pack_stage_2',
+          ),
+      regionPackStage2Available:
+        state.world
+          .unlockedZones
+          .includes(
+            REGION_PACKS
+              .region_pack_stage_2
+              .zoneId,
+          ),
+      ownedSettlementThemes: [
+        ...state.premium
+          .ownedSettlementThemes,
+      ],
+      equippedSettlementTheme:
+        theme,
+      ownedPets: [
+        ...state.premium
+          .ownedPets,
+      ],
+      equippedPet:
+        pet,
+    };
+  }
+
   private get weaponCombatProfiles():
     Record<
       WeaponId,
@@ -1301,7 +1559,28 @@ export class WorldScene
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${completion.optional ? 'Доп. цель' : 'Цель'} выполнена: ${completion.title} · +●${completion.reward.coins} · +XP ${completion.reward.settlementXp}`,
+        `${completion.optional ? 'Доп. цель' : 'Цель'} выполнена: ${completion.title} · +●${completion.reward.coins} · +XP поселения ${completion.reward.settlementXp}`,
+      );
+
+      const xp =
+        result.completed.reduce(
+          (sum, item) =>
+            sum +
+            (
+              item.id ===
+                'defeat-root-colossus'
+                ? PLAYER_LEVEL_CONFIG
+                    .xpRewards
+                    .majorQuest
+                : PLAYER_LEVEL_CONFIG
+                    .xpRewards
+                    .questStep
+            ),
+          0,
+        );
+
+      this.grantPlayerXp(
+        xp,
       );
     }
 
@@ -1365,7 +1644,20 @@ export class WorldScene
       );
     }
 
+    if (kind === 'species') {
+      this.grantPlayerXp(
+        elite
+          ? PLAYER_LEVEL_CONFIG
+              .xpRewards
+              .eliteEnemy
+          : PLAYER_LEVEL_CONFIG
+              .xpRewards
+              .normalEnemy,
+      );
+    }
+
     this.emitBestiaryState();
+    this.evaluatePremiumAchievements();
     this.saveState();
   }
 
@@ -1391,8 +1683,14 @@ export class WorldScene
       return;
     }
 
+    this.grantPlayerXp(
+      PLAYER_LEVEL_CONFIG
+        .xpRewards
+        .bestiaryLevelClaim,
+    );
     this.emitBestiaryState();
     this.emitProgressionState();
+    this.evaluatePremiumAchievements();
     this.saveState();
   }
 
@@ -1924,6 +2222,45 @@ export class WorldScene
         .returnTickets += 1;
     }
 
+    const bossXp =
+      (
+        event.isMain
+          ? PLAYER_LEVEL_CONFIG
+              .xpRewards
+              .mainBossRepeat
+          : PLAYER_LEVEL_CONFIG
+              .xpRewards
+              .sideBossRepeat
+      ) +
+      (
+        firstClear
+          ? event.isMain
+            ? PLAYER_LEVEL_CONFIG
+                .xpRewards
+                .mainBossFirstClearBonus
+            : PLAYER_LEVEL_CONFIG
+                .xpRewards
+                .sideBossFirstClearBonus
+          : 0
+      );
+
+    this.grantPlayerXp(
+      bossXp,
+    );
+
+    if (firstClear) {
+      const gems =
+        event.isMain
+          ? 20
+          : 10;
+      this.gameState.premium
+        .gems += gems;
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `Первая победа: +${gems} самоцветов`,
+      );
+    }
+
     if (
       event.id ===
         'root-colossus' &&
@@ -2033,6 +2370,8 @@ export class WorldScene
 
     this.applyProgression();
     this.emitProgressionState();
+    this.emitPremiumState();
+    this.evaluatePremiumAchievements();
     this.emitMonetizationState();
     this.saveState();
   }
@@ -2040,6 +2379,11 @@ export class WorldScene
   private handleChestOpened(
     rewards: ResourceCounts,
   ): void {
+    this.grantPlayerXp(
+      PLAYER_LEVEL_CONFIG
+        .xpRewards.chest,
+    );
+
     if (
       !this.rewardedAccessAvailable
     ) {
@@ -2545,7 +2889,7 @@ export class WorldScene
             .blessingDurationMs,
       };
 
-    this.applyActiveBlessing();
+    this.applyMetaProgression();
 
     trackAnalyticsEvent(
       'ad_reward_granted',
@@ -2565,17 +2909,18 @@ export class WorldScene
     this.emitMonetizationState();
   }
 
-  private applyActiveBlessing():
+  private applyMetaProgression():
     void {
     if (!this.gameState) {
       return;
     }
 
+    const state =
+      this.gameState;
     const blessing =
-      this.gameState
-        .monetization
+      state.monetization
         .activeBlessing;
-    const active =
+    const activeBlessing =
       blessing &&
       blessing.expiresAt >
         Date.now()
@@ -2584,51 +2929,207 @@ export class WorldScene
 
     if (
       blessing &&
-      !active
+      !activeBlessing
     ) {
-      this.gameState.monetization
+      state.monetization
         .activeBlessing = null;
     }
 
+    const mastery =
+      state.progression
+        .masteryRanks;
+    const skin =
+      getEquippedSkinBonus(
+        state,
+      );
+
+    const skinBonus =
+      skin.multiplier - 1;
+
     const damageMultiplier =
-      active?.kind ===
-        'damage'
-        ? MONETIZATION_CONFIG
-            .blessingDamageMultiplier
-        : 1;
+      1 +
+      mastery.combat *
+        PLAYER_MASTERY
+          .combat
+          .effectPerRank
+          .damageMultiplier +
+      (
+        skin.stat === 'damage'
+          ? skinBonus
+          : 0
+      ) +
+      (
+        activeBlessing?.kind ===
+          'damage'
+          ? MONETIZATION_CONFIG
+              .blessingDamageMultiplier -
+            1
+          : 0
+      );
+
     const healthMultiplier =
-      active?.kind ===
-        'health'
-        ? MONETIZATION_CONFIG
-            .blessingHealthMultiplier
-        : 1;
+      1 +
+      mastery.vitality *
+        PLAYER_MASTERY
+          .vitality
+          .effectPerRank
+          .maxHealthMultiplier +
+      (
+        skin.stat ===
+          'max-health'
+          ? skinBonus
+          : 0
+      ) +
+      (
+        activeBlessing?.kind ===
+          'health'
+          ? MONETIZATION_CONFIG
+              .blessingHealthMultiplier -
+            1
+          : 0
+      );
+
     const speedMultiplier =
-      active?.kind ===
-        'speed'
-        ? MONETIZATION_CONFIG
-            .blessingSpeedMultiplier
-        : 1;
+      1 +
+      mastery.mobility *
+        PLAYER_MASTERY
+          .mobility
+          .effectPerRank
+          .moveSpeedMultiplier +
+      (
+        skin.stat ===
+          'move-speed'
+          ? skinBonus
+          : 0
+      ) +
+      (
+        activeBlessing?.kind ===
+          'speed'
+          ? MONETIZATION_CONFIG
+              .blessingSpeedMultiplier -
+            1
+          : 0
+      );
+
+    const dashCooldownMultiplier =
+      Math.max(
+        0.5,
+        1 +
+          mastery.mobility *
+            PLAYER_MASTERY
+              .mobility
+              .effectPerRank
+              .dashCooldownMultiplier,
+      );
+
     const gatheringMultiplier =
-      active?.kind ===
-        'gathering'
-        ? MONETIZATION_CONFIG
-            .blessingGatheringMultiplier
-        : 1;
+      1 +
+      mastery.gathering *
+        PLAYER_MASTERY
+          .gathering
+          .effectPerRank
+          .gatheringYieldMultiplier +
+      (
+        skin.stat ===
+          'gathering'
+          ? skinBonus
+          : 0
+      ) +
+      (
+        activeBlessing?.kind ===
+          'gathering'
+          ? MONETIZATION_CONFIG
+              .blessingGatheringMultiplier -
+            1
+          : 0
+      );
+
+    const settlementBonus =
+      mastery.settlement *
+        PLAYER_MASTERY
+          .settlement
+          .effectPerRank
+          .productionMultiplier;
+    const skinProductionBonus =
+      skin.stat ===
+        'production'
+        ? skinBonus
+        : 0;
+
+    const productionMultiplier =
+      1 +
+      settlementBonus +
+      skinProductionBonus;
+    const capacityMultiplier =
+      1 +
+      mastery.settlement *
+        PLAYER_MASTERY
+          .settlement
+          .effectPerRank
+          .productionCapacityMultiplier;
 
     this.player
-      ?.setTemporarySpeedMultiplier(
+      ?.setMetaModifiers(
         speedMultiplier,
+        dashCooldownMultiplier,
+      );
+    this.player
+      ?.setCosmeticTint(
+        skin.tint,
       );
     this.resourceSystem
       ?.setGatheringMultiplier(
         gatheringMultiplier,
       );
+
+    const petId =
+      state.premium
+        .equippedPet;
+    const pet =
+      petId &&
+      petId in PETS
+        ? PETS[
+            petId as
+              PetId
+          ]
+        : null;
+
+    this.resourceSystem
+      ?.setPickupRangeMultiplier(
+        pet?.pickupRangeMultiplier ??
+          1,
+      );
+
     this.combat
       ?.setTemporaryModifiers(
         damageMultiplier,
         healthMultiplier,
-        this.gameState.player
+        state.player
           .maxHealthLevel,
+      );
+
+    this.cityBuilderSystem
+      ?.setMetaMultipliers(
+        productionMultiplier,
+        capacityMultiplier,
+      );
+
+    const themeId =
+      state.premium
+        .equippedSettlementTheme;
+    const theme =
+      themeId in
+        SETTLEMENT_THEMES
+        ? SETTLEMENT_THEMES[
+            themeId as
+              SettlementThemeId
+          ]
+        : SETTLEMENT_THEMES
+            .default;
+
+    this.cityBuilderSystem
+      ?.setThemeTint(
+        theme.tint,
       );
   }
 
@@ -2662,7 +3163,7 @@ export class WorldScene
         this.gameState.monetization
           .activeBlessing = null;
       }
-      this.applyActiveBlessing();
+      this.applyMetaProgression();
       this.saveState();
       this.game.events.emit(
         HUD_NOTICE_EVENT,
@@ -2952,7 +3453,28 @@ export class WorldScene
           'Без рекламы активировано на 7 дней · rewarded-награды доступны без просмотра',
         );
       } else {
-        return;
+        const premiumResult =
+          applyPremiumPurchase(
+            this.gameState,
+            receipt.productId,
+          );
+
+        if (
+          !premiumResult.success
+        ) {
+          this.game.events.emit(
+            HUD_NOTICE_EVENT,
+            premiumResult.notice,
+          );
+          return;
+        }
+
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          premiumResult.notice,
+        );
+        this.applyMetaProgression();
+        this.evaluatePremiumAchievements();
       }
 
       this.gameState.monetization
@@ -2978,6 +3500,8 @@ export class WorldScene
     }
 
     this.emitMonetizationState();
+    this.emitPremiumState();
+    this.emitPlayerProgressState();
   }
 
   private async reconcilePendingPurchases():
@@ -2998,17 +3522,6 @@ export class WorldScene
       const receipt of
       pending
     ) {
-      if (
-        receipt.productId !==
-          MONETIZATION_CONFIG
-            .returnTicketProductId &&
-        receipt.productId !==
-          MONETIZATION_CONFIG
-            .adFreeWeekProductId
-      ) {
-        continue;
-      }
-
       await this.grantPurchase(
         receipt,
       );
@@ -3092,6 +3605,276 @@ export class WorldScene
     this.emitCityState();
     this.saveState();
     this.emitMonetizationState();
+  }
+
+  private grantPlayerXp(
+    amount: number,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      addPlayerXp(
+        this.gameState,
+        amount,
+      );
+
+    if (result.levelsGained > 0) {
+      const passNotices =
+        claimLevelPassRewards(
+          this.gameState,
+        );
+
+      this.combat
+        ?.restoreForLevelUp();
+      this.applyMetaProgression();
+
+      const notices = [
+        `Уровень героя: Lv.${this.gameState.progression.playerLevel} · +${result.gemsGained} самоцветов`,
+        ...result
+          .milestoneMessages,
+        ...passNotices,
+      ];
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        notices.join(' · '),
+      );
+
+      trackAnalyticsEvent(
+        'player_level_up',
+        {
+          level:
+            this.gameState
+              .progression
+              .playerLevel,
+          levelsGained:
+            result.levelsGained,
+        },
+      );
+    }
+
+    this.emitPlayerProgressState();
+    this.emitPremiumState();
+  }
+
+  private emitPlayerProgressState():
+    void {
+    this.game.events.emit(
+      HUD_PLAYER_PROGRESS_STATE_EVENT,
+      this.playerProgressHudState,
+    );
+  }
+
+  private emitPremiumState(): void {
+    this.game.events.emit(
+      HUD_PREMIUM_STATE_EVENT,
+      this.premiumHudState,
+    );
+  }
+
+  private evaluatePremiumAchievements():
+    void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const notices =
+      evaluateAchievements(
+        this.gameState,
+      );
+
+    if (notices.length > 0) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        notices.join(' · '),
+      );
+      this.emitPremiumState();
+      this.emitPlayerProgressState();
+    }
+  }
+
+  private handleMasterySpend(
+    id: PlayerMasteryId,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      spendMasteryPoint(
+        this.gameState,
+        id,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      return;
+    }
+
+    this.applyMetaProgression();
+    this.emitPlayerProgressState();
+    this.emitCityState();
+    this.saveState();
+  }
+
+  private async handleSkinChestOpen(
+    tier: SkinChestTier,
+    mode:
+      | 'gems'
+      | 'rewarded'
+      | 'free',
+  ): Promise<void> {
+    if (!this.gameState) {
+      return;
+    }
+
+    if (mode === 'rewarded') {
+      const rewarded =
+        await this.requestRewarded(
+          'skin_chest',
+        );
+
+      if (!rewarded) {
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Сундук не открыт',
+        );
+        return;
+      }
+    }
+
+    const result =
+      openSkinChest(
+        this.gameState,
+        tier,
+        mode,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      this.emitPremiumState();
+      return;
+    }
+
+    if (result.unlocked) {
+      this.applyMetaProgression();
+    }
+
+    this.evaluatePremiumAchievements();
+    this.emitPremiumState();
+    this.emitPlayerProgressState();
+    this.saveState();
+
+    trackAnalyticsEvent(
+      'skin_chest_opened',
+      {
+        tier,
+        mode,
+        rarity:
+          result.rarity,
+        skinId:
+          result.skinId,
+      },
+    );
+  }
+
+  private handleSkinEquip(
+    skinId: SkinId | null,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      equipSkin(
+        this.gameState,
+        skinId,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      return;
+    }
+
+    this.applyMetaProgression();
+    this.emitPremiumState();
+    this.saveState();
+  }
+
+  private async handlePremiumPurchase(
+    productId: string,
+  ): Promise<void> {
+    await this.purchaseProduct(
+      productId,
+    );
+  }
+
+  private handleSettlementTheme(
+    id: SettlementThemeId,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      buySettlementTheme(
+        this.gameState,
+        id,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      return;
+    }
+
+    this.applyMetaProgression();
+    this.emitPremiumState();
+    this.saveState();
+  }
+
+  private handlePet(
+    id: PetId,
+  ): void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const result =
+      buyPet(
+        this.gameState,
+        id,
+      );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      result.notice,
+    );
+
+    if (!result.success) {
+      return;
+    }
+
+    this.applyMetaProgression();
+    this.emitPremiumState();
+    this.saveState();
   }
 
   private updateSettlement(): void {
@@ -3517,7 +4300,7 @@ export class WorldScene
       this.weaponCombatProfiles,
     );
 
-    this.applyActiveBlessing();
+    this.applyMetaProgression();
   }
 
   private emitProgressionState(): void {
@@ -3628,6 +4411,13 @@ export class WorldScene
       `Поселение: ${id} улучшено до Lv.${result.newLevel}`,
     );
 
+    this.grantPlayerXp(
+      PLAYER_LEVEL_CONFIG
+        .xpRewards
+        .buildingUpgrade,
+    );
+    this.evaluatePremiumAchievements();
+
     this.emitCityState();
     this.emitProgressionState();
     this.saveState();
@@ -3721,6 +4511,12 @@ export class WorldScene
       'Открыто: Лесной алтарь · цель первой зоны достигнута',
     );
 
+    this.grantPlayerXp(
+      PLAYER_LEVEL_CONFIG
+        .xpRewards
+        .landmarkFirstDiscovery,
+    );
+    this.evaluatePremiumAchievements();
     this.saveState();
   }
 
@@ -3846,11 +4642,21 @@ export class WorldScene
         'stage-2-entry',
       );
 
-    this.game.events.emit(
-      HUD_NOTICE_EVENT,
-      'Переход открыт: вы вошли в преддверие второй зоны',
+    this.gameState.premium
+      .gems += 25;
+    this.grantPlayerXp(
+      PLAYER_LEVEL_CONFIG
+        .xpRewards
+        .landmarkFirstDiscovery,
     );
 
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Открыт новый регион · +25 самоцветов',
+    );
+
+    this.emitPremiumState();
+    this.evaluatePremiumAchievements();
     this.saveState();
   }
 
@@ -3879,11 +4685,21 @@ export class WorldScene
         'stage-3-entry',
       );
 
-    this.game.events.emit(
-      HUD_NOTICE_EVENT,
-      'Открыто преддверие следующей части мира',
+    this.gameState.premium
+      .gems += 25;
+    this.grantPlayerXp(
+      PLAYER_LEVEL_CONFIG
+        .xpRewards
+        .landmarkFirstDiscovery,
     );
 
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Открыт следующий регион · +25 самоцветов',
+    );
+
+    this.emitPremiumState();
+    this.evaluatePremiumAchievements();
     this.saveState();
   }
 
@@ -4085,6 +4901,36 @@ export class WorldScene
     this.game.events.off(
       HUD_MONETIZATION_ACTION_EVENT,
       this.handleMonetizationAction,
+      this,
+    );
+    this.game.events.off(
+      HUD_MASTERY_SPEND_EVENT,
+      this.handleMasterySpend,
+      this,
+    );
+    this.game.events.off(
+      HUD_SKIN_CHEST_OPEN_EVENT,
+      this.handleSkinChestOpen,
+      this,
+    );
+    this.game.events.off(
+      HUD_SKIN_EQUIP_EVENT,
+      this.handleSkinEquip,
+      this,
+    );
+    this.game.events.off(
+      HUD_PREMIUM_PURCHASE_EVENT,
+      this.handlePremiumPurchase,
+      this,
+    );
+    this.game.events.off(
+      HUD_SETTLEMENT_THEME_EVENT,
+      this.handleSettlementTheme,
+      this,
+    );
+    this.game.events.off(
+      HUD_PET_EVENT,
+      this.handlePet,
       this,
     );
 

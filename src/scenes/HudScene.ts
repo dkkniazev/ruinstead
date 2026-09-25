@@ -214,6 +214,7 @@ export class HudScene
         'default',
       ownedPets: [],
       equippedPet: null,
+      purchaseCatalog: {},
     };
   private monetizationPanel?:
     Phaser.GameObjects.Container;
@@ -268,6 +269,10 @@ export class HudScene
     Phaser.GameObjects.Text;
   private premiumHeaderText?:
     Phaser.GameObjects.Text;
+  private portalCurrencyIcon?:
+    Phaser.GameObjects.Image;
+  private portalCurrencyLoading =
+    false;
   private chestButtons:
     Partial<
       Record<
@@ -3864,6 +3869,10 @@ export class HudScene
     this.premiumState =
       state;
     this.renderPremiumState();
+    this.ensurePortalCurrencyIcon();
+    this.handleMonetizationState(
+      this.monetizationState,
+    );
   }
 
   private renderPremiumState():
@@ -3874,6 +3883,12 @@ export class HudScene
       this.monetizationState
         .adFreeUntil >
       Date.now();
+    const productPrice = (
+      productId: string,
+    ) =>
+      state.purchaseCatalog[
+        productId
+      ]?.price;
 
     this.premiumOpenButton
       ?.setText(
@@ -3882,7 +3897,7 @@ export class HudScene
 
     this.premiumHeaderText
       ?.setText(
-        `Самоцветы ◆${state.gems} · скинов ${state.unlockedSkinIds.length} · Epic pity ${state.epicChestPity} / 5`,
+        `Самоцветы ◆${state.gems} · скинов ${state.unlockedSkinIds.length} · Epic pity ${state.epicChestPity} / 5${Object.keys(state.purchaseCatalog).length > 0 ? ' · IAP цены из Yandex Games' : ''}`,
       );
 
     const setChest = (
@@ -3956,24 +3971,41 @@ export class HudScene
         .epic > 0,
     );
 
+    this.storeButtons.gems80
+      ?.setText(
+        `+80 самоцветов${productPrice('gems_80') ? ` · ${productPrice('gems_80')}` : ''}`,
+      );
+    this.storeButtons.gems250
+      ?.setText(
+        `+250 самоцветов${productPrice('gems_250') ? ` · ${productPrice('gems_250')}` : ''}`,
+      );
+    this.storeButtons.gems650
+      ?.setText(
+        `+650 самоцветов${productPrice('gems_650') ? ` · ${productPrice('gems_650')}` : ''}`,
+      );
+    this.storeButtons.gems1400
+      ?.setText(
+        `+1400 самоцветов${productPrice('gems_1400') ? ` · ${productPrice('gems_1400')}` : ''}`,
+      );
+
     this.storeButtons.starter
       ?.setText(
         state.starterPackOwned
           ? 'Starter Pack · получен'
-          : 'Starter Pack',
+          : `Starter Pack${productPrice(STARTER_PACK.productId) ? ` · ${productPrice(STARTER_PACK.productId)}` : ''}`,
       );
     this.storeButtons.pass
       ?.setText(
         state.levelPassOwned
           ? 'Level Pass · активен'
-          : 'Level Pass',
+          : `Level Pass${productPrice(LEVEL_PASS.productId) ? ` · ${productPrice(LEVEL_PASS.productId)}` : ''}`,
       );
     this.storeButtons.region2
       ?.setText(
         state.regionPackStage2Owned
           ? 'Ash Pack · получен'
           : state.regionPackStage2Available
-            ? 'Ash Region Pack'
+            ? `Ash Region Pack${productPrice('region_pack_stage_2') ? ` · ${productPrice('region_pack_stage_2')}` : ''}`
             : 'Ash Pack · открой регион',
       );
 
@@ -4048,7 +4080,7 @@ export class HudScene
             ? 'Надеть'
             : definition.rarity ===
                 'legendary'
-              ? 'Купить'
+              ? `Купить${'productId' in definition && productPrice(definition.productId) ? ` · ${productPrice(definition.productId)}` : ''}`
               : 'Закрыт',
       )
       .setStyle({
@@ -4063,6 +4095,97 @@ export class HudScene
         color:
           '#ffffff',
       });
+  }
+
+  private ensurePortalCurrencyIcon():
+    void {
+    const url =
+      Object.values(
+        this.premiumState
+          .purchaseCatalog,
+      ).find(
+        (item) =>
+          Boolean(
+            item.currencyIconUrl,
+          ),
+      )?.currencyIconUrl;
+
+    if (
+      !url ||
+      !this.premiumPanel ||
+      this.portalCurrencyIcon
+    ) {
+      return;
+    }
+
+    const key =
+      'ruinstead-yandex-currency';
+
+    const attach = () => {
+      if (
+        this.portalCurrencyIcon ||
+        !this.premiumPanel ||
+        !this.textures.exists(
+          key,
+        )
+      ) {
+        return;
+      }
+
+      this.portalCurrencyIcon =
+        this.add
+          .image(
+            408,
+            -278,
+            key,
+          )
+          .setDisplaySize(
+            22,
+            22,
+          );
+
+      this.premiumPanel.add(
+        this.portalCurrencyIcon,
+      );
+    };
+
+    if (
+      this.textures.exists(
+        key,
+      )
+    ) {
+      attach();
+      return;
+    }
+
+    if (
+      this.portalCurrencyLoading
+    ) {
+      return;
+    }
+
+    this.portalCurrencyLoading =
+      true;
+    this.load.image(
+      key,
+      url,
+    );
+    this.load.once(
+      Phaser.Loader.Events.COMPLETE,
+      () => {
+        this.portalCurrencyLoading =
+          false;
+        attach();
+      },
+    );
+    this.load.once(
+      Phaser.Loader.Events.LOAD_ERROR,
+      () => {
+        this.portalCurrencyLoading =
+          false;
+      },
+    );
+    this.load.start();
   }
 
   private handleSkinAction():
@@ -4487,7 +4610,7 @@ export class HudScene
         state.purchaseAvailable,
       )
       .setText(
-        `Купить ×${MONETIZATION_CONFIG.returnTicketPackSize} билетов`,
+        `Купить ×${MONETIZATION_CONFIG.returnTicketPackSize} билетов${this.premiumState.purchaseCatalog[MONETIZATION_CONFIG.returnTicketProductId]?.price ? ` · ${this.premiumState.purchaseCatalog[MONETIZATION_CONFIG.returnTicketProductId].price}` : ''}`,
       );
 
     this.buyAdFreeButton
@@ -4501,7 +4624,7 @@ export class HudScene
               state.adFreeUntil -
                 Date.now(),
             )} · +7 дней`
-          : 'Купить 7 дней без рекламы',
+          : `Купить 7 дней без рекламы${this.premiumState.purchaseCatalog[MONETIZATION_CONFIG.adFreeWeekProductId]?.price ? ` · ${this.premiumState.purchaseCatalog[MONETIZATION_CONFIG.adFreeWeekProductId].price}` : ''}`,
       )
       .setStyle({
         backgroundColor:

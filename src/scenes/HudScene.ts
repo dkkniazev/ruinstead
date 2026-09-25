@@ -28,6 +28,14 @@ import {
   HUD_BUY_AD_FREE_WEEK_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
+  HUD_PLAYER_PROGRESS_STATE_EVENT,
+  HUD_MASTERY_SPEND_EVENT,
+  HUD_PREMIUM_STATE_EVENT,
+  HUD_SKIN_CHEST_OPEN_EVENT,
+  HUD_SKIN_EQUIP_EVENT,
+  HUD_PREMIUM_PURCHASE_EVENT,
+  HUD_SETTLEMENT_THEME_EVENT,
+  HUD_PET_EVENT,
   HUD_NOTICE_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
@@ -41,6 +49,8 @@ import {
   type BlessingKind,
   type GatheringHudState,
   type MonetizationHudState,
+  type PlayerProgressHudState,
+  type PremiumHudState,
   type SupplyResourceType,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
@@ -81,6 +91,20 @@ import {
 import {
   MONETIZATION_CONFIG,
 } from '../game/monetization/MonetizationConfig';
+import {
+  PLAYER_MASTERY,
+  type PlayerMasteryId,
+} from '../game/progression/PlayerLevelBalance';
+import {
+  SKIN_CHESTS,
+  SKIN_DEFINITIONS,
+  SKIN_RARITIES,
+  type SkinId,
+} from '../game/cosmetics/SkinEconomy';
+import {
+  LEVEL_PASS,
+  STARTER_PACK,
+} from '../game/cosmetics/PremiumStoreConfig';
 
 const WEAPON_ICON_TEXTURES:
   Record<WeaponId, string> = {
@@ -108,6 +132,10 @@ type HudSceneData = {
     CityBuilderHudState;
   initialMonetizationState:
     MonetizationHudState;
+  initialPlayerProgressState:
+    PlayerProgressHudState;
+  initialPremiumState:
+    PremiumHudState;
   initialAreaName: string;
 };
 
@@ -145,6 +173,48 @@ export class HudScene
       adFreeUntil: 0,
       offer: null,
     };
+  private playerProgressState:
+    PlayerProgressHudState = {
+      level: 1,
+      xp: 0,
+      xpToNext: 100,
+      gems: 0,
+      masteryAvailable: 0,
+      masteryRanks: {
+        combat: 0,
+        vitality: 0,
+        mobility: 0,
+        gathering: 0,
+        settlement: 0,
+      },
+    };
+  private premiumState:
+    PremiumHudState = {
+      gems: 0,
+      purchaseAvailable: false,
+      rewardedCommonChestRemaining:
+        0,
+      freeSkinChests: {
+        common: 0,
+        rare: 0,
+        epic: 0,
+      },
+      epicChestPity: 0,
+      skinFragments: {},
+      unlockedSkinIds: [],
+      equippedSkinId: null,
+      starterPackOwned: false,
+      levelPassOwned: false,
+      regionPackStage2Owned: false,
+      regionPackStage2Available: false,
+      ownedSettlementThemes: [
+        'default',
+      ],
+      equippedSettlementTheme:
+        'default',
+      ownedPets: [],
+      equippedPet: null,
+    };
   private monetizationPanel?:
     Phaser.GameObjects.Container;
   private monetizationText?:
@@ -172,6 +242,48 @@ export class HudScene
     Partial<
       Record<
         SupplyResourceType,
+        Phaser.GameObjects.Text
+      >
+    > = {};
+
+  private profilePanelOpen = false;
+  private profilePanel?:
+    Phaser.GameObjects.Container;
+  private profileOpenButton?:
+    Phaser.GameObjects.Text;
+  private profileProgressText?:
+    Phaser.GameObjects.Text;
+  private masteryButtons:
+    Partial<
+      Record<
+        PlayerMasteryId,
+        Phaser.GameObjects.Text
+      >
+    > = {};
+
+  private premiumPanelOpen = false;
+  private premiumPanel?:
+    Phaser.GameObjects.Container;
+  private premiumOpenButton?:
+    Phaser.GameObjects.Text;
+  private premiumHeaderText?:
+    Phaser.GameObjects.Text;
+  private chestButtons:
+    Partial<
+      Record<
+        string,
+        Phaser.GameObjects.Text
+      >
+    > = {};
+  private skinInfoText?:
+    Phaser.GameObjects.Text;
+  private skinActionButton?:
+    Phaser.GameObjects.Text;
+  private skinIndex = 0;
+  private storeButtons:
+    Partial<
+      Record<
+        string,
         Phaser.GameObjects.Text
       >
     > = {};
@@ -344,6 +456,10 @@ export class HudScene
       data.initialCityState;
     this.monetizationState =
       data.initialMonetizationState;
+    this.playerProgressState =
+      data.initialPlayerProgressState;
+    this.premiumState =
+      data.initialPremiumState;
     this.selectedBestiaryId =
       data.initialBestiaryState
         .entries.find(
@@ -369,6 +485,8 @@ export class HudScene
     this.createBestiaryUi();
     this.createCityBuilderUi();
     this.createYandexPlatformUi();
+    this.createProgressionUi();
+    this.createPremiumUi();
     this.createControlsHint();
     this.createNoticeLayer();
     this.createMonetizationUi();
@@ -411,6 +529,16 @@ export class HudScene
     this.game.events.on(
       HUD_MONETIZATION_STATE_EVENT,
       this.handleMonetizationState,
+      this,
+    );
+    this.game.events.on(
+      HUD_PLAYER_PROGRESS_STATE_EVENT,
+      this.handlePlayerProgressState,
+      this,
+    );
+    this.game.events.on(
+      HUD_PREMIUM_STATE_EVENT,
+      this.handlePremiumState,
       this,
     );
 
@@ -496,6 +624,12 @@ export class HudScene
     this.handleMonetizationState(
       this.monetizationState,
     );
+    this.handlePlayerProgressState(
+      this.playerProgressState,
+    );
+    this.handlePremiumState(
+      this.premiumState,
+    );
 
     this.input.keyboard?.on(
       'keydown-C',
@@ -518,6 +652,16 @@ export class HudScene
     this.input.keyboard?.on(
       'keydown-E',
       this.handleForgeToggle,
+      this,
+    );
+    this.input.keyboard?.on(
+      'keydown-P',
+      this.handleProfileToggle,
+      this,
+    );
+    this.input.keyboard?.on(
+      'keydown-M',
+      this.handlePremiumToggle,
       this,
     );
   }
@@ -2628,6 +2772,1348 @@ export class HudScene
     }
   }
 
+  private createProgressionUi():
+    void {
+    this.profileOpenButton =
+      this.add
+        .text(
+          26,
+          270,
+          'P · Герой',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#fff5d5',
+            backgroundColor:
+              '#3d536bee',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+            fixedWidth: 146,
+            align: 'center',
+          },
+        )
+        .setOrigin(0, 0)
+        .setDepth(110)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.profileOpenButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.handleProfileToggle();
+      },
+    );
+
+    const panel =
+      this.add.container(
+        LOGICAL_WIDTH / 2,
+        LOGICAL_HEIGHT / 2,
+      );
+
+    const bg =
+      this.add
+        .rectangle(
+          0,
+          0,
+          820,
+          560,
+          0x223341,
+          0.99,
+        )
+        .setStrokeStyle(
+          3,
+          0xe1c77c,
+          0.92,
+        );
+
+    const title =
+      this.add
+        .text(
+          -365,
+          -245,
+          'Уровень героя',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '27px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+          },
+        );
+
+    const close =
+      this.add
+        .text(
+          378,
+          -260,
+          '×',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '27px',
+            color: '#ffffff',
+            backgroundColor:
+              '#5c3c3ccc',
+            padding: {
+              x: 9,
+              y: 2,
+            },
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    close.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.setProfilePanelOpen(
+          false,
+        );
+      },
+    );
+
+    this.profileProgressText =
+      this.add
+        .text(
+          -365,
+          -190,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '16px',
+            color: '#e8f4e0',
+            lineSpacing: 6,
+            fixedWidth: 730,
+          },
+        );
+
+    const masteryTitle =
+      this.add
+        .text(
+          -365,
+          -88,
+          'Мастерство · 1 очко каждые 5 уровней',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '17px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const masteryDefs:
+      Array<{
+        id: PlayerMasteryId;
+        title: string;
+        effect: string;
+      }> = [
+      {
+        id: 'combat',
+        title: 'Бой',
+        effect: '+3% урона',
+      },
+      {
+        id: 'vitality',
+        title: 'Живучесть',
+        effect: '+4% HP',
+      },
+      {
+        id: 'mobility',
+        title: 'Мобильность',
+        effect:
+          '+2% скорость · −4% dash CD',
+      },
+      {
+        id: 'gathering',
+        title: 'Добыча',
+        effect: '+5% ресурсов',
+      },
+      {
+        id: 'settlement',
+        title: 'Поселение',
+        effect:
+          '+5% производство/буфер',
+      },
+    ];
+
+    masteryDefs.forEach(
+      (definition, index) => {
+        const col =
+          index % 2;
+        const row =
+          Math.floor(index / 2);
+        const button =
+          this.add
+            .text(
+              -360 +
+                col * 375,
+              -45 +
+                row * 76,
+              '',
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '13px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#415d70',
+                padding: {
+                  x: 10,
+                  y: 8,
+                },
+                fixedWidth: 350,
+                fixedHeight: 60,
+                wordWrap: {
+                  width: 330,
+                },
+              },
+            )
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.setData(
+          'baseLabel',
+          `${definition.title} · ${definition.effect}`,
+        );
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            this.game.events.emit(
+              HUD_MASTERY_SPEND_EVENT,
+              definition.id,
+            );
+          },
+        );
+
+        this.masteryButtons[
+          definition.id
+        ] = button;
+      },
+    );
+
+    const hint =
+      this.add
+        .text(
+          -365,
+          208,
+          'Постоянные бонусы мастерства складываются с экипированным скином. Оружейные звёзды за уровень не выдаются.',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            color: '#b9c9cf',
+            fixedWidth: 730,
+            wordWrap: {
+              width: 730,
+            },
+          },
+        );
+
+    panel.add([
+      bg,
+      title,
+      close,
+      this.profileProgressText,
+      masteryTitle,
+      ...Object.values(
+        this.masteryButtons,
+      ),
+      hint,
+    ]);
+
+    panel
+      .setDepth(410)
+      .setVisible(false);
+
+    this.profilePanel =
+      panel;
+  }
+
+  private createPremiumUi():
+    void {
+    this.premiumOpenButton =
+      this.add
+        .text(
+          26,
+          312,
+          'M · Магазин',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#fff4c2',
+            backgroundColor:
+              '#684f36ee',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+            fixedWidth: 146,
+            align: 'center',
+          },
+        )
+        .setOrigin(0, 0)
+        .setDepth(110)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.premiumOpenButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.handlePremiumToggle();
+      },
+    );
+
+    const panel =
+      this.add.container(
+        LOGICAL_WIDTH / 2,
+        LOGICAL_HEIGHT / 2,
+      );
+
+    const bg =
+      this.add
+        .rectangle(
+          0,
+          0,
+          940,
+          720,
+          0x302d2a,
+          0.995,
+        )
+        .setStrokeStyle(
+          3,
+          0xe7c875,
+          0.95,
+        );
+
+    const title =
+      this.add
+        .text(
+          -430,
+          -325,
+          'Магазин и коллекция',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '26px',
+            fontStyle: 'bold',
+            color: '#fff0b3',
+          },
+        );
+
+    const close =
+      this.add
+        .text(
+          440,
+          -338,
+          '×',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '27px',
+            color: '#ffffff',
+            backgroundColor:
+              '#5c3c3ccc',
+            padding: {
+              x: 9,
+              y: 2,
+            },
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    close.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.setPremiumPanelOpen(
+          false,
+        );
+      },
+    );
+
+    this.premiumHeaderText =
+      this.add
+        .text(
+          -430,
+          -278,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '14px',
+            color: '#f5e6b8',
+            fixedWidth: 860,
+          },
+        );
+
+    const chestTitle =
+      this.add
+        .text(
+          -430,
+          -235,
+          'Сундуки с осколками',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '17px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const makeButton = (
+      key: string,
+      x: number,
+      y: number,
+      width: number,
+      callback: () => void,
+    ) => {
+      const button =
+        this.add
+          .text(
+            x,
+            y,
+            '',
+            {
+              fontFamily:
+                'system-ui, sans-serif',
+              fontSize: '12px',
+              fontStyle: 'bold',
+              color: '#ffffff',
+              backgroundColor:
+                '#5b5146',
+              padding: {
+                x: 8,
+                y: 7,
+              },
+              fixedWidth: width,
+              align: 'center',
+            },
+          )
+          .setInteractive({
+            useHandCursor: true,
+          });
+
+      button.on(
+        Phaser.Input.Events.POINTER_DOWN,
+        callback,
+      );
+
+      this.chestButtons[key] =
+        button;
+      return button;
+    };
+
+    const chestObjects = [
+      makeButton(
+        'common-gems',
+        -430,
+        -202,
+        185,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'common',
+            'gems',
+          ),
+      ),
+      makeButton(
+        'common-ad',
+        -235,
+        -202,
+        185,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'common',
+            'rewarded',
+          ),
+      ),
+      makeButton(
+        'common-free',
+        -40,
+        -202,
+        185,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'common',
+            'free',
+          ),
+      ),
+      makeButton(
+        'rare-gems',
+        155,
+        -202,
+        135,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'rare',
+            'gems',
+          ),
+      ),
+      makeButton(
+        'rare-free',
+        300,
+        -202,
+        130,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'rare',
+            'free',
+          ),
+      ),
+      makeButton(
+        'epic-gems',
+        155,
+        -160,
+        135,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'epic',
+            'gems',
+          ),
+      ),
+      makeButton(
+        'epic-free',
+        300,
+        -160,
+        130,
+        () =>
+          this.game.events.emit(
+            HUD_SKIN_CHEST_OPEN_EVENT,
+            'epic',
+            'free',
+          ),
+      ),
+    ];
+
+    const skinTitle =
+      this.add
+        .text(
+          -430,
+          -115,
+          'Скины',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '17px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const prevSkin =
+      this.add
+        .text(
+          -430,
+          -78,
+          '‹',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '28px',
+            color: '#ffffff',
+            backgroundColor:
+              '#50545a',
+            padding: {
+              x: 12,
+              y: 2,
+            },
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+    prevSkin.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.skinIndex -= 1;
+        this.renderPremiumState();
+      },
+    );
+
+    const nextSkin =
+      this.add
+        .text(
+          398,
+          -78,
+          '›',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '28px',
+            color: '#ffffff',
+            backgroundColor:
+              '#50545a',
+            padding: {
+              x: 12,
+              y: 2,
+            },
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+    nextSkin.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.skinIndex += 1;
+        this.renderPremiumState();
+      },
+    );
+
+    this.skinInfoText =
+      this.add
+        .text(
+          -375,
+          -75,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            color: '#edf3e8',
+            fixedWidth: 620,
+            wordWrap: {
+              width: 620,
+            },
+          },
+        );
+
+    this.skinActionButton =
+      this.add
+        .text(
+          270,
+          -75,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '12px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#665080',
+            padding: {
+              x: 9,
+              y: 7,
+            },
+            fixedWidth: 120,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.skinActionButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        this.handleSkinAction();
+      },
+    );
+
+    const storeTitle =
+      this.add
+        .text(
+          -430,
+          5,
+          'Покупки',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '17px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const purchaseRows:
+      Array<{
+        key: string;
+        label: string;
+        product: string;
+        x: number;
+        y: number;
+      }> = [
+      {
+        key: 'gems80',
+        label: '+80 самоцветов',
+        product: 'gems_80',
+        x: -430,
+        y: 40,
+      },
+      {
+        key: 'gems250',
+        label: '+250 самоцветов',
+        product: 'gems_250',
+        x: -215,
+        y: 40,
+      },
+      {
+        key: 'gems650',
+        label: '+650 самоцветов',
+        product: 'gems_650',
+        x: 0,
+        y: 40,
+      },
+      {
+        key: 'gems1400',
+        label: '+1400 самоцветов',
+        product: 'gems_1400',
+        x: 215,
+        y: 40,
+      },
+      {
+        key: 'starter',
+        label: 'Starter Pack',
+        product:
+          STARTER_PACK.productId,
+        x: -430,
+        y: 82,
+      },
+      {
+        key: 'pass',
+        label: 'Level Pass',
+        product:
+          LEVEL_PASS.productId,
+        x: -215,
+        y: 82,
+      },
+      {
+        key: 'region2',
+        label: 'Ash Region Pack',
+        product:
+          'region_pack_stage_2',
+        x: 0,
+        y: 82,
+      },
+    ];
+
+    const storeObjects:
+      Phaser.GameObjects.Text[] = [];
+    purchaseRows.forEach(
+      (row) => {
+        const button =
+          this.add
+            .text(
+              row.x,
+              row.y,
+              row.label,
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '11px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#6b543a',
+                padding: {
+                  x: 8,
+                  y: 7,
+                },
+                fixedWidth: 200,
+                align: 'center',
+              },
+            )
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            this.game.events.emit(
+              HUD_PREMIUM_PURCHASE_EVENT,
+              row.product,
+            );
+          },
+        );
+        this.storeButtons[
+          row.key
+        ] = button;
+        storeObjects.push(
+          button,
+        );
+      },
+    );
+
+    const cosmeticTitle =
+      this.add
+        .text(
+          -430,
+          135,
+          'Косметика поселения и спутники',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '17px',
+            fontStyle: 'bold',
+            color: '#ffe29a',
+          },
+        );
+
+    const verdant =
+      this.add
+        .text(
+          -430,
+          170,
+          'Тема: Зелёная · 250◆',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#ffffff',
+            backgroundColor:
+              '#466649',
+            padding: {
+              x: 8,
+              y: 7,
+            },
+            fixedWidth: 205,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+    verdant.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.game.events.emit(
+          HUD_SETTLEMENT_THEME_EVENT,
+          'verdant',
+        ),
+    );
+
+    const ember =
+      this.add
+        .text(
+          -215,
+          170,
+          'Тема: Пепел · 350◆',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#ffffff',
+            backgroundColor:
+              '#765041',
+            padding: {
+              x: 8,
+              y: 7,
+            },
+            fixedWidth: 205,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+    ember.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.game.events.emit(
+          HUD_SETTLEMENT_THEME_EVENT,
+          'ember',
+        ),
+    );
+
+    const mossling =
+      this.add
+        .text(
+          0,
+          170,
+          'Моховичок · 300◆',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#ffffff',
+            backgroundColor:
+              '#4f6750',
+            padding: {
+              x: 8,
+              y: 7,
+            },
+            fixedWidth: 200,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+    mossling.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.game.events.emit(
+          HUD_PET_EVENT,
+          'mossling',
+        ),
+    );
+
+    const firefly =
+      this.add
+        .text(
+          210,
+          170,
+          'Светляк · 450◆',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#ffffff',
+            backgroundColor:
+              '#70643e',
+            padding: {
+              x: 8,
+              y: 7,
+            },
+            fixedWidth: 200,
+            align: 'center',
+          },
+        )
+        .setInteractive({
+          useHandCursor: true,
+        });
+    firefly.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () =>
+        this.game.events.emit(
+          HUD_PET_EVENT,
+          'firefly',
+        ),
+    );
+
+    const note =
+      this.add
+        .text(
+          -430,
+          225,
+          'Legendary не выпадает из сундуков: выберите Legendary скин стрелками и купите его напрямую. Цены реальных товаров задаются в консоли Яндекс Игр.',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '11px',
+            color: '#c9c1b1',
+            fixedWidth: 860,
+            wordWrap: {
+              width: 860,
+            },
+          },
+        );
+
+    panel.add([
+      bg,
+      title,
+      close,
+      this.premiumHeaderText,
+      chestTitle,
+      ...chestObjects,
+      skinTitle,
+      prevSkin,
+      nextSkin,
+      this.skinInfoText,
+      this.skinActionButton,
+      storeTitle,
+      ...storeObjects,
+      cosmeticTitle,
+      verdant,
+      ember,
+      mossling,
+      firefly,
+      note,
+    ]);
+
+    panel
+      .setDepth(420)
+      .setVisible(false);
+
+    this.premiumPanel =
+      panel;
+  }
+
+  private handleProfileToggle():
+    void {
+    this.setProfilePanelOpen(
+      !this.profilePanelOpen,
+    );
+  }
+
+  private setProfilePanelOpen(
+    open: boolean,
+  ): void {
+    this.profilePanelOpen =
+      open;
+
+    if (open) {
+      this.setPremiumPanelOpen(
+        false,
+      );
+    }
+
+    this.profilePanel
+      ?.setVisible(open);
+  }
+
+  private handlePremiumToggle():
+    void {
+    this.setPremiumPanelOpen(
+      !this.premiumPanelOpen,
+    );
+  }
+
+  private setPremiumPanelOpen(
+    open: boolean,
+  ): void {
+    this.premiumPanelOpen =
+      open;
+
+    if (open) {
+      this.setProfilePanelOpen(
+        false,
+      );
+    }
+
+    this.premiumPanel
+      ?.setVisible(open);
+  }
+
+  private handlePlayerProgressState(
+    state:
+      PlayerProgressHudState,
+  ): void {
+    this.playerProgressState =
+      state;
+
+    this.profileOpenButton
+      ?.setText(
+        `P · Lv.${state.level} · ◆${state.gems}`,
+      );
+
+    const xpText =
+      state.xpToNext > 0
+        ? `${state.xp} / ${state.xpToNext} XP`
+        : 'MAX';
+
+    this.profileProgressText
+      ?.setText(
+        `Lv.${state.level} / 50 · ${xpText}\nСамоцветы: ◆${state.gems} · свободно очков мастерства: ${state.masteryAvailable}`,
+      );
+
+    for (
+      const id of
+      Object.keys(
+        state.masteryRanks,
+      ) as PlayerMasteryId[]
+    ) {
+      const button =
+        this.masteryButtons[id];
+      const rank =
+        state.masteryRanks[
+          id
+        ];
+      const base =
+        button?.getData(
+          'baseLabel',
+        ) as string | undefined;
+
+      button
+        ?.setText(
+          `${base ?? id}\nРанг ${rank} / ${PLAYER_MASTERY[id].maxRank}${state.masteryAvailable > 0 && rank < PLAYER_MASTERY[id].maxRank ? ' · +1' : ''}`,
+        )
+        .setStyle({
+          backgroundColor:
+            state.masteryAvailable >
+              0 &&
+            rank <
+              PLAYER_MASTERY[id]
+                .maxRank
+              ? '#4b7087'
+              : '#3d4a53',
+          color:
+            '#ffffff',
+        });
+    }
+  }
+
+  private handlePremiumState(
+    state: PremiumHudState,
+  ): void {
+    this.premiumState =
+      state;
+    this.renderPremiumState();
+  }
+
+  private renderPremiumState():
+    void {
+    const state =
+      this.premiumState;
+    const adFree =
+      this.monetizationState
+        .adFreeUntil >
+      Date.now();
+
+    this.premiumOpenButton
+      ?.setText(
+        `M · Магазин · ◆${state.gems}`,
+      );
+
+    this.premiumHeaderText
+      ?.setText(
+        `Самоцветы ◆${state.gems} · скинов ${state.unlockedSkinIds.length} · Epic pity ${state.epicChestPity} / 5`,
+      );
+
+    const setChest = (
+      key: string,
+      label: string,
+      available = true,
+    ) => {
+      this.chestButtons[
+        key
+      ]
+        ?.setText(label)
+        .setStyle({
+          backgroundColor:
+            available
+              ? '#5b5146'
+              : '#3f3d3a',
+          color:
+            available
+              ? '#ffffff'
+              : '#8f8b84',
+        });
+    };
+
+    setChest(
+      'common-gems',
+      `Common · ${SKIN_CHESTS.common.gemCost}◆`,
+      state.gems >=
+        SKIN_CHESTS.common
+          .gemCost,
+    );
+    setChest(
+      'common-ad',
+      state.rewardedCommonChestRemaining >
+        0
+        ? adFree
+          ? `Common · получить (${state.rewardedCommonChestRemaining}/3)`
+          : `Common · реклама (${state.rewardedCommonChestRemaining}/3)`
+        : 'Common · лимит исчерпан',
+      state
+        .rewardedCommonChestRemaining >
+        0,
+    );
+    setChest(
+      'common-free',
+      `Free Common ×${state.freeSkinChests.common}`,
+      state.freeSkinChests
+        .common > 0,
+    );
+    setChest(
+      'rare-gems',
+      `Rare · ${SKIN_CHESTS.rare.gemCost}◆`,
+      state.gems >=
+        SKIN_CHESTS.rare.gemCost,
+    );
+    setChest(
+      'rare-free',
+      `Free ×${state.freeSkinChests.rare}`,
+      state.freeSkinChests
+        .rare > 0,
+    );
+    setChest(
+      'epic-gems',
+      `Epic · ${SKIN_CHESTS.epic.gemCost}◆`,
+      state.gems >=
+        SKIN_CHESTS.epic.gemCost,
+    );
+    setChest(
+      'epic-free',
+      `Free ×${state.freeSkinChests.epic}`,
+      state.freeSkinChests
+        .epic > 0,
+    );
+
+    this.storeButtons.starter
+      ?.setText(
+        state.starterPackOwned
+          ? 'Starter Pack · получен'
+          : 'Starter Pack',
+      );
+    this.storeButtons.pass
+      ?.setText(
+        state.levelPassOwned
+          ? 'Level Pass · активен'
+          : 'Level Pass',
+      );
+    this.storeButtons.region2
+      ?.setText(
+        state.regionPackStage2Owned
+          ? 'Ash Pack · получен'
+          : state.regionPackStage2Available
+            ? 'Ash Region Pack'
+            : 'Ash Pack · открой регион',
+      );
+
+    const ids =
+      Object.keys(
+        SKIN_DEFINITIONS,
+      ) as SkinId[];
+    if (ids.length <= 0) {
+      return;
+    }
+
+    this.skinIndex =
+      (
+        this.skinIndex %
+          ids.length +
+        ids.length
+      ) %
+      ids.length;
+
+    const skinId =
+      ids[this.skinIndex];
+    const definition =
+      SKIN_DEFINITIONS[
+        skinId
+      ];
+    const rarity =
+      SKIN_RARITIES[
+        definition.rarity
+      ];
+    const unlocked =
+      state.unlockedSkinIds
+        .includes(skinId);
+    const equipped =
+      state.equippedSkinId ===
+      skinId;
+    const fragments =
+      state.skinFragments[
+        skinId
+      ] ?? 0;
+    const rarityNames:
+      Record<
+        keyof typeof SKIN_RARITIES,
+        string
+      > = {
+      common: 'Обычный',
+      uncommon: 'Необычный',
+      rare: 'Редкий',
+      epic: 'Эпический',
+      legendary:
+        'Легендарный',
+    };
+    const statNames:
+      Record<string, string> = {
+      damage: 'урон',
+      'max-health': 'max HP',
+      'move-speed': 'скорость',
+      gathering: 'добыча',
+      production:
+        'производство',
+    };
+
+    this.skinInfoText
+      ?.setText(
+        `${this.skinIndex + 1} / ${ids.length} · ${definition.name}\n${rarityNames[definition.rarity]} · +${Math.round((rarity.statBonus) * 100)}% ${statNames[definition.bonusStat]} · ${unlocked ? 'ОТКРЫТ' : definition.rarity === 'legendary' ? 'только покупка' : `${fragments} / 30 осколков`}`,
+      );
+
+    this.skinActionButton
+      ?.setText(
+        equipped
+          ? 'Надет'
+          : unlocked
+            ? 'Надеть'
+            : definition.rarity ===
+                'legendary'
+              ? 'Купить'
+              : 'Закрыт',
+      )
+      .setStyle({
+        backgroundColor:
+          equipped
+            ? '#4c7350'
+            : unlocked ||
+                definition.rarity ===
+                  'legendary'
+              ? '#665080'
+              : '#44454a',
+        color:
+          '#ffffff',
+      });
+  }
+
+  private handleSkinAction():
+    void {
+    const ids =
+      Object.keys(
+        SKIN_DEFINITIONS,
+      ) as SkinId[];
+
+    if (ids.length <= 0) {
+      return;
+    }
+
+    const skinId =
+      ids[
+        (
+          this.skinIndex %
+            ids.length +
+          ids.length
+        ) %
+          ids.length
+      ];
+    const definition =
+      SKIN_DEFINITIONS[
+        skinId
+      ];
+
+    if (
+      this.premiumState
+        .unlockedSkinIds
+        .includes(skinId)
+    ) {
+      this.game.events.emit(
+        HUD_SKIN_EQUIP_EVENT,
+        skinId,
+      );
+      return;
+    }
+
+    if (
+      definition.rarity ===
+        'legendary' &&
+      definition.productId
+    ) {
+      this.game.events.emit(
+        HUD_PREMIUM_PURCHASE_EVENT,
+        definition.productId,
+      );
+    }
+  }
+
   private createMonetizationUi():
     void {
     this.returnHomeButton =
@@ -3030,6 +4516,7 @@ export class HudScene
 
     this.renderBlessingState();
     this.renderRewardedExtras();
+    this.renderPremiumState();
 
     if (offer) {
       this.monetizationText?.setText(
@@ -4279,6 +5766,16 @@ export class HudScene
       this.handleMonetizationState,
       this,
     );
+    this.game.events.off(
+      HUD_PLAYER_PROGRESS_STATE_EVENT,
+      this.handlePlayerProgressState,
+      this,
+    );
+    this.game.events.off(
+      HUD_PREMIUM_STATE_EVENT,
+      this.handlePremiumState,
+      this,
+    );
 
     window.removeEventListener(
       YANDEX_PLATFORM_STATE_EVENT,
@@ -4317,6 +5814,16 @@ export class HudScene
     this.input.keyboard?.off(
       'keydown-B',
       this.handleBestiaryToggle,
+      this,
+    );
+    this.input.keyboard?.off(
+      'keydown-P',
+      this.handleProfileToggle,
+      this,
+    );
+    this.input.keyboard?.off(
+      'keydown-M',
+      this.handlePremiumToggle,
       this,
     );
     this.scale.off(

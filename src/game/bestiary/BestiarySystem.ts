@@ -275,7 +275,7 @@ const DEFINITIONS:
     name: 'Пыльный шакал',
     eliteName: 'Вожак шакалов',
     area: 'Пыльная тропа',
-    weakness: 'Кинжалы ×2',
+    weakness: 'Молот ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '5 монет · элита 20',
@@ -295,7 +295,7 @@ const DEFINITIONS:
     eliteName:
       'Древний песчаник',
     area: 'Соляная низина',
-    weakness: 'Кинжалы ×2',
+    weakness: 'Молот ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '5 монет · элита 20',
@@ -317,7 +317,7 @@ const DEFINITIONS:
       'Золотой скорпион',
     area:
       'Скорпионья лощина',
-    weakness: 'Кинжалы ×2',
+    weakness: 'Молот ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '6 монет · элита 24',
@@ -338,7 +338,7 @@ const DEFINITIONS:
       'Крылатый страж',
     area:
       'Кристальные руины',
-    weakness: 'Кинжалы ×2',
+    weakness: 'Молот ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '7 монет · элита 28',
@@ -359,7 +359,7 @@ const DEFINITIONS:
       'Пылающий искровик',
     area:
       'Солнечный кратер',
-    weakness: 'Кинжалы ×2',
+    weakness: 'Молот ×2',
     resistance: 'Топор ×0.5',
     dropText:
       '7 монет · элита 28',

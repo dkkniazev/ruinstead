@@ -31,7 +31,7 @@ export const STAGE_ONE_COMBAT_PROFILE:
 export const STAGE_TWO_COMBAT_PROFILE:
   StageCombatProfile = {
   id: 'stage-2',
-  weaknessWeaponId: 'daggers',
+  weaknessWeaponId: 'hammer',
   resistanceWeaponId: 'axe',
   startingWeaponId: 'daggers',
 };

@@ -2498,7 +2498,7 @@ export class HudScene
       this.add
         .text(
           LOGICAL_WIDTH - 26,
-          304,
+          198,
           'C · Поселение',
           {
             fontFamily:
@@ -2958,7 +2958,7 @@ export class HudScene
       this.add
         .text(
           LOGICAL_WIDTH - 26,
-          346,
+          240,
           '',
           {
             fontFamily:
@@ -2990,28 +2990,6 @@ export class HudScene
     this.renderYandexPlatformState();
   }
 
-  private createControlsHint(): void {
-    this.add
-      .text(
-        LOGICAL_WIDTH - 24,
-        26,
-        '1–5 оружие · Space/Shift — рывок',
-        {
-          fontFamily:
-            'system-ui, sans-serif',
-          fontSize: '13px',
-          color: '#31502f',
-          backgroundColor:
-            '#efffd0dd',
-          padding: {
-            x: 10,
-            y: 6,
-          },
-        },
-      )
-      .setOrigin(1, 0)
-      .setDepth(100);
-  }
 
   private createNoticeLayer(): void {
     this.noticeText =
@@ -5330,6 +5308,10 @@ export class HudScene
   ): void {
     this.playerProgressState =
       state;
+    this.characterState = {
+      ...this.characterState,
+      level: state.level,
+    };
 
     this.profileOpenButton
       ?.setText(
@@ -5380,6 +5362,9 @@ export class HudScene
             '#ffffff',
         });
     }
+    this.renderCharacterState();
+    this.renderWeaponSlotHud();
+
   }
 
   private handlePremiumState(
@@ -7362,83 +7347,16 @@ export class HudScene
     );
 
 
-    for (
-      const weaponId of
-      WEAPON_ORDER
-    ) {
-      const unlocked =
-        state.unlockedWeaponIds
-          .includes(weaponId);
-      const selected =
-        weaponId ===
-        state.weaponId;
+    this.characterState = {
+      ...this.characterState,
+      primarySlot:
+        state.primarySlot,
+      slots:
+        [...state.weaponSlots],
+    };
+    this.renderWeaponSlotHud();
+    this.renderCharacterState();
 
-      this.weaponButtons[
-        weaponId
-      ]?.setFillStyle(
-        selected
-          ? 0x7751a1
-          : unlocked
-            ? 0x315f35
-            : 0x353a37,
-        unlocked
-          ? 1
-          : 0.72,
-      );
-
-      this.weaponButtons[
-        weaponId
-      ]?.setStrokeStyle(
-        selected
-          ? 4
-          : 2,
-        selected
-          ? 0xffe590
-          : unlocked
-            ? 0xf3f5dd
-            : 0x777d78,
-        selected
-          ? 1
-          : 0.5,
-      );
-
-      const icon =
-        this.weaponIcons[
-          weaponId
-        ];
-
-      if (!icon) {
-        continue;
-      }
-
-      icon
-        .setAlpha(
-          unlocked
-            ? 1
-            : 0.24,
-        )
-        .setScale(
-          selected
-            ? 0.7
-            : 0.62,
-        );
-
-      if (unlocked) {
-        icon.clearTint();
-      } else {
-        icon.setTint(
-          0x777777,
-        );
-      }
-    }
-  }
-
-  private handleAreaName(
-    areaName: string,
-  ): void {
-    this.areaText?.setText(
-      areaName,
-    );
   }
 
   private handleNotice(

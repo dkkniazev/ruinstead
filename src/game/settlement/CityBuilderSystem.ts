@@ -184,6 +184,9 @@ type VisualBundle = {
 };
 
 export class CityBuilderSystem {
+  private productionMultiplier = 1;
+  private capacityMultiplier = 1;
+  private themeTint = 0xffffff;
   private readonly visuals =
     new Map<
       CityBuildingId,
@@ -205,6 +208,30 @@ export class CityBuilderSystem {
       this.createVisual(id);
     }
 
+    this.syncVisuals();
+  }
+
+  setMetaMultipliers(
+    productionMultiplier: number,
+    capacityMultiplier: number,
+  ): void {
+    this.productionMultiplier =
+      Math.max(
+        1,
+        productionMultiplier,
+      );
+    this.capacityMultiplier =
+      Math.max(
+        1,
+        capacityMultiplier,
+      );
+  }
+
+  setThemeTint(
+    tint: number,
+  ): void {
+    this.themeTint =
+      tint;
     this.syncVisuals();
   }
 
@@ -484,12 +511,18 @@ export class CityBuilderSystem {
     const storageLevel =
       this.level('storage');
 
-    return [
-      20,
-      80,
-      160,
-      300,
-    ][storageLevel] ?? 20;
+    const base =
+      [
+        20,
+        80,
+        160,
+        300,
+      ][storageLevel] ?? 20;
+
+    return Math.round(
+      base *
+        this.capacityMultiplier,
+    );
   }
 
   private level(
@@ -607,21 +640,35 @@ export class CityBuilderSystem {
 
     this.addPending(
       'wood',
-      sawmill * 2,
+      Math.round(
+        sawmill *
+          2 *
+          this.productionMultiplier,
+      ),
     );
     this.addPending(
       'stone',
-      workshop,
+      Math.round(
+        workshop *
+          this.productionMultiplier,
+      ),
     );
     this.addPending(
       'metal',
-      Math.ceil(
-        workshop / 2,
+      Math.round(
+        Math.ceil(
+          workshop / 2,
+        ) *
+          this.productionMultiplier,
       ),
     );
     this.addPending(
       'coins',
-      house * 2,
+      Math.round(
+        house *
+          2 *
+          this.productionMultiplier,
+      ),
     );
   }
 
@@ -787,6 +834,9 @@ export class CityBuilderSystem {
             ? BUILDING_COLORS[id]
             : 0x6e6e64,
           active ? 1 : 0.52,
+        )
+        .setTint(
+          this.themeTint,
         )
         .setStrokeStyle(
           active ? 4 : 3,

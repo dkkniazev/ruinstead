@@ -267,6 +267,7 @@ class ResourceNode {
 export class ResourceSystem {
   private nextDeathDropBatchId = 1;
   private gatheringMultiplier = 1;
+  private pickupRangeMultiplier = 1;
   private readonly nodes:
     ResourceNode[] = [];
   private readonly pickups:
@@ -280,6 +281,10 @@ export class ResourceSystem {
       BackpackSystem,
     private readonly onBackpackChanged:
       () => void,
+    private readonly onNodeDepleted?:
+      (
+        type: HarvestResourceType,
+      ) => void,
   ) {
     ensureResourceTextures(scene);
 
@@ -339,6 +344,9 @@ export class ResourceSystem {
       this.spawnNodeDrops(
         node.definition,
       );
+      this.onNodeDepleted?.(
+        node.definition.type,
+      );
     }
   }
 
@@ -346,6 +354,16 @@ export class ResourceSystem {
     multiplier: number,
   ): void {
     this.gatheringMultiplier =
+      Math.max(
+        1,
+        multiplier,
+      );
+  }
+
+  setPickupRangeMultiplier(
+    multiplier: number,
+  ): void {
+    this.pickupRangeMultiplier =
       Math.max(
         1,
         multiplier,
@@ -509,7 +527,7 @@ export class ResourceSystem {
 
       if (
         distance >
-        PICKUP_MAGNET_RANGE + 24
+        PICKUP_MAGNET_RANGE * this.pickupRangeMultiplier + 24
       ) {
         pickup.pickupEnabled =
           true;
@@ -747,7 +765,7 @@ export class ResourceSystem {
             pickup.sprite.x,
             pickup.sprite.y,
           ) >
-            PICKUP_MAGNET_RANGE + 24
+            PICKUP_MAGNET_RANGE * this.pickupRangeMultiplier + 24
         ) {
           pickup.pickupEnabled =
             true;
@@ -808,7 +826,8 @@ export class ResourceSystem {
 
       if (
         distance <=
-          PICKUP_MAGNET_RANGE &&
+          PICKUP_MAGNET_RANGE *
+            this.pickupRangeMultiplier &&
         distance > 0.001
       ) {
         const speed =

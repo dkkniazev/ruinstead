@@ -527,6 +527,25 @@ export class CombatSystem {
     return 'used';
   }
 
+  restoreForLevelUp(): void {
+    if (this.dead) {
+      return;
+    }
+
+    this.health =
+      this.maxHealth;
+    this.healthPotions =
+      MAX_HEALTH_POTIONS;
+    this.nextHealthPotionAt = 0;
+    this.nextRegenTickAt = 0;
+
+    this.player.setHealth(
+      this.health,
+      this.maxHealth,
+    );
+    this.emitState();
+  }
+
   refillHealthPotions(): boolean {
     const changed =
       this.healthPotions !==

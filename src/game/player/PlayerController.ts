@@ -61,7 +61,11 @@ export class PlayerController {
   private moveSpeed = 225;
   private baseMoveSpeed = 225;
   private temporarySpeedMultiplier = 1;
+  private temporaryDashCooldownMultiplier = 1;
+  private baseDashCooldownMs = 850;
   private dashCooldownMs = 850;
+  private cosmeticTint:
+    number | null = null;
   private weaponId:
     WeaponId = 'axe';
 
@@ -285,25 +289,63 @@ export class PlayerController {
         this.baseMoveSpeed *
           this.temporarySpeedMultiplier,
       );
-    this.dashCooldownMs =
+    this.baseDashCooldownMs =
       getDashCooldownMs(
         dashLevel,
+      );
+    this.dashCooldownMs =
+      Math.max(
+        180,
+        Math.round(
+          this.baseDashCooldownMs *
+            this.temporaryDashCooldownMultiplier,
+        ),
       );
   }
 
   setTemporarySpeedMultiplier(
     multiplier: number,
   ): void {
+    this.setMetaModifiers(
+      multiplier,
+      this.temporaryDashCooldownMultiplier,
+    );
+  }
+
+  setMetaModifiers(
+    speedMultiplier: number,
+    dashCooldownMultiplier = 1,
+  ): void {
     this.temporarySpeedMultiplier =
       Math.max(
         0.1,
-        multiplier,
+        speedMultiplier,
+      );
+    this.temporaryDashCooldownMultiplier =
+      Math.max(
+        0.2,
+        dashCooldownMultiplier,
       );
     this.moveSpeed =
       Math.round(
         this.baseMoveSpeed *
           this.temporarySpeedMultiplier,
       );
+    this.dashCooldownMs =
+      Math.max(
+        180,
+        Math.round(
+          this.baseDashCooldownMs *
+            this.temporaryDashCooldownMultiplier,
+        ),
+      );
+  }
+
+  setCosmeticTint(
+    tint: number | null,
+  ): void {
+    this.cosmeticTint =
+      tint;
   }
 
   setEnabled(
@@ -513,6 +555,15 @@ export class PlayerController {
     ) {
       this.sprite.setTint(
         0xfff0a8,
+      );
+      return;
+    }
+
+    if (
+      this.cosmeticTint !== null
+    ) {
+      this.sprite.setTint(
+        this.cosmeticTint,
       );
       return;
     }

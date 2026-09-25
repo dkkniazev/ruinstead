@@ -2,9 +2,15 @@ import Phaser from 'phaser';
 import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
+import {
+  SETTLEMENT_CENTER,
+} from '../world/WorldPrototype';
 
 export const FORGE_POSITION =
-  new Phaser.Math.Vector2(3840, 4410);
+  new Phaser.Math.Vector2(
+    SETTLEMENT_CENTER.x + 240,
+    SETTLEMENT_CENTER.y - 80,
+  );
 export const FORGE_INTERACTION_RADIUS = 145;
 export const FORGE_MAX_REPAIR_STAGE = 3;
 

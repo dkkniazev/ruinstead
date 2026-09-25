@@ -452,6 +452,83 @@ export function sanitizeGameState(value: unknown): GameState {
       );
   }
 
+  const normalizedUnlockedZones =
+    [...unlockedZones];
+  const ensureZone = (
+    zoneId: string,
+  ) => {
+    if (
+      !normalizedUnlockedZones
+        .includes(zoneId)
+    ) {
+      normalizedUnlockedZones
+        .push(zoneId);
+    }
+  };
+
+  if (
+    buildings.bridge > 0
+  ) {
+    ensureZone('stage-2');
+  }
+
+  const bossUnlocks:
+    ReadonlyArray<
+      readonly [string, number]
+    > = [
+    ['sun-tyrant', 3],
+    ['pass-warden', 4],
+    ['lava-golem', 5],
+    ['sky-lord', 6],
+    ['ash-serpent', 7],
+    ['canyon-lord', 8],
+  ];
+
+  for (
+    const [bossId, region]
+    of bossUnlocks
+  ) {
+    if (
+      defeatedBosses.includes(
+        bossId,
+      )
+    ) {
+      ensureZone(
+        `stage-${region}`,
+      );
+    }
+  }
+
+  let highestRegion = 1;
+  for (
+    let region = 2;
+    region <= 8;
+    region += 1
+  ) {
+    if (
+      normalizedUnlockedZones
+        .includes(
+          `stage-${region}`,
+        )
+    ) {
+      highestRegion =
+        Math.max(
+          highestRegion,
+          region,
+        );
+    }
+  }
+
+  for (
+    let region = 2;
+    region <= highestRegion;
+    region += 1
+  ) {
+    ensureZone(
+      `stage-${region}`,
+    );
+  }
+
   return {
     schemaVersion: SAVE_SCHEMA_VERSION,
     savedAt: nonNegativeInt(root?.savedAt, defaults.savedAt),
@@ -614,7 +691,8 @@ export function sanitizeGameState(value: unknown): GameState {
       },
     },
     world: {
-      unlockedZones,
+      unlockedZones:
+        normalizedUnlockedZones,
       defeatedBosses,
       bossRespawnAt: numberRecord(
         world?.bossRespawnAt,

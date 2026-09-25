@@ -2686,7 +2686,7 @@ export class HudScene
       )
       .setText(
         state.production.canBoost
-          ? `Реклама: +${boostSeconds}с производства`
+          ? `Реклама: до +${boostSeconds}с производства`
           : 'Реклама: буст недоступен',
       )
       .setStyle({

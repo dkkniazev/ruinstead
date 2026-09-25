@@ -8,7 +8,6 @@ import type {
   CombatState,
 } from '../game/combat/CombatSystem';
 import {
-  WEAPON_ORDER,
   type WeaponId,
 } from '../game/combat/WeaponDefinitions';
 import {
@@ -46,8 +45,12 @@ import {
   HUD_WEAPON_UPGRADE_EVENT,
   HUD_WEAPON_VARIANT_SELECT_EVENT,
   HUD_WEAPON_FUSE_EVENT,
-  HUD_WEAPON_SELECT_EVENT,
+  HUD_CHARACTER_STATE_EVENT,
+  HUD_WEAPON_SLOT_EQUIP_EVENT,
+  HUD_WEAPON_SLOT_CLEAR_EVENT,
+  HUD_WEAPON_SLOT_PRIMARY_EVENT,
   type BlessingKind,
+  type CharacterHudState,
   type GatheringHudState,
   type MonetizationHudState,
   type PlayerProgressHudState,
@@ -86,6 +89,8 @@ import {
 import {
   MAX_WEAPON_LEVEL,
   MAX_WEAPON_STARS,
+  WEAPON_RARITIES,
+  getWeaponSlotUnlockLevel,
 } from '../game/progression/WeaponInventory';
 import {
   WEAPON_DEFINITIONS,
@@ -139,6 +144,8 @@ type HudSceneData = {
     PlayerProgressHudState;
   initialPremiumState:
     PremiumHudState;
+  initialCharacterState:
+    CharacterHudState;
   initialAreaName: string;
 };
 
@@ -191,6 +198,29 @@ export class HudScene
         settlement: 0,
       },
     };
+  private characterState:
+    CharacterHudState = {
+      level: 1,
+      unlockedSlots: 1,
+      primarySlot: 0,
+      slots: [
+        null,
+        null,
+        null,
+        null,
+        null,
+      ],
+      inventory: [],
+      storage: {
+        wood: 0,
+        stone: 0,
+        metal: 0,
+        crystal: 0,
+        fiber: 0,
+        coins: 0,
+      },
+    };
+
   private premiumState:
     PremiumHudState = {
       gems: 0,
@@ -253,6 +283,39 @@ export class HudScene
     > = {};
 
   private profilePanelOpen = false;
+  private profileTab:
+    'equipment' | 'mastery' =
+      'equipment';
+  private profileEquipmentTab?:
+    Phaser.GameObjects.Container;
+  private profileMasteryTab?:
+    Phaser.GameObjects.Container;
+  private profileTabButtons:
+    Partial<
+      Record<
+        'equipment' | 'mastery',
+        Phaser.GameObjects.Text
+      >
+    > = {};
+  private selectedCharacterSlot = 0;
+  private selectedCharacterInventoryIndex = 0;
+  private characterInventoryScroll = 0;
+  private characterSlotButtons:
+    Phaser.GameObjects.Text[] = [];
+  private characterInventoryButtons:
+    Phaser.GameObjects.Text[] = [];
+  private characterWeaponInfoText?:
+    Phaser.GameObjects.Text;
+  private characterEquipButton?:
+    Phaser.GameObjects.Text;
+  private characterPrimaryButton?:
+    Phaser.GameObjects.Text;
+  private characterClearButton?:
+    Phaser.GameObjects.Text;
+  private characterFuseButton?:
+    Phaser.GameObjects.Text;
+  private characterInventoryPageText?:
+    Phaser.GameObjects.Text;
   private profilePanel?:
     Phaser.GameObjects.Container;
   private profileOpenButton?:
@@ -268,6 +331,29 @@ export class HudScene
     > = {};
 
   private premiumPanelOpen = false;
+  private premiumTab:
+    'chests' |
+    'purchases' |
+    'cosmetics' =
+      'chests';
+  private premiumTabContainers:
+    Partial<
+      Record<
+        'chests' |
+        'purchases' |
+        'cosmetics',
+        Phaser.GameObjects.Container
+      >
+    > = {};
+  private premiumTabButtons:
+    Partial<
+      Record<
+        'chests' |
+        'purchases' |
+        'cosmetics',
+        Phaser.GameObjects.Text
+      >
+    > = {};
   private premiumPanel?:
     Phaser.GameObjects.Container;
   private premiumOpenButton?:
@@ -330,6 +416,11 @@ export class HudScene
         Phaser.GameObjects.Text
       >
     > = {};
+  private bestiaryScrollIndex = 0;
+  private bestiaryVisibleButtons:
+    Phaser.GameObjects.Text[] = [];
+  private bestiaryPageText?:
+    Phaser.GameObjects.Text;
   private selectedBestiaryId:
     string | null = null;
   private bestiaryPanelOpen =
@@ -436,21 +527,12 @@ export class HudScene
   private bestiaryClaimButton?:
     Phaser.GameObjects.Text;
 
-  private weaponButtons:
-    Partial<
-      Record<
-        WeaponId,
-        Phaser.GameObjects.Rectangle
-      >
-    > = {};
-
-  private weaponIcons:
-    Partial<
-      Record<
-        WeaponId,
-        Phaser.GameObjects.Image
-      >
-    > = {};
+  private weaponSlotButtons:
+    Phaser.GameObjects.Rectangle[] = [];
+  private weaponSlotIcons:
+    Phaser.GameObjects.Image[] = [];
+  private weaponSlotLabels:
+    Phaser.GameObjects.Text[] = [];
 
   constructor() {
     super('HudScene');
@@ -477,6 +559,8 @@ export class HudScene
       data.initialPlayerProgressState;
     this.premiumState =
       data.initialPremiumState;
+    this.characterState =
+      data.initialCharacterState;
     this.selectedBestiaryId =
       data.initialBestiaryState
         .entries.find(
@@ -504,7 +588,6 @@ export class HudScene
     this.createYandexPlatformUi();
     this.createProgressionUi();
     this.createPremiumUi();
-    this.createControlsHint();
     this.createNoticeLayer();
     this.createMonetizationUi();
 
@@ -556,6 +639,11 @@ export class HudScene
     this.game.events.on(
       HUD_PREMIUM_STATE_EVENT,
       this.handlePremiumState,
+      this,
+    );
+    this.game.events.on(
+      HUD_CHARACTER_STATE_EVENT,
+      this.handleCharacterState,
       this,
     );
 
@@ -646,6 +734,9 @@ export class HudScene
     );
     this.handlePremiumState(
       this.premiumState,
+    );
+    this.handleCharacterState(
+      this.characterState,
     );
 
     this.input.keyboard?.on(
@@ -6076,6 +6167,11 @@ export class HudScene
     this.game.events.off(
       HUD_PREMIUM_STATE_EVENT,
       this.handlePremiumState,
+      this,
+    );
+    this.game.events.off(
+      HUD_CHARACTER_STATE_EVENT,
+      this.handleCharacterState,
       this,
     );
 

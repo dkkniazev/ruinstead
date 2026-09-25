@@ -15,7 +15,6 @@ import {
 } from '../game/combat/CombatSystem';
 import {
   WEAPON_DEFINITIONS,
-  WEAPON_ORDER,
   type WeaponId,
 } from '../game/combat/WeaponDefinitions';
 import { EnemySystem } from '../game/enemies/EnemySystem';

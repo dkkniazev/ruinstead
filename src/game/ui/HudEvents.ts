@@ -26,6 +26,17 @@ import type {
   OwnedWeaponOption,
   WeaponRarityId,
 } from '../progression/WeaponInventory';
+import type {
+  PlayerMasteryId,
+} from '../progression/PlayerLevelBalance';
+import type {
+  SkinChestTier,
+  SkinId,
+} from '../cosmetics/SkinEconomy';
+import type {
+  PetId,
+  SettlementThemeId,
+} from '../cosmetics/PremiumStoreConfig';
 
 export type GatheringHudState = {
   backpack: BackpackState;
@@ -103,6 +114,22 @@ export const HUD_MONETIZATION_STATE_EVENT =
   'ruinstead:hud:monetization-state';
 export const HUD_MONETIZATION_ACTION_EVENT =
   'ruinstead:hud:monetization-action';
+export const HUD_PLAYER_PROGRESS_STATE_EVENT =
+  'ruinstead:hud:player-progress-state';
+export const HUD_MASTERY_SPEND_EVENT =
+  'ruinstead:hud:mastery-spend';
+export const HUD_PREMIUM_STATE_EVENT =
+  'ruinstead:hud:premium-state';
+export const HUD_SKIN_CHEST_OPEN_EVENT =
+  'ruinstead:hud:skin-chest-open';
+export const HUD_SKIN_EQUIP_EVENT =
+  'ruinstead:hud:skin-equip';
+export const HUD_PREMIUM_PURCHASE_EVENT =
+  'ruinstead:hud:premium-purchase';
+export const HUD_SETTLEMENT_THEME_EVENT =
+  'ruinstead:hud:settlement-theme';
+export const HUD_PET_EVENT =
+  'ruinstead:hud:pet';
 
 export type HudCombatStateHandler =
   (state: CombatState) => void;
@@ -221,3 +248,78 @@ export type HudMonetizationActionHandler =
     placement:
       MonetizationOfferPlacement,
   ) => void;
+
+
+export type PlayerProgressHudState = {
+  level: number;
+  xp: number;
+  xpToNext: number;
+  gems: number;
+  masteryAvailable: number;
+  masteryRanks:
+    Record<PlayerMasteryId, number>;
+};
+
+export type PremiumHudState = {
+  gems: number;
+  purchaseAvailable: boolean;
+  rewardedCommonChestRemaining:
+    number;
+  freeSkinChests: {
+    common: number;
+    rare: number;
+    epic: number;
+  };
+  epicChestPity: number;
+  skinFragments:
+    Record<string, number>;
+  unlockedSkinIds: string[];
+  equippedSkinId:
+    SkinId | null;
+  starterPackOwned: boolean;
+  levelPassOwned: boolean;
+  regionPackStage2Owned: boolean;
+  regionPackStage2Available: boolean;
+  ownedSettlementThemes:
+    string[];
+  equippedSettlementTheme:
+    SettlementThemeId;
+  ownedPets: string[];
+  equippedPet:
+    PetId | null;
+};
+
+export type HudPlayerProgressStateHandler =
+  (
+    state:
+      PlayerProgressHudState,
+  ) => void;
+export type HudMasterySpendHandler =
+  (
+    id:
+      PlayerMasteryId,
+  ) => void;
+export type HudPremiumStateHandler =
+  (
+    state:
+      PremiumHudState,
+  ) => void;
+export type HudSkinChestOpenHandler =
+  (
+    tier: SkinChestTier,
+    mode:
+      | 'gems'
+      | 'rewarded'
+      | 'free',
+  ) => void;
+export type HudSkinEquipHandler =
+  (skinId: SkinId | null) => void;
+export type HudPremiumPurchaseHandler =
+  (productId: string) => void;
+export type HudSettlementThemeHandler =
+  (
+    id:
+      SettlementThemeId,
+  ) => void;
+export type HudPetHandler =
+  (id: PetId) => void;

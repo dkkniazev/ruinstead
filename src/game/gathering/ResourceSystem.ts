@@ -584,15 +584,23 @@ export class ResourceSystem {
     definition:
       ResourceNodeDefinition,
   ): void {
+    const dropCount =
+      Math.max(
+        definition.dropCount,
+        Math.round(
+          definition.dropCount *
+            this.gatheringMultiplier,
+        ),
+      );
+
     for (
       let index = 0;
-      index <
-      definition.dropCount;
+      index < dropCount;
       index += 1
     ) {
       const angle =
         (Math.PI * 2 * index) /
-          definition.dropCount +
+          dropCount +
         Phaser.Math.FloatBetween(
           -0.28,
           0.28,
@@ -609,12 +617,7 @@ export class ResourceSystem {
           Math.cos(angle) * radius,
         definition.y +
           Math.sin(angle) * radius,
-        Math.max(
-          1,
-          Math.round(
-            this.gatheringMultiplier,
-          ),
-        ),
+        1,
         this.scene.time.now +
           PICKUP_LIFETIME_MS,
         false,

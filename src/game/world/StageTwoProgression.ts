@@ -1,21 +1,35 @@
 import Phaser from 'phaser';
+import {
+  RELEASE_PASSAGES,
+  getPassageMidpoint,
+  getRegionDefinition,
+} from './ReleaseRegionMap';
 
-export const STAGE_TWO_START_X = 3040;
+const REGION_TWO =
+  getRegionDefinition(2);
+const PASSAGE =
+  RELEASE_PASSAGES.find(
+    (entry) =>
+      entry.id === '2-3',
+  )!;
+
+export const STAGE_TWO_START_X =
+  REGION_TWO.center[0];
 
 export const STAGE_TWO_GATE_CENTER =
-  new Phaser.Math.Vector2(
-    5600,
-    900,
-  );
+  getPassageMidpoint(PASSAGE);
 
 export const STAGE_TWO_GATE_OPENING_HEIGHT =
   250;
 
+const REGION_THREE =
+  getRegionDefinition(3);
+
 export const STAGE_THREE_ENTRY =
   new Phaser.Math.Vector2(
-    5790,
-    900,
+    REGION_THREE.center[0],
+    REGION_THREE.center[1] + 650,
   );
 
 export const STAGE_THREE_ENTRY_RADIUS =
-  110;
+  180;

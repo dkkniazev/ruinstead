@@ -137,15 +137,22 @@ function buildBossDefinitions():
         Boolean(
           source.specialBoss,
         );
+      const regionBaseMinutes:
+        Record<RegionId, number> = {
+        1: 15,
+        2: 30,
+        3: 35,
+        4: 40,
+        5: 45,
+        6: 50,
+        7: 55,
+        8: 60,
+      };
       const normalMinutes =
-        15 +
-        (
-          source.region -
-          1
-        ) *
-          5 +
-        index *
-          5;
+        regionBaseMinutes[
+          source.region
+        ] +
+        index * 5;
       const cooldownMinutes =
         special
           ? normalMinutes * 2

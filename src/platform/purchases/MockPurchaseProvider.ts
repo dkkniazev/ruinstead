@@ -1,4 +1,5 @@
 import type {
+  PurchaseCatalogItem,
   PurchaseProvider,
   PurchaseReceipt,
   PurchaseResult,
@@ -26,6 +27,11 @@ export class MockPurchaseProvider
           `mock-${this.sequence}`,
       },
     };
+  }
+
+  async getCatalog():
+    Promise<PurchaseCatalogItem[]> {
+    return [];
   }
 
   async getPendingPurchases():

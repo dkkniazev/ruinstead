@@ -4,6 +4,8 @@ export type AnalyticsEventName =
   | 'bestiary_reward_claimed'
   | 'player_level_up'
   | 'skin_chest_opened'
+  | 'shard_shop_purchase'
+  | 'premium_purchase_granted'
   | 'ad_offer_shown'
   | 'ad_started'
   | 'ad_result'

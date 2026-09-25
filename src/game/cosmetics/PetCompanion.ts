@@ -19,8 +19,7 @@ export class PetCompanion {
   private bobTime = 0;
 
   constructor(
-    private readonly scene:
-      Phaser.Scene,
+    scene: Phaser.Scene,
     private readonly player:
       PlayerController,
   ) {

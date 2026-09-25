@@ -24,6 +24,8 @@ import {
   HUD_HEALTH_POTION_EVENT,
   HUD_BLESSING_EVENT,
   HUD_RETURN_HOME_EVENT,
+  HUD_SUPPLY_EVENT,
+  HUD_FORGE_WEAPON_REWARD_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -39,6 +41,7 @@ import {
   type BlessingKind,
   type GatheringHudState,
   type MonetizationHudState,
+  type SupplyResourceType,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import type {
@@ -137,6 +140,10 @@ export class HudScene
       activeBlessing: null,
       bossRespawnResetCooldownRemainingMs:
         0,
+      supplyCooldownRemainingMs:
+        0,
+      forgeWeaponCooldownRemainingMs:
+        0,
       offer: null,
     };
   private monetizationPanel?:
@@ -160,6 +167,15 @@ export class HudScene
         Phaser.GameObjects.Text
       >
     > = {};
+  private supplyButtons:
+    Partial<
+      Record<
+        SupplyResourceType,
+        Phaser.GameObjects.Text
+      >
+    > = {};
+  private forgeWeaponRewardButton?:
+    Phaser.GameObjects.Text;
   private cityPanelOpen = false;
   private cityOpenButton?:
     Phaser.GameObjects.Text;
@@ -787,6 +803,8 @@ export class HudScene
     ) {
       this.renderBlessingState();
     }
+
+    this.renderRewardedExtras();
   }
 
   private updatePotionCooldownVisual(): void {
@@ -1032,7 +1050,7 @@ export class HudScene
           0,
           0,
           620,
-          680,
+          750,
           0x233b2a,
           0.97,
         )
@@ -1451,6 +1469,56 @@ export class HudScene
       },
     );
 
+    this.forgeWeaponRewardButton =
+      this.add
+        .text(
+          0,
+          356,
+          '',
+          {
+            fontFamily:
+              'system-ui, sans-serif',
+            fontSize: '13px',
+            fontStyle: 'bold',
+            color: '#ffffff',
+            backgroundColor:
+              '#6a4f7b',
+            padding: {
+              x: 12,
+              y: 8,
+            },
+            fixedWidth: 500,
+            align: 'center',
+          },
+        )
+        .setOrigin(0.5)
+        .setInteractive({
+          useHandCursor: true,
+        });
+
+    this.forgeWeaponRewardButton.on(
+      Phaser.Input.Events.POINTER_DOWN,
+      () => {
+        const weaponId =
+          this.upgradeState
+            ?.selectedWeaponId;
+
+        if (
+          weaponId &&
+          !this.monetizationState
+            .busy &&
+          this.monetizationState
+            .forgeWeaponCooldownRemainingMs <=
+            0
+        ) {
+          this.game.events.emit(
+            HUD_FORGE_WEAPON_REWARD_EVENT,
+            weaponId,
+          );
+        }
+      },
+    );
+
     panel.add([
       bg,
       title,
@@ -1467,6 +1535,7 @@ export class HudScene
       this.weaponUpgradeButton,
       this.weaponVariantButton,
       this.weaponFuseButton,
+      this.forgeWeaponRewardButton,
       close,
     ]);
 
@@ -1973,7 +2042,7 @@ export class HudScene
           0,
           0,
           820,
-          600,
+          720,
           0x263728,
           0.985,
         )
@@ -2135,6 +2204,94 @@ export class HudScene
       },
     );
 
+    const supplyObjects:
+      Phaser.GameObjects.Text[] = [];
+    const supplyOptions:
+      Array<{
+        resource:
+          SupplyResourceType;
+        label: string;
+      }> = [
+      {
+        resource: 'wood',
+        label: 'Дерево',
+      },
+      {
+        resource: 'stone',
+        label: 'Камень',
+      },
+      {
+        resource: 'metal',
+        label: 'Металл',
+      },
+      {
+        resource: 'crystal',
+        label: 'Кристалл',
+      },
+      {
+        resource: 'fiber',
+        label: 'Волокно',
+      },
+    ];
+
+    supplyOptions.forEach(
+      (option, index) => {
+        const button =
+          this.add
+            .text(
+              -270 +
+                index * 135,
+              244,
+              '',
+              {
+                fontFamily:
+                  'system-ui, sans-serif',
+                fontSize: '11px',
+                fontStyle: 'bold',
+                color: '#ffffff',
+                backgroundColor:
+                  '#47606b',
+                padding: {
+                  x: 6,
+                  y: 6,
+                },
+                fixedWidth: 125,
+                fixedHeight: 38,
+                align: 'center',
+              },
+            )
+            .setOrigin(0.5, 0)
+            .setInteractive({
+              useHandCursor: true,
+            });
+
+        button.on(
+          Phaser.Input.Events.POINTER_DOWN,
+          () => {
+            if (
+              !this.monetizationState
+                .busy &&
+              this.monetizationState
+                .supplyCooldownRemainingMs <=
+                0
+            ) {
+              this.game.events.emit(
+                HUD_SUPPLY_EVENT,
+                option.resource,
+              );
+            }
+          },
+        );
+
+        this.supplyButtons[
+          option.resource
+        ] = button;
+        supplyObjects.push(
+          button,
+        );
+      },
+    );
+
     const blessingObjects:
       Phaser.GameObjects.Text[] = [];
     const blessingOptions:
@@ -2167,7 +2324,7 @@ export class HudScene
             .text(
               -270 +
                 index * 180,
-              247,
+              298,
               option.label,
               {
                 fontFamily:
@@ -2286,6 +2443,7 @@ export class HudScene
       this.cityCollectButton,
       this.cityProductionDoubleButton,
       ...buildingObjects,
+      ...supplyObjects,
       ...blessingObjects,
     ]);
 
@@ -2848,6 +3006,7 @@ export class HudScene
       );
 
     this.renderBlessingState();
+    this.renderRewardedExtras();
 
     if (offer) {
       this.monetizationText?.setText(
@@ -2962,6 +3121,111 @@ export class HudScene
             : '#ffffff',
       });
     }
+  }
+
+  private formatCooldown(
+    ms: number,
+  ): string {
+    const seconds =
+      Math.max(
+        0,
+        Math.ceil(ms / 1000),
+      );
+    const minutes =
+      Math.floor(
+        seconds / 60,
+      );
+
+    return `${minutes}:${String(
+      seconds % 60,
+    ).padStart(2, '0')}`;
+  }
+
+  private renderRewardedExtras():
+    void {
+    const supplyCooldown =
+      this.monetizationState
+        .supplyCooldownRemainingMs;
+    const forgeCooldown =
+      this.monetizationState
+        .forgeWeaponCooldownRemainingMs;
+
+    const supplyLabels:
+      Record<
+        SupplyResourceType,
+        string
+      > = {
+      wood: 'Дерево',
+      stone: 'Камень',
+      metal: 'Металл',
+      crystal: 'Кристалл',
+      fiber: 'Волокно',
+    };
+
+    for (
+      const resource of
+      [
+        'wood',
+        'stone',
+        'metal',
+        'crystal',
+        'fiber',
+      ] as const
+    ) {
+      const button =
+        this.supplyButtons[
+          resource
+        ];
+      const amount =
+        MONETIZATION_CONFIG
+          .supplyRewards[
+            resource
+          ];
+
+      button
+        ?.setText(
+          supplyCooldown > 0
+            ? `${supplyLabels[resource]}\n${this.formatCooldown(supplyCooldown)}`
+            : `${supplyLabels[resource]}\n▶ +${amount}`,
+        )
+        .setStyle({
+          backgroundColor:
+            supplyCooldown <= 0 &&
+            !this.monetizationState
+              .busy
+              ? '#47606b'
+              : '#444b4e',
+          color:
+            supplyCooldown <= 0
+              ? '#ffffff'
+              : '#aeb5b7',
+        });
+    }
+
+    const weaponId =
+      this.upgradeState
+        ?.selectedWeaponId;
+
+    this.forgeWeaponRewardButton
+      ?.setText(
+        forgeCooldown > 0
+          ? `Common ☆ от кузнеца · ${this.formatCooldown(forgeCooldown)}`
+          : weaponId
+            ? `▶ Реклама: Common ☆ ${WEAPON_DEFINITIONS[weaponId].name}`
+            : 'Common ☆ от кузнеца',
+      )
+      .setStyle({
+        backgroundColor:
+          forgeCooldown <= 0 &&
+          !this.monetizationState
+            .busy
+            ? '#6a4f7b'
+            : '#49444c',
+        color:
+          forgeCooldown <= 0
+            ? '#ffffff'
+            : '#aaa5ad',
+      });
   }
 
   private handleCityState(
@@ -3385,6 +3649,7 @@ export class HudScene
   ): void {
     this.upgradeState =
       state;
+    this.renderRewardedExtras();
 
     const labels:
       Record<
@@ -3651,6 +3916,11 @@ export class HudScene
     this.weaponFuseButton
       ?.setVisible(
         forge.restored,
+      );
+    this.forgeWeaponRewardButton
+      ?.setVisible(
+        forge.restored &&
+        MONETIZATION_CONFIG.enabled,
       );
 
     this.forgeRepairButton

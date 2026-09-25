@@ -3530,7 +3530,7 @@ export class HudScene
         )
         .setInteractive({
           useHandCursor: true,
-        );
+        });
     const invNext =
       this.add
         .text(
@@ -3683,7 +3683,7 @@ export class HudScene
         )
         .setInteractive({
           useHandCursor: true,
-        );
+        });
     this.characterFuseButton =
       makeAction(
         165,

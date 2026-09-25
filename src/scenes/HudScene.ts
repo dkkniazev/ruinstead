@@ -4179,7 +4179,7 @@ export class HudScene
       },
     );
     this.load.once(
-      Phaser.Loader.Events.LOAD_ERROR,
+      'loaderror',
       () => {
         this.portalCurrencyLoading =
           false;

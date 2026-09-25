@@ -96,7 +96,7 @@ import {
   HUD_BLESSING_EVENT,
   HUD_RETURN_HOME_EVENT,
   HUD_SUPPLY_EVENT,
-  HUD_FORGE_WEAPON_REWARD_EVENT,
+  HUD_BUY_AD_FREE_WEEK_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -683,8 +683,8 @@ export class WorldScene
       this,
     );
     this.game.events.on(
-      HUD_FORGE_WEAPON_REWARD_EVENT,
-      this.handleForgeWeaponReward,
+      HUD_BUY_AD_FREE_WEEK_EVENT,
+      this.handleBuyAdFreeWeek,
       this,
     );
     this.game.events.on(
@@ -1062,18 +1062,9 @@ export class WorldScene
               .supplyAdCooldownMs -
             now,
         ),
-      forgeWeaponCooldownRemainingMs:
-        Math.max(
-          0,
-          (
-            state?.monetization
-              .lastForgeWeaponAdAt ??
-            0
-          ) +
-            MONETIZATION_CONFIG
-              .forgeWeaponAdCooldownMs -
-            now,
-        ),
+      adFreeUntil:
+        state?.monetization
+          .adFreeUntil ?? 0,
       offer:
         this.monetizationOffer,
     };
@@ -1578,6 +1569,30 @@ export class WorldScene
       ?.refillHealthPotions();
   }
 
+  private get adFreeActive():
+    boolean {
+    return (
+      (
+        this.gameState
+          ?.monetization
+          .adFreeUntil ??
+        0
+      ) > Date.now()
+    );
+  }
+
+  private get rewardedAccessAvailable():
+    boolean {
+    return (
+      MONETIZATION_CONFIG.enabled &&
+      (
+        this.adFreeActive ||
+        this.adsProvider
+          .isRewardedAvailable()
+      )
+    );
+  }
+
   private handlePlayerDefeated(): void {
     if (
       !this.combat ||
@@ -1589,9 +1604,7 @@ export class WorldScene
     if (
       this.combat
         .canRewardedRevive &&
-      MONETIZATION_CONFIG.enabled &&
-      this.adsProvider
-        .isRewardedAvailable()
+      this.rewardedAccessAvailable
     ) {
       this.pendingBossReward =
         undefined;
@@ -1989,9 +2002,7 @@ export class WorldScene
       Date.now() + 5000;
 
     if (
-      MONETIZATION_CONFIG.enabled &&
-      this.adsProvider
-        .isRewardedAvailable()
+      this.rewardedAccessAvailable
     ) {
       const rewardResources =
         {
@@ -2003,9 +2014,6 @@ export class WorldScene
         this.formatResources(
           rewardResources,
         ),
-        event.weaponDrop
-          ? `${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} · Common ☆`
-          : '',
         ticketDropped
           ? 'билет домой ×1'
           : '',
@@ -2017,7 +2025,7 @@ export class WorldScene
         title:
           'Удвоить обычную награду босса?',
         description:
-          'Уникальные сюжетные предметы и прогресс региона не дублируются.',
+          'Повторяются ресурсы, монеты и выпавший билет. Оружие, уникальные предметы и прогресс региона не дублируются.',
         rewardText:
           pieces.join(' · '),
       });
@@ -2033,9 +2041,7 @@ export class WorldScene
     rewards: ResourceCounts,
   ): void {
     if (
-      !MONETIZATION_CONFIG.enabled ||
-      !this.adsProvider
-        .isRewardedAvailable()
+      !this.rewardedAccessAvailable
     ) {
       return;
     }
@@ -2050,7 +2056,7 @@ export class WorldScene
       title:
         'Забрать содержимое сундука ещё раз?',
       description:
-        'Обычная награда уже ваша. За просмотр получите ещё одну такую же.',
+        'Обычная награда уже ваша. Активируйте бонус, чтобы получить ещё одну такую же.',
       rewardText:
         this.formatResources(
           rewards,
@@ -2101,7 +2107,25 @@ export class WorldScene
   ): Promise<boolean> {
     if (
       !MONETIZATION_CONFIG.enabled ||
-      this.monetizationBusy ||
+      this.monetizationBusy
+    ) {
+      return false;
+    }
+
+    if (this.adFreeActive) {
+      trackAnalyticsEvent(
+        'ad_result',
+        {
+          placement,
+          rewarded: true,
+          reason:
+            'ad-free-entitlement',
+        },
+      );
+      return true;
+    }
+
+    if (
       !this.adsProvider
         .isRewardedAvailable()
     ) {
@@ -2305,18 +2329,6 @@ export class WorldScene
           ),
           repeatedResources,
         );
-    }
-
-    if (event.weaponDrop) {
-      addWeaponDrop(
-        this.gameState.player
-          .weaponInventory,
-        event.weaponDrop.weaponId,
-        event.weaponDrop.rarity,
-      );
-      this.combat?.unlockWeapon(
-        event.weaponDrop.weaponId,
-      );
     }
 
     if (pending.ticketDropped) {
@@ -2669,8 +2681,7 @@ export class WorldScene
       !this.player ||
       !this.bosses ||
       !this.gameState ||
-      !this.adsProvider
-        .isRewardedAvailable()
+      !this.rewardedAccessAvailable
     ) {
       return;
     }
@@ -2744,7 +2755,7 @@ export class WorldScene
       title:
         `Возродить: ${dormant.name}`,
       description:
-        'Реклама полностью сбросит текущий таймер этого босса. Следующий такой сброс будет доступен через час.',
+        'Бонус полностью сбросит текущий таймер этого босса. Следующий такой сброс будет доступен через час.',
       rewardText:
         '100% сброс таймера',
     });
@@ -2837,6 +2848,23 @@ export class WorldScene
 
   private async handleBuyReturnTickets():
     Promise<void> {
+    await this.purchaseProduct(
+      MONETIZATION_CONFIG
+        .returnTicketProductId,
+    );
+  }
+
+  private async handleBuyAdFreeWeek():
+    Promise<void> {
+    await this.purchaseProduct(
+      MONETIZATION_CONFIG
+        .adFreeWeekProductId,
+    );
+  }
+
+  private async purchaseProduct(
+    productId: string,
+  ): Promise<void> {
     if (
       !this.gameState ||
       this.monetizationBusy ||
@@ -2852,8 +2880,7 @@ export class WorldScene
     const result =
       await this.purchaseProvider
         .purchase(
-          MONETIZATION_CONFIG
-            .returnTicketProductId,
+          productId,
         );
 
     this.monetizationBusy = false;
@@ -2861,18 +2888,18 @@ export class WorldScene
     if (!result.success) {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        'Покупка билетов не завершена',
+        'Покупка не завершена',
       );
       this.emitMonetizationState();
       return;
     }
 
-    await this.grantTicketPurchase(
+    await this.grantPurchase(
       result.receipt,
     );
   }
 
-  private async grantTicketPurchase(
+  private async grantPurchase(
     receipt: PurchaseReceipt,
   ): Promise<void> {
     if (!this.gameState) {
@@ -2887,10 +2914,47 @@ export class WorldScene
         );
 
     if (!alreadyGranted) {
-      this.gameState.consumables
-        .returnTickets +=
+      if (
+        receipt.productId ===
           MONETIZATION_CONFIG
-            .returnTicketPackSize;
+            .returnTicketProductId
+      ) {
+        this.gameState.consumables
+          .returnTickets +=
+            MONETIZATION_CONFIG
+              .returnTicketPackSize;
+
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          `Получено билетов домой: ×${MONETIZATION_CONFIG.returnTicketPackSize}`,
+        );
+      } else if (
+        receipt.productId ===
+          MONETIZATION_CONFIG
+            .adFreeWeekProductId
+      ) {
+        const base =
+          Math.max(
+            Date.now(),
+            this.gameState
+              .monetization
+              .adFreeUntil,
+          );
+
+        this.gameState.monetization
+          .adFreeUntil =
+            base +
+            MONETIZATION_CONFIG
+              .adFreeWeekDurationMs;
+
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Без рекламы активировано на 7 дней · rewarded-награды доступны без просмотра',
+        );
+      } else {
+        return;
+      }
+
       this.gameState.monetization
         .grantedPurchaseTokens
         .push(
@@ -2899,11 +2963,6 @@ export class WorldScene
 
       this.saveState();
       await flushYandexCloudSave();
-
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        `Получено билетов домой: ×${MONETIZATION_CONFIG.returnTicketPackSize}`,
-      );
     }
 
     try {
@@ -2914,7 +2973,7 @@ export class WorldScene
     } catch {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        'Билеты начислены · подтверждение покупки будет повторено при следующем запуске',
+        'Покупка начислена · подтверждение будет повторено при следующем запуске',
       );
     }
 
@@ -2942,12 +3001,15 @@ export class WorldScene
       if (
         receipt.productId !==
           MONETIZATION_CONFIG
-            .returnTicketProductId
+            .returnTicketProductId &&
+        receipt.productId !==
+          MONETIZATION_CONFIG
+            .adFreeWeekProductId
       ) {
         continue;
       }
 
-      await this.grantTicketPurchase(
+      await this.grantPurchase(
         receipt,
       );
     }
@@ -3028,68 +3090,6 @@ export class WorldScene
 
     this.emitProgressionState();
     this.emitCityState();
-    this.saveState();
-    this.emitMonetizationState();
-  }
-
-  private async handleForgeWeaponReward(
-    weaponId: WeaponId,
-  ): Promise<void> {
-    if (
-      !this.gameState ||
-      !this.settlementSystem
-        ?.restored ||
-      this.monetizationHudState
-        .forgeWeaponCooldownRemainingMs >
-        0 ||
-      !this.gameState.player
-        .unlockedWeaponIds
-        .includes(
-          weaponId,
-        )
-    ) {
-      return;
-    }
-
-    const rewarded =
-      await this.requestRewarded(
-        'forge_weapon',
-      );
-
-    if (!rewarded) {
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        'Оружие от кузнеца не получено',
-      );
-      return;
-    }
-
-    addWeaponDrop(
-      this.gameState.player
-        .weaponInventory,
-      weaponId,
-      'common',
-    );
-    this.gameState.monetization
-      .lastForgeWeaponAdAt =
-        Date.now();
-
-    trackAnalyticsEvent(
-      'ad_reward_granted',
-      {
-        placement:
-          'forge_weapon',
-        weapon:
-          weaponId,
-      },
-    );
-
-    this.game.events.emit(
-      HUD_NOTICE_EVENT,
-      `Кузнец изготовил: ${WEAPON_DEFINITIONS[weaponId].name} · Common ☆`,
-    );
-
-    this.emitProgressionState();
     this.saveState();
     this.emitMonetizationState();
   }
@@ -4078,8 +4078,8 @@ export class WorldScene
       this,
     );
     this.game.events.off(
-      HUD_FORGE_WEAPON_REWARD_EVENT,
-      this.handleForgeWeaponReward,
+      HUD_BUY_AD_FREE_WEEK_EVENT,
+      this.handleBuyAdFreeWeek,
       this,
     );
     this.game.events.off(

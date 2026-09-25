@@ -7,6 +7,7 @@ import {
 import {
   BossSystem,
   type BossDefeatEvent,
+  type BossId,
 } from '../game/bosses/BossSystem';
 import {
   CombatSystem,
@@ -67,7 +68,6 @@ import {
 } from '../game/analytics/Analytics';
 import {
   MONETIZATION_CONFIG,
-  MONETIZATION_CONFIG,
 } from '../game/monetization/MonetizationConfig';
 import {
   type GameState,
@@ -88,11 +88,13 @@ import {
   HUD_BESTIARY_STATE_EVENT,
   HUD_COMBAT_STATE_EVENT,
   HUD_CITY_COLLECT_EVENT,
-  HUD_CITY_PRODUCTION_BOOST_EVENT,
+  HUD_CITY_PRODUCTION_DOUBLE_EVENT,
   HUD_CITY_STATE_EVENT,
   HUD_CITY_UPGRADE_EVENT,
   HUD_GATHERING_STATE_EVENT,
   HUD_HEALTH_POTION_EVENT,
+  HUD_BLESSING_EVENT,
+  HUD_RETURN_HOME_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
   HUD_MONETIZATION_STATE_EVENT,
   HUD_NOTICE_EVENT,
@@ -105,6 +107,7 @@ import {
   HUD_WEAPON_VARIANT_SELECT_EVENT,
   HUD_WEAPON_FUSE_EVENT,
   HUD_WEAPON_SELECT_EVENT,
+  type BlessingKind,
   type GatheringHudState,
   type MonetizationHudState,
   type MonetizationOfferPlacement,
@@ -141,6 +144,15 @@ import {
 import type {
   RewardedAdPlacement,
 } from '../platform/ads/AdsProvider';
+import {
+  createPurchaseProvider,
+} from '../platform/purchases/createPurchaseProvider';
+import type {
+  PurchaseReceipt,
+} from '../platform/purchases/PurchaseProvider';
+import {
+  flushYandexCloudSave,
+} from '../platform/yandex/YandexCloudSave';
 
 export class WorldScene
   extends Phaser.Scene {
@@ -148,15 +160,23 @@ export class WorldScene
     new GameStateStore();
   private readonly adsProvider =
     createAdsProvider();
+  private readonly purchaseProvider =
+    createPurchaseProvider();
 
   private monetizationOffer:
     MonetizationHudState['offer'] =
       null;
   private monetizationBusy = false;
-  private pendingExpeditionBonus?:
+  private pendingBossReward?: {
+    event: BossDefeatEvent;
+    ticketDropped: boolean;
+  };
+  private pendingChestReward?:
     ResourceCounts;
-  private pendingDeathDropBatchId?:
-    number;
+  private pendingBossRespawnId?:
+    BossId;
+  private bossRespawnOfferBlockedUntil = 0;
+  private lastMonetizationTickAt = 0;
 
   private gameState?:
     GameState;
@@ -386,6 +406,14 @@ export class WorldScene
             message,
           );
         },
+        (
+          _chestId,
+          rewards,
+        ) => {
+          this.handleChestOpened(
+            rewards,
+          );
+        },
       );
 
     this.settlementSystem =
@@ -553,6 +581,8 @@ export class WorldScene
         },
       );
 
+    this.applyActiveBlessing();
+
     this.createWeaponKeys();
     this.bridgeRepairKey =
       this.input.keyboard?.addKey(
@@ -630,8 +660,18 @@ export class WorldScene
       this,
     );
     this.game.events.on(
-      HUD_CITY_PRODUCTION_BOOST_EVENT,
-      this.handleProductionBoost,
+      HUD_CITY_PRODUCTION_DOUBLE_EVENT,
+      this.handleProductionDouble,
+      this,
+    );
+    this.game.events.on(
+      HUD_RETURN_HOME_EVENT,
+      this.handleReturnHomeAction,
+      this,
+    );
+    this.game.events.on(
+      HUD_BLESSING_EVENT,
+      this.handleBlessingRequest,
       this,
     );
     this.game.events.on(
@@ -702,6 +742,8 @@ export class WorldScene
       this.cleanup,
       this,
     );
+
+    void this.reconcilePendingPurchases();
 
     markYandexGameReady();
     startYandexGameplay();
@@ -783,6 +825,7 @@ export class WorldScene
     this.updateQuestDirector();
     this.handleWeaponKeys();
     this.updateAreaName();
+    this.updateMonetizationTimers();
     this.debugOverlay?.update();
   }
 
@@ -930,7 +973,6 @@ export class WorldScene
           capacity: 20,
           used: 0,
           canCollect: false,
-          canBoost: false,
           cycleSeconds: 30,
         },
         buildings: [],
@@ -940,11 +982,61 @@ export class WorldScene
 
   private get monetizationHudState():
     MonetizationHudState {
+    const state =
+      this.gameState;
+    const now =
+      Date.now();
+    const activeBlessing =
+      state?.monetization
+        .activeBlessing;
+    const playerPosition =
+      this.player?.position;
+    const outsideSettlement =
+      playerPosition
+        ? Phaser.Math.Distance.Between(
+            playerPosition.x,
+            playerPosition.y,
+            SETTLEMENT_CENTER.x,
+            SETTLEMENT_CENTER.y,
+          ) >
+          SETTLEMENT_SAFE_RADIUS
+        : false;
+
     return {
       enabled:
         MONETIZATION_CONFIG.enabled,
       busy:
         this.monetizationBusy,
+      returnTickets:
+        state?.consumables
+          .returnTickets ?? 0,
+      canFastReturn:
+        outsideSettlement &&
+        (this.combat?.state.health ?? 0) >
+          0,
+      purchaseAvailable:
+        this.purchaseProvider
+          .isAvailable(),
+      activeBlessing:
+        activeBlessing &&
+        activeBlessing.expiresAt >
+          now
+          ? {
+              ...activeBlessing,
+            }
+          : null,
+      bossRespawnResetCooldownRemainingMs:
+        Math.max(
+          0,
+          (
+            state?.monetization
+              .lastBossRespawnAdAt ??
+            0
+          ) +
+            MONETIZATION_CONFIG
+              .bossRespawnResetAdCooldownMs -
+            now,
+        ),
       offer:
         this.monetizationOffer,
     };
@@ -1451,9 +1543,53 @@ export class WorldScene
 
   private handlePlayerDefeated(): void {
     if (
+      !this.combat ||
+      !this.gameState
+    ) {
+      return;
+    }
+
+    if (
+      this.combat
+        .canRewardedRevive &&
+      MONETIZATION_CONFIG.enabled &&
+      this.adsProvider
+        .isRewardedAvailable()
+    ) {
+      this.pendingBossReward =
+        undefined;
+      this.pendingChestReward =
+        undefined;
+      this.pendingBossRespawnId =
+        undefined;
+
+      this.setMonetizationOffer({
+        placement:
+          'death_revive',
+        title:
+          'Последний шанс',
+        description:
+          'Один раз можно воскреснуть прямо здесь и продолжить этот бой. Если погибнете ещё раз — вернётесь домой.',
+        rewardText:
+          `${Math.round(
+            MONETIZATION_CONFIG
+              .rewardedReviveHealthRatio *
+              100,
+          )}% HP · рюкзак сохранён`,
+      });
+      return;
+    }
+
+    this.resolveHardDeath();
+  }
+
+  private resolveHardDeath():
+    void {
+    if (
       !this.backpack ||
       !this.player ||
-      !this.resourceSystem
+      !this.resourceSystem ||
+      !this.combat
     ) {
       return;
     }
@@ -1463,12 +1599,17 @@ export class WorldScene
     const dropped =
       this.backpack.takeAll();
 
-    const deathDropBatchId =
+    if (
+      totalResourceUnits(
+        dropped,
+      ) > 0
+    ) {
       this.resourceSystem
         .spawnDeathDrop(
           deathPosition,
           dropped,
         );
+    }
 
     this.enemies?.resetCombat(
       this.time.now,
@@ -1478,45 +1619,19 @@ export class WorldScene
     );
 
     this.handleBackpackChanged();
+    this.clearMonetizationOffer();
 
-    if (
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
       totalResourceUnits(
         dropped,
       ) > 0
-    ) {
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        `Поражение: весь рюкзак выпал на месте смерти — ${this.formatResources(dropped)}`,
-      );
+        ? `Поражение: рюкзак выпал на месте смерти — ${this.formatResources(dropped)}`
+        : 'Поражение: рюкзак был пуст',
+    );
 
-      if (
-        MONETIZATION_CONFIG.enabled &&
-        this.adsProvider
-          .isRewardedAvailable()
-      ) {
-        this.pendingExpeditionBonus =
-          undefined;
-        this.pendingDeathDropBatchId =
-          deathDropBatchId;
-        this.setMonetizationOffer({
-          placement:
-            'death_recovery',
-          title:
-            'Вернуть потерянную добычу?',
-          description:
-            'Можно вернуться за death-drop обычным способом или посмотреть рекламу и сразу отправить его на склад.',
-          rewardText:
-            this.formatResources(
-              dropped,
-            ),
-        });
-      }
-    } else {
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        'Поражение: рюкзак был пуст',
-      );
-    }
+    this.combat.respawnAtHome();
+    this.emitMonetizationState();
   }
 
   private handleReturnPoint(): void {
@@ -1553,6 +1668,7 @@ export class WorldScene
 
         this.wasAtReturnPoint =
           inside;
+        this.emitMonetizationState();
         return;
       }
 
@@ -1572,20 +1688,7 @@ export class WorldScene
       this.gameState.progression
         .settlementReturnCount += 1;
 
-      const carried =
-        this.backpack.state
-          .carried;
-
-      this.gameState.backpack = {
-        wood: carried.wood,
-        stone: carried.stone,
-        metal: carried.metal,
-        crystal:
-          carried.crystal ?? 0,
-        fiber:
-          carried.fiber ?? 0,
-        coins: carried.coins,
-      };
+      this.handleBackpackChanged();
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
@@ -1593,65 +1696,12 @@ export class WorldScene
       );
 
       this.game.events.emit(
-        HUD_GATHERING_STATE_EVENT,
-        this.gatheringHudState,
-      );
-      this.game.events.emit(
         HUD_SETTLEMENT_STATE_EVENT,
         this.settlementHudState,
       );
 
       this.saveState();
-
-      const settlementReturnCount =
-        this.gameState.progression
-        .settlementReturnCount;
-
-      if (
-        isReturnInterstitialDue(
-          settlementReturnCount,
-        ) &&
-        this.adsProvider
-          .isInterstitialAvailable()
-      ) {
-        this.clearMonetizationOffer();
-        void this
-          .tryShowReturnInterstitial(
-            settlementReturnCount,
-          );
-      } else if (
-        MONETIZATION_CONFIG.enabled &&
-        this.adsProvider
-          .isRewardedAvailable()
-      ) {
-        const bonus =
-          this.createExpeditionBonus(
-            deposited,
-          );
-
-        if (
-          totalResourceUnits(
-            bonus,
-          ) > 0
-        ) {
-          this.pendingDeathDropBatchId =
-            undefined;
-          this.pendingExpeditionBonus =
-            bonus;
-          this.setMonetizationOffer({
-            placement:
-              'expedition_reward',
-            title:
-              'Бонус за успешную вылазку',
-            description:
-              'Посмотрите рекламу, чтобы добавить бонус к только что сохранённой добыче.',
-            rewardText:
-              this.formatResources(
-                bonus,
-              ),
-          });
-        }
-      }
+      this.emitMonetizationState();
     }
 
     this.wasAtReturnPoint =
@@ -1725,6 +1775,33 @@ export class WorldScene
     );
   }
 
+  private multiplyResources(
+    resources:
+      ResourceCounts,
+    multiplier: number,
+  ): ResourceCounts {
+    return {
+      wood:
+        resources.wood *
+        multiplier,
+      stone:
+        resources.stone *
+        multiplier,
+      metal:
+        resources.metal *
+        multiplier,
+      crystal:
+        (resources.crystal ?? 0) *
+        multiplier,
+      fiber:
+        (resources.fiber ?? 0) *
+        multiplier,
+      coins:
+        resources.coins *
+        multiplier,
+    };
+  }
+
   private handleBossDefeated(
     event: BossDefeatEvent,
   ): void {
@@ -1787,6 +1864,16 @@ export class WorldScene
         `${weaponDrop.rarityName} · ${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Lv.1`;
     }
 
+    const ticketDropped =
+      Math.random() <
+      MONETIZATION_CONFIG
+        .bossTicketDropChance;
+
+    if (ticketDropped) {
+      this.gameState.consumables
+        .returnTickets += 1;
+    }
+
     if (
       event.id ===
         'root-colossus' &&
@@ -1808,7 +1895,7 @@ export class WorldScene
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Кинжалы открыты · Сердце корней получено · теперь можно восстановить мост`,
+        `${event.name} повержен! Кинжалы открыты · Сердце корней получено · теперь можно восстановить мост${ticketDropped ? ' · выпал билет домой' : ''}`,
       );
     } else if (
       event.id ===
@@ -1848,56 +1935,90 @@ export class WorldScene
 
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        `${event.name} повержен! Молот открыт · Ядро солнца получено · врата в следующую часть мира открыты`,
+        `${event.name} повержен! Молот открыт · Ядро солнца получено · врата в следующую часть мира открыты${ticketDropped ? ' · выпал билет домой' : ''}`,
       );
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        weaponDropText
-          ? `${event.name} повержен · выпало: ${weaponDropText} · босс возродится позже`
-          : `${event.name} повержен · босс возродится позже`,
+        `${event.name} повержен${weaponDropText ? ` · выпало: ${weaponDropText}` : ''}${ticketDropped ? ' · билет домой ×1' : ''} · босс возродится позже`,
       );
+    }
+
+    this.pendingBossReward = {
+      event,
+      ticketDropped,
+    };
+    this.bossRespawnOfferBlockedUntil =
+      Date.now() + 5000;
+
+    if (
+      MONETIZATION_CONFIG.enabled &&
+      this.adsProvider
+        .isRewardedAvailable()
+    ) {
+      const rewardResources =
+        {
+          ...event.dropResources,
+          coins:
+            event.dropCoins,
+        };
+      const pieces = [
+        this.formatResources(
+          rewardResources,
+        ),
+        event.weaponDrop
+          ? `${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} · Common ☆`
+          : '',
+        ticketDropped
+          ? 'билет домой ×1'
+          : '',
+      ].filter(Boolean);
+
+      this.setMonetizationOffer({
+        placement:
+          'boss_reward',
+        title:
+          'Удвоить обычную награду босса?',
+        description:
+          'Уникальные сюжетные предметы и прогресс региона не дублируются.',
+        rewardText:
+          pieces.join(' · '),
+      });
     }
 
     this.applyProgression();
     this.emitProgressionState();
+    this.emitMonetizationState();
     this.saveState();
   }
 
-  private createExpeditionBonus(
-    deposited: ResourceCounts,
-  ): ResourceCounts {
-    const bonus:
-      ResourceCounts = {
-      wood: 0,
-      stone: 0,
-      metal: 0,
-      crystal: 0,
-      fiber: 0,
-      coins: 0,
-    };
-
-    for (
-      const type of
-      RESOURCE_TYPES
+  private handleChestOpened(
+    rewards: ResourceCounts,
+  ): void {
+    if (
+      !MONETIZATION_CONFIG.enabled ||
+      !this.adsProvider
+        .isRewardedAvailable()
     ) {
-      const amount =
-        deposited[type] ?? 0;
-
-      bonus[type] =
-        amount > 0
-          ? Math.max(
-              1,
-              Math.ceil(
-                amount *
-                  MONETIZATION_CONFIG
-                    .expeditionBonusRatio,
-              ),
-            )
-          : 0;
+      return;
     }
 
-    return bonus;
+    this.pendingChestReward = {
+      ...rewards,
+    };
+
+    this.setMonetizationOffer({
+      placement:
+        'chest_reward',
+      title:
+        'Забрать содержимое сундука ещё раз?',
+      description:
+        'Обычная награда уже ваша. За просмотр получите ещё одну такую же.',
+      rewardText:
+        this.formatResources(
+          rewards,
+        ),
+    });
   }
 
   private setMonetizationOffer(
@@ -2006,42 +2127,34 @@ export class WorldScene
     if (action === 'dismiss') {
       if (
         placement ===
-          'death_recovery'
+          'death_revive'
       ) {
-        this.pendingDeathDropBatchId =
+        this.resolveHardDeath();
+        return;
+      }
+
+      if (
+        placement ===
+          'boss_reward'
+      ) {
+        this.pendingBossReward =
           undefined;
-      } else {
-        this.pendingExpeditionBonus =
+      } else if (
+        placement ===
+          'chest_reward'
+      ) {
+        this.pendingChestReward =
+          undefined;
+      } else if (
+        placement ===
+          'boss_respawn'
+      ) {
+        this.pendingBossRespawnId =
           undefined;
       }
 
       this.clearMonetizationOffer();
       return;
-    }
-
-    if (
-      placement ===
-        'death_recovery'
-    ) {
-      const batchId =
-        this.pendingDeathDropBatchId;
-
-      if (
-        !batchId ||
-        !this.resourceSystem
-          ?.hasDeathDrop(
-            batchId,
-          )
-      ) {
-        this.pendingDeathDropBatchId =
-          undefined;
-        this.clearMonetizationOffer();
-        this.game.events.emit(
-          HUD_NOTICE_EVENT,
-          'Death-drop уже подобран или недоступен',
-        );
-        return;
-      }
     }
 
     const rewarded =
@@ -2052,96 +2165,67 @@ export class WorldScene
     if (!rewarded) {
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        'Награда не получена · игру можно продолжать без рекламы',
+        placement ===
+          'death_revive'
+          ? 'Воскрешение не получено · можно повторить просмотр или выбрать смерть'
+          : 'Награда не получена',
       );
+
+      if (
+        placement !==
+          'death_revive'
+      ) {
+        this.clearMonetizationOffer();
+      }
+      return;
+    }
+
+    if (
+      placement ===
+        'death_revive'
+    ) {
+      const revived =
+        this.combat?.reviveHere(
+          MONETIZATION_CONFIG
+            .rewardedReviveHealthRatio,
+          MONETIZATION_CONFIG
+            .rewardedReviveInvulnerabilityMs,
+        ) ?? false;
+
+      if (revived) {
+        trackAnalyticsEvent(
+          'ad_reward_granted',
+          {
+            placement,
+            reward:
+              'revive_here',
+          },
+        );
+        this.game.events.emit(
+          HUD_NOTICE_EVENT,
+          'Воскрешение использовано · следующая смерть окончательная',
+        );
+      }
+
       this.clearMonetizationOffer();
       return;
     }
 
     if (
       placement ===
-        'expedition_reward'
+        'boss_reward'
     ) {
-      const bonus =
-        this.pendingExpeditionBonus;
-
-      if (
-        bonus &&
-        this.gameState
-      ) {
-        for (
-          const type of
-          RESOURCE_TYPES
-        ) {
-          this.gameState.resources[
-            type
-          ] +=
-            bonus[type] ?? 0;
-        }
-
-        trackAnalyticsEvent(
-          'ad_reward_granted',
-          {
-            placement,
-            reward:
-              this.formatResources(
-                bonus,
-              ),
-          },
-        );
-
-        this.game.events.emit(
-          HUD_NOTICE_EVENT,
-          `Рекламный бонус получен: ${this.formatResources(bonus)}`,
-        );
-      }
-
-      this.pendingExpeditionBonus =
-        undefined;
-    } else {
-      const batchId =
-        this.pendingDeathDropBatchId;
-
-      if (
-        batchId &&
-        this.resourceSystem &&
-        this.gameState
-      ) {
-        const recovered =
-          this.resourceSystem
-            .recoverDeathDrop(
-              batchId,
-            );
-
-        for (
-          const type of
-          RESOURCE_TYPES
-        ) {
-          this.gameState.resources[
-            type
-          ] +=
-            recovered[type] ?? 0;
-        }
-
-        trackAnalyticsEvent(
-          'ad_reward_granted',
-          {
-            placement,
-            reward:
-              this.formatResources(
-                recovered,
-              ),
-          },
-        );
-
-        this.game.events.emit(
-          HUD_NOTICE_EVENT,
-          `Потерянная добыча возвращена на склад: ${this.formatResources(recovered)}`,
-        );
-      }
-
-      this.pendingDeathDropBatchId =
-        undefined;
+      this.grantBossRewardDuplicate();
+    } else if (
+      placement ===
+        'chest_reward'
+    ) {
+      this.grantChestRewardDuplicate();
+    } else if (
+      placement ===
+        'boss_respawn'
+    ) {
+      this.grantBossRespawnReset();
     }
 
     this.clearMonetizationOffer();
@@ -2150,58 +2234,686 @@ export class WorldScene
     this.saveState();
   }
 
-  private async handleProductionBoost():
-    Promise<void> {
+  private grantBossRewardDuplicate():
+    void {
+    const pending =
+      this.pendingBossReward;
+
     if (
-      !MONETIZATION_CONFIG.enabled ||
-      this.monetizationBusy ||
-      !this.cityBuilderSystem ||
-      !this.gameState ||
-      !this.cityBuilderSystem
-        .canBoostProduction()
+      !pending ||
+      !this.gameState
     ) {
       return;
     }
 
-    const rewarded =
-      await this.requestRewarded(
-        'production_boost',
-      );
+    const { event } =
+      pending;
+    const repeatedResources:
+      ResourceCounts = {
+      ...event.dropResources,
+      coins:
+        event.dropCoins,
+    };
 
-    if (!rewarded) {
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        'Буст производства не получен',
-      );
-      return;
+    if (
+      totalResourceUnits(
+        repeatedResources,
+      ) > 0
+    ) {
+      this.resourceSystem
+        ?.spawnResourceDrop(
+          new Phaser.Math.Vector2(
+            event.x,
+            event.y,
+          ),
+          repeatedResources,
+        );
     }
 
-    const boosted =
-      this.cityBuilderSystem
-        .boostProduction(
-          MONETIZATION_CONFIG
-            .productionBoostCycles,
-        );
+    if (event.weaponDrop) {
+      addWeaponDrop(
+        this.gameState.player
+          .weaponInventory,
+        event.weaponDrop.weaponId,
+        event.weaponDrop.rarity,
+      );
+      this.combat?.unlockWeapon(
+        event.weaponDrop.weaponId,
+      );
+    }
+
+    if (pending.ticketDropped) {
+      this.gameState.consumables
+        .returnTickets += 1;
+    }
 
     trackAnalyticsEvent(
       'ad_reward_granted',
       {
         placement:
-          'production_boost',
+          'boss_reward',
+        boss:
+          event.id,
+      },
+    );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Награда босса получена повторно',
+    );
+
+    this.pendingBossReward =
+      undefined;
+  }
+
+  private grantChestRewardDuplicate():
+    void {
+    const reward =
+      this.pendingChestReward;
+
+    if (
+      !reward ||
+      !this.gameState
+    ) {
+      return;
+    }
+
+    if (
+      this.backpack
+        ?.canAcceptBundle(
+          reward,
+        )
+    ) {
+      this.backpack.addBundle(
+        reward,
+      );
+      this.handleBackpackChanged();
+    } else {
+      for (
+        const type of
+        RESOURCE_TYPES
+      ) {
+        this.gameState.resources[
+          type
+        ] +=
+          reward[type] ?? 0;
+      }
+    }
+
+    trackAnalyticsEvent(
+      'ad_reward_granted',
+      {
+        placement:
+          'chest_reward',
         reward:
           this.formatResources(
-            boosted,
+            reward,
           ),
       },
     );
 
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      `Производство ускорено: ${this.formatResources(boosted)}`,
+      `Дополнительная награда сундука: ${this.formatResources(reward)}`,
+    );
+
+    this.pendingChestReward =
+      undefined;
+  }
+
+  private grantBossRespawnReset():
+    void {
+    const bossId =
+      this.pendingBossRespawnId;
+
+    if (
+      !bossId ||
+      !this.gameState ||
+      !this.bosses
+    ) {
+      return;
+    }
+
+    if (
+      this.bosses.resetRespawn(
+        bossId,
+      )
+    ) {
+      this.gameState.world
+        .bossRespawnAt[
+          bossId
+        ] = 0;
+      this.gameState.monetization
+        .lastBossRespawnAdAt =
+          Date.now();
+
+      trackAnalyticsEvent(
+        'ad_reward_granted',
+        {
+          placement:
+            'boss_respawn',
+          boss:
+            bossId,
+        },
+      );
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Босс возродился · следующий рекламный сброс доступен через час',
+      );
+    }
+
+    this.pendingBossRespawnId =
+      undefined;
+  }
+
+  private async handleProductionDouble():
+    Promise<void> {
+    if (
+      !this.gameState ||
+      !this.cityBuilderSystem ||
+      !this.cityHudState
+        .production.canCollect
+    ) {
+      return;
+    }
+
+    const rewarded =
+      await this.requestRewarded(
+        'production_double',
+      );
+
+    if (!rewarded) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Удвоение производства не получено',
+      );
+      return;
+    }
+
+    const collected =
+      this.cityBuilderSystem
+        .collectProduction(
+          this.gameState.resources,
+          MONETIZATION_CONFIG
+            .productionRewardMultiplier,
+        );
+    const total =
+      this.multiplyResources(
+        collected,
+        MONETIZATION_CONFIG
+          .productionRewardMultiplier,
+      );
+
+    trackAnalyticsEvent(
+      'ad_reward_granted',
+      {
+        placement:
+          'production_double',
+        reward:
+          this.formatResources(
+            total,
+          ),
+      },
+    );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      `Производство ×2: ${this.formatResources(total)}`,
     );
 
     this.emitCityState();
+    this.emitProgressionState();
     this.saveState();
+  }
+
+  private async handleBlessingRequest(
+    kind: BlessingKind,
+  ): Promise<void> {
+    if (!this.gameState) {
+      return;
+    }
+
+    const rewarded =
+      await this.requestRewarded(
+        'blessing',
+      );
+
+    if (!rewarded) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Благословение не получено',
+      );
+      return;
+    }
+
+    this.gameState.monetization
+      .activeBlessing = {
+        kind,
+        expiresAt:
+          Date.now() +
+          MONETIZATION_CONFIG
+            .blessingDurationMs,
+      };
+
+    this.applyActiveBlessing();
+
+    trackAnalyticsEvent(
+      'ad_reward_granted',
+      {
+        placement:
+          'blessing',
+        kind,
+      },
+    );
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Благословение активно 3 минуты',
+    );
+
+    this.saveState();
+    this.emitMonetizationState();
+  }
+
+  private applyActiveBlessing():
+    void {
+    if (!this.gameState) {
+      return;
+    }
+
+    const blessing =
+      this.gameState
+        .monetization
+        .activeBlessing;
+    const active =
+      blessing &&
+      blessing.expiresAt >
+        Date.now()
+        ? blessing
+        : null;
+
+    if (
+      blessing &&
+      !active
+    ) {
+      this.gameState.monetization
+        .activeBlessing = null;
+    }
+
+    const damageMultiplier =
+      active?.kind ===
+        'damage'
+        ? MONETIZATION_CONFIG
+            .blessingDamageMultiplier
+        : 1;
+    const healthMultiplier =
+      active?.kind ===
+        'health'
+        ? MONETIZATION_CONFIG
+            .blessingHealthMultiplier
+        : 1;
+    const speedMultiplier =
+      active?.kind ===
+        'speed'
+        ? MONETIZATION_CONFIG
+            .blessingSpeedMultiplier
+        : 1;
+    const gatheringMultiplier =
+      active?.kind ===
+        'gathering'
+        ? MONETIZATION_CONFIG
+            .blessingGatheringMultiplier
+        : 1;
+
+    this.player
+      ?.setTemporarySpeedMultiplier(
+        speedMultiplier,
+      );
+    this.resourceSystem
+      ?.setGatheringMultiplier(
+        gatheringMultiplier,
+      );
+    this.combat
+      ?.setTemporaryModifiers(
+        damageMultiplier,
+        healthMultiplier,
+        this.gameState.player
+          .maxHealthLevel,
+      );
+  }
+
+  private updateMonetizationTimers():
+    void {
+    const now =
+      Date.now();
+
+    if (
+      now -
+        this.lastMonetizationTickAt <
+      500
+    ) {
+      return;
+    }
+
+    this.lastMonetizationTickAt =
+      now;
+
+    const blessing =
+      this.gameState
+        ?.monetization
+        .activeBlessing;
+
+    if (
+      blessing &&
+      blessing.expiresAt <=
+        now
+    ) {
+      if (this.gameState) {
+        this.gameState.monetization
+          .activeBlessing = null;
+      }
+      this.applyActiveBlessing();
+      this.saveState();
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Благословение закончилось',
+      );
+    }
+
+    this.updateBossRespawnOffer();
+    this.emitMonetizationState();
+  }
+
+  private updateBossRespawnOffer():
+    void {
+    if (
+      !MONETIZATION_CONFIG.enabled ||
+      !this.player ||
+      !this.bosses ||
+      !this.gameState ||
+      !this.adsProvider
+        .isRewardedAvailable()
+    ) {
+      return;
+    }
+
+    if (
+      this.monetizationOffer &&
+      this.monetizationOffer
+        .placement !==
+        'boss_respawn'
+    ) {
+      return;
+    }
+
+    const cooldownRemaining =
+      this.monetizationHudState
+        .bossRespawnResetCooldownRemainingMs;
+
+    if (
+      cooldownRemaining > 0 ||
+      Date.now() <
+        this.bossRespawnOfferBlockedUntil
+    ) {
+      if (
+        this.monetizationOffer
+          ?.placement ===
+          'boss_respawn'
+      ) {
+        this.pendingBossRespawnId =
+          undefined;
+        this.clearMonetizationOffer();
+      }
+      return;
+    }
+
+    const dormant =
+      this.bosses
+        .getNearestDormant(
+          this.player.position,
+          190,
+        );
+
+    if (!dormant) {
+      if (
+        this.monetizationOffer
+          ?.placement ===
+          'boss_respawn'
+      ) {
+        this.pendingBossRespawnId =
+          undefined;
+        this.clearMonetizationOffer();
+      }
+      return;
+    }
+
+    if (
+      this.pendingBossRespawnId ===
+        dormant.id &&
+      this.monetizationOffer
+        ?.placement ===
+        'boss_respawn'
+    ) {
+      return;
+    }
+
+    this.pendingBossRespawnId =
+      dormant.id;
+
+    this.setMonetizationOffer({
+      placement:
+        'boss_respawn',
+      title:
+        `Возродить: ${dormant.name}`,
+      description:
+        'Реклама полностью сбросит текущий таймер этого босса. Следующий такой сброс будет доступен через час.',
+      rewardText:
+        '100% сброс таймера',
+    });
+  }
+
+  private async handleReturnHomeAction(
+    action:
+      | 'ticket'
+      | 'rewarded'
+      | 'buy',
+  ): Promise<void> {
+    if (
+      !this.gameState ||
+      !this.player ||
+      !this.monetizationHudState
+        .canFastReturn
+    ) {
+      return;
+    }
+
+    if (action === 'buy') {
+      await this
+        .handleBuyReturnTickets();
+      return;
+    }
+
+    if (
+      action === 'ticket' &&
+      this.gameState.consumables
+        .returnTickets > 0
+    ) {
+      this.gameState.consumables
+        .returnTickets -= 1;
+      this.teleportHome();
+      return;
+    }
+
+    if (
+      action === 'rewarded'
+    ) {
+      const rewarded =
+        await this.requestRewarded(
+          'return_home',
+        );
+
+      if (rewarded) {
+        trackAnalyticsEvent(
+          'ad_reward_granted',
+          {
+            placement:
+              'return_home',
+            reward:
+              'teleport_home',
+          },
+        );
+        this.teleportHome();
+      }
+    }
+  }
+
+  private teleportHome(): void {
+    if (
+      !this.player ||
+      !this.gameState
+    ) {
+      return;
+    }
+
+    this.enemies?.resetCombat(
+      this.time.now,
+    );
+    this.bosses?.resetCombat(
+      this.time.now,
+    );
+    this.player.teleport(
+      RETURN_POINT.x,
+      RETURN_POINT.y,
+    );
+    this.wasAtReturnPoint =
+      false;
+
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      'Быстрый возврат в поселение',
+    );
+
+    this.saveState();
+    this.emitMonetizationState();
+  }
+
+  private async handleBuyReturnTickets():
+    Promise<void> {
+    if (
+      !this.gameState ||
+      this.monetizationBusy ||
+      !this.purchaseProvider
+        .isAvailable()
+    ) {
+      return;
+    }
+
+    this.monetizationBusy = true;
+    this.emitMonetizationState();
+
+    const result =
+      await this.purchaseProvider
+        .purchase(
+          MONETIZATION_CONFIG
+            .returnTicketProductId,
+        );
+
+    this.monetizationBusy = false;
+
+    if (!result.success) {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Покупка билетов не завершена',
+      );
+      this.emitMonetizationState();
+      return;
+    }
+
+    await this.grantTicketPurchase(
+      result.receipt,
+    );
+  }
+
+  private async grantTicketPurchase(
+    receipt: PurchaseReceipt,
+  ): Promise<void> {
+    if (!this.gameState) {
+      return;
+    }
+
+    const alreadyGranted =
+      this.gameState.monetization
+        .grantedPurchaseTokens
+        .includes(
+          receipt.purchaseToken,
+        );
+
+    if (!alreadyGranted) {
+      this.gameState.consumables
+        .returnTickets +=
+          MONETIZATION_CONFIG
+            .returnTicketPackSize;
+      this.gameState.monetization
+        .grantedPurchaseTokens
+        .push(
+          receipt.purchaseToken,
+        );
+
+      this.saveState();
+      await flushYandexCloudSave();
+
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        `Получено билетов домой: ×${MONETIZATION_CONFIG.returnTicketPackSize}`,
+      );
+    }
+
+    try {
+      await this.purchaseProvider
+        .consume(
+          receipt.purchaseToken,
+        );
+    } catch {
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Билеты начислены · подтверждение покупки будет повторено при следующем запуске',
+      );
+    }
+
+    this.emitMonetizationState();
+  }
+
+  private async reconcilePendingPurchases():
+    Promise<void> {
+    if (
+      !this.gameState ||
+      !this.purchaseProvider
+        .isAvailable()
+    ) {
+      return;
+    }
+
+    const pending =
+      await this.purchaseProvider
+        .getPendingPurchases();
+
+    for (
+      const receipt of
+      pending
+    ) {
+      if (
+        receipt.productId !==
+          MONETIZATION_CONFIG
+            .returnTicketProductId
+      ) {
+        continue;
+      }
+
+      await this.grantTicketPurchase(
+        receipt,
+      );
+    }
   }
 
   private updateSettlement(): void {
@@ -2626,6 +3338,8 @@ export class WorldScene
         .maxHealthLevel,
       this.weaponCombatProfiles,
     );
+
+    this.applyActiveBlessing();
   }
 
   private emitProgressionState(): void {
@@ -3166,8 +3880,18 @@ export class WorldScene
       this,
     );
     this.game.events.off(
-      HUD_CITY_PRODUCTION_BOOST_EVENT,
-      this.handleProductionBoost,
+      HUD_CITY_PRODUCTION_DOUBLE_EVENT,
+      this.handleProductionDouble,
+      this,
+    );
+    this.game.events.off(
+      HUD_RETURN_HOME_EVENT,
+      this.handleReturnHomeAction,
+      this,
+    );
+    this.game.events.off(
+      HUD_BLESSING_EVENT,
+      this.handleBlessingRequest,
       this,
     );
     this.game.events.off(

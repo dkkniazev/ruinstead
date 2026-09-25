@@ -83,6 +83,19 @@ export const HUD_WEAPON_SELECT_EVENT =
   'ruinstead:hud:weapon-select';
 export const HUD_NOTICE_EVENT =
   'ruinstead:hud:notice';
+export const HUD_AUDIO_SETTINGS_CHANGE_EVENT =
+  'ruinstead:hud:audio-settings-change';
+export const HUD_LEVEL_UP_EVENT =
+  'ruinstead:hud:level-up';
+export const HUD_TUTORIAL_EVENT =
+  'ruinstead:hud:tutorial';
+export type LevelUpHudEvent = {
+  level: number;
+  gems: number;
+  masteryAvailable: number;
+  unlockedSlots: number[];
+  rewards: string[];
+};
 export const HUD_GATHERING_STATE_EVENT =
   'ruinstead:hud:gathering-state';
 export const HUD_SETTLEMENT_STATE_EVENT =

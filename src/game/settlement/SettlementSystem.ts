@@ -83,6 +83,7 @@ export class SettlementSystem {
 
   private readonly forgeOverlay:
     Phaser.GameObjects.Image;
+  private readonly forgeArt: Phaser.GameObjects.Image;
   private readonly interactionMarker:
     Phaser.GameObjects.Text;
   private readonly blacksmith:
@@ -127,6 +128,12 @@ export class SettlementSystem {
       .setDepth(
         FORGE_POSITION.y + 86,
       );
+
+    this.forgeArt = scene.add.image(
+      FORGE_POSITION.x,
+      FORGE_POSITION.y - 55,
+      'ruinstead-forge-workshop',
+    ).setDisplaySize(188, 162).setDepth(FORGE_POSITION.y + 87);
 
     this.interactionMarker = scene.add
       .text(
@@ -350,12 +357,16 @@ export class SettlementSystem {
 
   destroy(): void {
     this.forgeOverlay.destroy();
+    this.forgeArt.destroy();
     this.interactionMarker.destroy();
     this.blacksmith.destroy();
     this.blacksmithLabel.destroy();
   }
 
   private syncVisualState(): void {
+    this.forgeArt
+      .setAlpha([0.86, 0.92, 0.97, 1][this.repairStage])
+      .setTint(this.repairStage === 0 ? 0x78877e : 0xffffff);
     this.forgeOverlay
       .setTexture(
         FORGE_STAGE_TEXTURES[

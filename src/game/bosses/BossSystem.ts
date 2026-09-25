@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
 import type {
   DamageEffectiveness,
   DamageProfile,
@@ -89,23 +90,6 @@ type BossDefinition = {
 
 const RESET_REGEN_MS = 5_000;
 
-const REGION_BOSS_SCALING:
-  Record<
-    RegionId,
-    {
-      health: number;
-      damage: number;
-    }
-  > = {
-  1: { health: 1, damage: 1 },
-  2: { health: 1.45, damage: 1.2 },
-  3: { health: 2, damage: 1.45 },
-  4: { health: 2.7, damage: 1.8 },
-  5: { health: 3.5, damage: 2.15 },
-  6: { health: 4.5, damage: 2.55 },
-  7: { health: 5.7, damage: 3.05 },
-  8: { health: 7.2, damage: 3.7 },
-};
 
 const REGION_WEAPON_RARITY_WEIGHTS:
   Record<
@@ -235,15 +219,15 @@ function buildBossDefinitions():
           source.region
         ];
       const regionScaling =
-        REGION_BOSS_SCALING[
+        REGION_COMBAT_BALANCE[
           source.region
         ];
       const baseHealth =
-        900 +
-        index * 240;
+        ENCOUNTER_BASE.bossHealth +
+        index * ENCOUNTER_BASE.bossHealthPerIndex;
       const baseDamage =
-        18 +
-        index * 3;
+        ENCOUNTER_BASE.bossDamage +
+        index * ENCOUNTER_BASE.bossDamagePerIndex;
       const resourceScale =
         source.region;
 
@@ -268,7 +252,7 @@ function buildBossDefinitions():
         maxHealth:
           Math.round(
             baseHealth *
-            regionScaling.health *
+            regionScaling.bossHealth *
             (
               special
                 ? 1.65

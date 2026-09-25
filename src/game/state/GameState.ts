@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 24 as const;
+export const SAVE_SCHEMA_VERSION = 25 as const;
 
 export type BuildingId =
   | 'forge'
@@ -174,6 +174,14 @@ export type GameState = {
   settings: {
     soundEnabled: boolean;
     musicEnabled: boolean;
+    sfxVolume: number;
+    musicVolume: number;
+    muted: boolean;
+  };
+  onboarding: {
+    moved: boolean;
+    dashed: boolean;
+    firstKill: boolean;
   };
 };
 
@@ -326,6 +334,10 @@ export function createDefaultGameState(): GameState {
     settings: {
       soundEnabled: true,
       musicEnabled: true,
+      sfxVolume: 0.65,
+      musicVolume: 0.35,
+      muted: false,
     },
+    onboarding: { moved: false, dashed: false, firstKill: false },
   };
 }

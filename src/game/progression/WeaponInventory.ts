@@ -576,6 +576,20 @@ export function equipWeaponInSlot(
     };
   }
 
+  const familyCount =
+    inventory.loadout.filter(
+      (entry, index) =>
+        index !== safeSlot &&
+        entry?.weaponId === normalized.weaponId,
+    ).length;
+
+  if (familyCount >= 2) {
+    return {
+      success: false,
+      reason: 'Одно семейство оружия занимает не более двух слотов',
+    };
+  }
+
   inventory.loadout[
     safeSlot
   ] = normalized;
@@ -679,8 +693,8 @@ export function normalizeWeaponLoadoutForPlayerLevel(
   inventory.loadout.length =
     MAX_WEAPON_SLOTS;
 
-  const seen =
-    new Set<string>();
+  const seen = new Set<string>();
+  const familyCounts = new Map<WeaponId, number>();
 
   for (
     let index = 0;
@@ -694,7 +708,6 @@ export function normalizeWeaponLoadoutForPlayerLevel(
       ];
 
     if (
-      index >= unlocked ||
       !selection ||
       !hasOwnedLoadoutSelection(
         inventory,
@@ -710,7 +723,10 @@ export function normalizeWeaponLoadoutForPlayerLevel(
     const key =
       `${selection.weaponId}:${selection.rarity}`;
 
-    if (seen.has(key)) {
+    if (
+      seen.has(key) ||
+      (familyCounts.get(selection.weaponId) ?? 0) >= 2
+    ) {
       inventory.loadout[
         index
       ] = null;
@@ -718,6 +734,10 @@ export function normalizeWeaponLoadoutForPlayerLevel(
     }
 
     seen.add(key);
+    familyCounts.set(
+      selection.weaponId,
+      (familyCounts.get(selection.weaponId) ?? 0) + 1,
+    );
   }
 
   if (

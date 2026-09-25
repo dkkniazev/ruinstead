@@ -25,3 +25,30 @@ canvas {
   -webkit-user-select: none;
   -webkit-tap-highlight-color: transparent;
 }
+
+@media (orientation: portrait) and (max-width: 600px) {
+  #app canvas {
+    visibility: hidden;
+  }
+
+  #app::after {
+    content: "↻\A Поверните устройство\A для игры";
+    white-space: pre-line;
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background: radial-gradient(circle at 50% 38%, #3b5943, #17231c 68%);
+    color: #f7e9bd;
+    text-align: center;
+    font-size: clamp(22px, 6vw, 32px);
+    font-weight: 700;
+    line-height: 1.5;
+    z-index: 1000;
+  }
+
+  html[lang="en"] #app::after {
+    content: "↻\A Rotate your device\A to play";
+  }
+}

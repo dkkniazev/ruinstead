@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { gameAudio } from '../audio/GameAudio';
 import type {
   WeaponId,
 } from '../combat/WeaponDefinitions';
@@ -15,6 +16,7 @@ import {
 
 const PLAYER_TEXTURE =
   'ruinstead-player-base-v3';
+const PAINTED_HERO_TEXTURE = 'ruinstead-hero-painted';
 
 const WEAPON_TEXTURES:
   Record<WeaponId, string> = {
@@ -32,6 +34,8 @@ const PLAYER_BASELINE_OFFSET = 46;
 export class PlayerController {
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
+
+  private readonly heroArt: Phaser.GameObjects.Image;
 
   private readonly shadow:
     Phaser.GameObjects.Ellipse;
@@ -111,6 +115,12 @@ export class PlayerController {
         y,
         PLAYER_TEXTURE,
       );
+
+    this.sprite.setVisible(false);
+    this.heroArt = scene.add.image(x, y, PAINTED_HERO_TEXTURE)
+      .setDisplaySize(112, 112)
+      .setDepth(y + PLAYER_BASELINE_OFFSET);
+    this.weaponSprite.setVisible(false);
 
     this.sprite
       .setDepth(
@@ -415,9 +425,7 @@ export class PlayerController {
     this.shadow.setVisible(
       visible,
     );
-    this.weaponSprite.setVisible(
-      visible,
-    );
+    this.heroArt.setVisible(visible);
     this.healthBack.setVisible(
       visible,
     );
@@ -455,6 +463,7 @@ export class PlayerController {
         worldX <
           this.sprite.x,
       );
+      this.heroArt.setFlipX(this.sprite.flipX);
       this.syncWeaponTransform();
     }
   }
@@ -477,6 +486,7 @@ export class PlayerController {
     this.healthFill.destroy();
     this.healthBack.destroy();
     this.weaponSprite.destroy();
+    this.heroArt.destroy();
     this.shadow.destroy();
     this.sprite.destroy();
   }
@@ -498,6 +508,20 @@ export class PlayerController {
       time + DASH_DURATION_MS;
     this.dashCooldownUntil =
       time + this.dashCooldownMs;
+    gameAudio.play('dash');
+    this.scene.game.events.emit('ruinstead:player:dash');
+    for (let i = 0; i < 3; i += 1) {
+      this.scene.time.delayedCall(i * 48, () => {
+        if (!this.sprite.active) return;
+        const ghost = this.scene.add.image(this.sprite.x, this.sprite.y, PAINTED_HERO_TEXTURE)
+          .setDisplaySize(112, 112)
+          .setTint(0x8cd8cb).setAlpha(0.3 - i * 0.06)
+          .setDepth(this.sprite.depth - 1);
+        ghost.setFlipX(this.sprite.flipX);
+        this.scene.tweens.add({ targets: ghost, alpha: 0, scale: 0.82, duration: 210,
+          onComplete: () => ghost.destroy() });
+      });
+    }
 
     this.scene.cameras.main.shake(
       55,
@@ -546,6 +570,7 @@ export class PlayerController {
       this.sprite.setTintFill(
         0xff7070,
       );
+      this.heroArt.setTintFill(0xff7070);
       return;
     }
 
@@ -556,6 +581,7 @@ export class PlayerController {
       this.sprite.setTint(
         0xfff0a8,
       );
+      this.heroArt.setTint(0xfff0a8);
       return;
     }
 
@@ -565,20 +591,31 @@ export class PlayerController {
       this.sprite.setTint(
         this.cosmeticTint,
       );
+      this.heroArt.setTint(this.cosmeticTint);
       return;
     }
 
     this.sprite.clearTint();
+    this.heroArt.clearTint();
   }
 
   private syncVisualDepth(): void {
     const baseline =
       this.sprite.y +
       PLAYER_BASELINE_OFFSET;
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+    const moving = body.velocity.lengthSq() > 100;
+    const motion = this.scene.time.now * (moving ? 0.016 : 0.0045);
+    const bob = Math.sin(motion) * (moving ? 2.4 : 1.1);
 
     this.sprite.setDepth(
       baseline,
     );
+    this.heroArt
+      .setPosition(this.sprite.x, this.sprite.y - bob)
+      .setFlipX(this.sprite.flipX)
+      .setAngle(Math.sin(motion) * (moving ? 2.5 : 0.8))
+      .setDepth(baseline);
 
     this.shadow
       .setPosition(

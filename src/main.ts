@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
+import { gameAudio } from './game/audio/GameAudio';
 import './styles.css';
 import { gameConfig } from './game/config';
 import {
   syncGameViewport,
 } from './game/layout/Viewport';
 import {
+  getLanguage,
   initializeLanguageFromBrowser,
   setLanguageFromCode,
 } from './i18n/I18n';
@@ -38,6 +40,7 @@ async function bootstrap(): Promise<void> {
   } else {
     initializeLanguageFromBrowser();
   }
+  document.documentElement.lang = getLanguage();
 
   await initializeYandexPlatform();
 
@@ -56,9 +59,11 @@ async function bootstrap(): Promise<void> {
       if (paused) {
         game.loop.sleep();
         game.sound.mute = true;
+        gameAudio.setPaused(true);
       } else {
         game.loop.wake();
         game.sound.mute = false;
+        gameAudio.setPaused(false);
       }
     };
 

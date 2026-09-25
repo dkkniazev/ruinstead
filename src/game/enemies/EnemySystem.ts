@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
 import type {
   DamageEffectiveness,
   DamageProfile,
@@ -71,8 +72,8 @@ type HabitatDefinition = {
   >;
 };
 
-const ELITE_HEALTH_MULTIPLIER = 2.4;
-const ELITE_DAMAGE_MULTIPLIER = 1.45;
+const ELITE_HEALTH_MULTIPLIER = ENCOUNTER_BASE.eliteHealth;
+const ELITE_DAMAGE_MULTIPLIER = ENCOUNTER_BASE.eliteDamage;
 const ELITE_DROP_MULTIPLIER = 4;
 const NORMAL_RESPAWN_MS = 30_000;
 const ELITE_RESPAWN_MS = 120_000;
@@ -80,23 +81,6 @@ const RESET_REGEN_MS = 5_000;
 const AGGRO_RETENTION_MULTIPLIER = 2.4;
 const MIN_AGGRO_RETENTION_RANGE = 300;
 
-const REGION_ENEMY_SCALING:
-  Record<
-    RegionId,
-    {
-      health: number;
-      damage: number;
-    }
-  > = {
-  1: { health: 1, damage: 1 },
-  2: { health: 1.35, damage: 1.2 },
-  3: { health: 1.8, damage: 1.45 },
-  4: { health: 2.45, damage: 1.8 },
-  5: { health: 3.2, damage: 2.15 },
-  6: { health: 4.1, damage: 2.55 },
-  7: { health: 5.25, damage: 3.05 },
-  8: { health: 6.7, damage: 3.7 },
-};
 
 const LEGACY_TEXTURES:
   Partial<
@@ -233,15 +217,15 @@ function buildDefinitions():
         species.archetype,
       );
     const regionScaling =
-      REGION_ENEMY_SCALING[
+      REGION_COMBAT_BALANCE[
         species.region
       ];
     const baseHealth =
-      92 +
-      index * 14;
+      ENCOUNTER_BASE.enemyHealth +
+      index * ENCOUNTER_BASE.enemyHealthPerSpecies;
     const baseDamage =
-      9 +
-      index * 1.5;
+      ENCOUNTER_BASE.enemyDamage +
+      index * ENCOUNTER_BASE.enemyDamagePerSpecies;
     const textures =
       LEGACY_TEXTURES[
         species.id
@@ -264,7 +248,7 @@ function buildDefinitions():
       maxHealth:
         Math.round(
           baseHealth *
-          regionScaling.health *
+          regionScaling.enemyHealth *
           profile.health,
         ),
       moveSpeed:
@@ -595,6 +579,7 @@ export class EnemyUnit {
 
   private readonly shadow:
     Phaser.GameObjects.Ellipse;
+  private readonly paintedArt?: Phaser.GameObjects.Image;
   private readonly aura?:
     Phaser.GameObjects.Arc;
   private readonly healthBack:
@@ -683,6 +668,13 @@ export class EnemyUnit {
               .eliteTexture
           : this.definition.texture,
       ) as Phaser.Physics.Arcade.Sprite;
+
+    if (spawn.species === 'goblin') {
+      this.sprite.setVisible(false);
+      this.paintedArt = scene.add.image(spawn.x, spawn.y, 'ruinstead-goblin-painted')
+        .setDisplaySize(elite ? 112 : 92, elite ? 112 : 92);
+      if (elite) this.paintedArt.setTint(0xf5d98f);
+    }
 
     if (elite) {
       this.sprite.setScale(1.22);
@@ -1071,12 +1063,15 @@ export class EnemyUnit {
     this.sprite.setTintFill(
       0xffffff,
     );
+    this.paintedArt?.setTintFill(0xffffff);
 
     this.scene.time.delayedCall(
       65,
       () => {
         if (this._alive) {
           this.sprite.clearTint();
+          this.paintedArt?.clearTint();
+          if (this.rank === 'elite') this.paintedArt?.setTint(0xf5d98f);
         }
       },
     );
@@ -1108,6 +1103,7 @@ export class EnemyUnit {
   destroy(): void {
     this.aura?.destroy();
     this.shadow.destroy();
+    this.paintedArt?.destroy();
     this.healthBack.destroy();
     this.healthFill.destroy();
     this.sprite.destroy();
@@ -1272,6 +1268,16 @@ export class EnemyUnit {
       duration: 230,
       ease: 'Back.In',
     });
+    if (this.paintedArt) {
+      this.scene.tweens.add({
+        targets: this.paintedArt,
+        alpha: 0,
+        scaleX: this.paintedArt.scaleX * 0.72,
+        scaleY: this.paintedArt.scaleY * 0.72,
+        duration: 230,
+        ease: 'Back.In',
+      });
+    }
   }
 
   private respawn(): void {
@@ -1303,6 +1309,9 @@ export class EnemyUnit {
         elite ? 1.22 : 1,
       )
       .clearTint()
+      .setVisible(!this.paintedArt);
+    this.paintedArt?.setAlpha(1)
+      .setDisplaySize(elite ? 112 : 92, elite ? 112 : 92)
       .setVisible(true);
 
     this.shadow
@@ -1420,6 +1429,10 @@ export class EnemyUnit {
     this.sprite.setDepth(
       baseline,
     );
+    this.paintedArt
+      ?.setPosition(this.sprite.x, this.sprite.y)
+      .setFlipX(this.sprite.flipX)
+      .setDepth(baseline);
 
     this.shadow
       .setPosition(

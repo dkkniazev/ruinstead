@@ -141,6 +141,7 @@ const BUILDING_COSTS:
 
 type VisualBundle = {
   pad: Phaser.GameObjects.Rectangle;
+  art?: Phaser.GameObjects.Image;
   label: Phaser.GameObjects.Text;
   npc: Phaser.GameObjects.Arc;
   npcLabel: Phaser.GameObjects.Text;
@@ -473,6 +474,7 @@ export class CityBuilderSystem {
       this.visuals.values()
     ) {
       visual.pad.destroy();
+      visual.art?.destroy();
       visual.label.destroy();
       visual.npc.destroy();
       visual.npcLabel.destroy();
@@ -715,7 +717,18 @@ export class CityBuilderSystem {
           0xe7d6a4,
           0.48,
         )
-        .setDepth(y + 20);
+        .setDepth(y - 5);
+
+    const artTexture = id === 'storage' || id === 'house'
+      ? 'ruinstead-forest-hut'
+      : id === 'workshop'
+        ? 'ruinstead-forge-workshop'
+        : null;
+    const art = artTexture
+      ? this.scene.add.image(x, y - 42, artTexture)
+        .setDisplaySize(id === 'workshop' ? 170 : 145, id === 'workshop' ? 145 : 135)
+        .setDepth(y + 25)
+      : undefined;
 
     const label =
       this.scene.add
@@ -785,6 +798,7 @@ export class CityBuilderSystem {
       id,
       {
         pad,
+        art,
         label,
         npc,
         npcLabel,
@@ -838,6 +852,10 @@ export class CityBuilderSystem {
             : 0xb8ad8b,
           active ? 0.82 : 0.45,
         );
+
+      visual.art
+        ?.setAlpha(active ? 1 : 0.88)
+        .setTint(active ? this.themeTint : 0x79877f);
 
       visual.label.setText(
         active

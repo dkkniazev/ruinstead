@@ -746,7 +746,7 @@ export class CombatSystem {
     );
     this.player.flashDamage();
 
-    this.audio.playHit();
+    this.audio.playDamage();
     this.showPlayerDamage(
       amount,
     );

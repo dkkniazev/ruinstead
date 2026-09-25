@@ -66,6 +66,12 @@ function booleanValue(value: unknown, fallback: boolean): boolean {
   return typeof value === 'boolean' ? value : fallback;
 }
 
+function volumeValue(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.max(0, Math.min(1, value))
+    : fallback;
+}
+
 function stringValue(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.length > 0
     ? value
@@ -395,6 +401,7 @@ export function sanitizeGameState(value: unknown): GameState {
   const bestiary =
     asRecord(root?.bestiary);
   const settings = asRecord(root?.settings);
+  const onboarding = asRecord(root?.onboarding);
 
   const playerPosition =
     asRecord(
@@ -1138,6 +1145,20 @@ export function sanitizeGameState(value: unknown): GameState {
         settings?.musicEnabled,
         defaults.settings.musicEnabled,
       ),
+      sfxVolume: volumeValue(
+        settings?.sfxVolume,
+        settings?.soundEnabled === false ? 0 : defaults.settings.sfxVolume,
+      ),
+      musicVolume: volumeValue(
+        settings?.musicVolume,
+        settings?.musicEnabled === false ? 0 : defaults.settings.musicVolume,
+      ),
+      muted: booleanValue(settings?.muted, defaults.settings.muted),
+    },
+    onboarding: {
+      moved: booleanValue(onboarding?.moved, defaults.onboarding.moved),
+      dashed: booleanValue(onboarding?.dashed, defaults.onboarding.dashed),
+      firstKill: booleanValue(onboarding?.firstKill, defaults.onboarding.firstKill),
     },
   };
 }

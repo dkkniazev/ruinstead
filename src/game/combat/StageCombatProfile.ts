@@ -20,6 +20,12 @@ export type StageCombatProfile = {
   startingWeaponId: WeaponId;
 };
 
+export const DAMAGE_EFFECTIVENESS = {
+  weakness: 2,
+  resistance: 0.5,
+  neutral: 1,
+} as const;
+
 export const STAGE_ONE_COMBAT_PROFILE:
   StageCombatProfile = {
   id: 'stage-1',
@@ -45,7 +51,7 @@ export function getStageDamageProfile(
     profile.weaknessWeaponId
   ) {
     return {
-      multiplier: 2,
+      multiplier: DAMAGE_EFFECTIVENESS.weakness,
       effectiveness: 'weakness',
     };
   }
@@ -55,13 +61,13 @@ export function getStageDamageProfile(
     profile.resistanceWeaponId
   ) {
     return {
-      multiplier: 0.5,
+      multiplier: DAMAGE_EFFECTIVENESS.resistance,
       effectiveness: 'resistance',
     };
   }
 
   return {
-    multiplier: 1,
+    multiplier: DAMAGE_EFFECTIVENESS.neutral,
     effectiveness: 'neutral',
   };
 }

@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { gameAudio, type AudioSettings } from '../game/audio/GameAudio';
+import { getLanguage } from '../i18n/I18n';
 import {
   BestiarySystem,
   type BestiaryEntryKind,
@@ -169,6 +171,9 @@ import {
   HUD_WEAPON_SLOT_CLEAR_EVENT,
   HUD_WEAPON_SLOT_PRIMARY_EVENT,
   HUD_WEAPON_SELECT_EVENT,
+  HUD_AUDIO_SETTINGS_CHANGE_EVENT,
+  HUD_LEVEL_UP_EVENT,
+  HUD_TUTORIAL_EVENT,
   type BlessingKind,
   type CharacterHudState,
   type GatheringHudState,
@@ -302,6 +307,7 @@ export class WorldScene
   private debugOverlay?:
     DebugOverlay;
   private lastAreaName = '';
+  private onboardingOrigin?: Phaser.Math.Vector2;
   private wasAtReturnPoint = false;
   private bridgeRepairKey?:
     Phaser.Input.Keyboard.Key;
@@ -322,6 +328,9 @@ export class WorldScene
       this.stateStore.save(
         this.gameState,
       );
+    gameAudio.configure(this.gameState.settings);
+    this.input.once(Phaser.Input.Events.POINTER_DOWN, () => gameAudio.unlock());
+    this.input.keyboard?.once('keydown', () => gameAudio.unlock());
 
     this.bestiarySystem =
       new BestiarySystem(
@@ -462,6 +471,8 @@ export class WorldScene
         this.gameState.player
           .dashLevel,
       );
+    this.onboardingOrigin = new Phaser.Math.Vector2(startX, startY);
+    this.game.events.on('ruinstead:player:dash', this.handleTutorialDash, this);
 
     this.petCompanion =
       new PetCompanion(
@@ -866,6 +877,7 @@ export class WorldScene
       this.handlePet,
       this,
     );
+    this.game.events.on(HUD_AUDIO_SETTINGS_CHANGE_EVENT, this.handleAudioSettingsChange, this);
 
     this.lastAreaName =
       getAreaName(
@@ -920,10 +932,18 @@ export class WorldScene
           this.lastAreaName,
       },
     );
+    if (!this.gameState.onboarding.moved) {
+      this.time.delayedCall(500, () => this.showTutorial(
+        getLanguage() === 'en'
+          ? 'Move with WASD or the joystick. Your hero attacks nearby enemies automatically.'
+          : 'Двигайтесь WASD или стиком. Герой атакует ближайших врагов сам.',
+      ));
+    }
 
-    this.debugOverlay =
-      new DebugOverlay(this);
-    this.debugOverlay.create();
+    if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('debug') === '1') {
+      this.debugOverlay = new DebugOverlay(this);
+      this.debugOverlay.create();
+    }
 
     this.scale.on(
       Phaser.Scale.Events.RESIZE,
@@ -948,6 +968,7 @@ export class WorldScene
     delta: number,
   ): void {
     this.player?.update(time);
+    this.updateOnboarding();
     this.petCompanion
       ?.update(delta);
 
@@ -1813,6 +1834,13 @@ export class WorldScene
     if (!this.bestiarySystem) {
       return;
     }
+    if (this.gameState && !this.gameState.onboarding.firstKill) {
+      this.gameState.onboarding.firstKill = true;
+      this.showTutorial(getLanguage() === 'en'
+        ? 'Check the Bestiary: weakness doubles damage, resistance halves it. Follow quests on the left.'
+        : 'Откройте Бестиарий: слабость удваивает урон, сопротивление снижает его вдвое. Следите за заданиями слева.');
+      this.saveState();
+    }
 
     const result =
       this.bestiarySystem
@@ -1969,6 +1997,7 @@ export class WorldScene
       );
 
     if (accepted > 0) {
+      gameAudio.play('pickup');
       this.handleBackpackChanged();
     }
 
@@ -2080,6 +2109,7 @@ export class WorldScene
   }
 
   private handlePlayerDefeated(): void {
+    gameAudio.play('defeat');
     if (
       !this.combat ||
       !this.gameState
@@ -2341,6 +2371,7 @@ export class WorldScene
   private handleBossDefeated(
     event: BossDefeatEvent,
   ): void {
+    gameAudio.play('victory');
     if (!this.gameState) {
       return;
     }
@@ -2626,6 +2657,7 @@ export class WorldScene
   private handleChestOpened(
     rewards: ResourceCounts,
   ): void {
+    gameAudio.play('chest');
     this.grantPlayerXp(
       PLAYER_LEVEL_CONFIG
         .xpRewards.chest,
@@ -4054,6 +4086,8 @@ export class WorldScene
       );
 
     if (result.levelsGained > 0) {
+      gameAudio.play('level');
+      const previousLevel = this.gameState.progression.playerLevel - result.levelsGained;
       normalizeWeaponLoadoutForPlayerLevel(
         this.gameState.player
           .weaponInventory,
@@ -4071,17 +4105,13 @@ export class WorldScene
       this.applyProgression();
       this.emitCharacterState();
 
-      const notices = [
-        `Уровень героя: Lv.${this.gameState.progression.playerLevel} · +${result.gemsGained} самоцветов`,
-        ...result
-          .milestoneMessages,
-        ...passNotices,
-      ];
-
-      this.game.events.emit(
-        HUD_NOTICE_EVENT,
-        notices.join(' · '),
-      );
+      this.game.events.emit(HUD_LEVEL_UP_EVENT, {
+        level: this.gameState.progression.playerLevel,
+        gems: result.gemsGained,
+        masteryAvailable: getAvailableMasteryPoints(this.gameState),
+        unlockedSlots: [5, 10, 15, 20].filter((level) => level > previousLevel && level <= this.gameState!.progression.playerLevel),
+        rewards: [...result.milestoneMessages, ...passNotices],
+      });
 
       trackAnalyticsEvent(
         'player_level_up',
@@ -5500,11 +5530,50 @@ export class WorldScene
 
     this.lastAreaName =
       areaName;
+    gameAudio.setRegion(getRegionAt(this.player.position)?.id ?? 1);
 
     this.game.events.emit(
       HUD_AREA_EVENT,
       areaName,
     );
+  }
+
+  private handleAudioSettingsChange(settings: AudioSettings): void {
+    if (!this.gameState) return;
+    gameAudio.configure(settings);
+    this.gameState.settings = {
+      ...this.gameState.settings,
+      ...gameAudio.settings,
+      soundEnabled: gameAudio.settings.sfxVolume > 0,
+      musicEnabled: gameAudio.settings.musicVolume > 0,
+    };
+    this.saveState();
+  }
+
+  private showTutorial(message: string): void {
+    this.game.events.emit(HUD_TUTORIAL_EVENT, message);
+  }
+
+  private updateOnboarding(): void {
+    if (!this.gameState || !this.player || !this.onboardingOrigin || this.gameState.onboarding.moved) return;
+    if (Phaser.Math.Distance.Between(
+      this.player.position.x, this.player.position.y,
+      this.onboardingOrigin.x, this.onboardingOrigin.y,
+    ) < 130) return;
+    this.gameState.onboarding.moved = true;
+    this.showTutorial(getLanguage() === 'en'
+      ? 'Use dash to evade danger. Open Character on the right: weapon slots unlock at levels 5, 10, 15 and 20.'
+      : 'Уклоняйтесь рывком. В меню героя справа слоты оружия открываются на уровнях 5, 10, 15 и 20.');
+    this.saveState();
+  }
+
+  private handleTutorialDash(): void {
+    if (!this.gameState || this.gameState.onboarding.dashed) return;
+    this.gameState.onboarding.dashed = true;
+    this.showTutorial(getLanguage() === 'en'
+      ? 'Explore the next region, grow stronger and restore the settlement.'
+      : 'Исследуйте новые регионы, усиливайте героя и восстанавливайте поселение.');
+    this.saveState();
   }
 
   private saveState(): void {
@@ -5564,6 +5633,7 @@ export class WorldScene
   }
 
   private cleanup(): void {
+    this.game.events.off('ruinstead:player:dash', this.handleTutorialDash, this);
     this.scale.off(
       Phaser.Scale.Events.RESIZE,
       this.handleResize,
@@ -5700,6 +5770,7 @@ export class WorldScene
       this.handlePet,
       this,
     );
+    this.game.events.off(HUD_AUDIO_SETTINGS_CHANGE_EVENT, this.handleAudioSettingsChange, this);
 
     this.scene.stop(
       'HudScene',

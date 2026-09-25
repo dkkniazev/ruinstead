@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
+import { gameAudio, type AudioSettings } from '../game/audio/GameAudio';
+import { getLanguage } from '../i18n/I18n';
 import {
   LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
   configureLogicalCamera,
+  getBrowserLogicalViewport,
 } from '../game/layout/Viewport';
 import type {
   CombatState,
@@ -37,6 +40,9 @@ import {
   HUD_SETTLEMENT_THEME_EVENT,
   HUD_PET_EVENT,
   HUD_NOTICE_EVENT,
+  HUD_AUDIO_SETTINGS_CHANGE_EVENT,
+  HUD_LEVEL_UP_EVENT,
+  HUD_TUTORIAL_EVENT,
   HUD_SETTLEMENT_STATE_EVENT,
   HUD_FORGE_REPAIR_EVENT,
   HUD_PLAYER_UPGRADE_EVENT,
@@ -55,6 +61,7 @@ import {
   type MonetizationHudState,
   type PlayerProgressHudState,
   type PremiumHudState,
+  type LevelUpHudEvent,
   type SupplyResourceType,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
@@ -409,6 +416,7 @@ export class HudScene
       >
     > = {};
   private bestiaryScrollIndex = 0;
+  private bestiaryTouchStartY: number | null = null;
   private bestiaryVisibleButtons:
     Phaser.GameObjects.Text[] = [];
   private bestiaryPageText?:
@@ -433,6 +441,10 @@ export class HudScene
     Phaser.GameObjects.Image;
   private potionCountText?:
     Phaser.GameObjects.Text;
+  private readonly bottomHudObjects: Array<{
+    node: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Text;
+    baseY: number;
+  }> = [];
   private potionCooldownUntil = 0;
   private potionCooldownMs = 8000;
   private potionLastKnownCount = 0;
@@ -440,6 +452,10 @@ export class HudScene
     Phaser.GameObjects.Text;
   private noticeText?:
     Phaser.GameObjects.Text;
+  private tutorialText?: Phaser.GameObjects.Text;
+  private levelUpCard?: Phaser.GameObjects.Container;
+  private levelUpText?: Phaser.GameObjects.Text;
+  private audioButtons: Phaser.GameObjects.Text[] = [];
   private backpackFill?:
     Phaser.GameObjects.Rectangle;
   private backpackText?:
@@ -576,7 +592,12 @@ export class HudScene
     this.createProgressionUi();
     this.createPremiumUi();
     this.createNoticeLayer();
+    this.createTutorialBanner();
+    this.createLevelUpCard();
+    this.createAudioSettingsUi();
     this.createMonetizationUi();
+    this.updateCompactModalScale();
+    this.updateCompactBottomHud();
 
     this.game.events.on(
       HUD_COMBAT_STATE_EVENT,
@@ -648,6 +669,10 @@ export class HudScene
       this.handleNotice,
       this,
     );
+    this.game.events.on(HUD_LEVEL_UP_EVENT, this.handleLevelUp, this);
+    this.game.events.on(HUD_TUTORIAL_EVENT, this.handleTutorial, this);
+    this.input.once(Phaser.Input.Events.POINTER_DOWN, () => gameAudio.unlock());
+    this.input.on(Phaser.Input.Events.GAMEOBJECT_DOWN, () => gameAudio.play('ui'));
 
     this.scale.on(
       Phaser.Scale.Events.RESIZE,
@@ -953,7 +978,7 @@ export class HudScene
     const panelWidth =
       spacing * 5 + 30;
 
-    this.add
+    const hotbarBack = this.add
       .rectangle(
         centerX,
         y,
@@ -968,6 +993,7 @@ export class HudScene
         0.58,
       )
       .setDepth(100);
+    this.trackBottomHud(hotbarBack);
 
     for (
       let slot = 0;
@@ -1034,7 +1060,7 @@ export class HudScene
           .setOrigin(0.5)
           .setDepth(104);
 
-      this.add
+      const slotNumber = this.add
         .text(
           x - 25,
           y - 28,
@@ -1051,6 +1077,7 @@ export class HudScene
         )
         .setOrigin(0.5)
         .setDepth(104);
+      this.trackBottomHud(slotNumber);
 
       button.on(
         Phaser.Input.Events.POINTER_DOWN,
@@ -1065,6 +1092,9 @@ export class HudScene
       this.weaponSlotButtons.push(
         button,
       );
+      this.trackBottomHud(button);
+      this.trackBottomHud(icon);
+      this.trackBottomHud(label);
       this.weaponSlotIcons.push(
         icon,
       );
@@ -1358,7 +1388,7 @@ export class HudScene
         .setOrigin(1, 1)
         .setDepth(104);
 
-    this.add
+    const potionKey = this.add
       .text(
         x - 22,
         y - 23,
@@ -1387,6 +1417,11 @@ export class HudScene
         );
       },
     );
+    this.trackBottomHud(this.potionButton);
+    this.trackBottomHud(this.potionIcon);
+    this.trackBottomHud(this.potionReadyIcon);
+    this.trackBottomHud(this.potionCountText);
+    this.trackBottomHud(potionKey);
   }
 
   private createSettlementUi(): void {
@@ -2435,6 +2470,8 @@ export class HudScene
       this.handleBestiaryWheel,
       this,
     );
+    this.input.on(Phaser.Input.Events.POINTER_DOWN, this.handleBestiaryTouchStart, this);
+    this.input.on(Phaser.Input.Events.POINTER_UP, this.handleBestiaryTouchEnd, this);
   }
 
   private scrollBestiary(
@@ -2483,6 +2520,22 @@ export class HudScene
         ? 3
         : -3,
     );
+  }
+
+  private handleBestiaryTouchStart(pointer: Phaser.Input.Pointer): void {
+    if (!this.bestiaryPanelOpen) return;
+    const point = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    this.bestiaryTouchStartY = point.x >= 210 && point.x <= 525 && point.y >= 75 && point.y <= 625
+      ? point.y
+      : null;
+  }
+
+  private handleBestiaryTouchEnd(pointer: Phaser.Input.Pointer): void {
+    if (this.bestiaryTouchStartY === null) return;
+    const point = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const delta = this.bestiaryTouchStartY - point.y;
+    this.bestiaryTouchStartY = null;
+    if (Math.abs(delta) >= 24) this.scrollBestiary(Math.round(delta / 28));
   }
 
   private createCityBuilderUi(): void {
@@ -3010,6 +3063,122 @@ export class HudScene
         .setAlpha(0);
   }
 
+  private createLevelUpCard(): void {
+    const panel = this.add.container(LOGICAL_WIDTH / 2, 176);
+    const shadow = this.add.rectangle(5, 7, 470, 172, 0x080f13, 0.52);
+    const back = this.add.rectangle(0, 0, 470, 172, 0x193632, 0.97)
+      .setStrokeStyle(3, 0xf0ce77, 0.95);
+    const crest = this.add.circle(-190, -30, 44, 0x82613c, 1)
+      .setStrokeStyle(3, 0xffdc86, 0.9);
+    const star = this.add.text(-190, -30, '✦', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '48px', color: '#ffeba2',
+    }).setOrigin(0.5);
+    this.levelUpText = this.add.text(-122, -71, '', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '17px', fontStyle: 'bold',
+      color: '#fff1c3', lineSpacing: 6, wordWrap: { width: 320 },
+    });
+    panel.add([shadow, back, crest, star, this.levelUpText]);
+    panel.setDepth(205).setVisible(false);
+    this.levelUpCard = panel;
+  }
+
+  private createTutorialBanner(): void {
+    this.tutorialText = this.add.text(LOGICAL_WIDTH / 2, 555, '', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '16px', fontStyle: 'bold',
+      color: '#fff0c3', backgroundColor: '#203b39ee',
+      padding: { x: 16, y: 11 }, fixedWidth: 540,
+      align: 'center', wordWrap: { width: 508 },
+    }).setOrigin(0.5).setDepth(175).setAlpha(0);
+  }
+
+  private handleTutorial(message: string): void {
+    const text = this.tutorialText;
+    if (!text) return;
+    this.tweens.killTweensOf(text);
+    text.setText(message).setAlpha(0).setY(565);
+    this.tweens.add({ targets: text, alpha: 1, y: 555, duration: 180 });
+    this.time.delayedCall(5800, () => {
+      if (!text.active || text.text !== message) return;
+      this.tweens.add({ targets: text, alpha: 0, y: 547, duration: 260 });
+    });
+  }
+
+  private handleLevelUp(event: LevelUpHudEvent): void {
+    const card = this.levelUpCard;
+    if (!card || !this.levelUpText) return;
+    const english = getLanguage() === 'en';
+    const lines = [
+      english ? `LEVEL ${event.level}` : `УРОВЕНЬ ${event.level}`,
+      english ? `+${event.gems} gems · Health and potions restored` : `+${event.gems} самоцветов · HP и зелья восстановлены`,
+    ];
+    if (event.masteryAvailable > 0) lines.push(english ? `Mastery points: ${event.masteryAvailable}` : `Очков мастерства: ${event.masteryAvailable}`);
+    for (const level of event.unlockedSlots) lines.push(english ? `Weapon slot ${level / 5 + 1} unlocked` : `Открыт слот оружия ${level / 5 + 1}`);
+    lines.push(...event.rewards.slice(0, 2));
+    this.levelUpText.setText(lines.join('\n'));
+    this.tweens.killTweensOf(card);
+    card.setVisible(true).setAlpha(0).setScale(0.82).setY(190);
+    this.tweens.add({ targets: card, alpha: 1, scale: 1, y: 176, duration: 240, ease: 'Back.Out' });
+    this.time.delayedCall(3900, () => {
+      if (!card.active) return;
+      this.tweens.add({ targets: card, alpha: 0, y: 156, duration: 260, onComplete: () => card.setVisible(false) });
+    });
+  }
+
+  private createAudioSettingsUi(): void {
+    const english = getLanguage() === 'en';
+    const open = this.add.text(LOGICAL_WIDTH - 26, 244, english ? '⚙ · Audio' : '⚙ · Звук', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '13px', fontStyle: 'bold',
+      color: '#fff2c0', backgroundColor: '#304c35ee',
+      padding: { x: 12, y: 8 }, fixedWidth: 160, align: 'center',
+    }).setOrigin(1, 0).setDepth(110).setInteractive({ useHandCursor: true });
+
+    const panel = this.add.container(LOGICAL_WIDTH - 204, 376);
+    const bg = this.add.rectangle(0, 0, 360, 194, 0x1b3331, 0.98)
+      .setStrokeStyle(3, 0xddc77c, 0.9);
+    const title = this.add.text(-158, -85, english ? 'AUDIO' : 'ЗВУК', {
+      fontFamily: 'system-ui, sans-serif', fontSize: '20px', fontStyle: 'bold', color: '#ffdf93',
+    });
+    panel.add([bg, title]);
+    const makeButton = (y: number, action: () => void): void => {
+      const button = this.add.text(-155, y, '', {
+        fontFamily: 'system-ui, sans-serif', fontSize: '15px', color: '#f9efd8',
+        backgroundColor: '#3a5853', padding: { x: 12, y: 9 },
+        fixedWidth: 310, align: 'center',
+      }).setInteractive({ useHandCursor: true });
+      button.on(Phaser.Input.Events.POINTER_DOWN, action);
+      this.audioButtons.push(button);
+      panel.add(button);
+    };
+    makeButton(-48, () => this.changeAudioSettings({ muted: !gameAudio.settings.muted }));
+    makeButton(-2, () => this.changeAudioSettings({ musicVolume: this.nextVolume(gameAudio.settings.musicVolume) }));
+    makeButton(44, () => this.changeAudioSettings({ sfxVolume: this.nextVolume(gameAudio.settings.sfxVolume) }));
+    panel.setDepth(190).setVisible(false);
+    open.on(Phaser.Input.Events.POINTER_DOWN, () => {
+      panel.setVisible(!panel.visible);
+      this.renderAudioSettings();
+    });
+    this.renderAudioSettings();
+  }
+
+  private nextVolume(value: number): number {
+    return value >= 0.95 ? 0 : Math.round((value + 0.2) * 10) / 10;
+  }
+
+  private changeAudioSettings(change: Partial<AudioSettings>): void {
+    gameAudio.configure({ ...gameAudio.settings, ...change });
+    this.game.events.emit(HUD_AUDIO_SETTINGS_CHANGE_EVENT, gameAudio.settings);
+    this.renderAudioSettings();
+    gameAudio.play('ui');
+  }
+
+  private renderAudioSettings(): void {
+    const english = getLanguage() === 'en';
+    const settings = gameAudio.settings;
+    this.audioButtons[0]?.setText(english ? `Mute: ${settings.muted ? 'on' : 'off'}` : `Без звука: ${settings.muted ? 'да' : 'нет'}`);
+    this.audioButtons[1]?.setText(english ? `Music: ${Math.round(settings.musicVolume * 100)}%` : `Музыка: ${Math.round(settings.musicVolume * 100)}%`);
+    this.audioButtons[2]?.setText(english ? `Effects: ${Math.round(settings.sfxVolume * 100)}%` : `Эффекты: ${Math.round(settings.sfxVolume * 100)}%`);
+  }
+
   private handleHealthPotionKey(): void {
     this.game.events.emit(
       HUD_HEALTH_POTION_EVENT,
@@ -3207,6 +3376,9 @@ export class HudScene
           0.92,
         );
 
+    const heroPortrait = this.add.image(403, -285, 'ruinstead-hero-painted')
+      .setDisplaySize(96, 102);
+
     const title =
       this.add
         .text(
@@ -3266,7 +3438,7 @@ export class HudScene
               'system-ui, sans-serif',
             fontSize: '14px',
             color: '#e8f4e0',
-            fixedWidth: 940,
+            fixedWidth: 790,
           },
         );
 
@@ -3931,6 +4103,7 @@ export class HudScene
 
     panel.add([
       bg,
+      heroPortrait,
       title,
       close,
       this.profileProgressText,
@@ -6673,7 +6846,7 @@ export class HudScene
           button
             .setVisible(true)
             .setText(
-              `${entry.claimableLevel ? '◆ ' : entry.mastery ? '★ ' : ''}${entry.name}   Lv.${entry.level}`,
+              `${entry.claimableLevel ? '◆ ' : entry.mastery ? '★ ' : ''}${entry.name.length > 22 ? `${entry.name.slice(0, 21)}…` : entry.name}   Lv.${entry.level}`,
             )
             .setStyle({
               backgroundColor:
@@ -6722,9 +6895,7 @@ export class HudScene
     }
 
     this.bestiaryNameText?.setText(
-      entry.mastery
-        ? `★ ${entry.name}`
-        : entry.name,
+      `${entry.mastery ? '★ ' : ''}${entry.name.length > 34 ? `${entry.name.slice(0, 33)}…` : entry.name}`,
     );
     this.bestiaryLevelText?.setText(
       `Lv.${entry.level} / 5`,
@@ -7411,9 +7582,40 @@ export class HudScene
 
   private handleResize(): void {
     configureLogicalCamera(this);
+    this.updateCompactModalScale();
+    this.updateCompactBottomHud();
+  }
+
+  private trackBottomHud(
+    node: Phaser.GameObjects.Rectangle | Phaser.GameObjects.Image | Phaser.GameObjects.Text,
+  ): void {
+    this.bottomHudObjects.push({ node, baseY: node.y });
+  }
+
+  private updateCompactBottomHud(): void {
+    const offset = getBrowserLogicalViewport().compactLandscape ? 32 : 0;
+    for (const { node, baseY } of this.bottomHudObjects) {
+      node.setY(baseY - offset);
+    }
+  }
+
+  private updateCompactModalScale(): void {
+    const scale = getBrowserLogicalViewport().compactLandscape ? 0.88 : 1;
+    for (const panel of [
+      this.forgePanel,
+      this.bestiaryPanel,
+      this.cityPanel,
+      this.profilePanel,
+      this.premiumPanel,
+      this.monetizationPanel,
+    ]) {
+      panel?.setScale(scale);
+    }
   }
 
   private cleanup(): void {
+    this.input.off(Phaser.Input.Events.POINTER_DOWN, this.handleBestiaryTouchStart, this);
+    this.input.off(Phaser.Input.Events.POINTER_UP, this.handleBestiaryTouchEnd, this);
     this.game.events.off(
       HUD_GATHERING_STATE_EVENT,
       this.handleGatheringState,
@@ -7484,6 +7686,8 @@ export class HudScene
       this.handleNotice,
       this,
     );
+    this.game.events.off(HUD_LEVEL_UP_EVENT, this.handleLevelUp, this);
+    this.game.events.off(HUD_TUTORIAL_EVENT, this.handleTutorial, this);
     this.input.keyboard?.off(
       'keydown-C',
       this.handleCityToggle,

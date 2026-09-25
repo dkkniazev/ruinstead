@@ -16,7 +16,7 @@ export const CITY_BUILDING_IDS = [
 export type CityBuildingId =
   (typeof CITY_BUILDING_IDS)[number];
 
-export const MAX_CITY_BUILDING_LEVEL = 3;
+export const MAX_CITY_BUILDING_LEVEL = 8;
 export const PRODUCTION_CYCLE_MS = 30_000;
 const MAX_OFFLINE_MS =
   2 * 60 * 60 * 1000;
@@ -95,84 +95,44 @@ const BUILDING_COSTS:
     readonly ResourceCounts[]
   > = {
   storage: [
-    {
-      wood: 25,
-      stone: 10,
-      metal: 0,
-      coins: 0,
-    },
-    {
-      wood: 40,
-      stone: 20,
-      metal: 2,
-      coins: 20,
-    },
-    {
-      wood: 60,
-      stone: 35,
-      metal: 6,
-      coins: 40,
-    },
+    { wood: 25, stone: 10, metal: 0, crystal: 0, fiber: 0, coins: 0 },
+    { wood: 40, stone: 20, metal: 2, crystal: 0, fiber: 0, coins: 20 },
+    { wood: 60, stone: 35, metal: 6, crystal: 0, fiber: 0, coins: 40 },
+    { wood: 80, stone: 50, metal: 10, crystal: 4, fiber: 6, coins: 80 },
+    { wood: 105, stone: 65, metal: 14, crystal: 8, fiber: 10, coins: 120 },
+    { wood: 135, stone: 85, metal: 20, crystal: 14, fiber: 14, coins: 180 },
+    { wood: 170, stone: 110, metal: 28, crystal: 22, fiber: 20, coins: 260 },
+    { wood: 210, stone: 140, metal: 38, crystal: 32, fiber: 28, coins: 360 },
   ],
   sawmill: [
-    {
-      wood: 30,
-      stone: 8,
-      metal: 0,
-      coins: 0,
-    },
-    {
-      wood: 45,
-      stone: 15,
-      metal: 2,
-      coins: 25,
-    },
-    {
-      wood: 65,
-      stone: 25,
-      metal: 5,
-      coins: 50,
-    },
+    { wood: 30, stone: 8, metal: 0, crystal: 0, fiber: 0, coins: 0 },
+    { wood: 45, stone: 15, metal: 2, crystal: 0, fiber: 0, coins: 25 },
+    { wood: 65, stone: 25, metal: 5, crystal: 0, fiber: 0, coins: 50 },
+    { wood: 90, stone: 35, metal: 8, crystal: 3, fiber: 10, coins: 80 },
+    { wood: 120, stone: 50, metal: 12, crystal: 6, fiber: 16, coins: 125 },
+    { wood: 155, stone: 65, metal: 18, crystal: 10, fiber: 24, coins: 185 },
+    { wood: 195, stone: 85, metal: 24, crystal: 16, fiber: 34, coins: 260 },
+    { wood: 240, stone: 110, metal: 32, crystal: 24, fiber: 46, coins: 350 },
   ],
   workshop: [
-    {
-      wood: 20,
-      stone: 25,
-      metal: 4,
-      coins: 0,
-    },
-    {
-      wood: 30,
-      stone: 40,
-      metal: 8,
-      coins: 30,
-    },
-    {
-      wood: 45,
-      stone: 60,
-      metal: 14,
-      coins: 60,
-    },
+    { wood: 20, stone: 25, metal: 4, crystal: 0, fiber: 0, coins: 0 },
+    { wood: 30, stone: 40, metal: 8, crystal: 0, fiber: 0, coins: 30 },
+    { wood: 45, stone: 60, metal: 14, crystal: 0, fiber: 0, coins: 60 },
+    { wood: 60, stone: 80, metal: 22, crystal: 8, fiber: 5, coins: 100 },
+    { wood: 80, stone: 105, metal: 32, crystal: 14, fiber: 8, coins: 155 },
+    { wood: 105, stone: 135, metal: 44, crystal: 22, fiber: 12, coins: 225 },
+    { wood: 135, stone: 170, metal: 58, crystal: 32, fiber: 18, coins: 310 },
+    { wood: 170, stone: 210, metal: 74, crystal: 45, fiber: 24, coins: 420 },
   ],
   house: [
-    {
-      wood: 25,
-      stone: 12,
-      metal: 0,
-      coins: 0,
-    },
-    {
-      wood: 40,
-      stone: 20,
-      metal: 2,
-      coins: 30,
-    },
-    {
-      wood: 60,
-      stone: 30,
-      metal: 5,
-      coins: 55,
-    },
+    { wood: 25, stone: 12, metal: 0, crystal: 0, fiber: 0, coins: 0 },
+    { wood: 40, stone: 20, metal: 2, crystal: 0, fiber: 0, coins: 30 },
+    { wood: 60, stone: 30, metal: 5, crystal: 0, fiber: 0, coins: 55 },
+    { wood: 85, stone: 40, metal: 8, crystal: 3, fiber: 12, coins: 95 },
+    { wood: 115, stone: 55, metal: 12, crystal: 6, fiber: 20, coins: 145 },
+    { wood: 150, stone: 75, metal: 18, crystal: 10, fiber: 30, coins: 210 },
+    { wood: 190, stone: 100, metal: 24, crystal: 16, fiber: 42, coins: 290 },
+    { wood: 235, stone: 130, metal: 32, crystal: 24, fiber: 56, coins: 390 },
   ],
 };
 
@@ -424,6 +384,12 @@ export class CityBuilderSystem {
     storage.wood -= cost.wood;
     storage.stone -= cost.stone;
     storage.metal -= cost.metal;
+    storage.crystal =
+      (storage.crystal ?? 0) -
+      (cost.crystal ?? 0);
+    storage.fiber =
+      (storage.fiber ?? 0) -
+      (cost.fiber ?? 0);
     storage.coins -= cost.coins;
 
     this.buildings[id] =
@@ -523,6 +489,11 @@ export class CityBuilderSystem {
         80,
         160,
         300,
+        500,
+        750,
+        1050,
+        1400,
+        1800,
       ][storageLevel] ?? 20;
 
     return Math.round(
@@ -899,6 +870,10 @@ function canAfford(
     storage.wood >= cost.wood &&
     storage.stone >= cost.stone &&
     storage.metal >= cost.metal &&
+    (storage.crystal ?? 0) >=
+      (cost.crystal ?? 0) &&
+    (storage.fiber ?? 0) >=
+      (cost.fiber ?? 0) &&
     storage.coins >= cost.coins
   );
 }

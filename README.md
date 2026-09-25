@@ -2310,7 +2310,7 @@ Resource-node должен иметь:
 
 1. Огненный дракон;
 2. Лавовый голем;
-3. семь остальных main/progression bosses;
+3. шесть остальных main/progression bosses;
 4. side bosses.
 
 ### 13.19. Оружие героя

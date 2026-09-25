@@ -14,6 +14,7 @@ import type {
 import {
   MAX_WEAPON_LEVEL,
   normalizeWeaponInventoryForCurrentProgression,
+  normalizeWeaponLoadoutForPlayerLevel,
   sanitizeWeaponInventory,
 } from '../progression/WeaponInventory';
 import {
@@ -350,6 +351,25 @@ export function sanitizeGameState(value: unknown): GameState {
 
   const resources = asRecord(root?.resources);
   const progression = asRecord(root?.progression);
+  const playerLevelValue =
+    Math.max(
+      1,
+      Math.min(
+        50,
+        nonNegativeInt(
+          progression
+            ?.playerLevel,
+          defaults.progression
+            .playerLevel,
+        ),
+      ),
+    );
+
+  normalizeWeaponLoadoutForPlayerLevel(
+    weaponInventory,
+    playerLevelValue,
+  );
+
   const masteryRanks =
     asRecord(
       progression?.masteryRanks,
@@ -751,18 +771,7 @@ export function sanitizeGameState(value: unknown): GameState {
             .settlementReturnCount,
         ),
       playerLevel:
-        Math.max(
-          1,
-          Math.min(
-            50,
-            nonNegativeInt(
-              progression
-                ?.playerLevel,
-              defaults.progression
-                .playerLevel,
-            ),
-          ),
-        ),
+        playerLevelValue,
       playerXp:
         nonNegativeInt(
           progression?.playerXp,

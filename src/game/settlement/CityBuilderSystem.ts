@@ -5,6 +5,9 @@ import type {
 import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
+import {
+  SETTLEMENT_CENTER,
+} from '../world/WorldPrototype';
 
 export const CITY_BUILDING_IDS = [
   'storage',
@@ -75,10 +78,10 @@ const BUILDING_POSITIONS:
     CityBuildingId,
     readonly [number, number]
   > = {
-  storage: [3450, 4610],
-  sawmill: [3290, 4440],
-  workshop: [4010, 4570],
-  house: [3480, 4240],
+  storage: [SETTLEMENT_CENTER.x - 210, SETTLEMENT_CENTER.y + 210],
+  sawmill: [SETTLEMENT_CENTER.x - 430, SETTLEMENT_CENTER.y - 40],
+  workshop: [SETTLEMENT_CENTER.x + 430, SETTLEMENT_CENTER.y + 170],
+  house: [SETTLEMENT_CENTER.x - 190, SETTLEMENT_CENTER.y - 360],
 };
 
 const BUILDING_COLORS:

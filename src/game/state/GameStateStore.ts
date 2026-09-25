@@ -840,6 +840,45 @@ export function sanitizeGameState(value: unknown): GameState {
             ?.starterPackOwned,
           false,
         ),
+      founderPackOwned:
+        booleanValue(
+          premium
+            ?.founderPackOwned,
+          false,
+        ),
+      shardShopDay:
+        typeof premium
+          ?.shardShopDay ===
+          'string'
+          ? premium.shardShopDay
+          : '',
+      shardShopPurchasedSlots:
+        Array.isArray(
+          premium
+            ?.shardShopPurchasedSlots,
+        )
+          ? Array.from(
+              new Set(
+                premium
+                  .shardShopPurchasedSlots
+                  .filter(
+                    (
+                      value,
+                    ): value is number =>
+                      typeof value ===
+                        'number' &&
+                      Number.isFinite(
+                        value,
+                      ) &&
+                      value >= 0 &&
+                      value < 3,
+                  )
+                  .map((value) =>
+                    Math.floor(value),
+                  ),
+              ),
+            )
+          : [],
       regionPacksOwned:
         stringArray(
           premium

@@ -7,6 +7,12 @@ import {
   type ResourceCounts,
   type ResourceType,
 } from './ResourceTypes';
+import {
+  REGION_RESOURCE_PROFILES,
+} from '../economy/RegionEconomy';
+import {
+  getRegionDefinition,
+} from '../world/ReleaseRegionMap';
 
 type HarvestResourceType =
   Exclude<ResourceType, 'coins'>;
@@ -40,43 +46,206 @@ type ResourcePickup = {
   requiresExitAfterRespawn: boolean;
 };
 
-const NODE_DEFINITIONS:
-  readonly ResourceNodeDefinition[] = [
-  // Opushka / goblin territory: abundant wood.
-  { id: 'wood-1', type: 'wood', x: 1030, y: 1080, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-2', type: 'wood', x: 1160, y: 1240, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-3', type: 'wood', x: 1320, y: 690, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-4', type: 'wood', x: 1480, y: 930, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-5', type: 'wood', x: 1740, y: 890, durability: 3, dropCount: 4, respawnMs: 45_000 },
-  { id: 'wood-6', type: 'wood', x: 2020, y: 920, durability: 3, dropCount: 4, respawnMs: 45_000 },
-
-  // Mid-zone stone pockets.
-  { id: 'stone-1', type: 'stone', x: 1440, y: 520, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-2', type: 'stone', x: 1640, y: 1110, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-3', type: 'stone', x: 1900, y: 820, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-4', type: 'stone', x: 2080, y: 1280, durability: 4, dropCount: 3, respawnMs: 60_000 },
-  { id: 'stone-5', type: 'stone', x: 2280, y: 930, durability: 4, dropCount: 3, respawnMs: 60_000 },
-
-  // Metal is biased toward the dangerous inner forest, away from boss spawn circles.
-  { id: 'metal-1', type: 'metal', x: 1880, y: 610, durability: 5, dropCount: 2, respawnMs: 90_000 },
-  { id: 'metal-2', type: 'metal', x: 2110, y: 880, durability: 5, dropCount: 2, respawnMs: 90_000 },
-  { id: 'metal-3', type: 'metal', x: 2260, y: 1180, durability: 5, dropCount: 2, respawnMs: 90_000 },
-  { id: 'metal-4', type: 'metal', x: 2050, y: 1490, durability: 5, dropCount: 2, respawnMs: 90_000 },
-
-  // Stage 2: rare materials define the new region economy.
-  // The entry pair lets a Lv.5 player begin the Lv.6 ascension without first winning a Stage 2 fight.
-  { id: 'crystal-entry', type: 'crystal', x: 3160, y: 1320, durability: 4, dropCount: 4, respawnMs: 75_000 },
-  { id: 'fiber-entry', type: 'fiber', x: 3090, y: 1210, durability: 3, dropCount: 6, respawnMs: 60_000 },
-  { id: 'crystal-1', type: 'crystal', x: 3460, y: 650, durability: 5, dropCount: 3, respawnMs: 110_000 },
-  { id: 'crystal-2', type: 'crystal', x: 3920, y: 940, durability: 5, dropCount: 3, respawnMs: 110_000 },
-  { id: 'crystal-3', type: 'crystal', x: 4470, y: 580, durability: 6, dropCount: 4, respawnMs: 120_000 },
-  { id: 'crystal-4', type: 'crystal', x: 5120, y: 1040, durability: 6, dropCount: 4, respawnMs: 120_000 },
-
-  { id: 'fiber-1', type: 'fiber', x: 3290, y: 1160, durability: 3, dropCount: 5, respawnMs: 70_000 },
-  { id: 'fiber-2', type: 'fiber', x: 3760, y: 480, durability: 3, dropCount: 5, respawnMs: 70_000 },
-  { id: 'fiber-3', type: 'fiber', x: 4310, y: 1260, durability: 4, dropCount: 6, respawnMs: 80_000 },
-  { id: 'fiber-4', type: 'fiber', x: 4970, y: 1450, durability: 4, dropCount: 6, respawnMs: 80_000 },
+const RESOURCE_ORDER:
+  readonly HarvestResourceType[] = [
+  'wood',
+  'stone',
+  'metal',
+  'crystal',
+  'fiber',
 ];
+
+function buildNodeDefinitions():
+  ResourceNodeDefinition[] {
+  const result:
+    ResourceNodeDefinition[] = [];
+
+  // Guaranteed rare-resource foothold immediately inside region 2.
+  const regionTwo =
+    getRegionDefinition(2);
+  result.push(
+    {
+      id: 'region-2-crystal-entry',
+      type: 'crystal',
+      x:
+        regionTwo.center[0] +
+        430,
+      y:
+        regionTwo.center[1] +
+        420,
+      durability: 4,
+      dropCount: 4,
+      respawnMs: 75_000,
+    },
+    {
+      id: 'region-2-fiber-entry',
+      type: 'fiber',
+      x:
+        regionTwo.center[0] +
+        360,
+      y:
+        regionTwo.center[1] +
+        500,
+      durability: 3,
+      dropCount: 6,
+      respawnMs: 60_000,
+    },
+  );
+
+  for (
+    const profile of
+    REGION_RESOURCE_PROFILES
+  ) {
+    const region =
+      getRegionDefinition(
+        profile.region,
+      );
+
+    RESOURCE_ORDER.forEach(
+      (type, typeIndex) => {
+        const abundance =
+          profile.abundance[
+            type
+          ];
+
+        if (abundance <= 0) {
+          return;
+        }
+
+        const count =
+          Math.max(
+            1,
+            abundance,
+          );
+
+        for (
+          let index = 0;
+          index < count;
+          index += 1
+        ) {
+          // Offset each resource family into a different arc so farming
+          // routes have identity instead of one mixed resource carpet.
+          const angle =
+            (
+              profile.region *
+                0.83 +
+              typeIndex *
+                1.17 +
+              index *
+                1.91
+            ) %
+            (
+              Math.PI *
+              2
+            );
+          const ring =
+            0.34 +
+            (
+              (
+                index +
+                typeIndex
+              ) %
+              3
+            ) *
+              0.18;
+          const x =
+            region.center[0] +
+            Math.cos(angle) *
+              region.radiusX *
+              ring;
+          const y =
+            region.center[1] +
+            Math.sin(angle) *
+              region.radiusY *
+              ring;
+
+          if (
+            profile.region === 1 &&
+            Phaser.Math.Distance.Between(
+              x,
+              y,
+              3650,
+              4470,
+            ) <
+              430
+          ) {
+            continue;
+          }
+
+          const baseDurability =
+            type === 'wood'
+              ? 3
+              : type ===
+                  'fiber'
+                ? 3
+                : type ===
+                    'stone'
+                  ? 4
+                  : 5;
+          const baseDrop =
+            type === 'wood'
+              ? 4
+              : type ===
+                  'fiber'
+                ? 5
+                : type ===
+                    'stone'
+                  ? 3
+                  : type ===
+                      'metal'
+                    ? 2
+                    : 3;
+          const respawnMs =
+            type === 'wood'
+              ? 45_000
+              : type ===
+                  'fiber'
+                ? 65_000
+                : type ===
+                    'stone'
+                  ? 60_000
+                  : type ===
+                      'metal'
+                    ? 90_000
+                    : 105_000;
+
+          result.push({
+            id:
+              `region-${profile.region}-${type}-${index + 1}`,
+            type,
+            x:
+              Math.round(x),
+            y:
+              Math.round(y),
+            durability:
+              baseDurability +
+              Math.floor(
+                (
+                  profile.region -
+                  1
+                ) /
+                  3,
+              ),
+            dropCount:
+              baseDrop +
+              (
+                abundance >= 5
+                  ? 1
+                  : 0
+              ),
+            respawnMs,
+          });
+        }
+      },
+    );
+  }
+
+  return result;
+}
+
+const NODE_DEFINITIONS:
+  readonly ResourceNodeDefinition[] =
+  buildNodeDefinitions();
 
 const NODE_TEXTURES:
   Record<HarvestResourceType, string> = {

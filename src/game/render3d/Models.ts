@@ -48,6 +48,7 @@ export type AnimatedModel = {
   root: THREE.Group;
   step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number) => void;
   setWeapon?: (weapon: WeaponId) => void;
+  dispose?: () => void;
 };
 
 export function createHero(): AnimatedModel {

@@ -394,6 +394,7 @@ export class WorldPresentation3D {
     }
     for (const [unit, actor] of this.actors) if (!visible.has(unit)) {
       this.scene.remove(actor.model.root);
+      actor.model.dispose?.();
       this.scene.remove(actor.health);
       if (actor.telegraph) disposeBossTelegraph(actor.telegraph);
       this.actors.delete(unit);
@@ -594,6 +595,13 @@ export class WorldPresentation3D {
     this.phaser.cameras.main.setVisible(true);
     for (const visual of this.resources.values()) visual.destroy();
     this.resources.clear();
+    for (const actor of this.actors.values()) {
+      actor.model.dispose?.();
+      if (actor.telegraph) disposeBossTelegraph(actor.telegraph);
+      this.scene.remove(actor.model.root);
+      this.scene.remove(actor.health);
+    }
+    this.actors.clear();
     this.renderer.domElement.remove();
     this.renderer.dispose();
   }

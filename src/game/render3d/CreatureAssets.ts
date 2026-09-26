@@ -12,6 +12,7 @@ type CreatureAnimation = {
     travel?: number,
     turning?: number,
   ) => void;
+  dispose?: () => void;
 };
 
 type LoadedCreature = {
@@ -111,6 +112,7 @@ export function withCreatureAsset(
   root.add(fallback.root);
 
   let mixer: THREE.AnimationMixer | null = null;
+  const ownedMaterials = new Set<THREE.Material>();
   let clips = new Map<string, THREE.AnimationClip>();
   let currentAction: THREE.AnimationAction | null = null;
   let currentClip = '';
@@ -146,6 +148,7 @@ export function withCreatureAsset(
 
       const recolor = (material: THREE.Material, index: number): THREE.Material => {
         const copy = material.clone();
+        ownedMaterials.add(copy);
         if (copy instanceof THREE.MeshStandardMaterial) {
           const tint = index % 3 === 1 ? accentTint : primaryTint;
           copy.color.lerp(tint, 0.26);
@@ -189,6 +192,12 @@ export function withCreatureAsset(
       }
       play(attack ? 'attack' : speed > 18 ? 'move' : 'idle');
       mixer.update(Math.min(0.05, Math.max(0, seconds)));
+    },
+    dispose() {
+      mixer?.stopAllAction();
+      mixer = null;
+      for (const material of ownedMaterials) material.dispose();
+      ownedMaterials.clear();
     },
   };
 }

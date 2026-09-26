@@ -1,0 +1,11 @@
+Gobkit free models
+
+License: Creative Commons Zero 1.0 Universal (CC0 1.0 / public domain)
+
+Official license metadata:
+https://gobkit.com/api/free
+
+CC0 legal code:
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Gobkit's official free catalogue metadata states that the free models are free for any use, commercial or personal, with no attribution required.

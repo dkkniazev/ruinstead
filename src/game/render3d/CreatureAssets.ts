@@ -20,17 +20,25 @@ type LoadedCreature = {
   animations: THREE.AnimationClip[];
 };
 
-type GobkitAsset = {
+type CreatureAsset = {
   key: string;
-  url: string;
+  file: string;
   hasWalk: boolean;
   scale: number;
 };
 
 const loader = new GLTFLoader();
 const models = new Map<string, Promise<LoadedCreature | null>>();
+const ASSET_ROOT = `${import.meta.env.BASE_URL}assets/models/gobkit-enemies/`;
 
-const GOBKIT = 'https://gobkit.com/freebies';
+function asset(
+  file: string,
+  key: string,
+  hasWalk: boolean,
+  scale = 1,
+): CreatureAsset {
+  return { file, key, hasWalk, scale };
+}
 
 function stableIndex(value: string, length: number): number {
   let hash = 2166136261;
@@ -41,51 +49,22 @@ function stableIndex(value: string, length: number): number {
   return (hash >>> 0) % Math.max(1, length);
 }
 
-function asset(path: string, key: string, hasWalk: boolean, scale = 1): GobkitAsset {
-  return {
-    key,
-    url: `${GOBKIT}/${path}`,
-    hasWalk,
-    scale,
-  };
-}
-
 /**
- * Only use external models when their silhouette actually matches the enemy.
- * Everything else deliberately falls back to the game's bespoke procedural
- * creature so we never turn a worm, spider, golem or dragon into a random pet.
+ * Deliberately conservative mapping: use an authored model only when the
+ * silhouette matches. Everything else keeps Ruinstead's species-specific
+ * procedural mesh instead of becoming a random animal.
  */
-function creatureAssetFor(id: string): GobkitAsset | null {
-  if (id.includes('boar')) {
-    return asset('animalB/Boar.glb', 'boar', true, 1.04);
-  }
-
+function creatureAssetFor(id: string): CreatureAsset | null {
   if (id.includes('ram')) {
-    return asset('animalB/Goat.glb', 'goat', true, 1.02);
+    return asset('Goat.glb', 'goat', true, 1.04);
   }
 
   if (id.includes('bat')) {
-    return asset('animal/Bat.glb', 'bat', true, 0.94);
+    return asset('Bat.glb', 'bat', true, 0.95);
   }
 
   if (id.includes('harpy') || id.includes('vulture')) {
-    return asset('animalB/Owl.glb', 'owl', true, 1.03);
-  }
-
-  if (
-    id.includes('jackal') ||
-    id.includes('hound') ||
-    id.includes('cat') ||
-    id.includes('stalker') ||
-    id.includes('beast')
-  ) {
-    const beasts = [
-      asset('animalB/Rat.glb', 'rat', true, 1.08),
-      asset('animalB/Marmot.glb', 'marmot', true, 1.06),
-      asset('animal/Corgi.glb', 'corgi', true, 1.06),
-      asset('animal/Rhino.glb', 'rhino', true, 1.12),
-    ] as const;
-    return beasts[stableIndex(id, beasts.length)];
+    return asset('Owl.glb', 'owl', true, 1.04);
   }
 
   if (
@@ -99,10 +78,10 @@ function creatureAssetFor(id: string): GobkitAsset | null {
     id.includes('smith')
   ) {
     const minions = [
-      asset('minion/minion-a01.glb', 'minion-a01', false, 1),
-      asset('minion/minion-b01.glb', 'minion-b01', false, 1),
-      asset('minion/minion-c01.glb', 'minion-c01', false, 1.02),
-      asset('minion/minion-d01.glb', 'minion-d01', false, 1.03),
+      asset('minion-a01.glb', 'minion-a01', false, 1),
+      asset('minion-b01.glb', 'minion-b01', false, 1),
+      asset('minion-c01.glb', 'minion-c01', false, 1.02),
+      asset('minion-d01.glb', 'minion-d01', false, 1.03),
     ] as const;
     return minions[stableIndex(id, minions.length)];
   }
@@ -110,17 +89,17 @@ function creatureAssetFor(id: string): GobkitAsset | null {
   return null;
 }
 
-function loadCreature(spec: GobkitAsset): Promise<LoadedCreature | null> {
+function loadCreature(spec: CreatureAsset): Promise<LoadedCreature | null> {
   let promise = models.get(spec.key);
   if (!promise) {
     promise = loader
-      .loadAsync(spec.url)
+      .loadAsync(`${ASSET_ROOT}${spec.file}`)
       .then((gltf) => ({
         scene: gltf.scene,
         animations: gltf.animations,
       }))
       .catch((error) => {
-        console.warn(`Gobkit creature unavailable: ${spec.key}`, error);
+        console.warn(`Creature asset unavailable: ${spec.key}`, error);
         return null;
       });
     models.set(spec.key, promise);
@@ -134,78 +113,44 @@ type ClipSet = {
   attack?: THREE.AnimationClip;
 };
 
+function clipByName(
+  animations: readonly THREE.AnimationClip[],
+  name: string,
+): THREE.AnimationClip | undefined {
+  const target = name.toLowerCase();
+  return animations.find((clip) => {
+    const actual = clip.name.toLowerCase();
+    return actual === target || actual.endsWith(`|${target}`) || actual.endsWith(`_${target}`);
+  });
+}
+
 function animationSet(
   animations: readonly THREE.AnimationClip[],
   hasWalk: boolean,
 ): ClipSet {
-  const byName = new Map(
-    animations.map((clip) => [
-      clip.name.toLowerCase(),
-      clip,
-    ]),
-  );
-
-  const idle =
-    byName.get('idle');
-  const attack =
-    byName.get('attack');
-  const walk =
-    byName.get('walk') ??
-    byName.get('move');
+  const idle = clipByName(animations, 'idle');
+  const attack = clipByName(animations, 'attack');
+  const walk = clipByName(animations, 'walk') ?? clipByName(animations, 'run');
 
   if (idle || attack || walk) {
     return {
       idle: idle ?? walk,
-      move: hasWalk
-        ? walk ?? idle
-        : idle,
-      attack:
-        attack ?? idle ?? walk,
+      move: hasWalk ? walk ?? idle : idle,
+      attack: attack ?? idle ?? walk,
     };
   }
 
-  // Older mirrors of the packs kept all actions in one 24 fps master clip.
-  // Support that layout as a fallback while preferring the current named clips.
-  const master =
-    animations[0];
-
-  if (!master) {
-    return {};
-  }
+  // Gobkit documents older single-timeline exports as 24 fps:
+  // idle 0-29, attack 30-59, dead 60-89, optional walk 90-119.
+  const master = animations[0];
+  if (!master) return {};
 
   return {
-    idle:
-      THREE.AnimationUtils.subclip(
-        master,
-        'idle',
-        0,
-        30,
-        24,
-      ),
-    attack:
-      THREE.AnimationUtils.subclip(
-        master,
-        'attack',
-        30,
-        60,
-        24,
-      ),
-    move:
-      hasWalk
-        ? THREE.AnimationUtils.subclip(
-            master,
-            'walk',
-            90,
-            120,
-            24,
-          )
-        : THREE.AnimationUtils.subclip(
-            master,
-            'idle-move',
-            0,
-            30,
-            24,
-          ),
+    idle: THREE.AnimationUtils.subclip(master, 'idle', 0, 30, 24),
+    attack: THREE.AnimationUtils.subclip(master, 'attack', 30, 60, 24),
+    move: hasWalk
+      ? THREE.AnimationUtils.subclip(master, 'walk', 90, 120, 24)
+      : THREE.AnimationUtils.subclip(master, 'idle-move', 0, 30, 24),
   };
 }
 
@@ -216,255 +161,130 @@ export function withCreatureAsset(
   large: boolean,
   fallback: CreatureAnimation,
 ): CreatureAnimation {
-  const spec =
-    creatureAssetFor(id);
+  const spec = creatureAssetFor(id);
+  if (!spec) return fallback;
 
-  if (!spec) {
-    return fallback;
-  }
-
-  const root =
-    new THREE.Group();
+  const root = new THREE.Group();
   root.add(fallback.root);
 
-  let mixer:
-    THREE.AnimationMixer | null =
-    null;
-  let clips:
-    ClipSet = {};
-  let current:
-    THREE.AnimationAction | null =
-    null;
-  let currentClip:
-    THREE.AnimationClip | undefined;
-  const ownedMaterials =
-    new Set<THREE.Material>();
+  let mixer: THREE.AnimationMixer | null = null;
+  let model: THREE.Group | null = null;
+  let modelBaseY = 0;
+  let motionPhase = 0;
+  let clips: ClipSet = {};
+  let currentAction: THREE.AnimationAction | null = null;
+  let currentClip: THREE.AnimationClip | undefined;
   let disposed = false;
+  const ownedMaterials = new Set<THREE.Material>();
 
-  const play = (
-    state:
-      'idle' | 'move' | 'attack',
-  ): void => {
-    if (!mixer) {
-      return;
-    }
-
+  const play = (state: 'idle' | 'move' | 'attack'): void => {
+    if (!mixer) return;
     const clip =
-      state === 'attack'
-        ? clips.attack
-        : state === 'move'
-          ? clips.move
-          : clips.idle;
+      state === 'attack' ? clips.attack :
+      state === 'move' ? clips.move :
+      clips.idle;
 
-    if (
-      !clip ||
-      currentClip === clip
-    ) {
-      return;
+    if (!clip || clip === currentClip) return;
+
+    const next = mixer.clipAction(clip);
+    currentAction?.fadeOut(0.1);
+    next.reset().fadeIn(0.1);
+
+    if (state === 'attack') {
+      next.setLoop(THREE.LoopOnce, 1);
+      next.clampWhenFinished = true;
+    } else {
+      next.setLoop(THREE.LoopRepeat, Infinity);
+      next.clampWhenFinished = false;
     }
 
-    const next =
-      mixer.clipAction(clip);
-    current?.fadeOut(0.1);
-    next
-      .reset()
-      .setLoop(
-        THREE.LoopRepeat,
-        Infinity,
-      )
-      .fadeIn(0.1)
-      .play();
-
-    current = next;
+    next.play();
+    currentAction = next;
     currentClip = clip;
   };
 
-  void loadCreature(spec).then(
-    (loaded) => {
-      if (
-        !loaded ||
-        disposed
-      ) {
-        return;
-      }
+  void loadCreature(spec).then((loaded) => {
+    if (!loaded || disposed) return;
 
-      const model =
-        cloneSkeleton(
-          loaded.scene,
-        ) as THREE.Group;
+    model = cloneSkeleton(loaded.scene) as THREE.Group;
+    const primaryTint = new THREE.Color(primary);
+    const accentTint = new THREE.Color(accent);
+    let materialIndex = 0;
 
-      // Clone materials per unit so elites/bosses can receive a restrained
-      // species tint without mutating the cached source or other instances.
-      const primaryTint =
-        new THREE.Color(primary);
-      const accentTint =
-        new THREE.Color(accent);
-      let materialIndex = 0;
+    model.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      object.castShadow = true;
+      object.receiveShadow = true;
+      object.frustumCulled = true;
 
-      model.traverse(
-        (object) => {
-          if (
-            !(object instanceof THREE.Mesh)
-          ) {
-            return;
-          }
+      const recolor = (material: THREE.Material): THREE.Material => {
+        const copy = material.clone();
+        ownedMaterials.add(copy);
 
-          object.castShadow = true;
-          object.receiveShadow = true;
-          object.frustumCulled = true;
+        const withColor = copy as THREE.Material & { color?: THREE.Color };
+        if (withColor.color) {
+          const tint = materialIndex++ % 3 === 1 ? accentTint : primaryTint;
+          // Keep authored palette intact; this is only enough to distinguish
+          // elites/regions that reuse the same source mesh.
+          withColor.color.lerp(tint, 0.08);
+        }
+        return copy;
+      };
 
-          const recolor = (
-            material:
-              THREE.Material,
-          ): THREE.Material => {
-            const copy =
-              material.clone();
-            ownedMaterials.add(copy);
+      object.material = Array.isArray(object.material)
+        ? object.material.map(recolor)
+        : recolor(object.material);
+    });
 
-            const withColor =
-              copy as THREE.Material & {
-                color?: THREE.Color;
-              };
+    model.updateMatrixWorld(true);
+    const bounds = new THREE.Box3().setFromObject(model);
+    const size = bounds.getSize(new THREE.Vector3());
+    const targetHeight = (large ? 124 : 92) * spec.scale;
+    model.scale.multiplyScalar(targetHeight / Math.max(0.001, size.y));
+    model.updateMatrixWorld(true);
 
-            if (withColor.color) {
-              const tint =
-                materialIndex++ % 3 === 1
-                  ? accentTint
-                  : primaryTint;
-              withColor.color.lerp(
-                tint,
-                0.12,
-              );
-            }
+    const scaled = new THREE.Box3().setFromObject(model);
+    const center = scaled.getCenter(new THREE.Vector3());
+    model.position.set(-center.x, -scaled.min.y, -center.z);
+    modelBaseY = model.position.y;
 
-            return copy;
-          };
+    root.remove(fallback.root);
+    root.add(model);
 
-          object.material =
-            Array.isArray(
-              object.material,
-            )
-              ? object.material.map(
-                  recolor,
-                )
-              : recolor(
-                  object.material,
-                );
-        },
-      );
-
-      model.updateMatrixWorld(
-        true,
-      );
-
-      const bounds =
-        new THREE.Box3()
-          .setFromObject(
-            model,
-          );
-      const size =
-        bounds.getSize(
-          new THREE.Vector3(),
-        );
-      const targetHeight =
-        (
-          large
-            ? 124
-            : 92
-        ) *
-        spec.scale;
-
-      model.scale.multiplyScalar(
-        targetHeight /
-          Math.max(
-            0.001,
-            size.y,
-          ),
-      );
-      model.updateMatrixWorld(
-        true,
-      );
-
-      const scaled =
-        new THREE.Box3()
-          .setFromObject(
-            model,
-          );
-      const center =
-        scaled.getCenter(
-          new THREE.Vector3(),
-        );
-
-      model.position.set(
-        -center.x,
-        -scaled.min.y,
-        -center.z,
-      );
-
-      root.remove(
-        fallback.root,
-      );
-      root.add(model);
-
-      clips =
-        animationSet(
-          loaded.animations,
-          spec.hasWalk,
-        );
-      mixer =
-        new THREE.AnimationMixer(
-          model,
-        );
-      play('idle');
-    },
-  );
+    clips = animationSet(loaded.animations, spec.hasWalk);
+    mixer = new THREE.AnimationMixer(model);
+    play('idle');
+  });
 
   return {
     root,
-    step(
-      seconds,
-      speed,
-      _dash,
-      attack,
-    ) {
-      if (!mixer) {
-        fallback.step(
-          seconds,
-          speed,
-          false,
-          attack,
-        );
+    step(seconds, speed, dash, attack, travel, turning) {
+      if (!mixer || !model) {
+        fallback.step(seconds, speed, dash, attack, travel, turning);
         return;
       }
 
-      play(
-        attack
-          ? 'attack'
-          : speed > 18
-            ? 'move'
-            : 'idle',
-      );
+      const dt = Math.min(0.05, Math.max(0, seconds));
+      const moving = speed > 18;
+      play(attack ? 'attack' : moving ? 'move' : 'idle');
+      mixer.update(dt);
 
-      mixer.update(
-        Math.min(
-          0.05,
-          Math.max(
-            0,
-            seconds,
-          ),
-        ),
-      );
+      // Minion pack has idle/attack/dead but no walk clip. Add restrained
+      // locomotion instead of letting a perfectly static rig slide over terrain.
+      if (!spec.hasWalk && moving && !attack) {
+        motionPhase += dt * (6 + Math.min(4, speed / 70));
+        model.position.y = modelBaseY + Math.abs(Math.sin(motionPhase)) * 2.8;
+        model.rotation.z = Math.sin(motionPhase * 0.5) * 0.035;
+      } else {
+        model.position.y += (modelBaseY - model.position.y) * Math.min(1, dt * 10);
+        model.rotation.z *= Math.max(0, 1 - dt * 10);
+      }
     },
     dispose() {
       disposed = true;
       mixer?.stopAllAction();
       mixer = null;
-      for (
-        const material of
-        ownedMaterials
-      ) {
-        material.dispose();
-      }
+      for (const material of ownedMaterials) material.dispose();
       ownedMaterials.clear();
     },
   };

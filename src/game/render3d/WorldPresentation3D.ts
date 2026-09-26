@@ -284,7 +284,7 @@ export class WorldPresentation3D {
 
     // Small region-specific props are deliberately non-blocking. Keep them
     // away from combat/resource anchors so they never imply fake collision.
-    for (let index = 0; index < 3; index += 1) {
+    for (let index = 0; index < 4; index += 1) {
       const px = cx * TILE + random(cx, cz, 201 + index * 11) * TILE;
       const pz = cz * TILE + random(cx, cz, 202 + index * 11) * TILE;
       const island = islandAt(px, pz);
@@ -300,7 +300,7 @@ export class WorldPresentation3D {
       );
       prop.position.set(px, terrainHeight(px, pz), pz);
       prop.rotation.y = random(px, pz, index + 300) * Math.PI * 2;
-      const scale = 0.82 + random(pz, px, index + 400) * 0.34;
+      const scale = 0.76 + random(pz, px, index + 400) * 0.42;
       prop.scale.setScalar(scale);
       group.add(prop);
     }

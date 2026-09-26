@@ -341,12 +341,63 @@ export function createTree(seed: number, region: number): THREE.Group {
 
 export function createRock(seed: number, region: number): THREE.Group {
   const group = new THREE.Group();
-  const stone = region === 2 || region === 7 ? 0xb69a70 : region === 4 || region === 8 ? 0x514745 : 0x838b7d;
-  ball(group, stone, -5, 11, 0, 21 + seed % 9, 13 + seed % 7, 19 + seed % 8);
-  if (seed % 3 !== 0) ball(group, 0xa9aa91, 12, 9, -6, 7, 5, 8);
-  const visual = withNatureAsset(seed % 2 ? 'rock_largeA' : 'rock_largeC', 31 + Math.abs(seed % 8), group);
-  visual.rotation.y = (Math.abs(seed) % 10) * 0.43;
-  return visual;
+  const safeSeed = Math.abs(seed);
+  const variant = safeSeed % 4;
+  const stone = region === 2 || region === 7
+    ? 0xb69a70
+    : region === 4 || region === 8
+      ? 0x514745
+      : region === 3
+        ? 0x727784
+        : 0x838b7d;
+
+  if (variant <= 1) {
+    ball(group, stone, -5, 9, 0, 18 + safeSeed % 8, 11 + safeSeed % 6, 17 + safeSeed % 7);
+    if (safeSeed % 3 !== 0) {
+      ball(group, 0xa1a48f, 10, 7, -5, 6, 4, 7);
+    }
+    const visual = withNatureAsset(
+      variant === 0 ? 'rock_largeA' : 'rock_largeC',
+      27 + safeSeed % 8,
+      group,
+    );
+    visual.rotation.y = safeSeed % 10 * 0.43;
+    return visual;
+  }
+
+  if (variant === 2) {
+    for (let index = 0; index < 4; index += 1) {
+      const angle = index * 1.53 + safeSeed * 0.11;
+      ball(
+        group,
+        index === 0 ? stone : 0x8f9185,
+        Math.cos(angle) * (6 + index * 4),
+        6 + index * 2,
+        Math.sin(angle) * (5 + index * 3),
+        13 - index,
+        8 + index,
+        11 - index * 0.5,
+      );
+    }
+    group.rotation.y = safeSeed % 9 * 0.37;
+    return group;
+  }
+
+  const slab = part(
+    group,
+    cube,
+    mat(stone),
+    0,
+    14,
+    0,
+    25,
+    28,
+    18,
+  );
+  slab.rotation.set(0.08, safeSeed % 7 * 0.31, -0.14);
+  ball(group, 0x9b9c8b, -12, 5, 8, 9, 5, 8);
+  ball(group, stone, 13, 4, -7, 7, 4, 9);
+  return group;
 }
 
 export function createOre(seed: number, region: number): THREE.Group {
@@ -392,80 +443,218 @@ export function createOre(seed: number, region: number): THREE.Group {
 
 export function createSceneryProp(seed: number, region: number): THREE.Group {
   const g = new THREE.Group();
-  const variant = Math.abs(seed) % 4;
+  const safeSeed = Math.abs(seed);
+  const variant = safeSeed % 6;
 
-  if (region === 1 || region === 5 || region === 6) {
-    if (variant <= 1) {
-      const fallback = new THREE.Group();
-      for (let index = 0; index < 3; index += 1) {
-        const angle = index * 2.1 + seed * 0.1;
-        ball(fallback, region === 5 ? 0x82965f : 0x5f8d50,
-          Math.cos(angle) * 9, 8 + index * 2, Math.sin(angle) * 8,
-          12 - index * 2, 8 + index, 10 - index);
-      }
+  const flowers = (stem: number, bloomA: number, bloomB: number, count = 5): THREE.Group => {
+    for (let index = 0; index < count; index += 1) {
+      const angle = index * 1.37 + seed * 0.17;
+      const radius = 4 + index * 2.7;
+      const height = 7 + index % 3 * 3;
+      rod(
+        g,
+        stem,
+        new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius),
+        new THREE.Vector3(Math.cos(angle) * radius, height, Math.sin(angle) * radius),
+        1.15,
+      );
+      ball(
+        g,
+        index % 2 ? bloomA : bloomB,
+        Math.cos(angle) * radius,
+        height + 1,
+        Math.sin(angle) * radius,
+        3.4,
+        2,
+        3.4,
+      );
+    }
+    return g;
+  };
+
+  const branch = (color: number, length = 34): THREE.Group => {
+    rod(g, color, new THREE.Vector3(-length / 2, 4, -4), new THREE.Vector3(length / 2, 6, 5), 3.2);
+    rod(g, color, new THREE.Vector3(-2, 5, 1), new THREE.Vector3(9, 13, -8), 1.7);
+    return g;
+  };
+
+  const shards = (base: number, accent: number, ember = false): THREE.Group => {
+    for (let index = 0; index < 5; index += 1) {
+      const angle = index * 1.29 + seed * 0.13;
+      const height = 8 + (index % 3) * 6;
+      const shard = part(
+        g,
+        cone,
+        mat(index % 2 ? base : accent, ember ? 0.1 : 0.04, ember && index === 0 ? accent : 0),
+        Math.cos(angle) * (6 + index * 2),
+        height / 2,
+        Math.sin(angle) * (5 + index * 2),
+        4 + index,
+        height,
+        4 + index,
+      );
+      shard.rotation.z = Math.sin(angle) * 0.18;
+    }
+    return g;
+  };
+
+  if (region === 1) {
+    if (variant === 0 || variant === 4) {
+      const fallback = flowers(0x64874f, 0xd07c6d, 0xe0bd68, variant === 0 ? 4 : 6);
       return withNatureAsset(
         variant === 0 ? 'plant_bushDetailed' : 'plant_flatTall',
-        22 + Math.abs(seed % 8),
+        20 + safeSeed % 8,
         fallback,
       );
     }
-    if (variant === 2) {
+    if (variant === 1) return flowers(0x6f8f55, 0xd06a75, 0xe4bc63, 6);
+    if (variant === 2) return branch(0x6b4931, 38);
+    if (variant === 3) {
       for (let index = 0; index < 5; index += 1) {
-        const angle = index * 1.39 + seed * 0.17;
-        const radius = 5 + index * 3;
-        rod(g, 0xd8cfad,
-          new THREE.Vector3(Math.cos(angle) * radius, 0, Math.sin(angle) * radius),
-          new THREE.Vector3(Math.cos(angle) * radius, 7 + index, Math.sin(angle) * radius), 1.3);
-        ball(g, index % 2 ? 0xc96f5c : 0xd6a85b,
-          Math.cos(angle) * radius, 8 + index, Math.sin(angle) * radius,
-          4 + index * 0.35, 2.3, 4 + index * 0.35);
+        const angle = index * 1.2;
+        rod(g, 0xe8d6b9, new THREE.Vector3(Math.cos(angle) * 8, 0, Math.sin(angle) * 8),
+          new THREE.Vector3(Math.cos(angle) * 8, 5 + index, Math.sin(angle) * 8), 1.4);
+        ball(g, index % 2 ? 0xb94f46 : 0xd28e45, Math.cos(angle) * 8, 6 + index,
+          Math.sin(angle) * 8, 4, 2.2, 4);
       }
       return g;
     }
-    rod(g, 0x76543b, new THREE.Vector3(-18, 5, -5), new THREE.Vector3(20, 7, 7), 4);
-    rod(g, 0x6c4a34, new THREE.Vector3(2, 6, 1), new THREE.Vector3(12, 14, -8), 2);
-    return g;
+    return shards(0x777b70, 0x969884);
   }
 
-  if (region === 2 || region === 7) {
-    if (region === 7 && variant === 0) {
-      rod(g, 0x788451, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 29, 0), 4);
-      rod(g, 0x788451, new THREE.Vector3(0, 17, 0), new THREE.Vector3(10, 22, 0), 2.5);
-      rod(g, 0x788451, new THREE.Vector3(9, 21, 0), new THREE.Vector3(9, 28, 0), 2.5);
+  if (region === 5) {
+    if (variant <= 1) {
+      const fallback = flowers(0x869567, 0xc9a8dd, 0xe8df9e, 6);
+      return withNatureAsset(variant === 0 ? 'plant_flatTall' : 'plant_bushDetailed', 24 + safeSeed % 7, fallback);
+    }
+    if (variant === 2) return flowers(0x829763, 0xc69ad7, 0xf0d88b, 7);
+    if (variant === 3) return branch(0x75624a, 30);
+    if (variant === 4) {
+      for (let index = 0; index < 6; index += 1) {
+        const x = (index - 2.5) * 4;
+        rod(g, 0xb6b98f, new THREE.Vector3(x, 0, 0), new THREE.Vector3(x + 5, 16 + index, 2), 1.1);
+      }
       return g;
     }
-    for (let index = 0; index < 5; index += 1) {
-      const angle = index * 1.31 + seed * 0.22;
-      rod(g, index % 2 ? 0x84704a : 0x9a8757,
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(Math.cos(angle) * (11 + index * 2), 9 + index * 2,
-          Math.sin(angle) * (11 + index * 2)), 1.4);
+    return shards(0x858679, 0xb1ad98);
+  }
+
+  if (region === 6) {
+    if (variant <= 1) {
+      for (let index = 0; index < 7; index += 1) {
+        const x = (index - 3) * 4;
+        const z = Math.sin(index * 1.7) * 6;
+        rod(g, 0x627b59, new THREE.Vector3(x, 0, z), new THREE.Vector3(x + 2, 18 + index * 2, z), 1.2);
+        if (index % 2 === 0) ball(g, 0x765739, x + 2, 18 + index * 2, z, 2.4, 5, 2.4);
+      }
+      return g;
     }
-    return g;
+    if (variant === 2) return branch(0x675445, 42);
+    if (variant === 3) return flowers(0x5f8064, 0x86adc1, 0xe1d68c, 5);
+    if (variant === 4) {
+      const fallback = flowers(0x668256, 0x89a867, 0xb0bb73, 5);
+      return withNatureAsset('plant_bushDetailed', 20 + safeSeed % 7, fallback);
+    }
+    return shards(0x6f7775, 0x9ba19a);
+  }
+
+  if (region === 2) {
+    if (variant <= 1) {
+      for (let index = 0; index < 6; index += 1) {
+        const angle = index * 1.07 + seed * 0.2;
+        rod(
+          g,
+          index % 2 ? 0x806c4c : 0x9a8455,
+          new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(Math.cos(angle) * (10 + index * 2), 8 + index, Math.sin(angle) * (10 + index * 2)),
+          1.25,
+        );
+      }
+      return g;
+    }
+    if (variant === 2) return branch(0x76533a, 37);
+    if (variant === 3) return shards(0x9c7b52, 0xc2a16c);
+    if (variant === 4) {
+      for (let index = 0; index < 4; index += 1) {
+        ball(g, index % 2 ? 0xa18561 : 0xc0a373, (index - 1.5) * 9, 4 + index, index % 2 * 8, 8, 5, 7);
+      }
+      return g;
+    }
+    return shards(0x7d6549, 0xa98b5d);
+  }
+
+  if (region === 7) {
+    if (variant === 0) {
+      rod(g, 0x788451, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 31, 0), 4);
+      rod(g, 0x788451, new THREE.Vector3(0, 17, 0), new THREE.Vector3(10, 22, 0), 2.5);
+      rod(g, 0x788451, new THREE.Vector3(9, 21, 0), new THREE.Vector3(9, 29, 0), 2.5);
+      return g;
+    }
+    if (variant === 1) return branch(0x70503b, 40);
+    if (variant === 2) return shards(0x8b6247, 0xb57d50);
+    if (variant === 3) {
+      for (let index = 0; index < 5; index += 1) {
+        const angle = index * 1.24;
+        rod(g, 0x8c7752, new THREE.Vector3(0, 0, 0),
+          new THREE.Vector3(Math.cos(angle) * 15, 8 + index, Math.sin(angle) * 15), 1.2);
+      }
+      return g;
+    }
+    if (variant === 4) {
+      for (let index = 0; index < 4; index += 1) {
+        ball(g, 0xb78b5f, (index - 1.5) * 10, 3 + index, index % 2 * 7, 8, 5, 7);
+      }
+      return g;
+    }
+    return shards(0x6f5042, 0x9f704d);
   }
 
   if (region === 3) {
-    for (let index = 0; index < 4; index += 1) {
-      const angle = index * 1.57 + seed * 0.2;
-      const height = 9 + index * 3;
-      const shard = part(g, cone, mat(index % 2 ? 0x555c63 : 0x3f454d, 0.06),
-        Math.cos(angle) * (6 + index * 2), height / 2,
-        Math.sin(angle) * (6 + index * 2), 4 + index, height, 4 + index);
-      shard.rotation.z = (index % 2 ? -1 : 1) * 0.14;
+    if (variant <= 1) return shards(0x515866, variant === 0 ? 0x7f8fa6 : 0x756884);
+    if (variant === 2) return branch(0x4d4a49, 39);
+    if (variant === 3) {
+      for (let index = 0; index < 6; index += 1) {
+        const angle = index * 1.04;
+        rod(g, 0x59665d, new THREE.Vector3(Math.cos(angle) * 7, 0, Math.sin(angle) * 7),
+          new THREE.Vector3(Math.cos(angle) * 12, 12 + index, Math.sin(angle) * 12), 1.1);
+      }
+      return g;
+    }
+    if (variant === 4) return flowers(0x596558, 0x8f769f, 0x7890a8, 4);
+    return shards(0x3f454d, 0x69707b);
+  }
+
+  if (region === 4) {
+    if (variant <= 1) return shards(0x39373b, variant === 0 ? 0x75483b : 0x56505a, true);
+    if (variant === 2) return branch(0x493a34, 36);
+    if (variant === 3) {
+      ball(g, 0xcd542d, 0, 2.2, 0, 11, 2.2, 11).material = mat(0xcd542d, 0.05, 0x7d2419);
+      for (let index = 0; index < 4; index += 1) {
+        const angle = index * Math.PI / 2;
+        ball(g, 0x34343a, Math.cos(angle) * 12, 5, Math.sin(angle) * 12, 7, 5, 7);
+      }
+      return g;
+    }
+    if (variant === 4) return shards(0x302f34, 0x61504c);
+    return branch(0x342f2d, 28);
+  }
+
+  // Dragon caldera: sharper obsidian, hotter vents and scorched remains.
+  if (variant <= 1) return shards(0x292b31, variant === 0 ? 0x71413b : 0x4e3d48, true);
+  if (variant === 2) {
+    for (let index = 0; index < 5; index += 1) {
+      const angle = index * 1.22;
+      rod(g, 0xd8c8a2, new THREE.Vector3(Math.cos(angle) * 5, 0, Math.sin(angle) * 5),
+        new THREE.Vector3(Math.cos(angle) * 17, 12 + index * 2, Math.sin(angle) * 17), 1.7);
     }
     return g;
   }
-
-  for (let index = 0; index < 5; index += 1) {
-    const angle = index * 1.27 + seed * 0.13;
-    const height = 8 + (index % 3) * 5;
-    const shard = part(g, cone, mat(index % 2 ? 0x39373b : 0x504247, 0.12),
-      Math.cos(angle) * (7 + index * 2), height / 2,
-      Math.sin(angle) * (6 + index * 2), 4 + index, height, 4 + index);
-    shard.rotation.z = Math.sin(angle) * 0.2;
+  if (variant === 3) {
+    ball(g, 0xee6533, 0, 2, 0, 13, 2, 13).material = mat(0xee6533, 0.08, 0x8f2a19);
+    return shards(0x2d2d34, 0x553c3a, true);
   }
-  ball(g, 0xcf5e35, 3, 2.5, -3, 4, 1.8, 4).material = mat(0xcf5e35, 0.1, 0x7d261a);
-  return g;
+  if (variant === 4) return branch(0x322d2b, 43);
+  return shards(0x35323a, 0x74483e, true);
 }
 
 export function createBuilding(id: string, level: number): THREE.Group {

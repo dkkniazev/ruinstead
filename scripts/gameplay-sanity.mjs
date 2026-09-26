@@ -59,8 +59,20 @@ for(const angle of [0,.6,Math.PI/2,Math.PI,4.3]) {
 }
 assert(!m.insideBossDanger({shape:'circle',x:0,y:0,radius:120},121,0));
 
-const cost=m.getWeaponUpgradeCost('axe',9);
-assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=4,'Late weapon upgrade should require at most four crystal nodes');
-assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=4,'Late weapon upgrade should require at most four fiber nodes');
+for(let level=5;level<10;level++) {
+  const cost=m.getWeaponUpgradeCost('axe',level);
+  assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=4,`Weapon Lv.${level+1}: too many crystal nodes`);
+  assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=4,`Weapon Lv.${level+1}: too many fiber nodes`);
+}
+for(const id of m.PLAYER_UPGRADE_IDS) for(let level=5;level<10;level++) {
+  const cost=m.getPlayerUpgradeCost(id,level);
+  assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=3,`${id} Lv.${level+1}: too many crystal nodes`);
+  assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=3,`${id} Lv.${level+1}: too many fiber nodes`);
+}
+for(let stars=2;stars<5;stars++) {
+  const cost=m.getWeaponFusionCost(stars);
+  assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=3,`Fusion ★${stars+1}: too many crystal nodes`);
+  assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=2,`Fusion ★${stars+1}: too many fiber nodes`);
+}
 assert(m.harvestRespawnMs('crystal')<=60000);
 console.log('Gameplay sanity: PASS (5s healing, damage, capped loot, telegraph geometry, rare-material economy)');

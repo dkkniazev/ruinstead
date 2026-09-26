@@ -1,14 +1,19 @@
 import type { HarvestResourceType } from './RegionEconomy';
 
-export const RARE_HARVEST_YIELD = {
-  crystal: 10,
-  fiber: 12,
-} as const;
+/**
+ * Rare materials stay rare by design. Abundance improves a node from 2 to 4
+ * items; progression is balanced through costs rather than inflated drops.
+ */
+export function rareHarvestYield(abundance: number): number {
+  const safe = Math.max(1, Math.min(5, Math.floor(abundance)));
+  if (safe >= 5) return 4;
+  if (safe >= 3) return 3;
+  return 2;
+}
 
 /**
  * Abundance controls how many gathering points a region gets.
- * Keep this deliberately compact: resource identity should come from routes,
- * not from carpeting the whole region with nodes.
+ * Keep this compact so richer zones create useful routes instead of carpets.
  */
 const NODE_COUNT_BY_ABUNDANCE = [0, 2, 4, 5, 7, 9] as const;
 
@@ -17,14 +22,8 @@ export function harvestNodeCount(abundance: number): number {
   return NODE_COUNT_BY_ABUNDANCE[safe];
 }
 
-/**
- * Rare-resource value is intentionally fixed per point. Region abundance
- * affects density only, so a rich region is better without creating 20-30
- * material jackpots from every single node.
- */
 export function harvestYield(type: HarvestResourceType, _region: number, abundance: number): number {
-  if (type === 'crystal') return RARE_HARVEST_YIELD.crystal;
-  if (type === 'fiber') return RARE_HARVEST_YIELD.fiber;
+  if (type === 'crystal' || type === 'fiber') return rareHarvestYield(abundance);
   return (type === 'wood' ? 4 : type === 'stone' ? 3 : 2) + (abundance >= 5 ? 1 : 0);
 }
 

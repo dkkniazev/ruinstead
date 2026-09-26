@@ -862,7 +862,10 @@ export function isWeaponDropCapped(inventory: WeaponInventoryState, weaponId: We
 
 export function cappedWeaponMaterials(rarity: WeaponRarityId): { crystal: number; fiber: number } {
   const tier = WEAPON_RARITY_ORDER.indexOf(rarity);
-  return { crystal: 12 + tier * 6, fiber: 18 + tier * 8 };
+  return {
+    crystal: 1 + Math.min(3, tier),
+    fiber: 1 + Math.floor((tier + 1) / 2),
+  };
 }
 
 export function upgradeEquippedWeaponLevel(

@@ -33,10 +33,14 @@ for(const rarity of ['common','uncommon','rare']) {
 }
 assert(m.addWeaponDrop(inventory,'sword','epic'),'A better rarity must remain obtainable');
 assert(m.addWeaponDrop(inventory,'hammer','common'),'Other weapon families must remain obtainable');
-assert(m.cappedWeaponMaterials('rare').crystal>=12);
+assert.deepEqual(m.cappedWeaponMaterials('common'),{crystal:1,fiber:1});
+assert.deepEqual(m.cappedWeaponMaterials('legendary'),{crystal:4,fiber:3});
 
-assert.equal(m.harvestYield('crystal',4,5),10,'Crystal nodes must drop exactly 10');
-assert.equal(m.harvestYield('fiber',4,2),12,'Fiber nodes must drop exactly 12');
+assert.equal(m.harvestYield('crystal',2,1),2,'Scarce crystal nodes should drop 2');
+assert.equal(m.harvestYield('crystal',4,3),3,'Medium crystal nodes should drop 3');
+assert.equal(m.harvestYield('crystal',4,5),4,'Rich crystal nodes should drop 4');
+assert.equal(m.harvestYield('fiber',2,1),2,'Scarce fiber nodes should drop 2');
+assert.equal(m.harvestYield('fiber',2,5),4,'Rich fiber nodes should drop 4');
 assert.equal(m.harvestNodeCount(0),0);
 assert.equal(m.harvestNodeCount(5),9,'Dominant resources must not carpet a region');
 for(let abundance=1;abundance<5;abundance++)
@@ -59,20 +63,22 @@ for(const angle of [0,.6,Math.PI/2,Math.PI,4.3]) {
 }
 assert(!m.insideBossDanger({shape:'circle',x:0,y:0,radius:120},121,0));
 
+const richCrystal=m.harvestYield('crystal',4,5);
+const richFiber=m.harvestYield('fiber',2,5);
 for(let level=5;level<10;level++) {
   const cost=m.getWeaponUpgradeCost('axe',level);
-  assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=4,`Weapon Lv.${level+1}: too many crystal nodes`);
-  assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=4,`Weapon Lv.${level+1}: too many fiber nodes`);
+  assert(Math.ceil(cost.crystal/richCrystal)<=2,`Weapon Lv.${level+1}: too many rich crystal nodes`);
+  assert(Math.ceil(cost.fiber/richFiber)<=2,`Weapon Lv.${level+1}: too many rich fiber nodes`);
 }
 for(const id of m.PLAYER_UPGRADE_IDS) for(let level=5;level<10;level++) {
   const cost=m.getPlayerUpgradeCost(id,level);
-  assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=3,`${id} Lv.${level+1}: too many crystal nodes`);
-  assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=3,`${id} Lv.${level+1}: too many fiber nodes`);
+  assert(Math.ceil(cost.crystal/richCrystal)<=2,`${id} Lv.${level+1}: too many rich crystal nodes`);
+  assert(Math.ceil(cost.fiber/richFiber)<=2,`${id} Lv.${level+1}: too many rich fiber nodes`);
 }
 for(let stars=2;stars<5;stars++) {
   const cost=m.getWeaponFusionCost(stars);
-  assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=3,`Fusion ★${stars+1}: too many crystal nodes`);
-  assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=2,`Fusion ★${stars+1}: too many fiber nodes`);
+  assert(Math.ceil(cost.crystal/richCrystal)<=2,`Fusion ★${stars+1}: too many rich crystal nodes`);
+  assert(Math.ceil(cost.fiber/richFiber)<=2,`Fusion ★${stars+1}: too many rich fiber nodes`);
 }
 assert(m.harvestRespawnMs('crystal')<=60000);
-console.log('Gameplay sanity: PASS (5s healing, damage, capped loot, telegraph geometry, rare-material economy)');
+console.log('Gameplay sanity: PASS (5s healing, damage, capped loot, telegraph geometry, rare drops 2-4 + rebalanced costs)');

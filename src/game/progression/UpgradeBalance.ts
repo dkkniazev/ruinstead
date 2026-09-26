@@ -215,9 +215,9 @@ export function getPlayerUpgradeCost(
       cost.stone =
         18 + late * 4;
       cost.crystal =
-        6 + late * 3;
+        1 + late;
       cost.fiber =
-        4 + late * 2;
+        1 + Math.floor(late / 2);
       break;
     case 'move-speed':
       cost.coins =
@@ -225,9 +225,9 @@ export function getPlayerUpgradeCost(
       cost.wood =
         30 + late * 6;
       cost.crystal =
-        8 + late * 3;
+        2 + late;
       cost.fiber =
-        6 + late * 3;
+        1 + Math.ceil(late / 2);
       break;
     case 'backpack':
       cost.coins =
@@ -235,9 +235,9 @@ export function getPlayerUpgradeCost(
       cost.wood =
         36 + late * 8;
       cost.crystal =
-        4 + late * 2;
+        1 + Math.floor(late / 2);
       cost.fiber =
-        12 + late * 4;
+        2 + late;
       break;
     case 'dash':
       cost.coins =
@@ -245,9 +245,9 @@ export function getPlayerUpgradeCost(
       cost.metal =
         10 + late * 3;
       cost.crystal =
-        8 + late * 3;
+        2 + late;
       cost.fiber =
-        8 + late * 3;
+        2 + Math.floor(late / 2);
       break;
   }
 
@@ -303,19 +303,9 @@ export function getWeaponUpgradeCost(
         late / 2,
       ),
     crystal:
-      12 +
-      late * 5 +
-      Math.max(
-        0,
-        late - 2,
-      ) * 2,
+      2 + late,
     fiber:
-      18 +
-      late * 6 +
-      Math.max(
-        0,
-        late - 2,
-      ),
+      3 + late,
     coins:
       300 +
       late * 65 +
@@ -356,8 +346,8 @@ export function getWeaponFusionCost(
         wood: 0,
         stone: 8,
         metal: 12,
-        crystal: 6,
-        fiber: 6,
+        crystal: 2,
+        fiber: 2,
         coins: 220,
       };
     case 3:
@@ -365,8 +355,8 @@ export function getWeaponFusionCost(
         wood: 0,
         stone: 12,
         metal: 20,
-        crystal: 12,
-        fiber: 12,
+        crystal: 3,
+        fiber: 3,
         coins: 380,
       };
     case 4:
@@ -374,8 +364,8 @@ export function getWeaponFusionCost(
         wood: 0,
         stone: 18,
         metal: 30,
-        crystal: 24,
-        fiber: 20,
+        crystal: 5,
+        fiber: 5,
         coins: 650,
       };
     default:

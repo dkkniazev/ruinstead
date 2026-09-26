@@ -32,6 +32,9 @@ const DASH_DURATION_MS = 135;
 const PLAYER_BASELINE_OFFSET = 46;
 
 export class PlayerController {
+  get visualWeaponId(): WeaponId { return this.weaponId; }
+  get visualFacing(): Phaser.Math.Vector2 { return this.lastDirection.clone(); }
+  isDashing(time: number): boolean { return time < this.dashUntil; }
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
 

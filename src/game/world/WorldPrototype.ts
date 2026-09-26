@@ -6,6 +6,8 @@ import {
   RELEASE_WORLD_WIDTH,
   getRegionAt,
   getRegionDefinition,
+
+  type RegionDefinition,
 } from './ReleaseRegionMap';
 
 export const WORLD_WIDTH =
@@ -167,17 +169,13 @@ function drawWorld(
     const region of
     RELEASE_REGIONS
   ) {
-    // Two offset ellipses avoid the old rectangular-zone look.
+    // Match the walkable, irregular shoreline used by the 3D renderer.
     g.fillStyle(
       region.groundColor,
       1,
     );
-    g.fillEllipse(
-      region.center[0],
-      region.center[1],
-      region.radiusX * 2,
-      region.radiusY * 2,
-    );
+    traceRegionContour(g, region);
+    g.fillPath();
 
     g.fillStyle(
       region.accentColor,
@@ -257,7 +255,8 @@ function drawWorld(
     if (region.id === 5) ground.setTint(0xd3d0bb);
     const maskShape = scene.make.graphics({ x: 0, y: 0 });
     maskShape.fillStyle(0xffffff);
-    maskShape.fillEllipse(region.center[0], region.center[1], region.radiusX * 2, region.radiusY * 2);
+    traceRegionContour(maskShape, region);
+    maskShape.fillPath();
     ground.setMask(maskShape.createGeometryMask());
   }
 
@@ -278,6 +277,14 @@ function drawWorld(
     WORLD_WIDTH - 16,
     WORLD_HEIGHT - 16,
   );
+}
+
+function traceRegionContour(graphics: Phaser.GameObjects.Graphics, region: RegionDefinition): void {
+  graphics.beginPath();
+  region.outline.forEach(([x, y], index) => {
+    if (index === 0) graphics.moveTo(x, y); else graphics.lineTo(x, y);
+  });
+  graphics.closePath();
 }
 
 function seededRandom(seed: number): () => number {
@@ -572,16 +579,8 @@ function drawSettlement(
   );
   drawPaintedProp(scene, 'ruinstead-return-shrine', RETURN_POINT.x, RETURN_POINT.y + 14, 152, 152, false);
 
-  // Framed ruins and tall canopies give the village a readable foreground.
+  // Keep only landmarks here; harvestable trees and rocks come from ResourceSystem.
   drawPaintedProp(scene, 'ruinstead-ruined-arch', SETTLEMENT_CENTER.x + 245, SETTLEMENT_CENTER.y - 42, 188, 202, false);
-  const trees: ReadonlyArray<readonly [number, number, number, boolean]> = [
-    [-390, -170, 180, false], [382, -220, 206, true],
-    [-485, 90, 220, true], [475, 85, 172, false],
-    [-337, 295, 190, false], [352, 330, 225, true],
-  ];
-  for (const [dx, dy, size, flip] of trees) {
-    drawPaintedProp(scene, 'ruinstead-forest-tree', SETTLEMENT_CENTER.x + dx, SETTLEMENT_CENTER.y + dy, size, size, flip);
-  }
 
   scene.add
     .text(
@@ -603,137 +602,9 @@ function drawSettlement(
     );
 }
 
-function createPrototypeObstacles(
-  scene: Phaser.Scene,
-): Phaser.Physics.Arcade.StaticGroup {
-  const group =
-    scene.physics.add.staticGroup();
-
-  for (
-    const region of
-    RELEASE_REGIONS
-  ) {
-    // Interior obstacles make routes imperfect even before final art.
-    for (
-      let index = 0;
-      index < 8;
-      index += 1
-    ) {
-      const angle =
-        (
-          index * 1.73 +
-          region.id * 0.61
-        ) %
-        (Math.PI * 2);
-      const x =
-        region.center[0] +
-        Math.cos(angle) *
-          region.radiusX *
-          (
-            0.42 +
-            (index % 3) * 0.12
-          );
-      const y =
-        region.center[1] +
-        Math.sin(angle) *
-          region.radiusY *
-          (
-            0.36 +
-            (index % 2) * 0.18
-          );
-
-      if (
-        Phaser.Math.Distance.Between(
-          x,
-          y,
-          SETTLEMENT_CENTER.x,
-          SETTLEMENT_CENTER.y,
-        ) <
-        SETTLEMENT_SAFE_RADIUS + 180
-      ) {
-        continue;
-      }
-
-      const obstacle =
-        scene.add
-          .rectangle(
-            x,
-            y,
-            80 + (index % 2) * 45,
-            50 + (index % 3) * 18,
-            0x000000,
-            0.001,
-          )
-          .setDepth(y + 20);
-
-      group.add(obstacle);
-      drawWorldProp(scene, region.id, x, y + 18, 1.25 + index % 3 * 0.16);
-    }
-
-    const random = seededRandom(region.id * 37271);
-    for (let index = 0; index < 28; index += 1) {
-      const angle = random() * Math.PI * 2;
-      const distance = 0.24 + random() * 0.62;
-      const x = region.center[0] + Math.cos(angle) * region.radiusX * distance;
-      const y = region.center[1] + Math.sin(angle) * region.radiusY * distance;
-      if (Phaser.Math.Distance.Between(x, y, SETTLEMENT_CENTER.x, SETTLEMENT_CENTER.y) < SETTLEMENT_SAFE_RADIUS + 120) continue;
-      drawWorldProp(scene, region.id, x, y, 0.52 + random() * 0.45);
-    }
-  }
-
-  return group;
-}
-
-function drawWorldProp(scene: Phaser.Scene, regionId: number, x: number, y: number, scale: number): void {
-  if (regionId === 1 || regionId === 5) {
-    drawPaintedProp(scene, 'ruinstead-forest-tree', x, y, 178 * scale, 178 * scale, Math.floor(x + y) % 2 === 0);
-    return;
-  }
-  const g = scene.add.graphics({ x, y });
-  g.setScale(scale).setDepth(y + 24);
-  g.fillStyle(0x162521, 0.28);
-  g.fillEllipse(10, 9, 105, 33);
-
-  if (regionId === 1 || regionId === 5) {
-    g.fillStyle(0x523e31, 1);
-    g.fillRoundedRect(-9, -57, 18, 65, 5);
-    g.fillStyle(regionId === 1 ? 0x275e43 : 0x5e7860, 1);
-    g.fillEllipse(3, -83, 108, 88);
-    g.fillStyle(regionId === 1 ? 0x4a9860 : 0x9aac80, 0.9);
-    g.fillEllipse(-18, -104, 72, 53);
-    g.fillStyle(0xe6dda4, 0.17);
-    g.fillEllipse(-26, -117, 38, 22);
-  } else if (regionId === 4 || regionId === 8) {
-    g.fillStyle(0x352c33, 1);
-    g.fillTriangle(-53, 0, -16, -82, 13, 3);
-    g.fillTriangle(-5, 1, 23, -117, 58, 2);
-    g.fillStyle(0x7d5043, 0.95);
-    g.fillTriangle(-18, -75, 2, -45, 12, 0);
-    g.lineStyle(5, 0xf7954c, 0.9);
-    g.lineBetween(22, -98, 5, -45);
-    g.lineBetween(5, -45, 22, -18);
-  } else if (regionId === 6) {
-    g.fillStyle(0x3b5456, 1);
-    g.fillTriangle(-46, 0, -23, -75, 13, 0);
-    g.fillTriangle(5, 1, 31, -94, 51, 1);
-    g.fillStyle(0x8faeb0, 0.8);
-    g.fillTriangle(-22, -68, -3, -35, 11, -3);
-  } else if (regionId === 7 || regionId === 2) {
-    g.fillStyle(regionId === 7 ? 0x754a36 : 0x71604b, 1);
-    g.fillRoundedRect(-45, -49, 86, 56, 15);
-    g.fillStyle(regionId === 7 ? 0xb9764b : 0xb69a6b, 1);
-    g.fillTriangle(-47, -48, 0, -82, 42, -48);
-    g.lineStyle(5, 0xe9b981, 0.48);
-    g.lineBetween(-33, -35, 26, -35);
-    g.lineBetween(-26, -18, 34, -18);
-  } else {
-    g.fillStyle(0x354a4d, 1);
-    g.fillRoundedRect(-37, -67, 28, 70, 5);
-    g.fillRoundedRect(12, -83, 25, 84, 5);
-    g.fillStyle(0x778b83, 0.8);
-    g.fillTriangle(-40, -67, -24, -91, -8, -67);
-    g.fillTriangle(9, -83, 24, -108, 39, -83);
-  }
+function createPrototypeObstacles(scene: Phaser.Scene): Phaser.Physics.Arcade.StaticGroup {
+  // Solid terrain props are now the actual harvestable nodes in ResourceSystem.
+  return scene.physics.add.staticGroup();
 }
 
 function drawPaintedProp(

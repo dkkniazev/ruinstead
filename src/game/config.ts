@@ -13,7 +13,8 @@ export const gameConfig:
   Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
   parent: 'app',
-  backgroundColor: '#69be4b',
+  backgroundColor: '#000000',
+  transparent: true,
   width: viewport.renderWidth,
   height: viewport.renderHeight,
   scene: [

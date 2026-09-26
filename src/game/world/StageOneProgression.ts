@@ -3,6 +3,7 @@ import {
   RELEASE_PASSAGES,
   getPassageMidpoint,
   getRegionDefinition,
+  regionPointAt,
 } from './ReleaseRegionMap';
 
 const REGION_ONE =
@@ -13,13 +14,8 @@ const BRIDGE =
       entry.id === '1-2',
   )!;
 
-export const ROOT_COLOSSUS_ARENA_CENTER =
-  new Phaser.Math.Vector2(
-    REGION_ONE.center[0] +
-      REGION_ONE.radiusX * 0.55,
-    REGION_ONE.center[1] +
-      REGION_ONE.radiusY * 0.5,
-  );
+const colossusPoint = regionPointAt(REGION_ONE, 0.55, 0.5);
+export const ROOT_COLOSSUS_ARENA_CENTER = new Phaser.Math.Vector2(colossusPoint.x, colossusPoint.y);
 
 export const ROOT_COLOSSUS_ARENA_RADIUS =
   430;

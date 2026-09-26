@@ -10,6 +10,7 @@ import {
 } from '../economy/RegionEconomy';
 import {
   getRegionDefinition,
+  regionPointAt,
   type RegionId,
 } from './ReleaseRegionMap';
 
@@ -119,18 +120,7 @@ function buildChests():
         result.push({
           id:
             `region-${regionId}-cache-${index + 1}`,
-          x:
-            Math.round(
-              region.center[0] +
-              region.radiusX *
-                ox,
-            ),
-          y:
-            Math.round(
-              region.center[1] +
-              region.radiusY *
-                oy,
-            ),
+          ...regionPointAt(region, ox, oy),
           rewards,
         });
       },
@@ -154,6 +144,9 @@ type ChestVisual = {
 };
 
 export class ChestSystem {
+  get visualChests(): ReadonlyArray<{ id: string; x: number; y: number; opened: boolean }> {
+    return this.chests.map(({ definition }) => ({ id: definition.id, x: definition.x, y: definition.y, opened: this.openedIds.includes(definition.id) }));
+  }
   private readonly chests:
     ChestVisual[] = [];
 

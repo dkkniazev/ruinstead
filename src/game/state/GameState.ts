@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 25 as const;
+export const SAVE_SCHEMA_VERSION = 27 as const;
 
 export type BuildingId =
   | 'forge'

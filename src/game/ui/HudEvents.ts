@@ -45,6 +45,7 @@ export type GatheringHudState = {
 };
 
 export type UpgradeHudState = {
+  damageBonus?: number;
   forgeRestored: boolean;
   selectedWeaponId: WeaponId;
   unlockedWeaponIds: WeaponId[];
@@ -62,6 +63,7 @@ export type UpgradeHudState = {
 };
 
 export type CharacterHudState = {
+  damageBonus?: number;
   level: number;
   unlockedSlots: number;
   primarySlot: number;

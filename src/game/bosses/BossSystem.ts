@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { insideBossDanger, type BossDangerZone } from '../combat/CombatMath';
 import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
 import type {
   DamageEffectiveness,
@@ -22,6 +23,7 @@ import {
 } from '../world/ReleaseWorldContent';
 import {
   getRegionDefinition,
+  regionPointAt,
   regionIsUnlocked,
   type RegionId,
 } from '../world/ReleaseRegionMap';
@@ -188,8 +190,10 @@ function buildBossDefinitions():
         [0.52, -0.38],
         [0.18, 0.68],
       ];
-      const offset =
-        offsets[index];
+      const offset = source.region === 1 && index === 2
+        ? [0.55, 0.5] as const
+        : offsets[index];
+      const spawnPoint = regionPointAt(region, offset[0], offset[1]);
       const special =
         Boolean(
           source.specialBoss,
@@ -237,18 +241,8 @@ function buildBossDefinitions():
         region: source.region,
         stageId:
           `stage-${source.region}`,
-        x:
-          Math.round(
-            region.center[0] +
-            region.radiusX *
-              offset[0],
-          ),
-        y:
-          Math.round(
-            region.center[1] +
-            region.radiusY *
-              offset[1],
-          ),
+        x: Math.round(spawnPoint.x),
+        y: Math.round(spawnPoint.y),
         maxHealth:
           Math.round(
             baseHealth *
@@ -478,6 +472,7 @@ export class BossUnit {
   private nextLineSpecialAt = 3900;
   private specialPending = false;
   private lineSpecialPending = false;
+  private dangerZone: BossDangerZone | null = null;
   private specialTelegraph?:
     Phaser.GameObjects.Arc;
   private lineSpecialTelegraph?:
@@ -642,6 +637,14 @@ export class BossUnit {
 
   get alive(): boolean {
     return this._alive;
+  }
+
+  get visualHealthRatio(): number {
+    return this.health / this.definition.maxHealth;
+  }
+
+  get visualTelegraph(): BossDangerZone | null {
+    return this.specialPending || this.lineSpecialPending ? this.dangerZone : null;
   }
 
   get respawnAt(): number {
@@ -1072,12 +1075,14 @@ export class BossUnit {
     const radius =
       this.definition
         .specialRadius;
+    const danger: BossDangerZone = { shape: 'circle', x: this.sprite.x, y: this.sprite.y, radius };
+    this.dangerZone = danger;
 
     const telegraph =
       this.scene.add
         .circle(
           this.sprite.x,
-          this.sprite.y + 10,
+          this.sprite.y,
           radius,
           0xff5b46,
           0.12,
@@ -1097,7 +1102,6 @@ export class BossUnit {
     this.scene.tweens.add({
       targets: telegraph,
       alpha: 0.3,
-      scale: 1.08,
       duration:
         this.definition
           .specialWindupMs,
@@ -1116,15 +1120,7 @@ export class BossUnit {
           return;
         }
 
-        const distance =
-          Phaser.Math.Distance.Between(
-            this.sprite.x,
-            this.sprite.y,
-            this.lastPlayerPosition.x,
-            this.lastPlayerPosition.y,
-          );
-
-        if (distance <= radius) {
+        if (insideBossDanger(danger, this.lastPlayerPosition.x, this.lastPlayerPosition.y)) {
           onPlayerHit(
             this.definition
               .specialDamage,
@@ -1207,6 +1203,16 @@ export class BossUnit {
 
     direction.normalize();
 
+    // Lock both the origin and direction during windup. The red rectangle
+    // contains the full collision margin, so a hero centre outside it is safe.
+    const margin = this.lastPlayerRadius;
+    const danger: BossDangerZone = {
+      shape: 'line', x: this.sprite.x - direction.x * margin,
+      y: this.sprite.y - direction.y * margin, dx: direction.x, dy: direction.y,
+      length: length + margin * 2, width: width + margin * 2,
+    };
+    this.dangerZone = danger;
+
     const angle =
       Math.atan2(
         direction.y,
@@ -1224,8 +1230,8 @@ export class BossUnit {
             direction.y *
               length /
               2,
-          length,
-          width,
+          danger.length,
+          danger.width,
           0xff6f3f,
           0.16,
         )
@@ -1249,7 +1255,6 @@ export class BossUnit {
     this.scene.tweens.add({
       targets: telegraph,
       alpha: 0.36,
-      scaleY: 1.12,
       duration: windup,
       ease: 'Sine.In',
     });
@@ -1265,36 +1270,7 @@ export class BossUnit {
           return;
         }
 
-        const relative =
-          new Phaser.Math.Vector2(
-            this.lastPlayerPosition.x -
-              this.sprite.x,
-            this.lastPlayerPosition.y -
-              this.sprite.y,
-          );
-
-        const projection =
-          relative.dot(
-            direction,
-          );
-        const perpendicular =
-          Math.abs(
-            relative.x *
-              direction.y -
-            relative.y *
-              direction.x,
-          );
-
-        if (
-          projection >=
-            -this.lastPlayerRadius &&
-          projection <=
-            length +
-              this.lastPlayerRadius &&
-          perpendicular <=
-            width / 2 +
-              this.lastPlayerRadius
-        ) {
+        if (insideBossDanger(danger, this.lastPlayerPosition.x, this.lastPlayerPosition.y)) {
           onPlayerHit(
             damage,
           );
@@ -1860,6 +1836,10 @@ export class BossSystem {
 
   private readonly bosses:
     BossUnit[] = [];
+
+  get visualUnits(): readonly BossUnit[] {
+    return this.bosses;
+  }
   private readonly activeRegions =
     new Set<RegionId>();
   private playerThreatened = false;

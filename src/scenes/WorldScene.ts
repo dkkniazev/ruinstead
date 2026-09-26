@@ -94,6 +94,7 @@ import {
 import {
   WEAPON_RARITIES,
   addWeaponDrop,
+  cappedWeaponMaterials,
   canFuseWeapon,
   clearWeaponSlot,
   equipWeaponInSlot,
@@ -111,6 +112,7 @@ import {
   type WeaponRarityId,
 } from '../game/progression/WeaponInventory';
 import { PlayerController } from '../game/player/PlayerController';
+import { WorldPresentation3D } from '../game/render3d/WorldPresentation3D';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
   trackAnalyticsEvent,
@@ -204,6 +206,7 @@ import {
   regionIsUnlocked,
   stageIdForRegion,
   type RegionId,
+  type RegionPassage,
 } from '../game/world/ReleaseRegionMap';
 import {
   RETURN_POINT,
@@ -306,6 +309,7 @@ export class WorldScene
 
   private debugOverlay?:
     DebugOverlay;
+  private presentation3d?: WorldPresentation3D;
   private lastAreaName = '';
   private onboardingOrigin?: Phaser.Math.Vector2;
   private wasAtReturnPoint = false;
@@ -602,6 +606,9 @@ export class WorldScene
       this.player.sprite,
       world.obstacles,
     );
+    this.physics.add.collider(this.player.sprite, this.resourceSystem.obstacles);
+    this.physics.add.collider(this.enemies.group, this.resourceSystem.obstacles);
+    this.physics.add.collider(this.bosses.group, this.resourceSystem.obstacles);
     this.physics.add.collider(
       this.player.sprite,
       this.bridgeSystem
@@ -959,6 +966,20 @@ export class WorldScene
     void this.loadPurchaseCatalog();
     void this.reconcilePendingPurchases();
 
+    if (this.player && this.enemies && this.bosses && this.resourceSystem && this.chestSystem && this.cityBuilderSystem) {
+      try {
+        this.presentation3d = new WorldPresentation3D(this, this.player, this.enemies, this.bosses, this.resourceSystem, this.chestSystem, this.cityBuilderSystem, (passage: RegionPassage) => {
+          if (passage.id === '1-2') return (this.gameState?.settlement.buildings.bridge ?? 0) > 0;
+          if (passage.id === '2-3') return this.gameState?.world.unlockedZones.includes('stage-3') ?? false;
+          const zones = this.gameState?.world.unlockedZones ?? [];
+          return regionIsUnlocked(zones, passage.a) && regionIsUnlocked(zones, passage.b);
+        });
+        this.cameras.main.setVisible(false);
+      } catch (error) {
+        console.warn('3D presentation unavailable; using the Phaser world renderer.', error);
+      }
+    }
+
     markYandexGameReady();
     startYandexGameplay();
   }
@@ -1043,6 +1064,7 @@ export class WorldScene
     this.updateAreaName();
     this.updateMonetizationTimers();
     this.debugOverlay?.update();
+    this.presentation3d?.update(time, delta);
   }
 
   private get gatheringHudState():
@@ -1553,6 +1575,19 @@ export class WorldScene
     );
   }
 
+  private grantWeaponReward(weaponId: WeaponId, rarity: WeaponRarityId): string {
+    const reward = addWeaponDrop(this.gameState!.player.weaponInventory, weaponId, rarity);
+    if (reward) {
+      this.combat?.unlockWeapon(weaponId);
+      return `${reward.rarityName} · ${WEAPON_DEFINITIONS[weaponId].name} Lv.1`;
+    }
+    const materials = cappedWeaponMaterials(rarity);
+    const storage = this.gameState!.resources;
+    storage.crystal += materials.crystal;
+    storage.fiber += materials.fiber;
+    return `Оружие уже ★5: +${materials.crystal} кристаллов, +${materials.fiber} волокна в склад`;
+  }
+
   private get characterHudState():
     CharacterHudState {
     const state =
@@ -1563,6 +1598,7 @@ export class WorldScene
 
     return {
       level,
+      damageBonus: this.combat?.damageBonus ?? 1,
       unlockedSlots:
         getUnlockedWeaponSlotCount(
           level,
@@ -1599,6 +1635,7 @@ export class WorldScene
       ['axe'];
 
     return {
+      damageBonus: this.combat?.damageBonus ?? 1,
       forgeRestored:
         this.settlementSystem
           ?.restored ?? false,
@@ -2412,23 +2449,7 @@ export class WorldScene
       string | undefined;
 
     if (event.weaponDrop) {
-      const weaponDrop =
-        addWeaponDrop(
-          this.gameState.player
-            .weaponInventory,
-          event.weaponDrop
-            .weaponId,
-          event.weaponDrop
-            .rarity,
-        );
-
-      this.combat?.unlockWeapon(
-        event.weaponDrop
-          .weaponId,
-      );
-
-      weaponDropText =
-        `${weaponDrop.rarityName} · ${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Lv.1`;
+      weaponDropText = this.grantWeaponReward(event.weaponDrop.weaponId, event.weaponDrop.rarity);
     }
 
     const ticketDropped =
@@ -2627,7 +2648,7 @@ export class WorldScene
           rewardResources,
         ),
         event.weaponDrop
-          ? `${WEAPON_DEFINITIONS[event.weaponDrop.weaponId].name} Common ☆ ×1`
+          ? weaponDropText ?? ''
           : '',
         ticketDropped
           ? 'билет домой ×1'
@@ -2960,15 +2981,7 @@ export class WorldScene
     }
 
     if (event.weaponDrop) {
-      addWeaponDrop(
-        this.gameState.player
-          .weaponInventory,
-        event.weaponDrop.weaponId,
-        event.weaponDrop.rarity,
-      );
-      this.combat?.unlockWeapon(
-        event.weaponDrop.weaponId,
-      );
+      this.grantWeaponReward(event.weaponDrop.weaponId, event.weaponDrop.rarity);
       this.emitProgressionState();
     }
 
@@ -5633,6 +5646,8 @@ export class WorldScene
   }
 
   private cleanup(): void {
+    this.presentation3d?.destroy();
+    this.presentation3d = undefined;
     this.game.events.off('ruinstead:player:dash', this.handleTutorialDash, this);
     this.scale.off(
       Phaser.Scale.Events.RESIZE,

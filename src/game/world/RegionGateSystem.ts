@@ -3,6 +3,8 @@ import {
   RELEASE_PASSAGES,
   RELEASE_REGIONS,
   getRegionDefinition,
+  getPassageGeometry,
+
   regionIsUnlocked,
   type RegionId,
   type RegionPassage,
@@ -15,9 +17,9 @@ type GateVisual = {
     Phaser.GameObjects.Text;
 };
 
-const BOUNDARY_BLOCK = 210;
-const BOUNDARY_TARGET_SPACING = 175;
-const PASSAGE_APERTURE_RAD = 0.085;
+const BOUNDARY_BLOCK = 84;
+const BOUNDARY_TARGET_SPACING = 68;
+
 
 export class RegionGateSystem {
   readonly barriers:
@@ -102,121 +104,23 @@ export class RegionGateSystem {
     this.barriers.destroy(true);
   }
 
-  private createRegionBoundaries():
-    void {
-    for (
-      const region of
-      RELEASE_REGIONS
-    ) {
-      const connected =
-        RELEASE_PASSAGES.filter(
-          (passage) =>
-            passage.a ===
-              region.id ||
-            passage.b ===
-              region.id,
-        );
-
-      const openingAngles =
-        connected.map(
-          (passage) => {
-            const other =
-              getRegionDefinition(
-                passage.a ===
-                  region.id
-                  ? passage.b
-                  : passage.a,
-              );
-
-            return Math.atan2(
-              other.center[1] -
-                region.center[1],
-              other.center[0] -
-                region.center[0],
-            );
-          },
-        );
-
-      const circumference =
-        Math.PI *
-        (
-          3 *
-            (
-              region.radiusX +
-              region.radiusY
-            ) -
-          Math.sqrt(
-            (
-              3 *
-                region.radiusX +
-              region.radiusY
-            ) *
-            (
-              region.radiusX +
-              3 *
-                region.radiusY
-            ),
-          )
-        );
-      const boundarySegments =
-        Math.max(
-          64,
-          Math.ceil(
-            circumference /
-              BOUNDARY_TARGET_SPACING,
-          ),
-        );
-
-      for (
-        let index = 0;
-        index <
-          boundarySegments;
-        index += 1
-      ) {
-        const angle =
-          index /
-            boundarySegments *
-          Math.PI *
-          2;
-
-        const opening =
-          openingAngles.some(
-            (target) =>
-              angleDistance(
-                angle,
-                target,
-              ) <
-              PASSAGE_APERTURE_RAD,
-          );
-
-        if (opening) {
-          continue;
+  private createRegionBoundaries(): void {
+    for (const region of RELEASE_REGIONS) {
+      const approaches = RELEASE_PASSAGES.filter(p => p.a === region.id || p.b === region.id)
+        .map(passage => ({ ...getPassageGeometry(passage), width: passage.width }));
+      for (let edge = 0; edge < region.outline.length; edge++) {
+        const a = region.outline[edge], b = region.outline[(edge + 1) % region.outline.length];
+        const segments = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / BOUNDARY_TARGET_SPACING);
+        for (let step = 0; step < segments; step++) {
+          const t = step / segments;
+          const x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
+          const opening = approaches.some(p => {
+            const forward = (x - p.a.x) * p.ux + (y - p.a.y) * p.uy;
+            const lateral = Math.abs((x - p.a.x) * -p.uy + (y - p.a.y) * p.ux);
+            return forward > -80 && forward < p.length + 80 && lateral < p.width / 2 + 55;
+          });
+          if (!opening) this.barriers.add(this.scene.add.rectangle(x, y, BOUNDARY_BLOCK, BOUNDARY_BLOCK, 0, 0));
         }
-
-        const x =
-          region.center[0] +
-          Math.cos(angle) *
-            region.radiusX *
-            1.01;
-        const y =
-          region.center[1] +
-          Math.sin(angle) *
-            region.radiusY *
-            1.01;
-
-        const wall =
-          this.scene.add.rectangle(
-            x,
-            y,
-            BOUNDARY_BLOCK,
-            BOUNDARY_BLOCK,
-            0x18201f,
-            0,
-          );
-
-        this.barriers.add(
-          wall,
-        );
       }
     }
   }
@@ -228,7 +132,7 @@ export class RegionGateSystem {
       RELEASE_PASSAGES
     ) {
       const endpoints =
-        passageEndpoints(
+        getPassageGeometry(
           passage,
         );
       const dx =
@@ -313,7 +217,7 @@ export class RegionGateSystem {
       readonly string[],
   ): void {
     const endpoints =
-      passageEndpoints(
+      getPassageGeometry(
         passage,
       );
     const midX =
@@ -452,113 +356,3 @@ export class RegionGateSystem {
   }
 }
 
-function passageEndpoints(
-  passage:
-    RegionPassage,
-): {
-  a: Phaser.Math.Vector2;
-  b: Phaser.Math.Vector2;
-} {
-  const a =
-    getRegionDefinition(
-      passage.a,
-    );
-  const b =
-    getRegionDefinition(
-      passage.b,
-    );
-  const dx =
-    b.center[0] -
-    a.center[0];
-  const dy =
-    b.center[1] -
-    a.center[1];
-  const length =
-    Math.max(
-      1,
-      Math.hypot(dx, dy),
-    );
-  const ux =
-    dx / length;
-  const uy =
-    dy / length;
-
-  const aRadius =
-    ellipseRadiusAlong(
-      a.radiusX,
-      a.radiusY,
-      ux,
-      uy,
-    );
-  const bRadius =
-    ellipseRadiusAlong(
-      b.radiusX,
-      b.radiusY,
-      -ux,
-      -uy,
-    );
-
-  return {
-    a:
-      new Phaser.Math.Vector2(
-        a.center[0] +
-          ux *
-            (
-              aRadius -
-              52
-            ),
-        a.center[1] +
-          uy *
-            (
-              aRadius -
-              52
-            ),
-      ),
-    b:
-      new Phaser.Math.Vector2(
-        b.center[0] -
-          ux *
-            (
-              bRadius -
-              52
-            ),
-        b.center[1] -
-          uy *
-            (
-              bRadius -
-              52
-            ),
-      ),
-  };
-}
-
-function ellipseRadiusAlong(
-  rx: number,
-  ry: number,
-  ux: number,
-  uy: number,
-): number {
-  return (
-    1 /
-    Math.sqrt(
-      ux * ux /
-        (rx * rx) +
-      uy * uy /
-        (ry * ry),
-    )
-  );
-}
-
-function angleDistance(
-  a: number,
-  b: number,
-): number {
-  const raw =
-    Math.abs(a - b) %
-    (Math.PI * 2);
-
-  return Math.min(
-    raw,
-    Math.PI * 2 - raw,
-  );
-}

@@ -148,6 +148,9 @@ type VisualBundle = {
 };
 
 export class CityBuilderSystem {
+  get visualBuildings(): ReadonlyArray<{ id: CityBuildingId; x: number; y: number; level: number }> {
+    return CITY_BUILDING_IDS.map((id) => ({ id, x: BUILDING_POSITIONS[id][0], y: BUILDING_POSITIONS[id][1], level: this.level(id) }));
+  }
   private productionMultiplier = 1;
   private capacityMultiplier = 1;
   private themeTint = 0xffffff;

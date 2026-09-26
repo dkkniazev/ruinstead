@@ -1,3 +1,4 @@
+import { weaponHitDamage } from '../game/combat/CombatMath';
 import Phaser from 'phaser';
 import { gameAudio, type AudioSettings } from '../game/audio/GameAudio';
 import { getLanguage } from '../i18n/I18n';
@@ -288,6 +289,10 @@ export class HudScene
         Phaser.GameObjects.Text
       >
     > = {};
+
+  get hasOpenPanel(): boolean {
+    return this.profilePanelOpen || this.premiumPanelOpen || this.cityPanelOpen || this.bestiaryPanelOpen || this.forgePanelOpen;
+  }
 
   private profilePanelOpen = false;
   private profileEquipmentTab?:
@@ -4330,7 +4335,7 @@ export class HudScene
           button
             .setVisible(true)
             .setText(
-              `${WEAPON_DEFINITIONS[option.weaponId].name} · ${option.rarityName} · Lv.${option.level} · ${option.stars > 0 ? '★'.repeat(option.stars) : '☆'} · копий ${option.count}`,
+              `${WEAPON_DEFINITIONS[option.weaponId].name} · ${option.rarityName} · Lv.${option.level} · ${option.stars > 0 ? '★'.repeat(option.stars) : '☆'} · урон ${weaponHitDamage(option, state.damageBonus)} · ×${option.count}`,
             )
             .setStyle({
               backgroundColor:
@@ -4404,7 +4409,7 @@ export class HudScene
 
       this.characterWeaponInfoText
         ?.setText(
-          `${WEAPON_DEFINITIONS[option.weaponId].name}\nРедкость: ${option.rarityName}\nУровень оружия: ${option.level} / ${MAX_WEAPON_LEVEL}\nЗвёзды: ${option.stars} / ${MAX_WEAPON_STARS}\nКопий этой версии: ${option.count}\nМножитель силы: ×${option.damageMultiplier.toFixed(2)}`,
+          `${WEAPON_DEFINITIONS[option.weaponId].name}\n${option.rarityName} · Lv.${option.level}/${MAX_WEAPON_LEVEL} · ★${option.stars}/${MAX_WEAPON_STARS}\nКопий этой версии: ${option.count}\nУрон: ${weaponHitDamage(option, state.damageBonus)} по обычной цели\n${(WEAPON_DEFINITIONS[option.weaponId].cooldownMs / 1000).toFixed(2)} сек/удар · Спутник: ${weaponHitDamage(option, state.damageBonus, 0.65)} урона\nБонусы героя учтены`,
         );
 
       this.characterEquipButton
@@ -7176,8 +7181,8 @@ export class HudScene
         !unlocked
           ? `${WEAPON_DEFINITIONS[weaponId].name} · закрыто`
           : weaponCost
-            ? `${WEAPON_DEFINITIONS[weaponId].name} · ${rarityLabel} · Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}${weaponRareCost}`
-            : `${WEAPON_DEFINITIONS[weaponId].name} · ${rarityLabel} · Lv.${MAX_WEAPON_LEVEL} · MAX`,
+            ? `${WEAPON_DEFINITIONS[weaponId].name} · ${rarityLabel} · урон ${weaponHitDamage(equipped, state.damageBonus)} → ${weaponHitDamage({...equipped, level: weaponLevel + 1}, state.damageBonus)} · Lv.${weaponLevel} → ${weaponLevel + 1}   ●${weaponCost.coins} К${weaponCost.stone} М${weaponCost.metal}${weaponRareCost}`
+            : `${WEAPON_DEFINITIONS[weaponId].name} · ${rarityLabel} · урон ${weaponHitDamage(equipped, state.damageBonus)} · Lv.${MAX_WEAPON_LEVEL} · MAX`,
       )
       .setStyle({
         backgroundColor:
@@ -7466,7 +7471,7 @@ export class HudScene
     );
 
     this.healthText?.setText(
-      `HP ${state.health} / ${state.maxHealth}`,
+      `HP ${Math.ceil(state.health)} / ${state.maxHealth}`,
     );
 
     this.potionCountText?.setText(

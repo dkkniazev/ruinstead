@@ -21,6 +21,7 @@ import {
 } from '../world/ReleaseWorldContent';
 import {
   getRegionDefinition,
+  regionPointAt,
   regionIsUnlocked,
   type RegionId,
 } from '../world/ReleaseRegionMap';
@@ -346,14 +347,9 @@ function buildHabitats():
           habitatOffsets[
             habitatIndex
           ];
-        const centerX =
-          region.center[0] +
-          region.radiusX *
-            offset[0];
-        const centerY =
-          region.center[1] +
-          region.radiusY *
-            offset[1];
+        const habitatCenter = regionPointAt(region, offset[0], offset[1]);
+        const centerX = habitatCenter.x;
+        const centerY = habitatCenter.y;
 
         const groups:
           Array<
@@ -370,11 +366,7 @@ function buildHabitats():
             ]
           > = [];
 
-        for (
-          let index = 0;
-          index < 3;
-          index += 1
-        ) {
+        for (let index = 0; index < 3; index += 1) {
           const angle =
             index /
               3 *
@@ -435,13 +427,9 @@ function buildHabitats():
               groupPoint.y,
             ),
           ]);
-          elites.push([
-            Math.round(
-              elitePoint.x,
-            ),
-            Math.round(
-              elitePoint.y,
-            ),
+          if (index === 0) elites.push([
+            Math.round(elitePoint.x),
+            Math.round(elitePoint.y),
           ]);
         }
 
@@ -737,6 +725,10 @@ export class EnemyUnit {
 
   get alive(): boolean {
     return this._alive;
+  }
+
+  get visualHealthRatio(): number {
+    return this.health / this.maxHealth;
   }
 
   get position():
@@ -1497,6 +1489,10 @@ export class EnemySystem {
 
   private readonly enemies:
     EnemyUnit[] = [];
+
+  get visualUnits(): readonly EnemyUnit[] {
+    return this.enemies;
+  }
   private readonly engagedGroups =
     new Set<string>();
   private readonly activeRegions =

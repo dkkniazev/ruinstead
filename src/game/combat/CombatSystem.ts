@@ -11,6 +11,7 @@ import type {
   PlayerController,
 } from '../player/PlayerController';
 import { CombatAudio } from './CombatAudio';
+import { safeZoneHealth, weaponHitDamage } from './CombatMath';
 import { DropSystem } from './DropSystem';
 import {
   SETTLEMENT_CENTER,
@@ -21,7 +22,6 @@ import {
 } from '../progression/UpgradeBalance';
 import {
   WEAPON_RARITIES,
-  getWeaponDamageMultiplier,
   type EquippedWeaponProfile,
 } from '../progression/WeaponInventory';
 import {
@@ -86,6 +86,7 @@ export type CombatState = {
 };
 
 export class CombatSystem {
+  get damageBonus(): number { return this.temporaryDamageMultiplier; }
   private maxHealth = 100;
   private health =
     this.maxHealth;
@@ -547,6 +548,19 @@ export class CombatSystem {
       return;
     }
 
+    const playerSafe = Phaser.Math.Distance.Between(
+      this.player.sprite.x, this.player.sprite.y, SETTLEMENT_CENTER.x, SETTLEMENT_CENTER.y,
+    ) <= SETTLEMENT_SAFE_RADIUS;
+    if (playerSafe) {
+      const health = safeZoneHealth(this.health, this.maxHealth, delta);
+      if (health !== this.health) {
+        this.health = health;
+        this.player.setHealth(this.health, this.maxHealth);
+        this.emitState();
+      }
+      return;
+    }
+
     if (threatened) {
       this.lastCombatAt =
         time;
@@ -556,21 +570,6 @@ export class CombatSystem {
       this.regenerateHealth(
         time,
       );
-    }
-
-    const playerPosition =
-      this.player.position;
-    const playerSafe =
-      Phaser.Math.Distance.Between(
-        playerPosition.x,
-        playerPosition.y,
-        SETTLEMENT_CENTER.x,
-        SETTLEMENT_CENTER.y,
-      ) <=
-      SETTLEMENT_SAFE_RADIUS;
-
-    if (playerSafe) {
-      return;
     }
 
     const primaryProfile =
@@ -1310,21 +1309,7 @@ export class CombatSystem {
       target.getDamageProfile(
         profile.weaponId,
       );
-    const finalDamage =
-      Math.max(
-        1,
-        Math.round(
-          baseDamage *
-            damageScale *
-            this.temporaryDamageMultiplier *
-            getWeaponDamageMultiplier(
-              profile.level,
-              profile.rarity,
-              profile.stars,
-            ) *
-            damageProfile.multiplier,
-        ),
-      );
+    const finalDamage = weaponHitDamage(profile, this.temporaryDamageMultiplier, damageScale, damageProfile.multiplier, baseDamage);
     const killed =
       target.takeDamage(
         finalDamage,

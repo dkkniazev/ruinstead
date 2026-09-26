@@ -24,6 +24,7 @@ import {
 import {
   SETTLEMENT_CENTER,
 } from '../world/WorldPrototype';
+import { migrateLegacyWorldPosition } from '../world/ReleaseRegionMap';
 
 const BUILDING_IDS: BuildingId[] = [
   'forge',
@@ -436,10 +437,11 @@ export function sanitizeGameState(value: unknown): GameState {
               SETTLEMENT_CENTER.y +
               190,
           }
-        : {
-            x: positionX,
-            y: positionY,
-          }
+        : sourceSchemaVersion < 26
+          ? migrateLegacyWorldPosition(positionX, positionY)
+          : sourceSchemaVersion < 27
+            ? migrateLegacyWorldPosition(positionX, positionY, true)
+            : { x: positionX, y: positionY }
       : null;
 
   const buildings = {

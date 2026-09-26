@@ -785,7 +785,8 @@ export function addWeaponDrop(
   inventory: WeaponInventoryState,
   weaponId: WeaponId,
   rarity: WeaponRarityId,
-): OwnedWeaponOption {
+): OwnedWeaponOption | null {
+  if (isWeaponDropCapped(inventory, weaponId, rarity)) return null;
   let variant =
     getWeaponVariant(
       inventory,
@@ -850,6 +851,18 @@ export function addWeaponDrop(
         0,
       ),
   };
+}
+
+/** A mastered tier also retires weaker copies; better rarities still progress. */
+export function isWeaponDropCapped(inventory: WeaponInventoryState, weaponId: WeaponId, rarity: WeaponRarityId): boolean {
+  return inventory.variants.some(variant => variant.weaponId === weaponId
+    && WEAPON_RARITY_ORDER.indexOf(variant.rarity) >= WEAPON_RARITY_ORDER.indexOf(rarity)
+    && (variant.starCounts[MAX_WEAPON_STARS] ?? 0) > 0);
+}
+
+export function cappedWeaponMaterials(rarity: WeaponRarityId): { crystal: number; fiber: number } {
+  const tier = WEAPON_RARITY_ORDER.indexOf(rarity);
+  return { crystal: 12 + tier * 6, fiber: 18 + tier * 8 };
 }
 
 export function upgradeEquippedWeaponLevel(

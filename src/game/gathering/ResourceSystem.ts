@@ -1,3 +1,4 @@
+import { harvestYield, harvestRespawnMs } from '../economy/HarvestBalance';
 import Phaser from 'phaser';
 import type {
   BackpackSystem,
@@ -12,6 +13,10 @@ import {
 } from '../economy/RegionEconomy';
 import {
   getRegionDefinition,
+  regionRadiusAlong,
+  regionPointAt,
+  RELEASE_PASSAGES,
+  type RegionId,
 } from '../world/ReleaseRegionMap';
 import {
   SETTLEMENT_CENTER,
@@ -38,6 +43,14 @@ type ResourceNodeDefinition = {
   respawnMs: number;
 };
 
+export type ResourceVisualState = ResourceNodeDefinition & {
+  available: boolean;
+  health: number;
+  maxHealth: number;
+  hitAt: number;
+  hitCount: number;
+};
+
 type ResourcePickup = {
   type: ResourceType;
   amount: number;
@@ -59,10 +72,37 @@ const RESOURCE_ORDER:
   'fiber',
 ];
 
+function blocksPassageApproach(regionId: RegionId, x: number, y: number): boolean {
+  const region = getRegionDefinition(regionId);
+  return RELEASE_PASSAGES.some((passage) => {
+    if (passage.a !== regionId && passage.b !== regionId) return false;
+    const other = getRegionDefinition(passage.a === regionId ? passage.b : passage.a);
+    const dx = other.center[0] - region.center[0];
+    const dy = other.center[1] - region.center[1];
+    const length = Math.hypot(dx, dy);
+    const ux = dx / length;
+    const uy = dy / length;
+    const edge = regionRadiusAlong(region, ux, uy);
+    const px = x - region.center[0];
+    const py = y - region.center[1];
+    const forward = px * ux + py * uy;
+    const lateral = Math.abs(px * -uy + py * ux);
+    return forward > edge - 320 && lateral < passage.width / 2 + 150;
+  });
+}
+
 function buildNodeDefinitions():
   ResourceNodeDefinition[] {
   const result:
     ResourceNodeDefinition[] = [];
+
+  // Starter gatherables are deliberately visible within a short walk of spawn.
+  const home = SETTLEMENT_CENTER;
+  result.push(
+    { id: 'starter-wood', type: 'wood', x: home.x + 540, y: home.y + 230, durability: 3, dropCount: 5, respawnMs: 45_000 },
+    { id: 'starter-stone', type: 'stone', x: home.x - 545, y: home.y + 235, durability: 4, dropCount: 4, respawnMs: 60_000 },
+    { id: 'starter-metal', type: 'metal', x: home.x + 340, y: home.y + 460, durability: 5, dropCount: 3, respawnMs: 90_000 },
+  );
 
   // Guaranteed rare-resource foothold immediately inside region 2.
   const regionTwo =
@@ -80,8 +120,8 @@ function buildNodeDefinitions():
         regionTwo.radiusY *
           0.42,
       durability: 4,
-      dropCount: 4,
-      respawnMs: 75_000,
+      dropCount: harvestYield('crystal', 2, 2),
+      respawnMs: harvestRespawnMs('crystal'),
     },
     {
       id: 'region-2-fiber-entry',
@@ -95,8 +135,8 @@ function buildNodeDefinitions():
         regionTwo.radiusY *
           0.48,
       durability: 3,
-      dropCount: 6,
-      respawnMs: 60_000,
+      dropCount: harvestYield('fiber', 2, 5),
+      respawnMs: harvestRespawnMs('fiber'),
     },
   );
 
@@ -120,11 +160,7 @@ function buildNodeDefinitions():
           return;
         }
 
-        const count =
-          Math.max(
-            1,
-            abundance,
-          );
+        const count = Math.max(6, abundance * (abundance >= 4 ? 6 : 4));
 
         for (
           let index = 0;
@@ -146,26 +182,8 @@ function buildNodeDefinitions():
               Math.PI *
               2
             );
-          const ring =
-            0.34 +
-            (
-              (
-                index +
-                typeIndex
-              ) %
-              3
-            ) *
-              0.18;
-          const x =
-            region.center[0] +
-            Math.cos(angle) *
-              region.radiusX *
-              ring;
-          const y =
-            region.center[1] +
-            Math.sin(angle) *
-              region.radiusY *
-              ring;
+          const ring = 0.29 + ((index + typeIndex) % 8) * 0.08;
+          const { x, y } = regionPointAt(region, Math.cos(angle) * ring, Math.sin(angle) * ring);
 
           if (
             profile.region === 1 &&
@@ -175,9 +193,11 @@ function buildNodeDefinitions():
               SETTLEMENT_CENTER.x,
               SETTLEMENT_CENTER.y,
             ) <
-              SETTLEMENT_SAFE_RADIUS +
-              180
+              SETTLEMENT_SAFE_RADIUS + 35
           ) {
+            continue;
+          }
+          if (blocksPassageApproach(profile.region, x, y)) {
             continue;
           }
 
@@ -191,33 +211,6 @@ function buildNodeDefinitions():
                     'stone'
                   ? 4
                   : 5;
-          const baseDrop =
-            type === 'wood'
-              ? 4
-              : type ===
-                  'fiber'
-                ? 5
-                : type ===
-                    'stone'
-                  ? 3
-                  : type ===
-                      'metal'
-                    ? 2
-                    : 3;
-          const respawnMs =
-            type === 'wood'
-              ? 45_000
-              : type ===
-                  'fiber'
-                ? 65_000
-                : type ===
-                    'stone'
-                  ? 60_000
-                  : type ===
-                      'metal'
-                    ? 90_000
-                    : 105_000;
-
           result.push({
             id:
               `region-${profile.region}-${type}-${index + 1}`,
@@ -235,14 +228,8 @@ function buildNodeDefinitions():
                 ) /
                   3,
               ),
-            dropCount:
-              baseDrop +
-              (
-                abundance >= 5
-                  ? 1
-                  : 0
-              ),
-            respawnMs,
+            dropCount: harvestYield(type, profile.region, abundance),
+            respawnMs: harvestRespawnMs(type),
           });
         }
       },
@@ -280,6 +267,7 @@ const PICKUP_TEXTURES:
 };
 
 class ResourceNode {
+  readonly visualState: ResourceVisualState;
   readonly sprite:
     Phaser.GameObjects.Image;
 
@@ -297,6 +285,8 @@ class ResourceNode {
     readonly definition: ResourceNodeDefinition,
   ) {
     this.health = definition.durability;
+    this.visualState = { ...definition, available: true, health: this.health,
+      maxHealth: definition.durability, hitAt: -10000, hitCount: 0 };
 
     this.sprite = scene.add
       .image(
@@ -365,6 +355,9 @@ class ResourceNode {
 
     this.health =
       Math.max(0, this.health - 1);
+    this.visualState.health = this.health;
+    this.visualState.hitAt = this.scene.time.now;
+    this.visualState.hitCount += 1;
 
     this.back.setVisible(true);
     this.fill.setVisible(true);
@@ -402,6 +395,7 @@ class ResourceNode {
 
   private deplete(): void {
     this.active = false;
+    this.visualState.available = false;
     this.respawnAt =
       this.scene.time.now +
       this.definition.respawnMs;
@@ -423,6 +417,9 @@ class ResourceNode {
 
   private respawn(): void {
     this.active = true;
+    this.visualState.available = true;
+    this.visualState.health = this.definition.durability;
+    this.visualState.hitAt = -10000;
     this.respawnAt = 0;
     this.health =
       this.definition.durability;
@@ -443,6 +440,15 @@ class ResourceNode {
 }
 
 export class ResourceSystem {
+  readonly obstacles: Phaser.Physics.Arcade.StaticGroup;
+  private readonly collisionBodies: Phaser.GameObjects.Rectangle[] = [];
+  private readonly nodeVisuals: ResourceVisualState[] = [];
+  get visualNodes(): readonly ResourceVisualState[] { return this.nodeVisuals; }
+  visualHarvestAction?: { x: number; y: number; hitAt: number };
+
+  get visualPickups(): ReadonlyArray<{ type: ResourceType; x: number; y: number }> {
+    return this.pickups.map((pickup) => ({ type: pickup.type, x: pickup.sprite.x, y: pickup.sprite.y }));
+  }
   private nextDeathDropBatchId = 1;
   private gatheringMultiplier = 1;
   private pickupRangeMultiplier = 1;
@@ -476,17 +482,21 @@ export class ResourceSystem {
       ) => void,
   ) {
     ensureResourceTextures(scene);
+    this.obstacles = scene.physics.add.staticGroup();
 
     for (
       const definition of
       NODE_DEFINITIONS
     ) {
-      this.nodes.push(
-        new ResourceNode(
-          scene,
-          definition,
-        ),
-      );
+      const node = new ResourceNode(scene, definition);
+      this.nodes.push(node);
+      this.nodeVisuals.push(node.visualState);
+      const size = definition.type === 'wood' ? 38
+        : definition.type === 'fiber' ? 30
+          : definition.type === 'stone' || definition.type === 'metal' ? 62 : 50;
+      const collider = scene.add.rectangle(definition.x, definition.y, size, size, 0x000000, 0);
+      this.obstacles.add(collider);
+      this.collisionBodies.push(collider);
     }
   }
 
@@ -497,11 +507,11 @@ export class ResourceSystem {
       Phaser.Math.Vector2,
     threatened: boolean,
   ): void {
-    for (
-      const node of
-      this.nodes
-    ) {
+    for (let i = 0; i < this.nodes.length; i += 1) {
+      const node = this.nodes[i];
       node.update(time);
+      const body = this.collisionBodies[i].body as Phaser.Physics.Arcade.StaticBody;
+      body.enable = node.available;
     }
 
     this.updatePickups(
@@ -528,6 +538,7 @@ export class ResourceSystem {
 
     this.nextHarvestAt =
       time + HARVEST_COOLDOWN_MS;
+    this.visualHarvestAction = { x: node.definition.x, y: node.definition.y, hitAt: time };
 
     if (node.hit()) {
       this.spawnNodeDrops(
@@ -730,6 +741,8 @@ export class ResourceSystem {
   }
 
   destroy(): void {
+    this.obstacles.destroy(true);
+    this.collisionBodies.length = 0;
     for (
       const node of
       this.nodes
@@ -746,6 +759,7 @@ export class ResourceSystem {
     }
 
     this.nodes.length = 0;
+    this.nodeVisuals.length = 0;
     this.pickups.length = 0;
   }
 

@@ -1,0 +1,8 @@
+Gobkit free packs
+
+Licence: CC0 1.0 Universal (public domain)
+Official catalogue: https://gobkit.com/freebies
+Manifest: https://gobkit.com/api/free
+Legal text: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+The official catalogue states that the free packs may be used commercially, modified and redistributed without attribution.

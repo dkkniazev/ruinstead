@@ -1,4 +1,5 @@
 import { withNatureAsset } from './NatureAssets';
+import { withCreatureAsset } from './CreatureAssets';
 import * as THREE from 'three';
 import type { WeaponId } from '../combat/WeaponDefinitions';
 
@@ -284,7 +285,7 @@ export function createCreature(id: string, primary: number, accent: number, larg
     ball(body, accent, 0, 122, 0, 8, 8, 8);
   }
   let phase = 0;
-  return {
+  const fallback: AnimatedModel = {
     root,
     step(seconds, speed) {
       phase += Math.min(seconds, 0.05) * (3 + Math.min(speed / 50, 3) * 4);
@@ -295,6 +296,7 @@ export function createCreature(id: string, primary: number, accent: number, larg
       body.rotation.z = Math.sin(phase) * amount * 0.035;
     },
   };
+  return withCreatureAsset(id, large, fallback);
 }
 
 export function createTree(seed: number, region: number): THREE.Group {

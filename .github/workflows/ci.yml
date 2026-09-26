@@ -29,5 +29,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Gameplay, economy and world sanity
+        run: |
+          npm run balance
+          npm run check:world
+          npm run check:gameplay
+
       - name: Typecheck and build
         run: npm run build

@@ -10,7 +10,7 @@ import type { CityBuilderSystem } from '../settlement/CityBuilderSystem';
 import { FORGE_POSITION } from '../settlement/SettlementSystem';
 import { regionNormalizedDistance, RELEASE_PASSAGES, RELEASE_REGIONS, type RegionPassage } from '../world/ReleaseRegionMap';
 import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
-import { createBuilding, createChest, createCreature, createHero, type AnimatedModel } from './Models';
+import { createBuilding, createChest, createCreature, createHero, createSceneryProp, type AnimatedModel } from './Models';
 
 import { terrainHeight, passageHeight, TERRAIN_PASSAGES } from '../world/WorldTerrain';
 import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './TerrainMeshes';
@@ -281,6 +281,30 @@ export class WorldPresentation3D {
     grass.instanceMatrix.needsUpdate = true;
     grass.userData.uniqueGeometry = true;
     group.add(grass);
+
+    // Small region-specific props are deliberately non-blocking. Keep them
+    // away from combat/resource anchors so they never imply fake collision.
+    for (let index = 0; index < 3; index += 1) {
+      const px = cx * TILE + random(cx, cz, 201 + index * 11) * TILE;
+      const pz = cz * TILE + random(cx, cz, 202 + index * 11) * TILE;
+      const island = islandAt(px, pz);
+      if (
+        island.distance >= 0.9 ||
+        Math.hypot(px - SETTLEMENT_CENTER.x, pz - SETTLEMENT_CENTER.y) < 620 ||
+        !enemySpawnAreaIsClear(px, pz, 150) ||
+        !resourceNodeAreaIsClear(px, pz, 112)
+      ) continue;
+      const prop = createSceneryProp(
+        Math.round(px * 0.7 + pz * 1.3 + index * 97),
+        island.region,
+      );
+      prop.position.set(px, terrainHeight(px, pz), pz);
+      prop.rotation.y = random(px, pz, index + 300) * Math.PI * 2;
+      const scale = 0.82 + random(pz, px, index + 400) * 0.34;
+      prop.scale.setScalar(scale);
+      group.add(prop);
+    }
+
     // Decorative rubble is intentionally knee-high and non-blocking. Large
     // silhouettes belong to gameplay objects with real Arcade collision.
     if (

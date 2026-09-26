@@ -26,14 +26,27 @@ function creatureAssetFor(id: string): string | null {
   if (id.includes('mushroom')) return 'Mushroom';
   if (id.includes('bat') || id.includes('harpy')) return 'Bat';
   if (id.includes('wisp') || id.includes('spirit') || id.includes('ghost')) return 'Ghost';
-  if (id.includes('boar')) return 'Pig';
-  if (id.includes('dragon') || id.includes('wyvern') || id.includes('drake')) return 'YellowDragon';
+  if (id.includes('boar') || id.includes('ram')) return 'Pig';
+  if (
+    id.includes('dragon') || id.includes('wyvern') || id.includes('drake') ||
+    id.includes('salamander') || id.includes('serpent')
+  ) return 'YellowDragon';
   if (id.includes('scorpion') || id.includes('spider') || id.includes('beetle')) return 'Crab';
-  if (id.includes('giant') || id.includes('golem') || id.includes('colossus') || id.includes('ogre')) return 'Yeti';
+  if (
+    id.includes('giant') || id.includes('golem') || id.includes('colossus') ||
+    id.includes('ogre') || id.includes('stone-elemental') || id.includes('canyon-lord')
+  ) return 'Yeti';
   if (id.includes('gargoyle') || id.includes('matriarch')) return 'Cthulhu';
-  if (id.includes('goblin') || id.includes('bandit') || id.includes('cultist') || id.includes('raider')) return 'GreenDemon';
-  if (id.includes('fire-imp') || id.includes('ember') || id.includes('cinder') || id.includes('elemental')) return 'Demon';
+  if (
+    id.includes('goblin') || id.includes('bandit') || id.includes('cultist') ||
+    id.includes('raider') || id.includes('warden') || id.includes('tyrant')
+  ) return 'GreenDemon';
+  if (
+    id.includes('fire-imp') || id.includes('emberling') ||
+    id.includes('cinder') || id.includes('lava-elemental')
+  ) return 'Demon';
   if (id.includes('stalker')) return 'Alien';
+  if (id.includes('vulture') || id.includes('sky-lord')) return 'Bat';
   return null;
 }
 

@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { insideBossDanger, type BossDangerZone } from '../combat/CombatMath';
 import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
+import { enemySpawnAreaIsClear } from '../enemies/EnemySystem';
+import { resourceNodeAreaIsClear } from '../gathering/ResourceSystem';
 import type {
   DamageEffectiveness,
   DamageProfile,
@@ -23,6 +25,7 @@ import {
 } from '../world/ReleaseWorldContent';
 import {
   getRegionDefinition,
+  pointInRegion,
   regionPointAt,
   regionIsUnlocked,
   type RegionId,
@@ -162,6 +165,32 @@ const REGION_BOSS_COLORS:
   8: [0x4d2c30, 0xff643b],
 };
 
+function clearBossSpawn(
+  regionId: RegionId,
+  start: Phaser.Math.Vector2,
+  seed: number,
+): Phaser.Math.Vector2 {
+  const region = getRegionDefinition(regionId);
+  const isClear = (point: Phaser.Math.Vector2): boolean =>
+    pointInRegion(region, point.x, point.y) &&
+    resourceNodeAreaIsClear(point.x, point.y, 190) &&
+    enemySpawnAreaIsClear(point.x, point.y, 230);
+
+  if (isClear(start)) return start;
+
+  for (let step = 0; step < 24; step += 1) {
+    const ring = 110 + Math.floor(step / 8) * 95;
+    const angle = seed * 2.399963 + step * Math.PI / 4;
+    const candidate = new Phaser.Math.Vector2(
+      start.x + Math.cos(angle) * ring,
+      start.y + Math.sin(angle) * ring,
+    );
+    if (isClear(candidate)) return candidate;
+  }
+
+  return start;
+}
+
 function buildBossDefinitions():
   BossDefinition[] {
   const perRegionIndex =
@@ -193,7 +222,12 @@ function buildBossDefinitions():
       const offset = source.region === 1 && index === 2
         ? [0.55, 0.5] as const
         : offsets[index];
-      const spawnPoint = regionPointAt(region, offset[0], offset[1]);
+      const authoredSpawn = regionPointAt(region, offset[0], offset[1]);
+      const spawnPoint = clearBossSpawn(
+        source.region,
+        authoredSpawn,
+        source.region * 10 + index,
+      );
       const special =
         Boolean(
           source.specialBoss,

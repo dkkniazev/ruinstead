@@ -23,10 +23,14 @@ const loader = new GLTFLoader();
 const models = new Map<string, Promise<LoadedCreature | null>>();
 
 function creatureAssetFor(id: string): string | null {
+  // Specific silhouettes first; generic keyword families come later.
+  if (id.includes('root-colossus')) return 'Tree';
+  if (id.includes('sandling')) return 'Cactus';
+  if (id.includes('jackal') || id.includes('hound') || id.includes('ram')) return 'Deer';
   if (id.includes('mushroom')) return 'Mushroom';
   if (id.includes('bat') || id.includes('harpy')) return 'Bat';
   if (id.includes('wisp') || id.includes('spirit') || id.includes('ghost')) return 'Ghost';
-  if (id.includes('boar') || id.includes('ram')) return 'Pig';
+  if (id.includes('boar')) return 'Pig';
   if (
     id.includes('dragon') || id.includes('wyvern') || id.includes('drake') ||
     id.includes('salamander') || id.includes('serpent')
@@ -48,6 +52,15 @@ function creatureAssetFor(id: string): string | null {
   if (id.includes('stalker')) return 'Alien';
   if (id.includes('vulture') || id.includes('sky-lord')) return 'Bat';
   return null;
+}
+
+function stableFraction(value: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) / 0xffffffff;
 }
 
 function loadCreature(name: string): Promise<LoadedCreature | null> {
@@ -86,6 +99,8 @@ function firstClip(
  */
 export function withCreatureAsset(
   id: string,
+  primary: number,
+  accent: number,
   large: boolean,
   fallback: CreatureAnimation,
 ): CreatureAnimation {
@@ -121,17 +136,34 @@ export function withCreatureAsset(
     if (!asset) return;
 
     const model = cloneSkeleton(asset.scene) as THREE.Group;
+    const primaryTint = new THREE.Color(primary);
+    const accentTint = new THREE.Color(accent);
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
       object.castShadow = true;
       object.receiveShadow = true;
       object.frustumCulled = true;
+
+      const recolor = (material: THREE.Material, index: number): THREE.Material => {
+        const copy = material.clone();
+        if (copy instanceof THREE.MeshStandardMaterial) {
+          const tint = index % 3 === 1 ? accentTint : primaryTint;
+          copy.color.lerp(tint, 0.26);
+          copy.roughness = Math.max(copy.roughness, 0.72);
+          copy.metalness = Math.min(copy.metalness, 0.18);
+        }
+        return copy;
+      };
+      object.material = Array.isArray(object.material)
+        ? object.material.map((material, index) => recolor(material, index))
+        : recolor(object.material, 0);
     });
 
     model.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(model);
     const size = bounds.getSize(new THREE.Vector3());
-    const targetHeight = large ? 122 : 90;
+    const speciesScale = 0.92 + stableFraction(id) * 0.16;
+    const targetHeight = (large ? 122 : 90) * speciesScale;
     model.scale.multiplyScalar(targetHeight / Math.max(0.001, size.y));
     model.updateMatrixWorld(true);
 

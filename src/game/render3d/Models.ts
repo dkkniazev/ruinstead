@@ -182,6 +182,7 @@ export function createCreature(id: string, primary: number, accent: number, larg
   root.add(body);
   const legs: THREE.Group[] = [];
   const arms: THREE.Group[] = [];
+  const swaySegments: THREE.Object3D[] = [];
   let float = false;
   const is = (...terms: string[]) => terms.some((term) => id.includes(term));
   if (is('slime', 'wisp', 'spirit', 'emberling', 'gale')) {
@@ -191,7 +192,7 @@ export function createCreature(id: string, primary: number, accent: number, larg
     eye(body, -8, 32, 21, 4);
     eye(body, 8, 32, 21, 4);
     for (let n = 0; n < 4; n++) ball(body, accent, Math.cos(n * 2) * 25, 14 + n * 8, Math.sin(n * 2) * 18, 5);
-  } else if (is('boar', 'jackal', 'hound', 'cat', 'ram', 'stalker', 'salamander', 'drake', 'wyvern')) {
+  } else if (is('boar', 'jackal', 'hound', 'cat', 'ram', 'stalker', 'salamander', 'drake', 'wyvern', 'beast')) {
     ball(body, primary, 0, 34, 0, 31, 23, 42);
     ball(body, accent, 0, 41, 31, 24, 20, 24);
     ball(body, primary, 0, 29, 51, 13, 10, 16);
@@ -248,7 +249,25 @@ export function createCreature(id: string, primary: number, accent: number, larg
       wing.rotation.z = side * 0.28;
       part(body, cone, mat(accent), side * 11, 14, 0, 6, 30, 6).rotation.z = Math.PI;
     }
-  } else if (is('elemental', 'golem', 'colossus', 'giant', 'guardian', 'worm', 'serpent')) {
+  } else if (is('worm')) {
+    for (let index = 0; index < 7; index += 1) {
+      const taper = 1 - index * 0.085;
+      const segment = new THREE.Group();
+      segment.position.set(
+        Math.sin(index * 0.82) * 7,
+        20 - index * 0.7,
+        -index * 20,
+      );
+      body.add(segment);
+      swaySegments.push(segment);
+      ball(segment, index % 2 ? primary : accent, 0, 0, 0, 22 * taper, 18 * taper, 24 * taper);
+    }
+    ball(body, primary, 0, 25, 18, 25, 22, 27);
+    eye(body, -9, 31, 39, 3.8);
+    eye(body, 9, 31, 39, 3.8);
+    const maw = part(body, cone, mat(0x352729), 0, 18, 45, 10, 17, 10);
+    maw.rotation.x = Math.PI / 2;
+  } else if (is('elemental', 'golem', 'colossus', 'giant', 'guardian', 'serpent')) {
     ball(body, primary, 0, 60, 0, 32, 37, 27);
     box(body, accent, 0, 64, 24, 28, 9, 7);
     ball(body, primary, 0, 104, 2, 19, 19, 18);
@@ -292,11 +311,14 @@ export function createCreature(id: string, primary: number, accent: number, larg
       const amount = Math.min(speed / 150, 1);
       legs.forEach((leg, index) => { leg.rotation.x = Math.sin(phase + index * Math.PI * 0.75) * amount * 0.4; });
       arms.forEach((arm, index) => { arm.rotation.x = Math.sin(phase + index * Math.PI) * amount * 0.32; });
+      swaySegments.forEach((segment, index) => {
+        segment.rotation.y = Math.sin(phase * 0.62 - index * 0.48) * (0.12 + amount * 0.18);
+      });
       body.position.y = float ? Math.sin(phase * 0.65) * 7 : Math.abs(Math.sin(phase)) * amount * 2;
       body.rotation.z = Math.sin(phase) * amount * 0.035;
     },
   };
-  return withCreatureAsset(id, large, fallback);
+  return withCreatureAsset(id, primary, accent, large, fallback);
 }
 
 export function createTree(seed: number, region: number): THREE.Group {

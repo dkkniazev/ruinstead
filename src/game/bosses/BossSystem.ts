@@ -29,6 +29,7 @@ import {
   regionPointAt,
   regionIsUnlocked,
   type RegionId,
+  type WorldPoint,
 } from '../world/ReleaseRegionMap';
 
 export type BossId =
@@ -167,11 +168,11 @@ const REGION_BOSS_COLORS:
 
 function clearBossSpawn(
   regionId: RegionId,
-  start: Phaser.Math.Vector2,
+  start: WorldPoint,
   seed: number,
-): Phaser.Math.Vector2 {
+): WorldPoint {
   const region = getRegionDefinition(regionId);
-  const isClear = (point: Phaser.Math.Vector2): boolean =>
+  const isClear = (point: WorldPoint): boolean =>
     pointInRegion(region, point.x, point.y) &&
     resourceNodeAreaIsClear(point.x, point.y, 190) &&
     enemySpawnAreaIsClear(point.x, point.y, 230);
@@ -181,10 +182,10 @@ function clearBossSpawn(
   for (let step = 0; step < 24; step += 1) {
     const ring = 110 + Math.floor(step / 8) * 95;
     const angle = seed * 2.399963 + step * Math.PI / 4;
-    const candidate = new Phaser.Math.Vector2(
-      start.x + Math.cos(angle) * ring,
-      start.y + Math.sin(angle) * ring,
-    );
+    const candidate: WorldPoint = {
+      x: start.x + Math.cos(angle) * ring,
+      y: start.y + Math.sin(angle) * ring,
+    };
     if (isClear(candidate)) return candidate;
   }
 

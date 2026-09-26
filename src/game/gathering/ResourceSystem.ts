@@ -1,4 +1,4 @@
-import { harvestYield, harvestRespawnMs } from '../economy/HarvestBalance';
+import { harvestYield, harvestRespawnMs, harvestNodeCount } from '../economy/HarvestBalance';
 import Phaser from 'phaser';
 import type {
   BackpackSystem,
@@ -26,8 +26,17 @@ import {
 type HarvestResourceType =
   Exclude<ResourceType, 'coins'>;
 
-const HARVEST_RANGE = 88;
+// Range is measured from the visible/solid footprint instead of the node centre.
+const HARVEST_EDGE_RANGE = 58;
 const HARVEST_COOLDOWN_MS = 620;
+
+const RESOURCE_FOOTPRINT_RADIUS: Record<HarvestResourceType, number> = {
+  wood: 34,
+  stone: 42,
+  metal: 40,
+  crystal: 38,
+  fiber: 26,
+};
 const PICKUP_MAGNET_RANGE = 170;
 const PICKUP_COLLECT_RANGE = 24;
 const PICKUP_SPEED = 390;
@@ -160,7 +169,7 @@ function buildNodeDefinitions():
           return;
         }
 
-        const count = Math.max(6, abundance * (abundance >= 4 ? 6 : 4));
+        const count = harvestNodeCount(abundance);
 
         for (
           let index = 0;
@@ -242,6 +251,22 @@ function buildNodeDefinitions():
 const NODE_DEFINITIONS:
   readonly ResourceNodeDefinition[] =
   buildNodeDefinitions();
+
+/**
+ * Shared spawn-clearance check used by combat placement. This keeps mobs out
+ * of harvestable trees/rocks instead of relying on the renderer to hide the
+ * overlap after the fact.
+ */
+export function resourceNodeAreaIsClear(
+  x: number,
+  y: number,
+  clearance = 72,
+): boolean {
+  return NODE_DEFINITIONS.every((node) =>
+    Math.hypot(node.x - x, node.y - y) >=
+      RESOURCE_FOOTPRINT_RADIUS[node.type] + clearance,
+  );
+}
 
 const NODE_TEXTURES:
   Record<HarvestResourceType, string> = {
@@ -491,11 +516,19 @@ export class ResourceSystem {
       const node = new ResourceNode(scene, definition);
       this.nodes.push(node);
       this.nodeVisuals.push(node.visualState);
-      const size = definition.type === 'wood' ? 38
-        : definition.type === 'fiber' ? 30
-          : definition.type === 'stone' || definition.type === 'metal' ? 62 : 50;
-      const collider = scene.add.rectangle(definition.x, definition.y, size, size, 0x000000, 0);
+      const size = RESOURCE_FOOTPRINT_RADIUS[definition.type] * 2;
+      const collider = scene.add.rectangle(
+        definition.x,
+        definition.y,
+        size,
+        size,
+        0x000000,
+        0,
+      );
       this.obstacles.add(collider);
+      const body = collider.body as Phaser.Physics.Arcade.StaticBody;
+      body.setSize(size, size);
+      body.updateFromGameObject();
       this.collisionBodies.push(collider);
     }
   }
@@ -770,7 +803,7 @@ export class ResourceSystem {
     let best:
       ResourceNode | undefined;
     let bestDistance =
-      HARVEST_RANGE;
+      HARVEST_EDGE_RANGE;
 
     for (
       const node of
@@ -786,8 +819,14 @@ export class ResourceSystem {
       }
 
       const distance =
-        node.distanceTo(
-          playerPosition,
+        Math.max(
+          0,
+          node.distanceTo(
+            playerPosition,
+          ) -
+            RESOURCE_FOOTPRINT_RADIUS[
+              node.definition.type
+            ],
         );
 
       if (

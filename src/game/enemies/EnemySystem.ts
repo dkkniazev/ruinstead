@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
+import { resourceNodeAreaIsClear } from '../gathering/ResourceSystem';
 import type {
   DamageEffectiveness,
   DamageProfile,
@@ -21,6 +22,7 @@ import {
 } from '../world/ReleaseWorldContent';
 import {
   getRegionDefinition,
+  pointInRegion,
   regionPointAt,
   regionIsUnlocked,
   type RegionId,
@@ -375,7 +377,7 @@ function buildHabitats():
             habitatIndex *
               0.31;
           const groupPoint =
-            moveOutsideSettlement(
+            moveClearOfResourceNodes(
               regionId,
               centerX +
               Math.cos(
@@ -395,9 +397,11 @@ function buildHabitats():
                   region.radiusY *
                     0.1,
                 ),
+              habitatIndex * 10 + index,
+              118,
             );
           const elitePoint =
-            moveOutsideSettlement(
+            moveClearOfResourceNodes(
               regionId,
               centerX +
               Math.cos(
@@ -417,6 +421,8 @@ function buildHabitats():
                   region.radiusY *
                     0.15,
                 ),
+              100 + habitatIndex * 10 + index,
+              108,
             );
 
           groups.push([
@@ -448,6 +454,44 @@ function buildHabitats():
 const HABITATS:
   readonly HabitatDefinition[] =
   buildHabitats();
+
+function moveClearOfResourceNodes(
+  regionId: number,
+  x: number,
+  y: number,
+  seed: number,
+  clearance: number,
+): Phaser.Math.Vector2 {
+  const region = getRegionDefinition(regionId as RegionId);
+  const start = moveOutsideSettlement(regionId, x, y);
+
+  if (
+    pointInRegion(region, start.x, start.y) &&
+    resourceNodeAreaIsClear(start.x, start.y, clearance)
+  ) {
+    return start;
+  }
+
+  // Deterministic radial search: stable saves/spawns, but no actors embedded
+  // inside harvestable rocks and trees.
+  for (let step = 0; step < 18; step += 1) {
+    const ring = 90 + Math.floor(step / 6) * 82;
+    const angle = seed * 2.399963 + step * 1.047198;
+    const candidate = moveOutsideSettlement(
+      regionId,
+      start.x + Math.cos(angle) * ring,
+      start.y + Math.sin(angle) * ring,
+    );
+    if (
+      pointInRegion(region, candidate.x, candidate.y) &&
+      resourceNodeAreaIsClear(candidate.x, candidate.y, clearance)
+    ) {
+      return candidate;
+    }
+  }
+
+  return start;
+}
 
 function moveOutsideSettlement(
   regionId: number,
@@ -554,6 +598,16 @@ function buildSpawns():
 
 const ALL_SPAWNS =
   buildSpawns();
+
+export function enemySpawnAreaIsClear(
+  x: number,
+  y: number,
+  clearance = 150,
+): boolean {
+  return ALL_SPAWNS.every((spawn) =>
+    Math.hypot(spawn.x - x, spawn.y - y) >= clearance,
+  );
+}
 
 export class EnemyUnit {
   readonly sprite:

@@ -320,16 +320,72 @@ export function createTree(seed: number, region: number): THREE.Group {
       leaf.rotation.y = n * 0.45;
     }
   }
-  const asset = region === 4 || region === 8 ? 'tree_thin_dark' : region === 7 || region === 2 ? 'tree_plateau_fall' : region === 3 || region === 5 ? (seed % 2 ? 'tree_pineTallA_detailed' : 'tree_pineRoundA') : (seed % 2 ? 'tree_oak' : 'tree_detailed');
-  return withNatureAsset(asset, 145 + seed % 26, group);
+  const byRegion: Record<number, readonly string[]> = {
+    1: ['tree_oak', 'tree_detailed', 'tree_pineRoundA'],
+    2: ['tree_plateau_fall', 'tree_thin_dark'],
+    3: ['tree_pineTallA_detailed', 'tree_pineRoundA', 'tree_thin_dark'],
+    4: ['tree_thin_dark', 'tree_plateau_fall'],
+    5: ['tree_pineRoundA', 'tree_pineTallA_detailed', 'tree_oak'],
+    6: ['tree_oak', 'tree_detailed', 'tree_pineRoundA'],
+    7: ['tree_plateau_fall', 'tree_thin_dark', 'tree_detailed'],
+    8: ['tree_thin_dark', 'tree_plateau_fall'],
+  };
+  const choices = byRegion[region] ?? byRegion[1];
+  const asset = choices[Math.abs(seed) % choices.length];
+  const visual = withNatureAsset(asset, 136 + Math.abs(seed % 5) * 6, group);
+  visual.rotation.y = (Math.abs(seed) % 12) * 0.37;
+  return visual;
 }
 
 export function createRock(seed: number, region: number): THREE.Group {
   const group = new THREE.Group();
   const stone = region === 2 || region === 7 ? 0xb69a70 : region === 4 || region === 8 ? 0x514745 : 0x838b7d;
-  ball(group, stone, 0, 14, 0, 25 + seed % 15, 17 + seed % 13, 22 + seed % 12);
-  ball(group, 0xa9aa91, 10, 18, -5, 8, 5, 9);
-  return withNatureAsset(seed % 2 ? 'rock_largeA' : 'rock_largeC', 42 + seed % 12, group);
+  ball(group, stone, -5, 11, 0, 21 + seed % 9, 13 + seed % 7, 19 + seed % 8);
+  if (seed % 3 !== 0) ball(group, 0xa9aa91, 12, 9, -6, 7, 5, 8);
+  const visual = withNatureAsset(seed % 2 ? 'rock_largeA' : 'rock_largeC', 31 + Math.abs(seed % 8), group);
+  visual.rotation.y = (Math.abs(seed) % 10) * 0.43;
+  return visual;
+}
+
+export function createOre(seed: number, region: number): THREE.Group {
+  const group = new THREE.Group();
+  const base = region === 2 || region === 7 ? 0x5e5b55 : region === 4 || region === 8 ? 0x45464a : 0x596068;
+  const vein = region === 4 || region === 8 ? 0xd98245 : 0xb7c6ce;
+
+  // Ore deliberately has a tall fractured silhouette instead of reusing the
+  // round stone asset. Metallic veins remain readable even from the zoomed camera.
+  for (let index = 0; index < 4; index += 1) {
+    const angle = index * 1.47 + seed * 0.19;
+    const height = 25 + ((seed + index * 7) % 17);
+    const shard = part(
+      group,
+      cone,
+      mat(index % 2 ? base : 0x3f454b, 0.18),
+      Math.cos(angle) * (9 + index * 3),
+      height / 2,
+      Math.sin(angle) * (8 + index * 2),
+      10 + index * 2,
+      height,
+      10 + index,
+    );
+    shard.rotation.z = Math.sin(angle) * 0.17;
+    shard.rotation.y = angle;
+  }
+  for (let index = 0; index < 5; index += 1) {
+    const angle = index * 1.23 + seed * 0.31;
+    ball(
+      group,
+      vein,
+      Math.cos(angle) * (13 + index),
+      11 + (index % 3) * 7,
+      Math.sin(angle) * (12 + index),
+      4 + (index % 2) * 2,
+      3,
+      5,
+    ).material = mat(vein, 0.62);
+  }
+  group.rotation.y = (Math.abs(seed) % 9) * 0.41;
+  return group;
 }
 
 export function createBuilding(id: string, level: number): THREE.Group {
@@ -404,9 +460,10 @@ export function createResource(type: string, region: number, seed = 24): THREE.G
       const crystal = part(g, cone, mat(0x65c9d1, 0.25, 0x247580), x, size / 2, 0, 13, size, 13);
       crystal.rotation.y = x * 0.03;
     }
+  } else if (type === 'metal') {
+    g.add(createOre(seed, region));
   } else {
-    g.add(createRock(seed, type === 'metal' ? 4 : region));
-    if (type === 'metal') ball(g, 0xc1a16b, 8, 22, 18, 9, 6, 5);
+    g.add(createRock(seed, region));
   }
   return g;
 }

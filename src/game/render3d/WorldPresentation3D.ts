@@ -2,9 +2,9 @@ import { WorldMap } from '../ui/WorldMap';
 import * as THREE from 'three';
 import Phaser from 'phaser';
 import type { PlayerController } from '../player/PlayerController';
-import type { EnemySystem, EnemyUnit } from '../enemies/EnemySystem';
+import { enemySpawnAreaIsClear, type EnemySystem, type EnemyUnit } from '../enemies/EnemySystem';
 import type { BossSystem, BossUnit } from '../bosses/BossSystem';
-import type { ResourceSystem } from '../gathering/ResourceSystem';
+import { resourceNodeAreaIsClear, type ResourceSystem } from '../gathering/ResourceSystem';
 import type { ChestSystem } from '../world/ChestSystem';
 import type { CityBuilderSystem } from '../settlement/CityBuilderSystem';
 import { FORGE_POSITION } from '../settlement/SettlementSystem';
@@ -281,23 +281,33 @@ export class WorldPresentation3D {
     grass.instanceMatrix.needsUpdate = true;
     grass.userData.uniqueGeometry = true;
     group.add(grass);
-    // Small ruined stone markers give the landscape vertical silhouettes.
-    if (islandAt(wx, wz).distance < 0.86 && random(cx, cz, 77) > 0.84 && Math.hypot(wx - SETTLEMENT_CENTER.x, wz - SETTLEMENT_CENTER.y) > 700) {
+    // Decorative rubble is intentionally knee-high and non-blocking. Large
+    // silhouettes belong to gameplay objects with real Arcade collision.
+    if (
+      islandAt(wx, wz).distance < 0.86 &&
+      random(cx, cz, 77) > 0.78 &&
+      Math.hypot(wx - SETTLEMENT_CENTER.x, wz - SETTLEMENT_CENTER.y) > 700 &&
+      enemySpawnAreaIsClear(wx, wz, 180) &&
+      resourceNodeAreaIsClear(wx, wz, 150)
+    ) {
       const ruin = new THREE.Group();
-      const stone = new THREE.MeshStandardMaterial({ color: region === 4 || region === 8 ? 0x56504c : 0xaaa392, roughness: 1, flatShading: true });
-      for (const side of [-1, 1]) {
-        const pillar = new THREE.Mesh(new THREE.BoxGeometry(24, 80 + random(cx, cz, side) * 65, 27), stone);
-        pillar.position.set(side * 56, pillar.geometry.parameters.height / 2, 0);
-        pillar.rotation.z = side * 0.06;
-        pillar.castShadow = pillar.receiveShadow = true;
-        pillar.userData.uniqueGeometry = true;
-        ruin.add(pillar);
+      const stone = new THREE.MeshStandardMaterial({
+        color: region === 4 || region === 8 ? 0x56504c : 0xaaa392,
+        roughness: 1,
+        flatShading: true,
+      });
+      for (let index = 0; index < 5; index += 1) {
+        const width = 24 + random(cx, cz, index + 10) * 34;
+        const height = 10 + random(cx, cz, index + 20) * 18;
+        const depth = 20 + random(cx, cz, index + 30) * 30;
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), stone);
+        const angle = index / 5 * Math.PI * 2 + random(cx, cz, index + 40);
+        slab.position.set(Math.cos(angle) * (24 + index * 7), height / 2, Math.sin(angle) * (22 + index * 6));
+        slab.rotation.set(0, angle * 0.7, (random(cx, cz, index + 50) - 0.5) * 0.18);
+        slab.receiveShadow = true;
+        slab.userData.uniqueGeometry = true;
+        ruin.add(slab);
       }
-      const cap = new THREE.Mesh(new THREE.BoxGeometry(145, 20, 33), stone);
-      cap.position.y = 112;
-      cap.castShadow = true;
-      cap.userData.uniqueGeometry = true;
-      ruin.add(cap);
       ruin.position.set(wx, terrainHeight(wx, wz), wz);
       group.add(ruin);
     }

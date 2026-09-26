@@ -35,6 +35,13 @@ assert(m.addWeaponDrop(inventory,'sword','epic'),'A better rarity must remain ob
 assert(m.addWeaponDrop(inventory,'hammer','common'),'Other weapon families must remain obtainable');
 assert(m.cappedWeaponMaterials('rare').crystal>=12);
 
+assert.equal(m.harvestYield('crystal',4,5),10,'Crystal nodes must drop exactly 10');
+assert.equal(m.harvestYield('fiber',4,2),12,'Fiber nodes must drop exactly 12');
+assert.equal(m.harvestNodeCount(0),0);
+assert.equal(m.harvestNodeCount(5),9,'Dominant resources must not carpet a region');
+for(let abundance=1;abundance<5;abundance++)
+  assert(m.harvestNodeCount(abundance)<=m.harvestNodeCount(abundance+1),'Abundance density must stay monotonic');
+
 for(const angle of [0,.6,Math.PI/2,Math.PI,4.3]) {
   const dx=Math.cos(angle),dy=Math.sin(angle);
   const zone={shape:'line',x:6280,y:10600,dx,dy,length:319,width:126};
@@ -53,7 +60,7 @@ for(const angle of [0,.6,Math.PI/2,Math.PI,4.3]) {
 assert(!m.insideBossDanger({shape:'circle',x:0,y:0,radius:120},121,0));
 
 const cost=m.getWeaponUpgradeCost('axe',9);
-assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=2,'Late weapon upgrade should require at most two R4 crystal nodes');
-assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=2,'Late weapon upgrade should require at most two R4 fiber nodes');
+assert(Math.ceil(cost.crystal/m.harvestYield('crystal',4,5))<=4,'Late weapon upgrade should require at most four crystal nodes');
+assert(Math.ceil(cost.fiber/m.harvestYield('fiber',4,2))<=4,'Late weapon upgrade should require at most four fiber nodes');
 assert(m.harvestRespawnMs('crystal')<=60000);
-console.log('Gameplay sanity: PASS (5s healing, damage, capped loot, telegraph geometry, rare-material progression)');
+console.log('Gameplay sanity: PASS (5s healing, damage, capped loot, telegraph geometry, rare-material economy)');

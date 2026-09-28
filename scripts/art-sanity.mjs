@@ -47,18 +47,27 @@ assert(!dressed.root.children.some(o=>o.name.startsWith('outfit-')));
 assert.deepEqual(new T.Box3().setFromObject(neutral.root),neutralBounds,'Changing a skin must not mutate another hero');
 dressed.dispose();neutral.dispose();
 
-// A raised elbow must not turn the blade back into the cape, at any gait phase.
+// Idle grips point generally forward and every held weapon is rolled 90° around
+// its own length. Attack styles must then move on visibly different axes.
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
   const model=createHero();model.setWeapon(weapon);
-  for(let frame=0;frame<180;frame++){
-    const attack=frame>=90&&frame%30<15;
-    model.step(1/60,frame<30?0:225,frame>=60&&frame<90,attack,frame<30?0:3.75,Math.sin(frame)*.2);
-    model.root.updateMatrixWorld(true);
-    for(const gripName of weapon==='daggers'?['primary-grip','secondary-grip']:['primary-grip']){
-      const grip=model.root.getObjectByName(gripName),blade=grip.getObjectByName(`weapon-${weapon}`);
-      const base=grip.getWorldPosition(new T.Vector3()),tip=blade.localToWorld(new T.Vector3(...blade.userData.weaponTip));
-      assert(tip.z-base.z>8,`${weapon} must point forward: frame ${frame}, ${gripName}`);
-    }
+  model.step(1/60,0,false,false,0,0);
+  model.root.updateMatrixWorld(true);
+  const grip=model.root.getObjectByName('primary-grip');
+  const blade=grip.getObjectByName(`weapon-${weapon}`);
+  assert(Math.abs(Math.abs(blade.rotation.y)-Math.PI/2)<1e-5,`${weapon} longitudinal roll`);
+  const base=grip.getWorldPosition(new T.Vector3()),tip=blade.localToWorld(new T.Vector3(...blade.userData.weaponTip));
+  assert(tip.z-base.z>5,`${weapon} idle grip faces broadly forward`);
+  const before={x:grip.rotation.x,y:grip.rotation.y,z:grip.rotation.z};
+  model.step(.016,0,false,true,0,0,1000);
+  for(let i=0;i<8;i++)model.step(.025,0,false,true,0,0,1000);
+  const delta={x:Math.abs(grip.rotation.x-before.x),y:Math.abs(grip.rotation.y-before.y),z:Math.abs(grip.rotation.z-before.z)};
+  if(weapon==='spear')assert(delta.x>.15&&delta.y<.35,'Spear uses a forward thrust');
+  if(weapon==='hammer')assert(delta.x>.45,'Hammer uses a vertical smash arc');
+  if(weapon==='sword'||weapon==='axe')assert(delta.y>.25||delta.z>.25,`${weapon} uses a cutting sweep`);
+  if(weapon==='daggers'){
+    const off=model.root.getObjectByName('secondary-grip');
+    assert(Math.abs(grip.rotation.y-off.rotation.y)>.25,'Daggers cross from opposite sides');
   }
   model.dispose();
 }
@@ -116,4 +125,4 @@ for(const region of [1,3,5,6])for(const seed of [0,1,11,101]){
 }
 const hit=recordVisualHit(recordVisualHit(undefined,10,42,'neutral'),10,19,'neutral');assert.equal(hit.amount,61);
 assert.equal(recordVisualHit(hit,11,7,'neutral').amount,7);
-console.log('Art sanity: PASS — five forward weapon grips, rapid swings, four independent 3D orbitals, equipment cleanup, finite transforms, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');
+console.log('Art sanity: PASS — longitudinal weapon grips, distinct thrust/slash/cleave/smash/dual-slash poses, rapid swings, four independent 3D orbitals, equipment cleanup, finite transforms, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');

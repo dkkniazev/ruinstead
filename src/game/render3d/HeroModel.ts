@@ -1,5 +1,8 @@
 import * as T from 'three';
-import type { WeaponId } from '../combat/WeaponDefinitions';
+import {
+  WEAPON_DEFINITIONS,
+  type WeaponId,
+} from '../combat/WeaponDefinitions';
 import type { AnimatedModel } from './Models';
 import { softBox, softOrb } from './ArtMaterials';
 import { createWeaponModel, type WeaponModel } from './WeaponModel';
@@ -102,39 +105,141 @@ export function createHero(): AnimatedModel {
   const setWeapon=(id:WeaponId):void=>{
     if(id===weaponId&&held)return;
     weaponId=id;held?.dispose();second?.dispose();second=undefined;
-    held=createWeaponModel(id,false);weaponMount.add(held.root);
-    if(id==='daggers'){second=createWeaponModel(id,false);offHand.add(second.root);}
+    held=createWeaponModel(id,false);
+    // Weapon geometry grows along local +Y. Roll it around that longitudinal
+    // axis so blades/heads present their authored broad side instead of lying
+    // flat across the wrist.
+    held.root.rotation.y=Math.PI/2;
+    weaponMount.add(held.root);
+    if(id==='daggers'){
+      second=createWeaponModel(id,false);
+      second.root.rotation.y=Math.PI/2;
+      offHand.add(second.root);
+    }
   };
   setWeapon('axe');
-  let phase=0,clock=0,lean=0,leanVelocity=0,turn=0,attackTime=1,wasAttacking=false,lastAttackAt=-Infinity;
+  let phase=0,clock=0,lean=0,leanVelocity=0,turn=0,attackTime=1,attackSerial=0,wasAttacking=false,lastAttackAt=-Infinity;
   return {root,setWeapon,setSkin,setTint(tint){surfaces.blue.color.setHex(tint??0x355f78);},dispose(){outfit?.dispose();Object.values(surfaces).forEach(material=>material.dispose());capeGeo.dispose();capeMat.dispose();held?.dispose();second?.dispose();},
     step(seconds,speed,dash=false,attack=false,travel=0,turning=0,attackAt?:number){
       const dt=Math.min(seconds,.05),motion=Math.min(1.4,speed/225);
       clock+=dt;phase+=Math.min(65,travel)*.061;
       outfit?.step(clock);
-      if(attack&&(!wasAttacking||(attackAt!==undefined&&attackAt!==lastAttackAt)))attackTime=0;
+      const newAttack=attack&&(!wasAttacking||(attackAt!==undefined&&attackAt!==lastAttackAt));
+      if(newAttack){attackTime=0;attackSerial++;}
       if(attackAt!==undefined)lastAttackAt=attackAt;
       wasAttacking=attack;attackTime+=dt;
-      const swing=attackTime<.32?Math.sin(attackTime/.32*Math.PI):0;
+
+      const style=WEAPON_DEFINITIONS[weaponId].attackStyle;
+      const duration=
+        style==='smash'?.5:
+        style==='wide-slash'?.43:
+        style==='slash'?.34:
+        style==='dual-slash'?.3:.28;
+      const attackProgress=T.MathUtils.clamp(attackTime/duration,0,1);
+      const attacking=attackTime<duration;
+      const pulse=attacking?Math.sin(attackProgress*Math.PI):0;
+      const sweep=attacking?T.MathUtils.smoothstep(attackProgress,.12,.86)*2-1:0;
+      const side=attackSerial%2===0?1:-1;
+
       leanVelocity+=((dash?.38:motion*.1)-lean)*70*dt;leanVelocity*=Math.exp(-11*dt);lean+=leanVelocity*dt;
       turn+=(T.MathUtils.clamp(turning*.13,-.25,.25)-turn)*Math.min(1,dt*9);
-      body.rotation.set(lean,-swing*.32,Math.sin(phase)*motion*.035-turn);
+      body.rotation.set(lean,0,Math.sin(phase)*motion*.035-turn);
       body.position.y=Math.abs(Math.sin(phase))*motion*2.3+Math.sin(clock*2.6)*.4;
       for(let i=0;i<2;i++){
         const stride=Math.sin(phase+i*Math.PI);
         legs[i].rotation.x=stride*motion*.57;
         knees[i].rotation.x=Math.max(0,-stride)*motion*.65;
-        arms[i].rotation.set(-stride*motion*.42-.12,(i?1:-1)*swing*.4,(i?1:-1)*.15);
+        arms[i].rotation.set(-stride*motion*.42-.12,0,(i?1:-1)*.15);
         elbows[i].rotation.x=-.2-Math.max(0,stride)*motion*.22;
       }
-      arms[1].rotation.x-=swing*(weaponId==='hammer'?1.8:1.3);
-      arms[1].rotation.z+=swing*.58;
-      if(weaponId==='daggers')arms[0].rotation.x-=swing*1.1;
-      // +Z is the hero's front. Counter the shoulder/elbow angles so a raised
-      // forearm never turns the blade backwards through the cape.
-      const pitch=weaponId==='spear'?1.02+swing*.43:weaponId==='hammer'?.45+swing*1.65:.62+swing*1.25;
-      weaponMount.rotation.x=pitch-arms[1].rotation.x-elbows[1].rotation.x;
-      offHand.rotation.x=.7+swing*1.1-arms[0].rotation.x-elbows[0].rotation.x;
+
+      // Each weapon family gets its own readable silhouette and trajectory.
+      // +Z is hero forward; mount pitch compensates arm/elbow rotations.
+      let primaryPitch=1.18;
+      let primaryYaw=0;
+      let primaryRoll=0;
+      let offPitch=1.05;
+      let offYaw=0;
+      let offRoll=0;
+
+      if(style==='thrust'){
+        // Spear: retract, then punch straight through the target line.
+        const thrust=attacking?Math.sin(attackProgress*Math.PI):0;
+        arms[1].rotation.x-=thrust*.82;
+        elbows[1].rotation.x-=thrust*.25;
+        body.rotation.x-=thrust*.06;
+        primaryPitch=1.34+thrust*.16;
+      }else if(style==='slash'){
+        // Sword: alternating diagonal cuts, led by torso rotation.
+        const cut=attacking?sweep:0;
+        body.rotation.y=-side*cut*.42;
+        arms[1].rotation.y=side*(.2-cut*.72);
+        arms[1].rotation.z+=side*(.22+cut*.46);
+        arms[1].rotation.x-=pulse*.46;
+        primaryPitch=1.08+pulse*.28;
+        primaryYaw=-side*cut*.72;
+        primaryRoll=side*(.18-cut*.3);
+      }else if(style==='wide-slash'){
+        // Axe: slower two-handed-looking cleave with a broad arc and follow-through.
+        const cut=attacking?sweep:0;
+        body.rotation.y=-side*cut*.62;
+        body.rotation.x-=pulse*.08;
+        arms[1].rotation.y=side*(.35-cut*.9);
+        arms[1].rotation.z+=side*(.3+cut*.58);
+        arms[1].rotation.x-=pulse*.62;
+        primaryPitch=.98+pulse*.36;
+        primaryYaw=-side*cut*.92;
+        primaryRoll=side*(.28-cut*.42);
+      }else if(style==='smash'){
+        const overhead=attackSerial%3!==0;
+        if(overhead){
+          // Hammer: lift above the shoulder, then drive the head down.
+          const lift=attacking?Math.sin(Math.min(1,attackProgress/.46)*Math.PI/2):0;
+          const drop=attacking?T.MathUtils.smoothstep(attackProgress,.42,.82):0;
+          arms[1].rotation.x+=lift*.92-drop*1.62;
+          arms[1].rotation.z+=side*(.2-lift*.18);
+          body.rotation.x-=drop*.2;
+          primaryPitch=.42+lift*.12+drop*1.55;
+          primaryRoll=side*.08;
+        }else{
+          // Occasional side smash keeps repeated hammer attacks from looking identical.
+          const cut=attacking?sweep:0;
+          body.rotation.y=-side*cut*.52;
+          arms[1].rotation.y=side*(.28-cut*.82);
+          arms[1].rotation.z+=side*(.28+cut*.52);
+          arms[1].rotation.x-=pulse*.55;
+          primaryPitch=.92+pulse*.35;
+          primaryYaw=-side*cut*.82;
+          primaryRoll=side*.22;
+        }
+      }else{
+        // Daggers: alternate hands and cross the body instead of two tiny thrusts.
+        const cut=attacking?sweep:0;
+        body.rotation.y=-side*cut*.22;
+        arms[1].rotation.y=side*(.18-cut*.6);
+        arms[0].rotation.y=-side*(.18-cut*.6);
+        arms[1].rotation.x-=pulse*.58;
+        arms[0].rotation.x-=Math.sin(T.MathUtils.clamp(attackProgress+.18,0,1)*Math.PI)*.5;
+        arms[1].rotation.z+=side*(.18+cut*.26);
+        arms[0].rotation.z-=side*(.18+cut*.26);
+        primaryPitch=1.12+pulse*.22;
+        offPitch=1.12+pulse*.2;
+        primaryYaw=-side*cut*.58;
+        offYaw=side*cut*.58;
+        primaryRoll=side*.2;
+        offRoll=-side*.2;
+      }
+
+      weaponMount.rotation.set(
+        primaryPitch-arms[1].rotation.x-elbows[1].rotation.x,
+        primaryYaw-arms[1].rotation.y,
+        primaryRoll-arms[1].rotation.z,
+      );
+      offHand.rotation.set(
+        offPitch-arms[0].rotation.x-elbows[0].rotation.x,
+        offYaw-arms[0].rotation.y,
+        offRoll-arms[0].rotation.z,
+      );
       const vertices=capeGeo.attributes.position;
       for(let i=0;i<vertices.count;i++){
         const x=capeRest[i*3],y=capeRest[i*3+1],t=(27-y)/54;

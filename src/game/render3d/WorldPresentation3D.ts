@@ -6,7 +6,6 @@ import type { OrbitalWeaponState } from '../combat/CombatVisualState';
 import { createGroundCover } from './BiomeScenery';
 import { settlementScenery, disposeSettlementScenery } from './SettlementScenery';
 import { buildingLabel, disposeBuildingLabels } from './BuildingLabels';
-import { WorldMap } from '../ui/WorldMap';
 import * as THREE from 'three';
 import Phaser from 'phaser';
 import type { PlayerController } from '../player/PlayerController';
@@ -16,6 +15,7 @@ import { resourceNodeAreaIsClear, type ResourceSystem } from '../gathering/Resou
 import type { ChestSystem } from '../world/ChestSystem';
 import type { CityBuilderSystem } from '../settlement/CityBuilderSystem';
 import { FORGE_POSITION } from '../settlement/SettlementSystem';
+import { FOREST_HEART } from '../world/ForestZone';
 import { regionNormalizedDistance, RELEASE_PASSAGES, RELEASE_REGIONS, type RegionPassage } from '../world/ReleaseRegionMap';
 import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
 import { createBuilding, createChest, createCreature, createHero, createSceneryProp, type AnimatedModel } from './Models';
@@ -48,6 +48,47 @@ function islandAt(x: number, z: number): { region: number; distance: number } {
 
 type Actor = { model: AnimatedModel; lastX: number; lastY: number; health: THREE.Group; healthFill: THREE.Mesh; telegraph?: THREE.Mesh };
 
+function createForestAltar(): {root:THREE.Group; beacon:THREE.Mesh; rune:THREE.Mesh} {
+  const root=new THREE.Group();
+  const stone=new THREE.MeshStandardMaterial({color:0x7d8274,roughness:.93,flatShading:true});
+  const dark=new THREE.MeshStandardMaterial({color:0x4d5b51,roughness:1,flatShading:true});
+  const moss=new THREE.MeshStandardMaterial({color:0x527a49,roughness:1,flatShading:true});
+  const glow=new THREE.MeshStandardMaterial({color:0xbde7b2,emissive:0x4eb47d,emissiveIntensity:1.8,roughness:.35,metalness:.08});
+
+  const add=(geometry:THREE.BufferGeometry,material:THREE.Material,x:number,y:number,z:number):THREE.Mesh=>{
+    const mesh=new THREE.Mesh(geometry,material);mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;root.add(mesh);return mesh;
+  };
+  add(new THREE.CylinderGeometry(105,118,22,12),dark,0,11,0);
+  add(new THREE.CylinderGeometry(82,96,18,12),stone,0,30,0);
+  add(new THREE.BoxGeometry(112,22,74),stone,0,51,0);
+  add(new THREE.BoxGeometry(118,8,80),moss,0,65,0);
+  for(const side of [-1,1]){
+    add(new THREE.BoxGeometry(23,96,23),dark,side*78,60,-14);
+    const cap=add(new THREE.ConeGeometry(22,34,5),stone,side*78,123,-14);cap.rotation.y=Math.PI/5;
+  }
+  const arch=add(new THREE.BoxGeometry(176,22,24),stone,0,118,-14);
+  arch.rotation.z=-.02;
+  const rune=add(new THREE.TorusGeometry(39,5,8,28),glow,0,76,2);
+  rune.rotation.x=Math.PI/2;
+  const crystal=add(new THREE.OctahedronGeometry(18,0),glow,0,98,0);
+  crystal.rotation.y=.5;
+  for(let i=0;i<6;i++){
+    const angle=i/6*Math.PI*2;
+    const pebble=add(new THREE.DodecahedronGeometry(10+(i%2)*4,0),i%2?moss:stone,Math.cos(angle)*126,12,Math.sin(angle)*94);
+    pebble.rotation.set(.2*i,.5*i,.1*i);
+  }
+  const light=new THREE.PointLight(0x8fe3ac,900,420,2);
+  light.position.set(0,112,10);root.add(light);
+  const beacon=new THREE.Mesh(
+    new THREE.CylinderGeometry(25,58,320,18,1,true),
+    new THREE.MeshBasicMaterial({color:0xffdc6e,transparent:true,opacity:.13,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}),
+  );
+  beacon.position.y=220;beacon.visible=false;root.add(beacon);
+  root.add(buildingLabel('Лесной алтарь',190,'quest'));
+  return {root,beacon,rune};
+}
+
+
 export class WorldPresentation3D {
   get renderStats(): {calls:number;triangles:number} {
     return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles};
@@ -73,7 +114,7 @@ export class WorldPresentation3D {
   private readonly settlement = new THREE.Group();
   private readonly bridges = new Map<string, { group: THREE.Group; centerX: number; centerZ: number; gate: THREE.Group; gap: THREE.Group }>();
   private readonly buildingGroups = new Map<string, { level: number; model: THREE.Group }>();
-  private readonly worldMap: WorldMap;
+  private readonly forestAltar = createForestAltar();
   private frame = 0;
   private lastFacing = 0;
   private lastHeroX = 0;
@@ -94,6 +135,7 @@ export class WorldPresentation3D {
     private readonly isPassageOpen: (passage: RegionPassage) => boolean,
     private readonly getCoinDrops:()=>Array<{x:number;y:number;scale:number}> = ()=>[],
     private readonly getOrbitals:()=>OrbitalWeaponState[] = ()=>[],
+    private readonly getActiveQuestId:()=>string|null = ()=>null,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
@@ -147,15 +189,17 @@ export class WorldPresentation3D {
     this.lastHeroY = player.sprite.y;
     this.createSettlement();
     this.scene.add(this.settlement);
+    this.forestAltar.root.position.set(
+      FOREST_HEART.x,
+      terrainHeight(FOREST_HEART.x,FOREST_HEART.y),
+      FOREST_HEART.y,
+    );
+    this.scene.add(this.forestAltar.root);
     this.createBridges();
     this.resize();
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(phaser.game.canvas);
     window.addEventListener('resize', this.resize);
-    this.worldMap = new WorldMap(isPassageOpen, open => {
-      if (open) { this.phaser.scene.pause(); this.phaser.scene.pause('HudScene'); }
-      else { this.phaser.scene.resume(); this.phaser.scene.resume('HudScene'); }
-    });
     this.update(0, 16);
   }
 
@@ -248,17 +292,15 @@ export class WorldPresentation3D {
     }
     this.updatePickups(x, z, time);
     if (this.frame % 10 === 0) this.resize();
-    const hud = this.phaser.scene.get('HudScene') as Phaser.Scene & { hasOpenPanel?: boolean };
-    this.worldMap.setObscured(hud?.hasOpenPanel ?? false);
-    this.worldMap.update(time, () => ({
-      x, y: z, facing: this.lastFacing, home: SETTLEMENT_CENTER,
-      landmarks: [...this.city.visualBuildings.map(b=>({x:b.x,y:b.y,name:b.id})),{x:FORGE_POSITION.x,y:FORGE_POSITION.y,name:'forge'}],
-      markers: [
-        ...this.resourceSystem.visualNodes.filter(n => n.available).map(n => ({x:n.x,y:n.y,kind:n.type})),
-        ...this.bosses.visualUnits.filter(b => b.alive).map(b => ({x:b.sprite.x,y:b.sprite.y,kind:'boss' as const})),
-        ...this.enemies.visualUnits.filter(e => e.alive && Math.hypot(e.sprite.x-x,e.sprite.y-z)<2700).map(e => ({x:e.sprite.x,y:e.sprite.y,kind:'enemy' as const})),
-      ],
-    }));
+    const altarDistance=Math.hypot(x-FOREST_HEART.x,z-FOREST_HEART.y);
+    this.forestAltar.root.visible=altarDistance<2800;
+    const altarQuest=this.getActiveQuestId()==='reach-forest-heart';
+    this.forestAltar.beacon.visible=altarQuest&&altarDistance<3400;
+    this.forestAltar.rune.rotation.z=time*.0014;
+    if(this.forestAltar.beacon.visible){
+      this.forestAltar.beacon.scale.x=this.forestAltar.beacon.scale.z=1+Math.sin(time*.004)*.12;
+      (this.forestAltar.beacon.material as THREE.MeshBasicMaterial).opacity=.1+(.5+.5*Math.sin(time*.003))*0.09;
+    }
     this.renderer.render(this.scene, this.camera);
   }
 
@@ -626,9 +668,18 @@ export class WorldPresentation3D {
   }
 
   destroy(): void {
-    this.worldMap.destroy();
     disposeBuildingLabels(this.settlement);
+    disposeBuildingLabels(this.forestAltar.root);
     disposeSettlementScenery(this.settlement);
+    const altarMaterials=new Set<THREE.Material>();
+    this.forestAltar.root.traverse(object=>{
+      if(object instanceof THREE.Mesh){
+        object.geometry.dispose();
+        for(const material of Array.isArray(object.material)?object.material:[object.material])altarMaterials.add(material);
+      }
+    });
+    for(const material of altarMaterials)material.dispose();
+    this.scene.remove(this.forestAltar.root);
     for(const building of this.buildingGroups.values())disposeBatchedGeometry(building.model);
     this.settlement.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();});
     this.resizeObserver?.disconnect();

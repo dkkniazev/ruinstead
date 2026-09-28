@@ -202,6 +202,7 @@ import {
 import {
   FOREST_HEART,
   FOREST_HEART_DISCOVERY_RADIUS,
+  FOREST_LANDMARKS,
 } from '../game/world/ForestZone';
 import {
   BRIDGE_REPAIR_COST,
@@ -1010,7 +1011,7 @@ export class WorldScene
           if (passage.id === '2-3') return this.gameState?.world.unlockedZones.includes('stage-3') ?? false;
           const zones = this.gameState?.world.unlockedZones ?? [];
           return regionIsUnlocked(zones, passage.a) && regionIsUnlocked(zones, passage.b);
-        },()=>this.combat?.visualCoinDrops??[],()=>this.combat?.visualOrbitals??[]);
+        },()=>this.combat?.visualCoinDrops??[],()=>this.combat?.visualOrbitals??[],()=>this.questHudState?.activeId??null);
         this.cameras.main.setVisible(false);
       } catch (error) {
         console.warn('3D presentation unavailable; using the Phaser world renderer.', error);
@@ -5945,6 +5946,22 @@ export class WorldScene
         x: SETTLEMENT_CENTER.x,
         y: SETTLEMENT_CENTER.y,
       },
+      landmarks:
+        FOREST_LANDMARKS.map(
+          (landmark) => ({
+            x: landmark.x,
+            y: landmark.y,
+            name: landmark.name,
+            kind:
+              landmark.id ===
+                  'forest-heart' &&
+                this.questHudState
+                  ?.activeId ===
+                  'reach-forest-heart'
+                ? 'quest' as const
+                : 'landmark' as const,
+          }),
+        ),
       markers: [
         ...(
           this.enemies

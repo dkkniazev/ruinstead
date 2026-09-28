@@ -9,6 +9,7 @@ export * from './src/game/gathering/BackpackSystem.ts';
 export * from './src/game/gathering/ResourceTypes.ts';
 export * from './src/game/economy/ResourceTrading.ts';
 export * from './src/game/state/GameState.ts';
+export * from './src/game/player/DashConfig.ts';
 `,loader:'ts',resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
 const m=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text+'\n//# sourceURL=regression-fixture.mjs').toString('base64')}`);
 for(const hp of [0,1,24.7,67,100]){
@@ -16,6 +17,9 @@ for(const hp of [0,1,24.7,67,100]){
   for(let n=0;n<100;n++){current=m.healthAfterMaxChange(current,100,125);current=m.healthAfterMaxChange(current,125,100);}
   assert(Math.abs(current-hp)<1e-9,'Changing skins must not heal');
 }
+assert(m.PLAYER_DASH_DISTANCE>=400,'Dash must cover a clearly visible distance');
+assert(m.PLAYER_DASH_SPEED>=1200,'Dash velocity must be substantially faster than normal movement');
+assert(m.PLAYER_DASH_MAX_DURATION_MS>=400,'Dash timeout must allow the requested distance to complete after minor collision correction');
 const freshState=m.createDefaultGameState();
 assert.equal(freshState.schemaVersion,29);
 assert.deepEqual(freshState.onboarding,{moved:false,dashed:false,firstKill:false,hudSeen:false,backpackSeen:false,forgeSeen:false,bestiarySeen:false,tutorialStep:0,tutorialCompleted:false,skipped:false});

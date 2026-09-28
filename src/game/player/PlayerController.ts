@@ -14,6 +14,11 @@ import {
   getDashCooldownMs,
   getMoveSpeed,
 } from '../progression/UpgradeBalance';
+import {
+  PLAYER_DASH_DISTANCE,
+  PLAYER_DASH_MAX_DURATION_MS,
+  PLAYER_DASH_SPEED,
+} from './DashConfig';
 
 const PLAYER_TEXTURE =
   'ruinstead-player-base-v3';
@@ -28,8 +33,6 @@ const WEAPON_TEXTURES:
   daggers: 'ruinstead-player-daggers-v3',
 };
 
-const DASH_SPEED = 570;
-const DASH_DURATION_MS = 220;
 const PLAYER_BASELINE_OFFSET = 46;
 
 export class PlayerController {
@@ -40,7 +43,12 @@ export class PlayerController {
   get visualSkinId(): SkinId | null { return this.cosmeticSkinId; }
   private cosmeticSkinId: SkinId | null = null;
   get visualFacing(): Phaser.Math.Vector2 { return this.lastDirection.clone(); }
-  isDashing(time: number): boolean { return time < this.dashUntil; }
+  isDashing(time: number): boolean {
+    return (
+      time < this.dashUntil &&
+      this.dashDistanceRemaining > 0
+    );
+  }
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
 
@@ -67,6 +75,9 @@ export class PlayerController {
     new Phaser.Math.Vector2(0, 1);
   private dashDirection =
     new Phaser.Math.Vector2(0, 1);
+  private dashLastPosition =
+    new Phaser.Math.Vector2();
+  private dashDistanceRemaining = 0;
   private dashUntil = 0;
   private dashCooldownUntil = 0;
   private damageTintUntil = 0;
@@ -239,15 +250,40 @@ export class PlayerController {
       );
     }
 
-    if (time < this.dashUntil) {
-      this.applyVelocity(
-        this.dashDirection,
-        DASH_SPEED,
+    if (this.isDashing(time)) {
+      const travelled =
+        Phaser.Math.Distance.Between(
+          this.sprite.x,
+          this.sprite.y,
+          this.dashLastPosition.x,
+          this.dashLastPosition.y,
+        );
+      this.dashDistanceRemaining =
+        Math.max(
+          0,
+          this.dashDistanceRemaining -
+            travelled,
+        );
+      this.dashLastPosition.set(
+        this.sprite.x,
+        this.sprite.y,
       );
-      this.applyTint(time);
-      this.syncVisualDepth();
-      return;
+
+      if (
+        this.dashDistanceRemaining >
+        0
+      ) {
+        this.applyVelocity(
+          this.dashDirection,
+          PLAYER_DASH_SPEED,
+        );
+        this.applyTint(time);
+        this.syncVisualDepth();
+        return;
+      }
     }
+
+    this.dashDistanceRemaining = 0;
 
     if (movement.lengthSq() > 0) {
       this.lastDirection.copy(
@@ -457,6 +493,8 @@ export class PlayerController {
       x,
       y,
     );
+    this.dashDistanceRemaining = 0;
+    this.dashUntil = 0;
 
     this.syncVisualDepth();
   }
@@ -515,8 +553,15 @@ export class PlayerController {
       .copy(direction)
       .normalize();
 
+    this.dashDistanceRemaining =
+      PLAYER_DASH_DISTANCE;
+    this.dashLastPosition.set(
+      this.sprite.x,
+      this.sprite.y,
+    );
     this.dashUntil =
-      time + DASH_DURATION_MS;
+      time +
+      PLAYER_DASH_MAX_DURATION_MS;
     this.dashCooldownUntil =
       time + this.dashCooldownMs;
     gameAudio.play('dash');

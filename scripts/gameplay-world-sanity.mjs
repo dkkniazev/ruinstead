@@ -6,9 +6,11 @@ export * from './src/game/combat/WeaponDefinitions.ts';
 export * from './src/game/progression/WeaponInventory.ts';
 export * from './src/game/world/WorldInteractions.ts';
 export * from './src/game/cosmetics/SkinEconomy.ts';
+export * from './src/game/world/WalkableWorld.ts';
+export * from './src/game/world/ReleaseRegionMap.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
 const api=await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
-const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects}=api;
+const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects,WalkableWorld,RELEASE_REGIONS}=api;
 const inventory=createDefaultWeaponInventory();
 inventory.variants.push({weaponId:'daggers',rarity:'rare',level:1,starCounts:[1,0,0,0,0,0]});
 inventory.loadout[4]={weaponId:'daggers',rarity:'rare',stars:0};inventory.primarySlot=4;
@@ -38,10 +40,27 @@ for(const id of ['daggers','hammer']){
 }
 assert(counts.daggers>=counts.hammer*3,'Each orbital uses its weapon cooldown, independent of revolution speed');
 
-const candidates=[{id:'forge',kind:'forge',label:'forge',x:100,y:0,range:145,available:true},{id:'chest',kind:'chest',label:'chest',x:25,y:0,range:82,available:true}];
+const candidates=[{id:'forge',kind:'forge',label:'forge',x:100,y:0,range:145,available:true,priority:10},{id:'chest',kind:'chest',label:'chest',x:25,y:0,range:82,available:true,priority:30}];
 assert.equal(resolveWorldInteraction(player,candidates).id,'chest','Only the closest available E interaction wins');
 candidates[1].available=false;assert.equal(resolveWorldInteraction(player,candidates).id,'forge');
 assert.equal(resolveWorldInteraction({x:600,y:600},candidates),undefined,'A remote forge cannot intercept E');
+const nearTie=[{id:'forge',kind:'forge',label:'forge',x:20,y:0,range:145,available:true,priority:10},{id:'chest',kind:'chest',label:'chest',x:28,y:0,range:82,available:true,priority:30}];
+assert.equal(resolveWorldInteraction(player,nearTie).id,'chest','Context priority breaks near-distance ties in favour of the explicit world interaction');
+const openWorld=new WalkableWorld(['stage-2','stage-3','stage-4','stage-5','stage-6','stage-7','stage-8']);
+let slid=false;
+for(const region of RELEASE_REGIONS){
+  for(let i=0;i<region.outline.length&&!slid;i++){
+    const a=region.outline[i],b=region.outline[(i+1)%region.outline.length],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2;
+    const ix=region.center[0]-mx,iy=region.center[1]-my,il=Math.hypot(ix,iy);if(il<1)continue;
+    const nx=ix/il,ny=iy/il,tx=(b[0]-a[0])/Math.max(1,Math.hypot(b[0]-a[0],b[1]-a[1])),ty=(b[1]-a[1])/Math.max(1,Math.hypot(b[0]-a[0],b[1]-a[1]));
+    const from={x:mx+nx*70,y:my+ny*70};if(!openWorld.contains(from,18))continue;
+    const next=openWorld.slide(from,{x:mx-nx*70+tx*90,y:my-ny*70+ty*90},18,{x:-nx*140+tx*90,y:-ny*140+ty*90});
+    assert(openWorld.contains({x:next.x,y:next.y},17.9),'Boundary projection keeps the body inside walkable world');
+    assert(Math.hypot(next.x-from.x,next.y-from.y)>20,'Boundary collision preserves tangential motion instead of sticking');
+    slid=true;
+  }
+}
+assert(slid,'Found a polygon edge suitable for boundary sliding regression');
 for(const id of ['starter-warden','pass-champion','ashborn','founder-keeper'])assert.equal(Object.keys(getSkinEffects(id)).length,2,'Special skins have two focused effects');
 assert.equal(getSkinEffects('sun-warden')['max-health'],.2,'Normal epic bonus remains unchanged');
 console.log('Gameplay/world regression: PASS — locked slots, duplicate equipment, target acquire, flight/impact/return, cooldowns, interaction priority/range, special skin effects.');

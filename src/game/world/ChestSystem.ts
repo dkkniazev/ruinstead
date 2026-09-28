@@ -260,7 +260,7 @@ export class ChestSystem {
   }
 
   get interactionCandidates():InteractionCandidate[] {
-    return this.chests.map(({definition})=>({id:definition.id,kind:'chest',label:'Открыть сундук · E',x:definition.x,y:definition.y,range:CHEST_OPEN_RANGE,available:!this.openedIds.includes(definition.id)}));
+    return this.chests.map(({definition})=>({id:definition.id,kind:'chest',label:'Открыть сундук · E',x:definition.x,y:definition.y,range:CHEST_OPEN_RANGE,available:!this.openedIds.includes(definition.id),priority:30}));
   }
 
   open(id:string,playerPosition:{x:number;y:number}):boolean {

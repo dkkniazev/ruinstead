@@ -2,7 +2,6 @@ import Phaser from 'phaser';
 import { WalkableWorld } from './WalkableWorld';
 import {
   RELEASE_PASSAGES,
-  RELEASE_REGIONS,
   getRegionDefinition,
   getPassageGeometry,
 
@@ -40,9 +39,15 @@ export class RegionGateSystem {
   ) {
     this.barriers =
       scene.physics.add.staticGroup();
-
-    this.createRegionBoundaries();
-    this.createCorridorWalls();
+    this.navigation =
+      new WalkableWorld(
+        unlockedZones,
+      );
+    this.scene.physics.world.on(
+      Phaser.Physics.Arcade.Events.WORLD_STEP,
+      this.constrainBodies,
+      this,
+    );
     this.sync(unlockedZones);
   }
 
@@ -50,6 +55,10 @@ export class RegionGateSystem {
     unlockedZones:
       readonly string[],
   ): void {
+    this.navigation.sync(
+      unlockedZones,
+    );
+
     for (
       const visual of
       this.gateVisuals.values()

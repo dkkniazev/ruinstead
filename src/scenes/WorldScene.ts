@@ -5165,8 +5165,8 @@ export class WorldScene
   private resolveInteraction():InteractionCandidate|undefined {
     if(!this.player||!this.combat||this.combat.state.health<=0)return;
     const candidates:InteractionCandidate[]=[...(this.chestSystem?.interactionCandidates??[]),
-      {id:'forge',kind:'forge',label:'Открыть кузницу · E',...FORGE_POSITION,range:FORGE_INTERACTION_RADIUS,available:!!this.settlementSystem},
-      {id:'bridge-1-2',kind:'bridge',label:'Восстановить мост · E',...STAGE_ONE_BRIDGE_CENTER,range:170,available:this.bridgeSystem?.canRepairHere??false}];
+      {id:'forge',kind:'forge',label:'Открыть кузницу · E',...FORGE_POSITION,range:FORGE_INTERACTION_RADIUS,available:!!this.settlementSystem,priority:10},
+      {id:'bridge-1-2',kind:'bridge',label:'Восстановить мост · E',...STAGE_ONE_BRIDGE_CENTER,range:170,available:this.bridgeSystem?.canRepairHere??false,priority:20}];
     return resolveWorldInteraction(this.player.position,candidates);
   }
 

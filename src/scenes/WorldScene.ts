@@ -46,6 +46,7 @@ import {
 } from '../game/layout/Viewport';
 import {
   QuestDirector,
+  getStoryBeatForQuestCompletion,
   type QuestContext,
   type QuestHudState,
 } from '../game/quests/QuestDirector';
@@ -186,6 +187,7 @@ import {
   HUD_AUDIO_SETTINGS_CHANGE_EVENT,
   HUD_LEVEL_UP_EVENT,
   HUD_TUTORIAL_EVENT,
+  HUD_STORY_EVENT,
   HUD_TUTORIAL_ADVANCE_EVENT,
   HUD_TUTORIAL_SKIP_EVENT,
   type BlessingKind,
@@ -1837,6 +1839,25 @@ export class WorldScene
     if (
       result.completed.length > 0
     ) {
+      for (
+        const completed of
+        result.completed
+      ) {
+        if (completed.optional) {
+          continue;
+        }
+        const beat =
+          getStoryBeatForQuestCompletion(
+            completed.id,
+          );
+        if (beat) {
+          this.game.events.emit(
+            HUD_STORY_EVENT,
+            beat,
+          );
+        }
+      }
+
       const completion =
         result.completed[
           result.completed.length -

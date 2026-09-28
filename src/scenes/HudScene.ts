@@ -43,15 +43,16 @@ export class HudScene extends Phaser.Scene {
     }
     const notice=(message:string):void=>this.ui?.notice(message);
     const tutorial=(step:E.TutorialHudStep):void=>this.ui?.tutorial(step);
+    const story=(beat:E.StoryHudBeat):void=>this.ui?.story(beat);
     const returnedHome=():void=>this.ui?.close();
     const openForge=():void=>this.ui?.open('forge');
     this.game.events.on(E.HUD_OPEN_FORGE_EVENT,openForge);
     cleanups.push(()=>this.game.events.off(E.HUD_OPEN_FORGE_EVENT,openForge));
     this.game.events.on(E.HUD_RETURN_HOME_COMPLETED_EVENT,returnedHome);
     const level=(event:E.LevelUpHudEvent):void=>this.ui?.levelUp(event);
-    this.game.events.on(E.HUD_NOTICE_EVENT,notice);this.game.events.on(E.HUD_TUTORIAL_EVENT,tutorial);this.game.events.on(E.HUD_LEVEL_UP_EVENT,level);
+    this.game.events.on(E.HUD_NOTICE_EVENT,notice);this.game.events.on(E.HUD_TUTORIAL_EVENT,tutorial);this.game.events.on(E.HUD_STORY_EVENT,story);this.game.events.on(E.HUD_LEVEL_UP_EVENT,level);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN,()=>{
-      cleanups.forEach(fn=>fn());this.game.events.off(E.HUD_NOTICE_EVENT,notice);this.game.events.off(E.HUD_TUTORIAL_EVENT,tutorial);this.game.events.off(E.HUD_LEVEL_UP_EVENT,level);
+      cleanups.forEach(fn=>fn());this.game.events.off(E.HUD_NOTICE_EVENT,notice);this.game.events.off(E.HUD_TUTORIAL_EVENT,tutorial);this.game.events.off(E.HUD_STORY_EVENT,story);this.game.events.off(E.HUD_LEVEL_UP_EVENT,level);
       this.game.events.off(E.HUD_RETURN_HOME_COMPLETED_EVENT,returnedHome);
       this.ui?.destroy();this.ui=undefined;
     });

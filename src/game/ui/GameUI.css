@@ -106,3 +106,15 @@ body:has(.ruin-ui[data-modal=true]) .world-minimap{visibility:hidden;pointer-eve
 .r-objective-box>p{margin-top:7px;color:#aebfb4}
 .r-side-quest{position:sticky;top:0}
 @media(max-width:760px){.r-quest-journal{grid-template-columns:1fr}.r-side-quest{position:static}}
+
+
+/* Story beats pause the world at major seals, discoveries and region transitions. */
+.r-story-overlay{position:fixed;inset:0;z-index:230;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 50% 38%,#31443666 0,#071113d9 55%,#030708f2 100%);backdrop-filter:blur(2px)}
+.r-story-overlay[hidden]{display:none}
+.r-story-beat{width:min(620px,calc(100vw - 32px));padding:30px 34px 26px;border:1px solid #bfa467;border-radius:12px;background:linear-gradient(155deg,#2d4440f5,#13282cf8 72%);box-shadow:0 28px 90px #000d,0 0 45px #c6a35e1c;color:#e9e0c6;text-align:center}
+.r-story-beat .r-tag{margin-bottom:12px;color:#e1c47b;border-color:#a88c53;background:#44391f88}
+.r-story-beat h1{margin:4px 0 14px;font:700 30px/1.15 Georgia,serif;color:#ffe2a0}
+.r-story-beat>p{margin:0 auto;max-width:540px;font:16px/1.7 Georgia,serif;color:#d8d6c5}
+.r-story-rule{width:120px;height:1px;margin:22px auto 18px;background:linear-gradient(90deg,transparent,#d1b66f,transparent)}
+.r-story-beat .r-actions{justify-content:center}.r-story-beat .r-btn{min-width:170px}
+@media(max-width:620px){.r-story-beat{padding:22px 20px}.r-story-beat h1{font-size:25px}.r-story-beat>p{font-size:14px;line-height:1.55}}

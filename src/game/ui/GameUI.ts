@@ -55,6 +55,10 @@ export class GameUI {
   private readonly tutorialSpotlight=document.createElement('div');
   private readonly tutorialFocus=document.createElement('div');
   private readonly tutorialPanel=document.createElement('section');
+  private readonly storyOverlay=document.createElement('div');
+  private readonly storyPanel=document.createElement('section');
+  private readonly storyQueue:E.StoryHudBeat[]=[];
+  private activeStory?:E.StoryHudBeat;
   private activeTutorial?:E.TutorialHudStep;
   private screen:Screen|null=null;
   private tab='equipment';
@@ -86,15 +90,17 @@ export class GameUI {
     this.tutorialSpotlight.className='r-tutorial-spotlight';this.tutorialSpotlight.hidden=true;this.tutorialSpotlight.setAttribute('role','dialog');this.tutorialSpotlight.setAttribute('aria-modal','true');
     this.tutorialFocus.className='r-tutorial-focus';this.tutorialPanel.className='r-tutorial-panel';
     this.tutorialSpotlight.append(this.tutorialFocus,this.tutorialPanel);
-    this.root.append(this.hud,this.overlay,this.toasts,this.confirmation,this.tooltip,this.chestReward);document.querySelector('#app')!.append(this.root,this.tutorialSpotlight);
-    this.root.addEventListener('click',this.click);this.tutorialSpotlight.addEventListener('click',this.click);this.root.addEventListener('change',this.change);this.root.addEventListener('input',this.input);
+    this.storyOverlay.className='r-story-overlay';this.storyOverlay.hidden=true;this.storyOverlay.setAttribute('role','dialog');this.storyOverlay.setAttribute('aria-modal','true');
+    this.storyPanel.className='r-story-beat';this.storyOverlay.append(this.storyPanel);
+    this.root.append(this.hud,this.overlay,this.toasts,this.confirmation,this.tooltip,this.chestReward);document.querySelector('#app')!.append(this.root,this.tutorialSpotlight,this.storyOverlay);
+    this.root.addEventListener('click',this.click);this.tutorialSpotlight.addEventListener('click',this.click);this.storyOverlay.addEventListener('click',this.click);this.root.addEventListener('change',this.change);this.root.addEventListener('input',this.input);
     this.root.addEventListener('pointerover',this.showTooltip);this.root.addEventListener('focusin',this.showTooltip);
     this.root.addEventListener('pointerout',this.hideTooltip);this.root.addEventListener('focusout',this.hideTooltip);this.root.addEventListener('pointerdown',this.hideTooltip);
     window.addEventListener('keydown',this.keydown,true);window.addEventListener('resize',this.positionTutorial);window.addEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);
     this.renderHud();this.offer();
   }
   private modalChange(open:boolean):void{this.root.dataset.modal=String(open);this.hud.inert=open;this.overlay.inert=!this.confirmation.hidden;this.tooltip.hidden=true;this.onModal(open);}
-  get hasOpenPanel():boolean{return !!this.activeTutorial||!!this.screen||!this.confirmation.hidden;}
+  get hasOpenPanel():boolean{return !!this.activeStory||!!this.activeTutorial||!!this.screen||!this.confirmation.hidden;}
   update<K extends keyof GameUIState>(key:K,value:GameUIState[K]):void{
     const stamp=JSON.stringify(value);if(this.stateKeys.get(key)===stamp)return;
     this.stateKeys.set(key,stamp);this.state[key]=value;this.renderHud();
@@ -115,6 +121,24 @@ export class GameUI {
     this.tutorialPanel.innerHTML=`<div class="r-eyebrow">${step.step&&step.total?`Обучение · ${step.step} / ${step.total}`:'Подсказка'}</div><h2>${escape(step.title)}</h2><p>${escape(step.message)}</p><div class="r-actions">${button(step.sequence?'Далее':'Понятно','tutorial-next','arrow',false,'primary')}${button('Пропустить обучение','tutorial-skip','close',false,'quiet')}</div>`;
     requestAnimationFrame(this.positionTutorial);
     this.tutorialPanel.querySelector<HTMLElement>('[data-action="tutorial-next"]')?.focus();
+  }
+  story(beat:E.StoryHudBeat):void{
+    this.storyQueue.push(beat);
+    this.showNextStory();
+  }
+  private showNextStory():void{
+    if(this.activeStory||this.activeTutorial||!this.storyQueue.length)return;
+    this.activeStory=this.storyQueue.shift();
+    const beat=this.activeStory;
+    if(!beat)return;
+    this.storyOverlay.hidden=false;this.onModal(true);
+    this.storyPanel.innerHTML=`${tag(beat.chapter,'quest')}<h1>${escape(beat.title)}</h1><p>${escape(beat.text)}</p><div class="r-story-rule"></div><div class="r-actions">${button('Продолжить','story-continue','arrow',false,'primary')}</div>`;
+    this.storyPanel.querySelector<HTMLElement>('[data-action="story-continue"]')?.focus();
+  }
+  private hideStory():void{
+    this.activeStory=undefined;this.storyOverlay.hidden=true;
+    this.onModal(!!this.activeTutorial||!!this.screen||!this.confirmation.hidden);
+    this.showNextStory();
   }
   private tutorialTarget():HTMLElement|undefined{
     const selector=this.activeTutorial?.target;if(!selector)return undefined;
@@ -267,6 +291,7 @@ export class GameUI {
   private click=(event:MouseEvent):void=>{
     const target=(event.target as Element).closest<HTMLButtonElement>('[data-action]');if(!target||target.disabled)return;
     gameAudio.unlock();gameAudio.play('ui');const [action,...rest]=target.dataset.action!.split(':'),arg=rest.join(':');const w=this.selected();
+    if(action==='story-continue'){this.hideStory();return;}
     if(action==='tutorial-next'){const step=this.activeTutorial;if(!step)return;this.hideTutorial();if(step.sequence)this.emit(E.HUD_TUTORIAL_ADVANCE_EVENT,step.id);return;}
     if(action==='tutorial-skip'){this.hideTutorial();this.emit(E.HUD_TUTORIAL_SKIP_EVENT);return;}
     if(action==='interact'){this.emit(E.HUD_WORLD_INTERACT_EVENT);return;}
@@ -306,6 +331,10 @@ export class GameUI {
   };
   private platform=():void=>{if(this.screen==='settings')this.renderPanel();};
   private keydown=(event:KeyboardEvent):void=>{
+    if(this.activeStory){
+      if((event.code==='Enter'||event.code==='Space'||event.code==='Escape')&&!event.repeat){event.preventDefault();this.storyPanel.querySelector<HTMLButtonElement>('[data-action="story-continue"]')?.click();}
+      event.stopImmediatePropagation();return;
+    }
     if(this.activeTutorial){
       if(event.code==='Tab'){const focusables=[...this.tutorialPanel.querySelectorAll<HTMLElement>('button:not(:disabled)')];const index=focusables.indexOf(document.activeElement as HTMLElement);if(focusables.length){event.preventDefault();focusables[(index+(event.shiftKey?-1:1)+focusables.length)%focusables.length].focus();}}
       else if((event.code==='Enter'||event.code==='Space')&&!event.repeat){event.preventDefault();this.tutorialPanel.querySelector<HTMLButtonElement>('[data-action="tutorial-next"]')?.click();}
@@ -323,5 +352,5 @@ export class GameUI {
     if(keys[event.code]){event.preventDefault();event.stopImmediatePropagation();this.open(keys[event.code]);}
     else if(event.code==='KeyQ')this.emit(E.HUD_HEALTH_POTION_EVENT);
   };
-  destroy():void{this.disposed=true;for(const timer of this.timerIds)clearTimeout(timer);window.removeEventListener('keydown',this.keydown,true);window.removeEventListener('resize',this.positionTutorial);window.removeEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);this.tutorialSpotlight.remove();this.root.remove();this.onModal(false);}
+  destroy():void{this.disposed=true;for(const timer of this.timerIds)clearTimeout(timer);window.removeEventListener('keydown',this.keydown,true);window.removeEventListener('resize',this.positionTutorial);window.removeEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);this.tutorialSpotlight.remove();this.storyOverlay.remove();this.root.remove();this.onModal(false);}
 }

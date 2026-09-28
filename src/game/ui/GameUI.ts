@@ -188,7 +188,7 @@ export class GameUI {
   }
   private training():string{
     const u=this.state.upgrade;
-    const items:[PlayerUpgradeId,string,number,string,(n:number)=>number,string][]=[['max-health','Здоровье',u.player.maxHealthLevel,'health',getMaxHealth,'HP'],['move-speed','Скорость',u.player.moveSpeedLevel,'speed',getMoveSpeed,'ед./с'],['backpack','Рюкзак',u.player.backpackLevel,'bag',getBackpackCapacity,'мест'],['dash','Рывок',u.player.dashLevel,'speed',getDashCooldownMs,'мс']];
+    const items:[PlayerUpgradeId,string,number,string,(n:number)=>number,string][]=[['max-health','Здоровье',u.player.maxHealthLevel,'health',getMaxHealth,'HP'],['move-speed','Скорость',u.player.moveSpeedLevel,'speed',getMoveSpeed,'ед./с'],['backpack','Рюкзак',u.player.backpackLevel,'bag',getBackpackCapacity,'мест'],['dash','Рывок',u.player.dashLevel,'dash',getDashCooldownMs,'мс перезарядки']];
     return `<p class="r-muted">Характеристики можно улучшать в любом месте за ресурсы со склада. Значения показаны без временных усилений.</p><div class="r-grid" style="margin-top:18px">${items.map(([id,name,level,glyph,value,unit])=>{const cost=getPlayerUpgradeCost(id,level);return `<article class="r-card">${icon(glyph,'r-hero-icon')}<h3>${name}</h3><p>Уровень ${level} / ${MAX_PLAYER_UPGRADE_LEVEL}</p><div class="r-statline">${stat(glyph,`${value(level)}${cost?' → '+value(level+1):''}`,unit)}</div>${this.cost(cost,u.storage)}${button(cost?'Улучшить':'Максимум',`train:${id}`,'upgrade',!canAffordUpgrade(u.storage,cost),'primary')}</article>`;}).join('')}</div>`;
   }
   private forge():string{

@@ -94,3 +94,15 @@ body:has(.ruin-ui[data-modal=true]) .world-minimap{visibility:hidden;pointer-eve
 .r-weapon-types button .r-icon{width:23px;height:23px}
 .r-nav button .r-icon{width:26px;height:26px}
 .r-stat .r-icon{width:24px;height:24px}
+
+/* Story journal */
+.r-quest-journal{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,.8fr);gap:18px;align-items:start}
+.r-story-card{padding:24px;background:radial-gradient(circle at 8% 0,#7d684324,transparent 36%),linear-gradient(145deg,#314546c7,#162c30)}
+.r-story-card .r-detail-head small{color:#bfae7c;font-weight:700}
+.r-story-text{margin:14px 0 18px!important;padding:14px 16px;border-left:3px solid #bba268;background:#1025288a;color:#d8d4bf!important;font:15px/1.62 Georgia,serif}
+.r-objective-box{padding:15px 17px;border:1px solid #75846a66;border-radius:8px;background:#142b2d99}
+.r-objective-box>small{display:block;color:#d5bd7a;text-transform:uppercase;letter-spacing:.12em;font-size:10px;margin-bottom:4px}
+.r-objective-box>strong{display:block;font-size:16px;color:#f0e3c2}
+.r-objective-box>p{margin-top:7px;color:#aebfb4}
+.r-side-quest{position:sticky;top:0}
+@media(max-width:760px){.r-quest-journal{grid-template-columns:1fr}.r-side-quest{position:static}}

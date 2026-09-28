@@ -4706,6 +4706,16 @@ export class WorldScene
         HUD_NOTICE_EVENT,
         'Кузница восстановлена! В поселении появился кузнец',
       );
+      const forgeBeat =
+        getStoryBeatForQuestCompletion(
+          'restore-forge',
+        );
+      if (forgeBeat) {
+        this.game.events.emit(
+          HUD_STORY_EVENT,
+          forgeBeat,
+        );
+      }
     } else {
       this.game.events.emit(
         HUD_NOTICE_EVENT,

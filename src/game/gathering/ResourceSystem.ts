@@ -352,7 +352,7 @@ export function buildResourceNodeDefinitions(seed=RESOURCE_LAYOUT_SEED):
             dropCount: harvestYield(type, profile.region, abundance),
             respawnMs: harvestRespawnMs(type),
           });
-        }}
+        }
       },
     );
   }

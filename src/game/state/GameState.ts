@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 28 as const;
+export const SAVE_SCHEMA_VERSION = 29 as const;
 
 export type BuildingId =
   | 'forge'
@@ -186,6 +186,8 @@ export type GameState = {
     backpackSeen: boolean;
     forgeSeen: boolean;
     bestiarySeen: boolean;
+    tutorialStep: number;
+    tutorialCompleted: boolean;
     skipped: boolean;
   };
 };
@@ -351,6 +353,8 @@ export function createDefaultGameState(): GameState {
       backpackSeen: false,
       forgeSeen: false,
       bestiarySeen: false,
+      tutorialStep: 0,
+      tutorialCompleted: false,
       skipped: false,
     },
   };

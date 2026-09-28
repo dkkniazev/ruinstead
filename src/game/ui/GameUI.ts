@@ -51,6 +51,10 @@ export class GameUI {
   private readonly toasts=document.createElement('div');
   private readonly confirmation=document.createElement('div');
   private readonly tooltip=document.createElement('div');
+  private readonly tutorialSpotlight=document.createElement('div');
+  private readonly tutorialFocus=document.createElement('div');
+  private readonly tutorialPanel=document.createElement('section');
+  private activeTutorial?:E.TutorialHudStep;
   private screen:Screen|null=null;
   private tab='equipment';
   private selectedSlot=0;
@@ -78,15 +82,18 @@ export class GameUI {
     this.confirmation.className='r-confirm';this.confirmation.hidden=true;
     this.tooltip.className='r-tooltip';this.tooltip.id='ruin-tooltip';this.tooltip.hidden=true;this.tooltip.setAttribute('role','tooltip');
     this.chestReward.className='r-chest-reward';this.chestReward.hidden=true;
-    this.root.append(this.hud,this.overlay,this.toasts,this.confirmation,this.tooltip,this.chestReward);document.querySelector('#app')!.append(this.root);
-    this.root.addEventListener('click',this.click);this.root.addEventListener('change',this.change);this.root.addEventListener('input',this.input);
+    this.tutorialSpotlight.className='r-tutorial-spotlight';this.tutorialSpotlight.hidden=true;this.tutorialSpotlight.setAttribute('role','dialog');this.tutorialSpotlight.setAttribute('aria-modal','true');
+    this.tutorialFocus.className='r-tutorial-focus';this.tutorialPanel.className='r-tutorial-panel';
+    this.tutorialSpotlight.append(this.tutorialFocus,this.tutorialPanel);
+    this.root.append(this.hud,this.overlay,this.toasts,this.confirmation,this.tooltip,this.chestReward);document.querySelector('#app')!.append(this.root,this.tutorialSpotlight);
+    this.root.addEventListener('click',this.click);this.tutorialSpotlight.addEventListener('click',this.click);this.root.addEventListener('change',this.change);this.root.addEventListener('input',this.input);
     this.root.addEventListener('pointerover',this.showTooltip);this.root.addEventListener('focusin',this.showTooltip);
     this.root.addEventListener('pointerout',this.hideTooltip);this.root.addEventListener('focusout',this.hideTooltip);this.root.addEventListener('pointerdown',this.hideTooltip);
-    window.addEventListener('keydown',this.keydown,true);window.addEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);
+    window.addEventListener('keydown',this.keydown,true);window.addEventListener('resize',this.positionTutorial);window.addEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);
     this.renderHud();this.offer();
   }
   private modalChange(open:boolean):void{this.root.dataset.modal=String(open);this.hud.inert=open;this.overlay.inert=!this.confirmation.hidden;this.tooltip.hidden=true;this.onModal(open);}
-  get hasOpenPanel():boolean{return !!this.screen||!this.confirmation.hidden;}
+  get hasOpenPanel():boolean{return !!this.activeTutorial||!!this.screen||!this.confirmation.hidden;}
   update<K extends keyof GameUIState>(key:K,value:GameUIState[K]):void{
     const stamp=JSON.stringify(value);if(this.stateKeys.get(key)===stamp)return;
     this.stateKeys.set(key,stamp);this.state[key]=value;this.renderHud();
@@ -102,7 +109,33 @@ export class GameUI {
   }
   close():void{this.screen=null;this.overlay.hidden=true;this.modalChange(!this.confirmation.hidden);this.lastFocused?.focus();}
   notice(message:string):void{const toast=document.createElement('div');toast.className='r-toast';toast.textContent=message;this.addToast(toast,4300);}
-  tutorial(message:string):void{const toast=document.createElement('div');toast.className='r-toast r-tutorial';toast.innerHTML=`<strong>Подсказка</strong><p>${escape(message)}</p><div class="r-actions">${button('Пропустить обучение','tutorial-skip','close')}</div>`;this.addToast(toast,9000);}
+  tutorial(step:E.TutorialHudStep):void{
+    this.activeTutorial=step;this.tutorialSpotlight.hidden=false;this.onModal(true);
+    this.tutorialPanel.innerHTML=`<div class="r-eyebrow">${step.step&&step.total?`Обучение · ${step.step} / ${step.total}`:'Подсказка'}</div><h2>${escape(step.title)}</h2><p>${escape(step.message)}</p><div class="r-actions">${button(step.sequence?'Далее':'Понятно','tutorial-next','arrow',false,'primary')}${button('Пропустить обучение','tutorial-skip','close',false,'quiet')}</div>`;
+    requestAnimationFrame(this.positionTutorial);
+    this.tutorialPanel.querySelector<HTMLElement>('[data-action="tutorial-next"]')?.focus();
+  }
+  private tutorialTarget():HTMLElement|undefined{
+    const selector=this.activeTutorial?.target;if(!selector)return undefined;
+    return [...document.querySelectorAll<HTMLElement>(selector)].find(element=>{const rect=element.getBoundingClientRect();const style=getComputedStyle(element);return rect.width>2&&rect.height>2&&style.display!=='none'&&style.visibility!=='hidden';});
+  }
+  private positionTutorial=():void=>{
+    if(!this.activeTutorial||this.tutorialSpotlight.hidden)return;
+    const target=this.tutorialTarget(),pad=10;
+    if(!target){this.tutorialFocus.hidden=true;this.tutorialPanel.style.left='50%';this.tutorialPanel.style.top='50%';this.tutorialPanel.style.transform='translate(-50%,-50%)';return;}
+    const rect=target.getBoundingClientRect();
+    this.tutorialFocus.hidden=false;this.tutorialFocus.style.left=Math.max(4,rect.left-pad)+'px';this.tutorialFocus.style.top=Math.max(4,rect.top-pad)+'px';
+    this.tutorialFocus.style.width=Math.min(innerWidth-8,rect.width+pad*2)+'px';this.tutorialFocus.style.height=Math.min(innerHeight-8,rect.height+pad*2)+'px';
+    this.tutorialPanel.style.transform='none';
+    const panelRect=this.tutorialPanel.getBoundingClientRect();
+    const below=rect.bottom+18+panelRect.height<innerHeight-12;
+    const top=below?rect.bottom+18:Math.max(12,rect.top-panelRect.height-18);
+    const left=Math.max(12,Math.min(innerWidth-panelRect.width-12,rect.left+rect.width/2-panelRect.width/2));
+    this.tutorialPanel.style.left=left+'px';this.tutorialPanel.style.top=top+'px';
+  };
+  private hideTutorial():void{
+    this.activeTutorial=undefined;this.tutorialSpotlight.hidden=true;this.tutorialFocus.hidden=true;this.onModal(!!this.screen||!this.confirmation.hidden);
+  }
   levelUp(event:E.LevelUpHudEvent):void{const toast=document.createElement('div');toast.className='r-toast';toast.innerHTML=`${tag('Новый уровень','upgrade')}<h3>Уровень ${event.level}</h3><p>${escape(event.rewards.join(' · '))}</p>`;this.addToast(toast,7000);}
   private addToast(toast:HTMLElement,ms:number):void{this.toasts.append(toast);while(this.toasts.children.length>3)this.toasts.firstElementChild?.remove();const timer=setTimeout(()=>{toast.remove();this.timerIds.delete(timer);},ms);this.timerIds.add(timer);}
   private renderHud():void{
@@ -224,8 +257,9 @@ export class GameUI {
   private click=(event:MouseEvent):void=>{
     const target=(event.target as Element).closest<HTMLButtonElement>('[data-action]');if(!target||target.disabled)return;
     gameAudio.unlock();gameAudio.play('ui');const [action,...rest]=target.dataset.action!.split(':'),arg=rest.join(':');const w=this.selected();
+    if(action==='tutorial-next'){const step=this.activeTutorial;if(!step)return;this.hideTutorial();if(step.sequence)this.emit(E.HUD_TUTORIAL_ADVANCE_EVENT,step.id);return;}
+    if(action==='tutorial-skip'){this.hideTutorial();this.emit(E.HUD_TUTORIAL_SKIP_EVENT);return;}
     if(action==='interact'){this.emit(E.HUD_WORLD_INTERACT_EVENT);return;}
-    if(action==='tutorial-skip'){this.emit(E.HUD_TUTORIAL_SKIP_EVENT);this.toasts.querySelectorAll('.r-tutorial').forEach(node=>node.remove());return;}
     if(action==='open'){this.open(arg as Screen);return;}if(action==='close'){this.close();return;}
     if(action==='tab'){this.tab=arg;this.renderPanel();return;}if(action==='slot'){this.selectedSlot=Number(arg);this.renderPanel();return;}
     if(action==='weapon-type'){this.weaponFilter=arg;const first=this.state.character.inventory.filter(w=>arg==='all'||w.weaponId===arg).sort((a,b)=>weaponHitDamage(b)-weaponHitDamage(a))[0];if(first)this.selectedWeapon=this.weaponKey(first);this.renderPanel();return;}if(action==='weapon'){this.selectedWeapon=arg;this.renderPanel();return;}if(action==='entry'){this.selectedEntry=arg;this.eliteView=this.rankFilter==='elite';this.renderPanel();return;}
@@ -261,6 +295,11 @@ export class GameUI {
   };
   private platform=():void=>{if(this.screen==='settings')this.renderPanel();};
   private keydown=(event:KeyboardEvent):void=>{
+    if(this.activeTutorial){
+      if(event.code==='Tab'){const focusables=[...this.tutorialPanel.querySelectorAll<HTMLElement>('button:not(:disabled)')];const index=focusables.indexOf(document.activeElement as HTMLElement);if(focusables.length){event.preventDefault();focusables[(index+(event.shiftKey?-1:1)+focusables.length)%focusables.length].focus();}}
+      else if((event.code==='Enter'||event.code==='Space')&&!event.repeat){event.preventDefault();this.tutorialPanel.querySelector<HTMLButtonElement>('[data-action="tutorial-next"]')?.click();}
+      event.stopImmediatePropagation();return;
+    }
     if(document.querySelector('.world-map-modal:not([hidden])'))return;
     if(event.code==='Escape'&&this.hasOpenPanel){event.preventDefault();event.stopImmediatePropagation();if(!this.confirmation.hidden){if(this.confirmation.dataset.offer)return;this.cancel();}else this.close();return;}
     if(this.hasOpenPanel){
@@ -273,5 +312,5 @@ export class GameUI {
     if(keys[event.code]){event.preventDefault();event.stopImmediatePropagation();this.open(keys[event.code]);}
     else if(event.code==='KeyQ')this.emit(E.HUD_HEALTH_POTION_EVENT);
   };
-  destroy():void{this.disposed=true;for(const timer of this.timerIds)clearTimeout(timer);window.removeEventListener('keydown',this.keydown,true);window.removeEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);this.root.remove();this.modalChange(false);}
+  destroy():void{this.disposed=true;for(const timer of this.timerIds)clearTimeout(timer);window.removeEventListener('keydown',this.keydown,true);window.removeEventListener('resize',this.positionTutorial);window.removeEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);this.tutorialSpotlight.remove();this.root.remove();this.onModal(false);}
 }

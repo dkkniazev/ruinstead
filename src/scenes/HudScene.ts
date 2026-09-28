@@ -42,7 +42,7 @@ export class HudScene extends Phaser.Scene {
       this.game.events.on(event,handler);cleanups.push(()=>this.game.events.off(event,handler));
     }
     const notice=(message:string):void=>this.ui?.notice(message);
-    const tutorial=(message:string):void=>this.ui?.tutorial(message);
+    const tutorial=(step:E.TutorialHudStep):void=>this.ui?.tutorial(step);
     const returnedHome=():void=>this.ui?.close();
     const openForge=():void=>this.ui?.open('forge');
     this.game.events.on(E.HUD_OPEN_FORGE_EVENT,openForge);

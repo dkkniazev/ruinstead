@@ -89,8 +89,20 @@ export const HUD_AUDIO_SETTINGS_CHANGE_EVENT =
   'ruinstead:hud:audio-settings-change';
 export const HUD_LEVEL_UP_EVENT =
   'ruinstead:hud:level-up';
+export type TutorialHudStep = {
+  id: string;
+  title: string;
+  message: string;
+  target?: string;
+  step?: number;
+  total?: number;
+  sequence?: boolean;
+};
+
 export const HUD_TUTORIAL_EVENT =
   'ruinstead:hud:tutorial';
+export const HUD_TUTORIAL_ADVANCE_EVENT =
+  'ruinstead:hud:tutorial-advance';
 export const HUD_TUTORIAL_SKIP_EVENT =
   'ruinstead:hud:tutorial-skip';
 export type LevelUpHudEvent = {

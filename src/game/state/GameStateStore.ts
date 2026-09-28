@@ -1185,6 +1185,14 @@ export function sanitizeGameState(value: unknown): GameState {
           ? booleanValue(onboarding?.firstKill, false)
           : defaults.onboarding.bestiarySeen,
       ),
+      tutorialStep: nonNegativeInt(
+        onboarding?.tutorialStep,
+        defaults.onboarding.tutorialStep,
+      ),
+      tutorialCompleted: booleanValue(
+        onboarding?.tutorialCompleted,
+        defaults.onboarding.tutorialCompleted,
+      ),
       skipped: booleanValue(
         onboarding?.skipped,
         sourceSchemaVersion < 28 &&

@@ -62,3 +62,16 @@ body:has(.ruin-ui[data-modal=true]) .world-minimap{visibility:hidden;pointer-eve
 }
 
 .r-skin-stage{margin:-5px -5px 12px;border-radius:6px;background:radial-gradient(ellipse at 50% 65%,color-mix(in srgb,var(--skin-accent) 19%,transparent),transparent 70%),linear-gradient(155deg,#233c40,#142a30);position:relative;border-bottom:1px solid #e0c78a30}.r-cosmetic-grid .r-skin-stage img{height:200px;position:relative;z-index:1}.r-skin-card{display:flex;flex-direction:column}.r-skin-card .r-actions{margin-top:auto;padding-top:12px}.r-skin-card .r-skin-description{font-size:12px;line-height:1.45;color:#b5c1b7;margin-bottom:8px}.r-chest-reward{position:absolute;right:100px;bottom:85px;width:min(330px,70vw);pointer-events:auto;background:#1e3638f5;border:1px solid #c6a55e;border-radius:9px;padding:14px;box-shadow:0 7px 25px #0006}.r-chest-reward[hidden]{display:none}.r-chest-reward p{font-size:12px;margin:7px 0}.r-chest-reward .r-actions{margin:8px 0 0}.r-chest-reward .r-btn{font-size:12px;padding:8px}@media(max-height:500px){.r-chest-reward{right:130px;bottom:70px;padding:9px}.r-cosmetic-grid .r-skin-stage img{height:170px}}
+
+
+/* Guided onboarding: mobile-style spotlight with one focused HUD target at a time. */
+.r-tutorial-spotlight{position:fixed;inset:0;z-index:220;pointer-events:auto}
+.r-tutorial-spotlight[hidden]{display:none}
+.r-tutorial-focus{position:fixed;border:2px solid #ffe09a;border-radius:14px;box-shadow:0 0 0 9999px #02090dcc,0 0 0 6px #e7bd5740,0 0 30px #f4c55d99;pointer-events:none;transition:left .16s ease,top .16s ease,width .16s ease,height .16s ease}
+.r-tutorial-panel{position:fixed;width:min(390px,calc(100vw - 24px));padding:20px 22px;border:1px solid #d4b66f;border-radius:12px;background:linear-gradient(145deg,#314947,#142b2f);color:#eee1bd;box-shadow:0 18px 60px #000b;pointer-events:auto}
+.r-tutorial-panel h2{font:700 25px Georgia,serif;margin:5px 0 9px;color:#ffe2a0}
+.r-tutorial-panel p{font-size:14px;line-height:1.5;color:#d1d8c8;margin:0}
+.r-tutorial-panel .r-actions{margin-top:16px;display:flex;gap:8px}
+.r-tutorial-panel .r-btn{flex:1;justify-content:center}
+@media(max-height:500px){.r-tutorial-panel{width:min(360px,48vw);padding:13px 16px}.r-tutorial-panel h2{font-size:20px}.r-tutorial-panel p{font-size:12px;line-height:1.35}.r-tutorial-panel .r-actions{margin-top:9px}}
+@media(prefers-reduced-motion:reduce){.r-tutorial-focus{transition:none}}

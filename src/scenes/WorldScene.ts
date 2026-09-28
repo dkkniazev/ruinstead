@@ -595,6 +595,7 @@ export class WorldScene
         y: FOREST_HEART.y,
         halfWidth: 126,
         halfHeight: 100,
+        circle: false,
       },
     ]);
 

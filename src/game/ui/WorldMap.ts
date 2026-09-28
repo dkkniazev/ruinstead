@@ -2,9 +2,9 @@ import { RELEASE_REGIONS, RELEASE_PASSAGES, RELEASE_WORLD_WIDTH, RELEASE_WORLD_H
 import { icon } from './GameIcons';
 import { REGION_RESOURCE_PROFILES } from '../economy/RegionEconomy';
 
-type MapMarker = { x: number; y: number; kind: 'enemy' | 'boss' | 'wood' | 'stone' | 'metal' | 'crystal' | 'fiber' };
-type MapSnapshot = { x: number; y: number; facing: number; home: {x: number; y: number}; landmarks?: {x:number;y:number;name:string}[]; markers: MapMarker[] };
-const COLORS: Record<string, string> = { enemy: '#eb8761', boss: '#ff554c', wood: '#a7d37b', stone: '#e6d8b8', metal: '#c2ccd5', crystal: '#72eeff', fiber: '#d6ed63' };
+export type MapMarker = { x: number; y: number; kind: 'enemy' | 'boss' | 'main-boss' | 'wood' | 'stone' | 'metal' | 'crystal' | 'fiber'; label?: string; region?: number };
+export type MapSnapshot = { x: number; y: number; facing: number; home: {x: number; y: number}; landmarks?: {x:number;y:number;name:string}[]; markers: MapMarker[] };
+const COLORS: Record<string, string> = { enemy: '#eb8761', boss: '#ff554c', 'main-boss': '#ffd66f', wood: '#a7d37b', stone: '#e6d8b8', metal: '#c2ccd5', crystal: '#72eeff', fiber: '#d6ed63' };
 const REGION_COLORS = ['#66824c', '#9b8155', '#66637e', '#85503e', '#8e9c74', '#81604e', '#b07e50', '#763d3a'];
 
 export class WorldMap {
@@ -22,7 +22,7 @@ export class WorldMap {
   private filter: 'landmarks' | 'rare' | 'all' = 'rare';
 
   constructor(private readonly isOpen: (passage: RegionPassage) => boolean, private readonly onToggle: (open: boolean) => void) {
-    this.mini.className = 'world-minimap'; this.mini.type = 'button';
+    this.mini.className = 'world-minimap'; this.mini.type = 'button'; this.mini.dataset.tutorial = 'map';
     this.mini.setAttribute('aria-label', 'Открыть карту мира');
     this.mini.title = 'Карта мира · Tab';
     this.miniCanvas.width = 416; this.miniCanvas.height = 304;
@@ -47,7 +47,7 @@ export class WorldMap {
       button.onclick=()=>{this.filter=id;for(const other of filters.children)other.setAttribute('aria-pressed',String(other===button));if(this.snapshot)this.draw(this.fullCanvas,this.snapshot,true);};filters.append(button);
     }info.append(filters);
     const legend=document.createElement('div');legend.className='world-map-legend';
-    legend.innerHTML=[['arrow','Вы здесь'],['home','Поселение'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
+    legend.innerHTML=[['arrow','Вы здесь'],['home','Поселение'],['elite','Главный босс региона'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
     const regions=document.createElement('ol');regions.className='world-map-regions';
     regions.innerHTML=RELEASE_REGIONS.map(r=>'<li>'+r.id+'. '+r.name+'</li>').join('');info.append(regions);
     const hint = document.createElement('small'); hint.textContent = 'Игра приостановлена. Ресурсы отмечены только там, где ещё доступны для добычи.'; info.append(hint);
@@ -120,17 +120,24 @@ export class WorldMap {
       if (!open) { const x = px((a.x+b.x)/2), y = py((a.y+b.y)/2); ctx.fillStyle='#442822';ctx.fillRect(x-5,y-5,10,10); ctx.strokeStyle='#ff8c76';ctx.strokeRect(x-5,y-5,10,10); }
     }
     const occupied=new Set<string>();
-    const priority=(kind:string)=>kind==='boss'?-5:kind==='crystal'?-3:kind==='fiber'?-2:0;
+    const priority=(kind:string)=>kind==='main-boss'?-10:kind==='boss'?-5:kind==='crystal'?-3:kind==='fiber'?-2:0;
     const markers=[...state.markers].sort((a,b)=>priority(a.kind)-priority(b.kind));
     for (const marker of markers) {
-      if(full && this.filter==='landmarks' && marker.kind!=='boss')continue;
-      if((!full||this.filter==='rare')&&!['boss','crystal','fiber','enemy'].includes(marker.kind))continue;
+      if(full && this.filter==='landmarks' && !['boss','main-boss'].includes(marker.kind))continue;
+      if((!full||this.filter==='rare')&&!['boss','main-boss','crystal','fiber','enemy'].includes(marker.kind))continue;
       if(!full && marker.kind==='enemy'&&Math.hypot(marker.x-state.x,marker.y-state.y)>950)continue;
       const x = px(marker.x), y = py(marker.y); if (x < 0 || x > w || y < 0 || y > h) continue;
       if (full && marker.kind === 'enemy') continue;
-      const cell=Math.floor(x/12)+','+Math.floor(y/12);if(marker.kind!=='boss'&&occupied.has(cell))continue;occupied.add(cell);
+      const cell=Math.floor(x/12)+','+Math.floor(y/12);if(!['boss','main-boss'].includes(marker.kind)&&occupied.has(cell))continue;occupied.add(cell);
       ctx.fillStyle = COLORS[marker.kind];
-      if (marker.kind === 'boss') { ctx.beginPath(); ctx.moveTo(x,y-5);ctx.lineTo(x+5,y);ctx.lineTo(x,y+5);ctx.lineTo(x-5,y);ctx.closePath();ctx.fill(); }
+      if (marker.kind === 'main-boss') {
+        const radius=full?10:8;
+        ctx.save();ctx.shadowColor='#ffd66f';ctx.shadowBlur=full?16:10;
+        ctx.beginPath();ctx.arc(x,y,radius+4,0,Math.PI*2);ctx.fillStyle='#382812dd';ctx.fill();ctx.lineWidth=full?3:2;ctx.strokeStyle='#ffe49a';ctx.stroke();
+        ctx.shadowBlur=0;ctx.fillStyle='#ffd66f';ctx.beginPath();ctx.moveTo(x-radius,y+radius*.55);ctx.lineTo(x-radius*.72,y-radius*.5);ctx.lineTo(x-radius*.18,y-radius*.05);ctx.lineTo(x,y-radius*.82);ctx.lineTo(x+radius*.18,y-radius*.05);ctx.lineTo(x+radius*.72,y-radius*.5);ctx.lineTo(x+radius,y+radius*.55);ctx.closePath();ctx.fill();ctx.restore();
+        if(full){ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle='#ffe8a6';ctx.strokeStyle='#142126';ctx.lineWidth=3;const label=marker.label?'Главный босс · '+marker.label:'Главный босс';ctx.strokeText(label,x+15,y-13);ctx.fillText(label,x+15,y-13);}
+      }
+      else if (marker.kind === 'boss') { ctx.beginPath(); ctx.moveTo(x,y-5);ctx.lineTo(x+5,y);ctx.lineTo(x,y+5);ctx.lineTo(x-5,y);ctx.closePath();ctx.fill(); }
       else {ctx.beginPath();if(marker.kind==='crystal'){ctx.moveTo(x,y-4);ctx.lineTo(x+3,y);ctx.lineTo(x,y+4);ctx.lineTo(x-3,y);ctx.closePath();}else ctx.arc(x,y,full?2:marker.kind==='enemy'?3:3.5,0,Math.PI*2);ctx.fill();}
     }
     ctx.textAlign='center';ctx.textBaseline='middle';

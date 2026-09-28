@@ -38,6 +38,7 @@ for(let seed=1;seed<=layouts;seed++){
   const spawns=api.buildEnemySpawns(seeded(seed));
   const bosses=api.buildBossDefinitions();
   assert.equal(bosses.length,24);
+  for(let region=1;region<=8;region++)assert.equal(bosses.filter(b=>b.region===region&&b.isMain).length,1,'Every region has exactly one main boss for map/progression highlighting');
   for(const boss of bosses){
     assert(api.pointInRegion(api.getRegionDefinition(boss.region),boss.x,boss.y));
     assert(api.resourceNodeAreaIsClear(boss.x,boss.y,185),`${boss.id}: resource at boss spawn`);

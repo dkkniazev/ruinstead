@@ -29,7 +29,7 @@ const WEAPON_TEXTURES:
 };
 
 const DASH_SPEED = 570;
-const DASH_DURATION_MS = 135;
+const DASH_DURATION_MS = 220;
 const PLAYER_BASELINE_OFFSET = 46;
 
 export class PlayerController {

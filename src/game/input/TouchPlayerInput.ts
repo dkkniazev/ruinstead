@@ -14,7 +14,7 @@ export class TouchPlayerInput implements PlayerInputSource {
   private visible=false;
   private dashQueued=false;
   constructor(_scene:Phaser.Scene){
-    this.root.className='r-touch-controls';this.stick.className='r-stick';this.knob.className='r-knob';this.dash.className='r-dash';this.dash.type='button';this.dash.setAttribute('aria-label','Рывок');this.dash.innerHTML=icon('speed');
+    this.root.className='r-touch-controls';this.stick.className='r-stick';this.knob.className='r-knob';this.dash.className='r-dash';this.dash.type='button';this.dash.dataset.tutorial='dash';this.dash.setAttribute('aria-label','Рывок');this.dash.innerHTML=icon('speed');
     this.stick.setAttribute('aria-label','Джойстик движения');this.stick.append(this.knob);this.root.append(this.stick,this.dash);document.querySelector('#app')!.append(this.root);
     this.stick.addEventListener('pointerdown',this.down);this.stick.addEventListener('pointermove',this.move);this.stick.addEventListener('pointerup',this.up);this.stick.addEventListener('pointercancel',this.up);this.stick.addEventListener('lostpointercapture',this.up);
     this.dash.addEventListener('pointerdown',this.pressDash);window.addEventListener('blur',this.reset);this.setVisible(false);

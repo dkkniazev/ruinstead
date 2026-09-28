@@ -31,6 +31,12 @@ for(const passage of RELEASE_PASSAGES) {
       assert(!pointInRegion(region,x,y),`${passage.id}: crosses unrelated R${region.id}`);
   }
 }
+for(const entry of world.TERRAIN_PASSAGES)for(let i=0;i<=100;i++)for(const side of [-.5,0,.5]) {
+  const t=i/100,x=entry.a.x+entry.ux*entry.length*t-entry.uy*side*entry.passage.width;
+  const y=entry.a.y+entry.uy*entry.length*t+entry.ux*side*entry.passage.width;
+  const region=world.getRegionAt({x,y});
+  if(region)assert(world.passageHeight(entry,t)>world.plateauHeight(region,x,y),`${entry.passage.id}: deck cuts into the bank`);
+}
 for(const [x,y,compact] of [[4000,4750,true],[1700,4400,true],[15500,21500,false]]) {
   const p=world.migrateLegacyWorldPosition(x,y,compact);
   assert(world.getRegionAt(p),'migration put player outside a region');

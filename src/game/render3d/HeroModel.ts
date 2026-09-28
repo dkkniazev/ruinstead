@@ -2,9 +2,9 @@ import * as T from 'three';
 import type { WeaponId } from '../combat/WeaponDefinitions';
 import type { AnimatedModel } from './Models';
 import { softBox, softOrb } from './ArtMaterials';
+import { createWeaponModel, type WeaponModel } from './WeaponModel';
 
 const limb = new T.CapsuleGeometry(1, 1, 3, 8);
-const cylinder = new T.CylinderGeometry(1, 1, 1, 10);
 const torso = new T.CylinderGeometry(.82, 1, 1, 8);
 const palette = {
   blue: new T.MeshStandardMaterial({color: 0x355f78, roughness: .86}),
@@ -80,44 +80,23 @@ export function createHero(): AnimatedModel {
   const capeTrim=box(body,'gold',0,85,-15,36,4,6);
   const weaponMount=joint(elbows[1],0,-21,1);
   const offHand=joint(elbows[0],0,-21,1);
-  const owned:T.BufferGeometry[]=[];
-  let weaponId:WeaponId='axe';
-  const blade=(points:number[][],depth:number):T.ExtrudeGeometry=>{
-    const shape=new T.Shape();points.forEach(([x,y],i)=>i?shape.lineTo(x,y):shape.moveTo(x,y));shape.closePath();
-    const geo=new T.ExtrudeGeometry(shape,{depth,bevelEnabled:true,bevelSize:1,bevelThickness:1,bevelSegments:1,steps:1});
-    geo.translate(0,0,-depth/2);owned.push(geo);return geo;
-  };
+  weaponMount.name='primary-grip';offHand.name='secondary-grip';
+  let weaponId:WeaponId='axe',held:WeaponModel|undefined,second:WeaponModel|undefined;
   const setWeapon=(id:WeaponId):void=>{
-    if(id===weaponId&&weaponMount.children.length)return;
-    weaponId=id;weaponMount.clear();offHand.clear();owned.splice(0).forEach(g=>g.dispose());
-    const long=id==='spear'?88:id==='hammer'?59:49;
-    make(weaponMount,cylinder,'leather',0,long/2-9,0,3,(long+18),3);
-    ball(weaponMount,'gold',0,-18,0,5);
-    if(id==='axe'){
-      make(weaponMount,blade([[1,31],[12,40],[28,44],[32,34],[29,19],[14,22],[2,26]],5),'steel',0,0,0,1,1,1);
-      box(weaponMount,'gold',1,30,0,7,15,8);
-    }else if(id==='hammer'){
-      box(weaponMount,'edge',0,long-6,0,37,24,24);box(weaponMount,'gold',0,long-6,0,12,26,25);
-      for(const s of [-1,1])box(weaponMount,'steel',s*20,long-6,0,8,22,22);
-    }else{
-      const y=id==='spear'?79:9,length=id==='spear'?29:id==='daggers'?32:53;
-      const geo=blade([[-5,y],[-6,y+length-13],[0,y+length],[6,y+length-13],[5,y]],3);
-      make(weaponMount,geo,'steel',0,0,0,1,1,1);
-      box(weaponMount,'gold',0,y,0,id==='spear'?13:24,4,7);
-      if(id==='daggers'){
-        make(offHand,geo,'steel',0,0,0,1,1,1);box(offHand,'gold',0,y,0,19,4,7);
-        make(offHand,cylinder,'leather',0,0,0,3,19,3);
-      }
-    }
-    weaponMount.rotation.x=-.28;
+    if(id===weaponId&&held)return;
+    weaponId=id;held?.dispose();second?.dispose();second=undefined;
+    held=createWeaponModel(id,false);weaponMount.add(held.root);
+    if(id==='daggers'){second=createWeaponModel(id,false);offHand.add(second.root);}
   };
   setWeapon('axe');
-  let phase=0,clock=0,lean=0,leanVelocity=0,turn=0,attackTime=1,wasAttacking=false;
-  return {root,setWeapon,setTint(tint){blue.color.setHex(tint??0x355f78);},dispose(){blue.dispose();capeGeo.dispose();capeMat.dispose();owned.forEach(g=>g.dispose());},
-    step(seconds,speed,dash=false,attack=false,travel=0,turning=0){
+  let phase=0,clock=0,lean=0,leanVelocity=0,turn=0,attackTime=1,wasAttacking=false,lastAttackAt=-Infinity;
+  return {root,setWeapon,setTint(tint){blue.color.setHex(tint??0x355f78);},dispose(){blue.dispose();capeGeo.dispose();capeMat.dispose();held?.dispose();second?.dispose();},
+    step(seconds,speed,dash=false,attack=false,travel=0,turning=0,attackAt?:number){
       const dt=Math.min(seconds,.05),motion=Math.min(1.4,speed/225);
       clock+=dt;phase+=Math.min(65,travel)*.061;
-      if(attack&&!wasAttacking)attackTime=0;wasAttacking=attack;attackTime+=dt;
+      if(attack&&(!wasAttacking||(attackAt!==undefined&&attackAt!==lastAttackAt)))attackTime=0;
+      if(attackAt!==undefined)lastAttackAt=attackAt;
+      wasAttacking=attack;attackTime+=dt;
       const swing=attackTime<.32?Math.sin(attackTime/.32*Math.PI):0;
       leanVelocity+=((dash?.38:motion*.1)-lean)*70*dt;leanVelocity*=Math.exp(-11*dt);lean+=leanVelocity*dt;
       turn+=(T.MathUtils.clamp(turning*.13,-.25,.25)-turn)*Math.min(1,dt*9);
@@ -133,6 +112,11 @@ export function createHero(): AnimatedModel {
       arms[1].rotation.x-=swing*(weaponId==='hammer'?1.8:1.3);
       arms[1].rotation.z+=swing*.58;
       if(weaponId==='daggers')arms[0].rotation.x-=swing*1.1;
+      // +Z is the hero's front. Counter the shoulder/elbow angles so a raised
+      // forearm never turns the blade backwards through the cape.
+      const pitch=weaponId==='spear'?1.02+swing*.43:weaponId==='hammer'?.45+swing*1.65:.62+swing*1.25;
+      weaponMount.rotation.x=pitch-arms[1].rotation.x-elbows[1].rotation.x;
+      offHand.rotation.x=.7+swing*1.1-arms[0].rotation.x-elbows[0].rotation.x;
       const vertices=capeGeo.attributes.position;
       for(let i=0;i<vertices.count;i++){
         const x=capeRest[i*3],y=capeRest[i*3+1],t=(27-y)/54;

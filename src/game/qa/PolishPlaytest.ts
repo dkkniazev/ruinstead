@@ -8,6 +8,7 @@ import { FORGE_POSITION } from '../settlement/SettlementSystem';
 import type { CombatSystem } from '../combat/CombatSystem';
 import type { BossSystem } from '../bosses/BossSystem';
 import type { WorldPresentation3D } from '../render3d/WorldPresentation3D';
+import { WEAPON_DEFINITIONS, WEAPON_ORDER } from '../combat/WeaponDefinitions';
 
 export const isPolishPlaytest = (): boolean => import.meta.env.DEV && new URLSearchParams(location.search).get('playtest') === 'polish';
 /** This fixture never touches local storage or cloud saves. */
@@ -22,6 +23,16 @@ export function polishStateStore() {
   state.premium.unlockedSkinIds=['moss-guard'];
   state.player.maxHealthLevel=10;state.player.backpackLevel=10;
   state.world.bossRespawnAt['root-colossus']=Date.now()+3600000;
+  if(new URLSearchParams(location.search).get('weapons')==='all'){
+    state.progression.playerLevel=20;
+    state.player.unlockedWeaponIds=[...WEAPON_ORDER];
+    state.player.weaponInventory={
+      variants:WEAPON_ORDER.map(weaponId=>({weaponId,rarity:'common',level:1,starCounts:[1,0,0,0,0,0]})),
+      equipped:Object.fromEntries(WEAPON_ORDER.map(id=>[id,{rarity:'common',stars:0}])),
+      loadout:WEAPON_ORDER.map(weaponId=>({weaponId,rarity:'common',stars:0})),
+      primarySlot:0,
+    };
+  }
   return {load:()=>state,save:(value:GameState)=>value};
 }
 export function installPolishPlaytest(player: PlayerController, enemies: EnemySystem,combat:CombatSystem,bosses:BossSystem,presentation?:WorldPresentation3D): ()=>void {
@@ -55,6 +66,8 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
     const boss=bosses.visualUnits.find(b=>b.definition.id==='lava-golem');
     const counts=[...groups.values()];output.textContent=`Проверка без сохранения · ${groups.size} пачек · ${Math.min(...counts)}–${Math.max(...counts)} мобов · элит: ${enemies.visualUnits.filter(e=>e.rank==='elite').length} · пересечений: ${overlaps} · зазор: ${min.toFixed(1)} · выбранная пачка: ${pack.filter(e=>e.alive).length}/${pack.length} · ${enemies.isPlayerThreatened()?'бой':'покой'} · Босс 4 HP: ${((boss?.visualHealthRatio??1)*100).toFixed(1)}%`;
     if(presentation){const stats=presentation.renderStats;output.textContent+=` · draw: ${stats.calls} · треуг.: ${Math.round(stats.triangles/1000)}k`;}
+    const orbitals=combat.visualOrbitals;
+    if(orbitals.length)output.textContent+=` · Орбиты: ${orbitals.map(o=>`${WEAPON_DEFINITIONS[o.weaponId].name} ${Number.isFinite(o.attackAt)?(o.attackAt/1000).toFixed(1)+'с':'ожидает'}`).join(', ')}`;
   },500);
   return ()=>{clearInterval(timer);controls.remove();};
 }

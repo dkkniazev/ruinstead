@@ -5,9 +5,10 @@ export * as T from 'three';
 export * from './src/game/render3d/HeroModel.ts';
 export * from './src/game/render3d/MeshBatching.ts';
 export * from './src/game/render3d/Trees.ts';
+export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {T,createHero,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const {T,createHero,OrbitingWeapons3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const hero=createHero(),other=createHero();
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
   hero.setWeapon(weapon);
@@ -19,6 +20,54 @@ hero.setTint(0xff3311);
 let unaffected=false;other.root.traverse(o=>{if(o instanceof T.Mesh&&o.material.color.getHex()===0x355f78)unaffected=true;});
 assert(unaffected,'Tint must not mutate another hero or a cached portrait');
 hero.dispose();other.dispose();
+
+// A raised elbow must not turn the blade back into the cape, at any gait phase.
+for(const weapon of ['axe','sword','hammer','spear','daggers']){
+  const model=createHero();model.setWeapon(weapon);
+  for(let frame=0;frame<180;frame++){
+    const attack=frame>=90&&frame%30<15;
+    model.step(1/60,frame<30?0:225,frame>=60&&frame<90,attack,frame<30?0:3.75,Math.sin(frame)*.2);
+    model.root.updateMatrixWorld(true);
+    for(const gripName of weapon==='daggers'?['primary-grip','secondary-grip']:['primary-grip']){
+      const grip=model.root.getObjectByName(gripName),blade=grip.getObjectByName(`weapon-${weapon}`);
+      const base=grip.getWorldPosition(new T.Vector3()),tip=blade.localToWorld(new T.Vector3(...blade.userData.weaponTip));
+      assert(tip.z-base.z>8,`${weapon} must point forward: frame ${frame}, ${gripName}`);
+    }
+  }
+  model.dispose();
+}
+// At low frame rates, two dagger attacks can share one continuous attack=true window.
+const rapid=createHero();rapid.setWeapon('daggers');
+rapid.step(.016,0,false,true,0,0,1000);
+for(let i=0;i<4;i++)rapid.step(.05,0,false,true,0,0,1000);
+const latePitch=rapid.root.getObjectByName('primary-grip').rotation.x;
+rapid.step(.024,0,false,true,0,0,1240);
+assert(Math.abs(rapid.root.getObjectByName('primary-grip').rotation.x-latePitch)>.4,'A new hit timestamp restarts a rapid swing');
+rapid.dispose();
+
+const satellites=new OrbitingWeapons3D();
+const states=['sword','hammer','spear','daggers'].map((weaponId,i)=>({slot:i+1,weaponId,color:0x73b9ff,x:100+i*40,y:200-i*40,facing:.4,visible:true,attackAt:-Infinity,attackDirection:{x:1,y:0}}));
+const assertFiniteTransforms=()=>{
+  satellites.root.updateMatrixWorld(true);
+  satellites.root.traverse(object=>assert(object.matrixWorld.elements.every(Number.isFinite),'All orbital transforms must be finite, even before the first hit'));
+};
+satellites.update(states,1000,75);assertFiniteTransforms();
+assert.equal(satellites.root.children.length,4,'Four secondary slots must have visible 3D models');
+for(const state of states){const object=satellites.root.getObjectByName(`orbital-slot-${state.slot}`);assert(object.getObjectByName(`weapon-${state.weaponId}`));assert.equal(object.position.x,state.x);assert.equal(object.position.z,state.y);assert(object.position.y>115,'Weapons hover at hero terrain height');}
+states[1].attackAt=1000;satellites.update(states,1140,75);
+const hammer=satellites.root.getObjectByName('orbital-slot-2');
+assert.equal(hammer.position.x,states[1].x+22,'An actual hit lunges toward its target');
+assert.equal(hammer.rotation.y,Math.PI/2,'Strike faces its target');
+assert.equal(satellites.root.getObjectByName('orbital-slot-1').position.x,states[0].x,'Another slot does not share this cooldown event');
+satellites.update(states,1400,75);assert.equal(hammer.position.x,states[1].x,'Weapon returns to its orbit after the strike');
+let disposed=0;hammer.getObjectByName('weapon-hammer').addEventListener('removed',()=>disposed++);
+states[1]={...states[1],weaponId:'axe'};satellites.update(states,1500,75);
+assert.equal(disposed,1,'Changing equipment removes the old model');
+assert(satellites.root.getObjectByName('orbital-slot-2').getObjectByName('weapon-axe'));
+satellites.update(states.slice(1).map(state=>({...state,visible:false})),1600,75);
+assert.equal(satellites.root.children.length,3,'Unequipping removes the old orbital');
+assert(satellites.root.children.every(object=>!object.visible),'Dead player hides all orbitals');assertFiniteTransforms();
+satellites.dispose();assert.equal(satellites.root.children.length,0);
 const group=new T.Group();
 for(let i=0;i<3;i++){
   const m=new T.Mesh(new T.BoxGeometry(1,1,1),new T.MeshStandardMaterial({color:i===0?0xff0000:0x00ff00}));
@@ -41,4 +90,4 @@ for(const region of [1,3,5,6])for(const seed of [0,1,11,101]){
 }
 const hit=recordVisualHit(recordVisualHit(undefined,10,42,'neutral'),10,19,'neutral');assert.equal(hit.amount,61);
 assert.equal(recordVisualHit(hit,11,7,'neutral').amount,7);
-console.log('Art sanity: PASS — five animated weapons, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');
+console.log('Art sanity: PASS — five forward weapon grips, rapid swings, four independent 3D orbitals, equipment cleanup, finite transforms, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');

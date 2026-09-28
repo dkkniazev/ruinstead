@@ -60,7 +60,7 @@ function rod(parent: THREE.Object3D, color: number, a: THREE.Vector3, b: THREE.V
 
 export type AnimatedModel = {
   root: THREE.Group;
-  step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number) => void;
+  step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number, attackAt?: number) => void;
   setWeapon?: (weapon: WeaponId) => void;
   setTint?: (tint: number | null) => void;
   dispose?: () => void;

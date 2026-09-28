@@ -1,4 +1,5 @@
 import { healthAfterMaxChange } from './CombatMath';
+import type { OrbitalWeaponState } from './CombatVisualState';
 import Phaser from 'phaser';
 import type {
   BossSystem,
@@ -42,6 +43,8 @@ type OrbitingWeaponVisual = {
   container:
     Phaser.GameObjects.Container;
   nextHitAt: number;
+  attackAt: number;
+  attackDirection: {x:number;y:number};
 };
 
 export type HealthPotionUseResult =
@@ -87,6 +90,14 @@ export type CombatState = {
 };
 
 export class CombatSystem {
+  get visualOrbitals():OrbitalWeaponState[] {
+    return this.orbitals.map(orbital=>({
+      slot:orbital.slot,weaponId:orbital.profile.weaponId,
+      color:Number.parseInt(WEAPON_RARITIES[orbital.profile.rarity].color.slice(1),16),
+      x:orbital.container.x,y:orbital.container.y,facing:Math.PI/2-orbital.container.rotation,
+      visible:!this.dead,attackAt:orbital.attackAt,attackDirection:orbital.attackDirection,
+    }));
+  }
   get visualCoinDrops():Array<{x:number;y:number;scale:number}> { return this.drops.visualDrops; }
   get damageBonus(): number { return this.temporaryDamageMultiplier; }
   private maxHealth = 100;
@@ -1160,6 +1171,8 @@ export class CombatSystem {
           entry.profile,
         container,
         nextHitAt: 0,
+        attackAt: -Infinity,
+        attackDirection: {x:0,y:1},
       });
     }
   }
@@ -1266,6 +1279,11 @@ export class CombatSystem {
             definition.cooldownMs *
               1.25,
           );
+
+        orbital.attackAt=time;
+        const targetPosition=target.combatPosition;
+        const dx=targetPosition.x-x,dy=targetPosition.y-y,distance=Math.hypot(dx,dy)||1;
+        orbital.attackDirection={x:dx/distance,y:dy/distance};
 
         this.damageTarget(
           target,

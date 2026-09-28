@@ -4,6 +4,8 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 /** Shared bevels catch the key light without adding a separate outline pass. */
 export const softBox = new RoundedBoxGeometry(1, 1, 1, 1, .1);
 export const softOrb = new T.IcosahedronGeometry(1, 2);
+const surfaceTime={value:0};
+export function updateArtMaterials(timeMs:number):void {surfaceTime.value=timeMs*.001;}
 
 const shadowGeometry = new T.PlaneGeometry(2, 2);
 const shadowMaterial = new T.ShaderMaterial({
@@ -65,13 +67,18 @@ export function boundarySurfaceMaterial(lava: boolean): T.MeshStandardMaterial {
     roughness: lava ? .68 : .3, metalness: lava ? 0 : .08, vertexColors: true,
   });
   material.onBeforeCompile = shader => {
+    shader.uniforms.artTime=surfaceTime;
     shader.vertexShader = `varying vec3 vArtPosition;\n` + shader.vertexShader;
     shader.vertexShader = shader.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvArtPosition=(modelMatrix*vec4(transformed,1.)).xyz;');
-    shader.fragmentShader = `varying vec3 vArtPosition;\n${noiseGLSL}\n` + shader.fragmentShader;
+    shader.fragmentShader = `uniform float artTime;\nvarying vec3 vArtPosition;\n${noiseGLSL}\n` + shader.fragmentShader;
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
-      float ripples=pow(.5+.5*sin(vArtPosition.z*.068+artNoise(vArtPosition.xz*.007)*9.),14.);
+      vec2 flowPosition=vArtPosition.xz+vec2(artTime*2.7,-artTime*5.);
+      float ripples=pow(.5+.5*sin(flowPosition.y*.068+artNoise(flowPosition*.007)*9.),14.);
       diffuseColor.rgb+=vec3(${lava ? '.19,.08,.006' : '.09,.15,.13'})*ripples;
+      ${lava ? `float crust=smoothstep(.57,.61,artNoise(flowPosition*.012))*smoothstep(.43,.47,artNoise(flowPosition*.026));
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.075,.09),crust*.88);` : ''}
     `);
+    if(lava)shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\ntotalEmissiveRadiance*=1.-crust*.94;');
   };
   material.customProgramCacheKey = () => lava ? 'ruin-lava' : 'ruin-river';
   return material;

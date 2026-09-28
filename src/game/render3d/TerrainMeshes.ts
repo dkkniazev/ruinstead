@@ -59,28 +59,32 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
 
   const cliffPositions: number[] = [], cliffColors: number[] = [];
   const stone = new THREE.Color(region.id === 7 ? 0x9b6949 : region.id === 4 || region.id === 8 ? 0x51443e : region.id === 3 ? 0x686776 : 0x817c6d);
+  const rim:THREE.Vector2[]=[];
   for (let edge=0;edge<shape.length;edge++) {
     const a=shape[edge], b=shape[(edge+1)%shape.length];
     const length=a.distanceTo(b), count=Math.ceil(length/115);
-    let nx=-(b.y-a.y)/length, ny=(b.x-a.x)/length;
-    if(pointInRegion(region,(a.x+b.x)/2+nx*10,(a.y+b.y)/2+ny*10)){nx=-nx;ny=-ny;}
-    for(let i=0;i<count;i++) {
-      const p=a.clone().lerp(b,i/count), q=a.clone().lerp(b,(i+1)/count);
-      const topP=plateauHeight(region,p.x,p.y), topQ=plateauHeight(region,q.x,q.y);
-      const bottom=Math.min(region.elevation-115,sampleBoundaryTerrain((p.x+q.x)/2+nx*140,(p.y+q.y)/2+ny*140).height-12);
-      const levels=[0,0.22,0.56,0.82,1];
-      for(let band=0;band<levels.length-1;band++) {
-        const t=levels[band], u=levels[band+1];
-        const bevel=band===0?0:7+hash(edge,i)*16;
-        const verts=[
-          [p.x+nx*bevel,topP+(bottom-topP)*t,p.y+ny*bevel],
-          [q.x+nx*bevel,topQ+(bottom-topQ)*t,q.y+ny*bevel],
-          [q.x+nx*12,topQ+(bottom-topQ)*u,q.y+ny*12],
-          [p.x+nx*12,topP+(bottom-topP)*u,p.y+ny*12],
-        ];
-        const shade=stone.clone().multiplyScalar(0.72+hash(edge*20+i,band)*0.38+(band===0?0.18:0));
-        for(const j of [0,2,1,0,3,2]) { cliffPositions.push(...verts[j]); cliffColors.push(shade.r,shade.g,shade.b); }
-      }
+    for(let i=0;i<count;i++)rim.push(a.clone().lerp(b,i/count));
+  }
+  // Every panel shares both its side vertices and its stratum edges. Independent
+  // bevels previously left open seams through which the river was visible.
+  const levels=[0,.22,.56,.82,1];
+  const rings=rim.map((p,index)=>{
+    const previous=rim[(index+rim.length-1)%rim.length],next=rim[(index+1)%rim.length];
+    const normal=new THREE.Vector2(-(next.y-previous.y),next.x-previous.x).normalize();
+    if(pointInRegion(region,p.x+normal.x*10,p.y+normal.y*10))normal.negate();
+    const top=plateauHeight(region,p.x,p.y);
+    const bottom=Math.min(region.elevation-115,sampleBoundaryTerrain(p.x+normal.x*140,p.y+normal.y*140).height-12);
+    return levels.map((t,band)=>{
+      const bevel=band===0?0:band===4?12:7+hash(p.x+band*41,p.y)*16;
+      return [p.x+normal.x*bevel,top+(bottom-top)*t,p.y+normal.y*bevel];
+    });
+  });
+  for(let index=0;index<rings.length;index++) {
+    const a=rings[index],b=rings[(index+1)%rings.length];
+    for(let band=0;band<levels.length-1;band++) {
+      const vertices=[a[band],b[band],b[band+1],a[band+1]];
+      const shade=stone.clone().multiplyScalar(.72+hash(index,band)*.38+(band===0?.18:0));
+      for(const j of [0,2,1,0,3,2]) {cliffPositions.push(...vertices[j]);cliffColors.push(shade.r,shade.g,shade.b);}
     }
   }
   group.add(mesh(cliffPositions,cliffColors,true));

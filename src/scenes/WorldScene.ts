@@ -979,7 +979,7 @@ export class WorldScene
           if (passage.id === '2-3') return this.gameState?.world.unlockedZones.includes('stage-3') ?? false;
           const zones = this.gameState?.world.unlockedZones ?? [];
           return regionIsUnlocked(zones, passage.a) && regionIsUnlocked(zones, passage.b);
-        },()=>this.combat?.visualCoinDrops??[]);
+        },()=>this.combat?.visualCoinDrops??[],()=>this.combat?.visualOrbitals??[]);
         this.cameras.main.setVisible(false);
       } catch (error) {
         console.warn('3D presentation unavailable; using the Phaser world renderer.', error);

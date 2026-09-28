@@ -1,6 +1,8 @@
-import { contactShadow } from './ArtMaterials';
+import { contactShadow, updateArtMaterials } from './ArtMaterials';
 import { batchStaticMeshes, disposeBatchedGeometry } from './MeshBatching';
 import { CombatEffects3D } from './CombatEffects3D';
+import { OrbitingWeapons3D } from './OrbitingWeapons3D';
+import type { OrbitalWeaponState } from '../combat/CombatVisualState';
 import { createGroundCover } from './BiomeScenery';
 import { settlementScenery, disposeSettlementScenery } from './SettlementScenery';
 import { buildingLabel, disposeBuildingLabels } from './BuildingLabels';
@@ -60,6 +62,7 @@ export class WorldPresentation3D {
   private readonly chunks = new Map<string, THREE.Group>();
   private readonly actors = new Map<EnemyUnit | BossUnit, Actor>();
   private readonly effects = new CombatEffects3D();
+  private readonly orbitingWeapons = new OrbitingWeapons3D();
   private readonly shownHits = new WeakMap<EnemyUnit | BossUnit,number>();
   private readonly resources = new Map<string, ResourceVisual3D>();
   private readonly chests = new Map<string, THREE.Group>();
@@ -90,6 +93,7 @@ export class WorldPresentation3D {
     private readonly city: CityBuilderSystem,
     private readonly isPassageOpen: (passage: RegionPassage) => boolean,
     private readonly getCoinDrops:()=>Array<{x:number;y:number;scale:number}> = ()=>[],
+    private readonly getOrbitals:()=>OrbitalWeaponState[] = ()=>[],
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
@@ -133,7 +137,7 @@ export class WorldPresentation3D {
 
     this.hero.root.add(contactShadow(40,29));
     this.coinPickups.count=0;this.coinPickups.frustumCulled=false;
-    this.scene.add(this.hero.root,this.effects.root,this.coinPickups);
+    this.scene.add(this.hero.root,this.effects.root,this.coinPickups,this.orbitingWeapons.root);
     for (const region of RELEASE_REGIONS) {
       const land = createRegionLand(region);
       this.landRegions.set(region.id, land);
@@ -182,6 +186,7 @@ export class WorldPresentation3D {
   };
 
   update(time: number, delta: number): void {
+    updateArtMaterials(time);
     const dt = Math.min(0.05, Math.max(0, delta / 1000));
     const x = this.player.sprite.x;
     const z = this.player.sprite.y;
@@ -202,7 +207,8 @@ export class WorldPresentation3D {
     this.hero.setTint?.(this.player.visualTint);
     const attacking = (harvesting && time - harvest.hitAt < 200) || time - this.player.visualAttackAt < 230;
     const travel = Math.hypot(x - this.lastHeroX, z - this.lastHeroY);
-    this.hero.step(dt, speed, this.player.isDashing(time), attacking, travel, difference);
+    this.hero.step(dt, speed, this.player.isDashing(time), attacking, travel, difference,
+      time-this.player.visualAttackAt<230?this.player.visualAttackAt:harvest?.hitAt);
     this.lastHeroX = x;
     this.lastHeroY = z;
 
@@ -234,6 +240,7 @@ export class WorldPresentation3D {
     this.updateTerrain(x, z);
     this.updateActors(dt, x, z,time);
     this.effects.update(time,x,groundHeight,z,this.lastFacing,this.player.visualAttackAt);
+    this.orbitingWeapons.update(this.getOrbitals(),time,groundHeight);
     this.updateResources(x, z, time);
     if (this.frame++ % 4 === 0) {
       this.updateChests(x, z);
@@ -641,6 +648,7 @@ export class WorldPresentation3D {
     this.landRegions.clear();this.chunks.clear();
     this.hero.dispose?.();
     this.effects.dispose();
+    this.orbitingWeapons.dispose();
     this.coinPickups.geometry.dispose();(this.coinPickups.material as THREE.Material).dispose();
     this.renderer.domElement.remove();
     this.renderer.dispose();

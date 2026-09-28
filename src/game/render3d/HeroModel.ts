@@ -3,6 +3,9 @@ import {
   WEAPON_DEFINITIONS,
   type WeaponId,
 } from '../combat/WeaponDefinitions';
+import {
+  weaponAttackAnimationSeconds,
+} from './WeaponAnimation';
 import type { AnimatedModel } from './Models';
 import { softBox, softOrb } from './ArtMaterials';
 import { createWeaponModel, type WeaponModel } from './WeaponModel';
@@ -109,11 +112,13 @@ export function createHero(): AnimatedModel {
     // Weapon geometry grows along local +Y. Roll it around that longitudinal
     // axis so blades/heads present their authored broad side instead of lying
     // flat across the wrist.
-    held.root.rotation.y=Math.PI/2;
+    // Previous +90° roll left the authored broad side upside down.
+    // -90° is exactly another 180° around the weapon's longitudinal +Y axis.
+    held.root.rotation.y=-Math.PI/2;
     weaponMount.add(held.root);
     if(id==='daggers'){
       second=createWeaponModel(id,false);
-      second.root.rotation.y=Math.PI/2;
+      second.root.rotation.y=-Math.PI/2;
       offHand.add(second.root);
     }
   };
@@ -131,10 +136,9 @@ export function createHero(): AnimatedModel {
 
       const style=WEAPON_DEFINITIONS[weaponId].attackStyle;
       const duration=
-        style==='smash'?.5:
-        style==='wide-slash'?.43:
-        style==='slash'?.34:
-        style==='dual-slash'?.3:.28;
+        weaponAttackAnimationSeconds(
+          weaponId,
+        );
       const attackProgress=T.MathUtils.clamp(attackTime/duration,0,1);
       const attacking=attackTime<duration;
       const pulse=attacking?Math.sin(attackProgress*Math.PI):0;

@@ -25,6 +25,9 @@ import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './Terra
 
 import { createBossTelegraph, disposeBossTelegraph } from './BossTelegraph3D';
 import { ResourceVisual3D } from './ResourceVisual3D';
+import {
+  weaponAttackAnimationMs,
+} from './WeaponAnimation';
 
 const TILE = 640;
 const palettes = REGION_PALETTES;
@@ -238,7 +241,15 @@ export class WorldPresentation3D {
     const speed = Math.hypot(velocity.x, velocity.y);
     const harvest = this.resourceSystem.visualHarvestAction;
     const harvesting = !!harvest && time - harvest.hitAt < 580;
-    const facing = time-this.player.visualAttackAt<260
+    const attackWindowMs =
+      weaponAttackAnimationMs(
+        this.player.visualWeaponId,
+      );
+    const inWeaponAttack =
+      time -
+        this.player.visualAttackAt <
+      attackWindowMs;
+    const facing = inWeaponAttack
       ? Math.atan2(this.player.visualAttackDirection.x,this.player.visualAttackDirection.y)
       : harvesting && speed < 20
       ? Math.atan2(harvest.x - x, harvest.y - z)
@@ -249,10 +260,24 @@ export class WorldPresentation3D {
     this.hero.root.position.set(x, terrainHeight(x, z) + 5, z);
     this.hero.setWeapon?.(this.player.visualWeaponId);
     this.hero.setSkin?.(this.player.visualSkinId);
-    const attacking = (harvesting && time - harvest.hitAt < 200) || time - this.player.visualAttackAt < 230;
+    const harvestingAttack =
+      harvesting &&
+      time - harvest.hitAt < 260;
+    const attacking =
+      harvestingAttack ||
+      inWeaponAttack;
     const travel = Math.hypot(x - this.lastHeroX, z - this.lastHeroY);
-    this.hero.step(dt, speed, this.player.isDashing(time), attacking, travel, difference,
-      time-this.player.visualAttackAt<230?this.player.visualAttackAt:harvest?.hitAt);
+    this.hero.step(
+      dt,
+      speed,
+      this.player.isDashing(time),
+      attacking,
+      travel,
+      difference,
+      inWeaponAttack
+        ? this.player.visualAttackAt
+        : harvest?.hitAt,
+    );
     this.lastHeroX = x;
     this.lastHeroY = z;
 

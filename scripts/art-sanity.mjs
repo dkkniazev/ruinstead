@@ -3,6 +3,7 @@ import {build} from 'esbuild';
 const result=await build({stdin:{contents:`
 export * as T from 'three';
 export * from './src/game/render3d/HeroModel.ts';
+export * from './src/game/render3d/WeaponAnimation.ts';
 export * from './src/game/render3d/HeroSkinStyles.ts';
 export {SKIN_DEFINITIONS} from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/render3d/MeshBatching.ts';
@@ -10,7 +11,7 @@ export * from './src/game/render3d/Trees.ts';
 export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const hero=createHero(),other=createHero();
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
   hero.setWeapon(weapon);
@@ -47,15 +48,15 @@ assert(!dressed.root.children.some(o=>o.name.startsWith('outfit-')));
 assert.deepEqual(new T.Box3().setFromObject(neutral.root),neutralBounds,'Changing a skin must not mutate another hero');
 dressed.dispose();neutral.dispose();
 
-// Idle grips point generally forward and every held weapon is rolled 90° around
-// its own length. Attack styles must then move on visibly different axes.
+// Idle grips point generally forward and every held weapon is rolled -90° around
+// its own length (180° from the previous upside-down +90° roll).
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
   const model=createHero();model.setWeapon(weapon);
   model.step(1/60,0,false,false,0,0);
   model.root.updateMatrixWorld(true);
   const grip=model.root.getObjectByName('primary-grip');
   const blade=grip.getObjectByName(`weapon-${weapon}`);
-  assert(Math.abs(Math.abs(blade.rotation.y)-Math.PI/2)<1e-5,`${weapon} longitudinal roll`);
+  assert(Math.abs(blade.rotation.y+Math.PI/2)<1e-5,`${weapon} corrected longitudinal roll`);
   const base=grip.getWorldPosition(new T.Vector3()),tip=blade.localToWorld(new T.Vector3(...blade.userData.weaponTip));
   assert(tip.z-base.z>5,`${weapon} idle grip faces broadly forward`);
   const before={x:grip.rotation.x,y:grip.rotation.y,z:grip.rotation.z};
@@ -77,7 +78,7 @@ rapid.step(.016,0,false,true,0,0,1000);
 for(let i=0;i<4;i++)rapid.step(.05,0,false,true,0,0,1000);
 const latePitch=rapid.root.getObjectByName('primary-grip').rotation.x;
 rapid.step(.024,0,false,true,0,0,1240);
-assert(Math.abs(rapid.root.getObjectByName('primary-grip').rotation.x-latePitch)>.4,'A new hit timestamp restarts a rapid swing');
+assert(Math.abs(rapid.root.getObjectByName('primary-grip').rotation.x-latePitch)>.12,'A new hit timestamp restarts a rapid swing');
 rapid.dispose();
 
 const satellites=new OrbitingWeapons3D();
@@ -125,4 +126,5 @@ for(const region of [1,3,5,6])for(const seed of [0,1,11,101]){
 }
 const hit=recordVisualHit(recordVisualHit(undefined,10,42,'neutral'),10,19,'neutral');assert.equal(hit.amount,61);
 assert.equal(recordVisualHit(hit,11,7,'neutral').amount,7);
-console.log('Art sanity: PASS — longitudinal weapon grips, distinct thrust/slash/cleave/smash/dual-slash poses, rapid swings, four independent 3D orbitals, equipment cleanup, finite transforms, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');
+assert(WEAPON_ATTACK_ANIMATION_MS.smash>=750&&WEAPON_ATTACK_ANIMATION_MS['wide-slash']>=620&&WEAPON_ATTACK_ANIMATION_MS.thrust>=500,'Heavy and thrust animations must remain readable instead of snapping instantly');
+console.log('Art sanity: PASS — corrected 180° weapon roll, slower readable thrust/slash/cleave/smash/dual-slash poses, rapid swing restarts, four independent 3D orbitals, equipment cleanup, finite transforms, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');

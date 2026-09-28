@@ -1,4 +1,5 @@
 import { harvestYield, harvestRespawnMs, harvestNodeCount } from '../economy/HarvestBalance';
+import type { NavigationObstacle } from '../world/ObstacleNavigation';
 import Phaser from 'phaser';
 import type {
   BackpackSystem,
@@ -469,6 +470,15 @@ export class ResourceSystem {
   private readonly collisionBodies: Phaser.GameObjects.Rectangle[] = [];
   private readonly nodeVisuals: ResourceVisualState[] = [];
   get visualNodes(): readonly ResourceVisualState[] { return this.nodeVisuals; }
+  get navigationObstacles(): NavigationObstacle[] {
+    return NODE_DEFINITIONS.map((definition)=>({
+      x:definition.x,
+      y:definition.y,
+      halfWidth:RESOURCE_FOOTPRINT_RADIUS[definition.type],
+      halfHeight:RESOURCE_FOOTPRINT_RADIUS[definition.type],
+      circle:true,
+    }));
+  }
   visualHarvestAction?: { x: number; y: number; hitAt: number };
 
   get visualPickups(): ReadonlyArray<{ type: ResourceType; x: number; y: number }> {

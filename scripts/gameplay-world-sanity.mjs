@@ -8,9 +8,10 @@ export * from './src/game/world/WorldInteractions.ts';
 export * from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/world/WalkableWorld.ts';
 export * from './src/game/world/ReleaseRegionMap.ts';
+export * from './src/game/enemies/AttackWindup.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
 const api=await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
-const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects,WalkableWorld,RELEASE_REGIONS}=api;
+const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects,WalkableWorld,RELEASE_REGIONS,AttackWindup}=api;
 const inventory=createDefaultWeaponInventory();
 inventory.variants.push({weaponId:'daggers',rarity:'rare',level:1,starCounts:[1,0,0,0,0,0]});
 inventory.loadout[4]={weaponId:'daggers',rarity:'rare',stars:0};inventory.primarySlot=4;
@@ -61,6 +62,14 @@ for(const region of RELEASE_REGIONS){
   }
 }
 assert(slid,'Found a polygon edge suitable for boundary sliding regression');
+const windup=new AttackWindup();
+assert.equal(windup.update(0,true,10,0,300,800),false,'Entering attack range starts wind-up without damage');
+assert(windup.active&&windup.impactAt===300);
+assert.equal(windup.update(150,false,20,0,300,800),false,'Leaving reach during wind-up dodges the hit');
+assert(!windup.active);
+windup.readyAt=200;windup.update(200,true,10,0,300,800);
+assert.equal(windup.update(499,true,10,0,300,800),false);
+assert.equal(windup.update(500,true,10,0,300,800),true,'Damage lands only after the readable wind-up');
 for(const id of ['starter-warden','pass-champion','ashborn','founder-keeper'])assert.equal(Object.keys(getSkinEffects(id)).length,2,'Special skins have two focused effects');
 assert.equal(getSkinEffects('sun-warden')['max-health'],.2,'Normal epic bonus remains unchanged');
 console.log('Gameplay/world regression: PASS — locked slots, duplicate equipment, target acquire, flight/impact/return, cooldowns, interaction priority/range, special skin effects.');

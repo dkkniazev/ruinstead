@@ -1,5 +1,6 @@
 import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../game/qa/PolishPlaytest';
 import { resolveWorldInteraction, type InteractionCandidate } from '../game/world/WorldInteractions';
+import { ObstacleNavigation } from '../game/world/ObstacleNavigation';
 import { HUD_WORLD_INTERACT_EVENT, HUD_INTERACTION_STATE_EVENT, HUD_OPEN_FORGE_EVENT } from '../game/ui/HudEvents';
 import { STAGE_ONE_BRIDGE_CENTER } from '../game/world/StageOneProgression';
 import Phaser from 'phaser';
@@ -572,6 +573,17 @@ export class WorldScene
       this.saveState();
     }
 
+    const enemyNavigation =
+      this.regionGateSystem
+        ? new ObstacleNavigation(
+            this.regionGateSystem.navigation,
+          )
+        : undefined;
+    enemyNavigation?.setObstacles(
+      this.resourceSystem
+        .navigationObstacles,
+    );
+
     this.enemies =
       new EnemySystem(
         this,
@@ -587,6 +599,7 @@ export class WorldScene
             rank === 'elite',
           );
         },
+        enemyNavigation,
       );
 
     this.bosses =

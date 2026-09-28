@@ -1,4 +1,6 @@
 import { formPack, packSize, packFormationRadius } from './PackFormation';
+import { AttackWindup } from './AttackWindup';
+import type { ObstacleNavigation } from '../world/ObstacleNavigation';
 import { recordVisualHit, type VisualHit } from '../combat/CombatVisualState';
 import { bossArenaAreaIsClear } from '../bosses/BossArenas';
 import Phaser from 'phaser';
@@ -50,6 +52,7 @@ export type EnemyDefinition = {
   damage: number;
   attackRange: number;
   attackCooldownMs: number;
+  attackWindupMs: number;
   aggroRange: number;
   leashRange: number;
   dropCoins: number;
@@ -147,6 +150,8 @@ function archetypeStats(
   damage: number;
   range: number;
   cooldown: number;
+  windup: number;
+  aggro: number;
 } {
   switch (archetype) {
     case 'fast':
@@ -156,6 +161,8 @@ function archetypeStats(
         damage: 0.92,
         range: 76,
         cooldown: 780,
+        windup: 260,
+        aggro: 205,
       };
     case 'tank':
       return {
@@ -164,6 +171,8 @@ function archetypeStats(
         damage: 1.16,
         range: 88,
         cooldown: 1160,
+        windup: 460,
+        aggro: 188,
       };
     case 'ranged':
       return {
@@ -172,6 +181,8 @@ function archetypeStats(
         damage: 1.08,
         range: 96,
         cooldown: 1040,
+        windup: 420,
+        aggro: 235,
       };
     case 'charger':
       return {
@@ -180,6 +191,8 @@ function archetypeStats(
         damage: 1.18,
         range: 84,
         cooldown: 940,
+        windup: 360,
+        aggro: 220,
       };
     default:
       return {
@@ -188,6 +201,8 @@ function archetypeStats(
         damage: 1,
         range: 82,
         cooldown: 920,
+        windup: 340,
+        aggro: 198,
       };
   }
 }
@@ -276,8 +291,10 @@ function buildDefinitions():
         profile.range,
       attackCooldownMs:
         profile.cooldown,
+      attackWindupMs:
+        profile.windup,
       aggroRange:
-        142 +
+        profile.aggro +
         species.region * 4,
       leashRange:
         245 +
@@ -312,6 +329,14 @@ function buildDefinitions():
 const DEFINITIONS =
   buildDefinitions();
 
+export function enemyAggroDistance(id: string, elite = false, groupSize = 4): number {
+  const definition = DEFINITIONS[id];
+  if (!definition) return 0;
+  const eliteBonus = elite ? 38 : 0;
+  const groupBonus = Math.max(0, Math.min(22, (groupSize - 3) * 4));
+  return definition.aggroRange + eliteBonus + groupBonus;
+}
+
 export function enemyDisplayStats(id: string, elite = false): { health: number; damage: number; radius: number } {
   const d = DEFINITIONS[id];
   return { health: Math.round(d.maxHealth * (elite ? ELITE_HEALTH_MULTIPLIER : 1)), damage: Math.round(d.damage * (elite ? ELITE_DAMAGE_MULTIPLIER : 1)), radius: d.bodyRadius * (elite ? 1.2 * 1.22 : 1) };
@@ -342,11 +367,11 @@ function buildHabitats():
       ReadonlyArray<
         readonly [number, number]
       > = [
-      [-0.43, -0.25],
-      [0.05, -0.48],
-      [0.42, -0.18],
-      [-0.34, 0.36],
-      [0.34, 0.37],
+      [-0.52, -0.3],
+      [0.02, -0.56],
+      [0.52, -0.24],
+      [-0.46, 0.44],
+      [0.46, 0.47],
     ];
 
     species.forEach(
@@ -393,18 +418,18 @@ function buildHabitats():
                 angle,
               ) *
                 Math.min(
-                  430,
+                  520,
                   region.radiusX *
-                    0.12,
+                    0.15,
                 ),
               centerY +
               Math.sin(
                 angle,
               ) *
                 Math.min(
-                  330,
+                  410,
                   region.radiusY *
-                    0.1,
+                    0.13,
                 ),
               habitatIndex * 10 + index,
               118,
@@ -417,18 +442,18 @@ function buildHabitats():
                 angle + 0.55,
               ) *
                 Math.min(
-                  650,
+                  720,
                   region.radiusX *
-                    0.18,
+                    0.2,
                 ),
               centerY +
               Math.sin(
                 angle + 0.55,
               ) *
                 Math.min(
-                  500,
+                  570,
                   region.radiusY *
-                    0.15,
+                    0.18,
                 ),
               100 + habitatIndex * 10 + index,
               108,
@@ -620,6 +645,8 @@ export function enemySpawnAreaIsClear(
 
 export class EnemyUnit {
   visualAttackAt = -Infinity;
+  visualWindupAt = -Infinity;
+  readonly visualFacing = {x:0,y:1};
   visualHit?: VisualHit;
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
@@ -644,8 +671,14 @@ export class EnemyUnit {
     number;
   private health:
     number;
-  private nextAttackAt = 0;
+  private readonly attackWindup = new AttackWindup();
   private respawnAt = 0;
+  private route: Array<{x:number;y:number}> = [];
+  private routeTarget?: {x:number;y:number};
+  private nextRouteAt = 0;
+  private roamTarget?: Phaser.Math.Vector2;
+  private nextRoamAt = 0;
+  private roamStep = 0;
   private regenStartedAt = 0;
   private regenStartHealth = 0;
   private wasEngaged = false;
@@ -658,6 +691,7 @@ export class EnemyUnit {
       Phaser.Physics.Arcade.Group,
     spawn: GroupSpawn,
     private readonly canRespawn: () => boolean = () => true,
+    private readonly navigation?: ObstacleNavigation,
   ) {
     this.definition =
       DEFINITIONS[spawn.species];
@@ -670,6 +704,10 @@ export class EnemyUnit {
         spawn.x,
         spawn.y,
       );
+    this.nextRoamAt =
+      scene.time.now +
+      900 +
+      Math.abs(Math.round(spawn.x * 0.37 + spawn.y * 0.19)) % 1700;
 
     const elite =
       this.rank === 'elite';
@@ -909,6 +947,7 @@ export class EnemyUnit {
   canTriggerAggro(
     playerPosition:
       Phaser.Math.Vector2,
+    groupSize = 4,
   ): boolean {
     if (!this._alive) {
       return false;
@@ -924,7 +963,11 @@ export class EnemyUnit {
         playerPosition.x,
         playerPosition.y,
       ) <=
-      this.definition.aggroRange
+      enemyAggroDistance(
+        this.definition.id,
+        this.rank === 'elite',
+        groupSize,
+      )
     );
   }
 
@@ -960,6 +1003,12 @@ export class EnemyUnit {
     time: number,
   ): void {
     this.wasEngaged = false;
+    this.attackWindup.cancel();
+    this.visualWindupAt = -Infinity;
+    this.route = [];
+    this.routeTarget = undefined;
+    this.roamTarget = undefined;
+    this.nextRoamAt = time + 700;
     this.startResetRegen(time);
   }
 
@@ -971,6 +1020,7 @@ export class EnemyUnit {
     groupEngaged: boolean,
     onPlayerHit:
       (damage: number) => void,
+    allowRoam = true,
   ): void {
     if (!this._alive) {
       if (
@@ -1026,15 +1076,13 @@ export class EnemyUnit {
         time,
       );
 
-      if (distanceToSpawn > 10) {
-        this.moveTowards(
-          this.spawn,
-          this.definition.moveSpeed *
-            0.9,
-        );
-      } else {
-        body.setVelocity(0, 0);
-      }
+      this.attackWindup.cancel();
+      this.visualWindupAt = -Infinity;
+      this.updateIdleMovement(
+        time,
+        distanceToSpawn,
+        allowRoam,
+      );
 
       this.syncVisuals(
         false,
@@ -1045,27 +1093,80 @@ export class EnemyUnit {
     this.wasEngaged = true;
     this.regenStartedAt = 0;
 
-    if (
-      distanceToPlayer >
-      this.definition.attackRange
-    ) {
+    const inAttackRange =
+      distanceToPlayer <=
+      this.definition.attackRange;
+
+    if (!inAttackRange) {
+      const wasWinding =
+        this.attackWindup.active;
+      this.attackWindup.update(
+        time,
+        false,
+        playerPosition.x,
+        playerPosition.y,
+        this.definition.attackWindupMs,
+        this.definition.attackCooldownMs,
+      );
+      if (
+        wasWinding &&
+        !this.attackWindup.active
+      ) {
+        this.visualWindupAt =
+          -Infinity;
+      }
       this.moveTowards(
         playerPosition,
         this.definition.moveSpeed,
+        time,
       );
     } else {
       body.setVelocity(0, 0);
+      this.faceTowards(
+        playerPosition,
+      );
+
+      const wasWinding =
+        this.attackWindup.active;
+      const impact =
+        this.attackWindup.update(
+          time,
+          true,
+          playerPosition.x,
+          playerPosition.y,
+          this.definition.attackWindupMs,
+          this.definition.attackCooldownMs,
+        );
 
       if (
-        time >=
-        this.nextAttackAt
+        !wasWinding &&
+        this.attackWindup.active
       ) {
-        this.nextAttackAt =
-          time +
-          this.definition
-            .attackCooldownMs;
+        this.visualWindupAt =
+          time;
+        const baseScale =
+          this.rank === 'elite'
+            ? 1.22
+            : 1;
+        this.scene.tweens.add({
+          targets: this.sprite,
+          scaleX: baseScale * 0.94,
+          scaleY: baseScale * 1.06,
+          duration:
+            Math.max(
+              90,
+              this.definition.attackWindupMs * 0.42,
+            ),
+          yoyo: true,
+          ease: 'Sine.InOut',
+        });
+      }
 
-        this.visualAttackAt=time;
+      if (impact) {
+        this.visualWindupAt =
+          -Infinity;
+        this.visualAttackAt =
+          time;
         onPlayerHit(
           this.damage,
         );
@@ -1175,11 +1276,71 @@ export class EnemyUnit {
     target:
       Phaser.Math.Vector2,
     speed: number,
+    time: number,
   ): void {
+    let destination:
+      {x:number;y:number} =
+      target;
+
+    if (
+      this.navigation
+    ) {
+      const current = {
+        x: this.sprite.x,
+        y: this.sprite.y,
+      };
+      const targetMoved =
+        !this.routeTarget ||
+        Math.hypot(
+          target.x - this.routeTarget.x,
+          target.y - this.routeTarget.y,
+        ) > 110;
+
+      if (
+        targetMoved ||
+        time >= this.nextRouteAt
+      ) {
+        const radius =
+          this.combatRadius + 5;
+        this.route =
+          this.navigation.lineClear(
+            current,
+            target,
+            radius,
+          )
+            ? []
+            : this.navigation.route(
+                current,
+                target,
+                radius,
+              );
+        this.routeTarget = {
+          x: target.x,
+          y: target.y,
+        };
+        this.nextRouteAt =
+          time + 330;
+      }
+
+      while (
+        this.route.length > 0 &&
+        Math.hypot(
+          this.route[0].x - this.sprite.x,
+          this.route[0].y - this.sprite.y,
+        ) < 34
+      ) {
+        this.route.shift();
+      }
+
+      destination =
+        this.route[0] ??
+        target;
+    }
+
     const direction =
       new Phaser.Math.Vector2(
-        target.x - this.sprite.x,
-        target.y - this.sprite.y,
+        destination.x - this.sprite.x,
+        destination.y - this.sprite.y,
       );
 
     if (
@@ -1190,6 +1351,10 @@ export class EnemyUnit {
     }
 
     direction.normalize();
+    this.visualFacing.x =
+      direction.x;
+    this.visualFacing.y =
+      direction.y;
 
     const body =
       this.sprite.body as
@@ -1208,6 +1373,193 @@ export class EnemyUnit {
         direction.x < 0,
       );
     }
+  }
+
+  private faceTowards(
+    target:
+      Phaser.Math.Vector2,
+  ): void {
+    const dx =
+      target.x - this.sprite.x;
+    const dy =
+      target.y - this.sprite.y;
+    const length =
+      Math.hypot(dx, dy);
+    if (length <= 0.001) {
+      return;
+    }
+    this.visualFacing.x =
+      dx / length;
+    this.visualFacing.y =
+      dy / length;
+    if (Math.abs(dx) > 0.08) {
+      this.sprite.setFlipX(
+        dx < 0,
+      );
+    }
+  }
+
+  private updateIdleMovement(
+    time: number,
+    distanceToSpawn: number,
+    allowRoam: boolean,
+  ): void {
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+
+    if (
+      distanceToSpawn > 150
+    ) {
+      this.roamTarget =
+        undefined;
+      this.moveTowards(
+        this.spawn,
+        this.definition.moveSpeed * 0.82,
+        time,
+      );
+      return;
+    }
+
+    if (!allowRoam) {
+      body.setVelocity(0, 0);
+      return;
+    }
+
+    if (this.roamTarget) {
+      const distance =
+        Phaser.Math.Distance.Between(
+          this.sprite.x,
+          this.sprite.y,
+          this.roamTarget.x,
+          this.roamTarget.y,
+        );
+      if (distance > 14) {
+        this.moveTowards(
+          this.roamTarget,
+          this.definition.moveSpeed * 0.36,
+          time,
+        );
+        return;
+      }
+      this.roamTarget =
+        undefined;
+      this.nextRoamAt =
+        time +
+        1400 +
+        (this.roamStep * 431) % 2300;
+    }
+
+    if (
+      time < this.nextRoamAt
+    ) {
+      body.setVelocity(0, 0);
+      return;
+    }
+
+    this.roamTarget =
+      this.pickRoamTarget();
+    this.nextRoamAt =
+      time + 1100;
+
+    if (this.roamTarget) {
+      this.moveTowards(
+        this.roamTarget,
+        this.definition.moveSpeed * 0.36,
+        time,
+      );
+    } else {
+      body.setVelocity(0, 0);
+    }
+  }
+
+  private pickRoamTarget():
+    Phaser.Math.Vector2 |
+    undefined {
+    const region =
+      getRegionDefinition(
+        this.definition.region,
+      );
+    const bodyRadius =
+      this.combatRadius + 5;
+
+    for (
+      let attempt = 0;
+      attempt < 7;
+      attempt += 1
+    ) {
+      const step =
+        this.roamStep +
+        attempt;
+      const angle =
+        (
+          this.spawn.x * 0.017 +
+          this.spawn.y * 0.013 +
+          step * 2.399963
+        ) %
+        (
+          Math.PI * 2
+        );
+      const radius =
+        (
+          this.rank === 'elite'
+            ? 48
+            : 64
+        ) +
+        (
+          step % 4
+        ) * 24;
+      const candidate =
+        new Phaser.Math.Vector2(
+          this.spawn.x +
+            Math.cos(angle) * radius,
+          this.spawn.y +
+            Math.sin(angle) * radius,
+        );
+
+      if (
+        !pointInRegion(
+          region,
+          candidate.x,
+          candidate.y,
+        )
+      ) {
+        continue;
+      }
+      if (
+        this.definition.region === 1 &&
+        Phaser.Math.Distance.Between(
+          candidate.x,
+          candidate.y,
+          SETTLEMENT_CENTER.x,
+          SETTLEMENT_CENTER.y,
+        ) <=
+          SETTLEMENT_SAFE_RADIUS + 45
+      ) {
+        continue;
+      }
+      if (
+        this.navigation
+          ? !this.navigation.clear(
+              candidate,
+              bodyRadius,
+            )
+          : !resourceNodeAreaIsClear(
+              candidate.x,
+              candidate.y,
+              bodyRadius,
+            )
+      ) {
+        continue;
+      }
+
+      this.roamStep =
+        step + 1;
+      return candidate;
+    }
+
+    this.roamStep += 7;
+    return undefined;
   }
 
   private startResetRegen(
@@ -1291,6 +1643,11 @@ export class EnemyUnit {
   private kill(): void {
     this._alive = false;
     this.wasEngaged = false;
+    this.attackWindup.cancel();
+    this.visualWindupAt = -Infinity;
+    this.route = [];
+    this.routeTarget = undefined;
+    this.roamTarget = undefined;
     this.regenStartedAt = 0;
     this.respawnAt =
       this.scene.time.now +
@@ -1349,8 +1706,16 @@ export class EnemyUnit {
       this.maxHealth;
     this.wasEngaged = false;
     this.regenStartedAt = 0;
-    this.nextAttackAt =
+    this.attackWindup.cancel();
+    this.attackWindup.readyAt =
       this.scene.time.now + 350;
+    this.visualWindupAt =
+      -Infinity;
+    this.route = [];
+    this.routeTarget = undefined;
+    this.roamTarget = undefined;
+    this.nextRoamAt =
+      this.scene.time.now + 900;
 
     const body =
       this.sprite.body as
@@ -1567,6 +1932,8 @@ export class EnemySystem {
     new Set<string>();
   private readonly activeRegions =
     new Set<RegionId>();
+  private readonly groupSizes =
+    new Map<string, number>();
   private playerThreatened = false;
 
   constructor(
@@ -1580,8 +1947,24 @@ export class EnemySystem {
           EnemySpeciesId,
         rank: EnemyRank,
       ) => void,
+    private readonly navigation?:
+      ObstacleNavigation,
   ) {
     ensureEnemyTextures(scene);
+
+    for (
+      const spawn of
+      ALL_SPAWNS
+    ) {
+      this.groupSizes.set(
+        spawn.groupId,
+        (
+          this.groupSizes.get(
+            spawn.groupId,
+          ) ?? 0
+        ) + 1,
+      );
+    }
 
     this.group =
       scene.physics.add.group();
@@ -1641,6 +2024,7 @@ export class EnemySystem {
           spawn,
           () => this.enemies.every(other => !other.alive || Math.hypot(other.sprite.x-spawn.x,other.sprite.y-spawn.y)
             >= (enemyDisplayStats(spawn.species,spawn.rank==='elite').radius+enemyDisplayStats(other.definition.id,other.rank==='elite').radius)*1.5+16),
+          this.navigation,
         ),
       );
     }
@@ -1739,6 +2123,9 @@ export class EnemySystem {
           ) &&
           enemy.canTriggerAggro(
             playerPosition,
+            this.groupSizes.get(
+              enemy.groupId,
+            ) ?? 1,
           )
         ) {
           this.engagedGroups.add(
@@ -1767,6 +2154,15 @@ export class EnemySystem {
           enemy.groupId,
         ),
         onPlayerHit,
+        this.engagedGroups.has(
+          enemy.groupId,
+        ) ||
+          Phaser.Math.Distance.Between(
+            enemy.sprite.x,
+            enemy.sprite.y,
+            playerPosition.x,
+            playerPosition.y,
+          ) < 1800,
       );
     }
   }

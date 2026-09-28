@@ -393,9 +393,11 @@ export class WorldPresentation3D {
       const speed = Math.hypot(vx, vz);
       actor.model.root.position.set(px, terrainHeight(px, pz) + 4, pz);
       if (speed > 5) actor.model.root.rotation.y = Math.atan2(vx, vz);
+      else if ('rank' in unit) actor.model.root.rotation.y = Math.atan2(unit.visualFacing.x, unit.visualFacing.y);
       else actor.model.root.rotation.y = Math.atan2(x - px, z - pz);
       actor.model.root.rotation.x=-Math.max(0,1-(time-(unit.visualHit?.at??-Infinity))/170)*.1;
-      actor.model.step(dt, speed,false,time-unit.visualAttackAt<230);
+      const winding='rank' in unit&&time-unit.visualWindupAt>=0&&time-unit.visualWindupAt<unit.definition.attackWindupMs;
+      actor.model.step(dt, speed,false,winding||time-unit.visualAttackAt<230);
       const boss = !('rank' in unit);
       const ratio = Math.max(0, Math.min(1, unit.visualHealthRatio));
       actor.health.visible = boss || ratio < 0.999 || ('rank' in unit && unit.rank === 'elite');

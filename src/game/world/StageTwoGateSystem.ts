@@ -6,9 +6,6 @@ import {
 } from './StageTwoProgression';
 
 export class StageTwoGateSystem {
-  readonly barriers:
-    Phaser.Physics.Arcade.StaticGroup;
-
   private unlocked: boolean;
   private blocker?:
     Phaser.GameObjects.Rectangle;
@@ -26,9 +23,6 @@ export class StageTwoGateSystem {
   ) {
     this.unlocked =
       initiallyUnlocked;
-    this.barriers =
-      scene.physics.add.staticGroup();
-
     this.leftPillar =
       scene.add
         .rectangle(
@@ -135,7 +129,6 @@ export class StageTwoGateSystem {
   }
 
   destroy(): void {
-    this.barriers.destroy(true);
     this.blocker?.destroy();
     this.leftPillar.destroy();
     this.rightPillar.destroy();
@@ -163,8 +156,5 @@ export class StageTwoGateSystem {
             110,
         );
 
-    this.barriers.add(
-      this.blocker,
-    );
   }
 }

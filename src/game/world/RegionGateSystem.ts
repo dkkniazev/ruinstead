@@ -22,8 +22,6 @@ type GateVisual = {
 
 export class RegionGateSystem {
   readonly navigation: WalkableWorld;
-  readonly barriers:
-    Phaser.Physics.Arcade.StaticGroup;
 
   private readonly gateVisuals =
     new Map<
@@ -37,8 +35,6 @@ export class RegionGateSystem {
     unlockedZones:
       readonly string[],
   ) {
-    this.barriers =
-      scene.physics.add.staticGroup();
     this.navigation =
       new WalkableWorld(
         unlockedZones,
@@ -112,7 +108,6 @@ export class RegionGateSystem {
       visual.label.destroy();
     }
     this.gateVisuals.clear();
-    this.barriers.destroy(true);
   }
 
   private constrainBodies(): void {
@@ -205,9 +200,6 @@ export class RegionGateSystem {
             midY + 30,
           );
 
-      this.barriers.add(
-        blocker,
-      );
       blockers.push(
         blocker,
       );

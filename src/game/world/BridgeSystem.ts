@@ -21,12 +21,7 @@ export const BRIDGE_REPAIR_COST:
 const BRIDGE_REPAIR_RADIUS = 170;
 
 export class BridgeSystem {
-  readonly barriers:
-    Phaser.Physics.Arcade.StaticGroup;
-
   private unlocked: boolean;
-  private blocker?:
-    Phaser.GameObjects.Rectangle;
   private readonly bridgeDeck:
     Phaser.GameObjects.Rectangle;
   private readonly brokenMark:
@@ -47,9 +42,6 @@ export class BridgeSystem {
   ) {
     this.unlocked =
       initiallyUnlocked;
-
-    this.barriers =
-      scene.physics.add.staticGroup();
 
     const g =
       scene.add.graphics();
@@ -193,9 +185,6 @@ export class BridgeSystem {
       },
     );
 
-    if (!initiallyUnlocked) {
-      this.createBlocker();
-    }
   }
 
   get isUnlocked(): boolean {
@@ -239,8 +228,6 @@ export class BridgeSystem {
     }
 
     this.unlocked = true;
-    this.blocker?.destroy();
-    this.blocker = undefined;
     this.brokenMark.setVisible(false);
     this.bridgeDeck
       .setVisible(true)
@@ -289,28 +276,10 @@ export class BridgeSystem {
   }
 
   destroy(): void {
-    this.barriers.destroy(true);
-    this.blocker?.destroy();
     this.bridgeDeck.destroy();
     this.brokenMark.destroy();
     this.bridgeLabel.destroy();
     this.repairPrompt.destroy();
   }
 
-  private createBlocker(): void {
-    this.blocker =
-      this.scene.add
-        .rectangle(
-          STAGE_ONE_BRIDGE_CENTER.x,
-          STAGE_ONE_BRIDGE_CENTER.y,
-          95,
-          330,
-          0x000000,
-          0,
-        );
-
-    this.barriers.add(
-      this.blocker,
-    );
-  }
 }

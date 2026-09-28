@@ -297,8 +297,8 @@ function buildDefinitions():
         profile.aggro +
         species.region * 4,
       leashRange:
-        245 +
-        species.region * 10,
+        560 +
+        species.region * 35,
       dropCoins:
         1 +
         species.region * 2 +
@@ -335,6 +335,12 @@ export function enemyAggroDistance(id: string, elite = false, groupSize = 4): nu
   const eliteBonus = elite ? 38 : 0;
   const groupBonus = Math.max(0, Math.min(22, (groupSize - 3) * 4));
   return definition.aggroRange + eliteBonus + groupBonus;
+}
+
+export function enemyLeashDistance(id: string, elite = false): number {
+  const definition = DEFINITIONS[id];
+  if (!definition) return 0;
+  return Math.round(definition.leashRange * (elite ? 1.15 : 1));
 }
 
 export function enemyDisplayStats(id: string, elite = false): { health: number; damage: number; radius: number } {
@@ -887,6 +893,38 @@ export class EnemyUnit {
     );
   }
 
+  get needsHomeSimulation(): boolean {
+    if (!this._alive || this.wasEngaged || this.regenStartedAt > 0) {
+      return true;
+    }
+    return Phaser.Math.Distance.Between(
+      this.sprite.x,
+      this.sprite.y,
+      this.spawn.x,
+      this.spawn.y,
+    ) > 150;
+  }
+
+  sleep(): void {
+    if (!this._alive) {
+      return;
+    }
+    const body =
+      this.sprite.body as
+        Phaser.Physics.Arcade.Body;
+    if (
+      body.velocity.x !== 0 ||
+      body.velocity.y !== 0
+    ) {
+      body.setVelocity(0, 0);
+    }
+    this.attackWindup.cancel();
+    this.visualWindupAt = -Infinity;
+    this.roamTarget = undefined;
+    this.route = [];
+    this.routeTarget = undefined;
+  }
+
   get bestiaryKind():
     'species' {
     return 'species';
@@ -989,13 +1027,28 @@ export class EnemyUnit {
     const center =
       this.combatPosition;
 
-    return (
+    const closeEnough =
       Phaser.Math.Distance.Between(
         center.x,
         center.y,
         playerPosition.x,
         playerPosition.y,
-      ) <= retentionRange
+      ) <= retentionRange;
+    const insideLeash =
+      Phaser.Math.Distance.Between(
+        this.spawn.x,
+        this.spawn.y,
+        playerPosition.x,
+        playerPosition.y,
+      ) <=
+      enemyLeashDistance(
+        this.definition.id,
+        this.rank === 'elite',
+      );
+
+    return (
+      closeEnough &&
+      insideLeash
     );
   }
 
@@ -2146,23 +2199,36 @@ export class EnemySystem {
       const enemy of
       this.enemies
     ) {
+      const engaged =
+        this.engagedGroups.has(
+          enemy.groupId,
+        );
+      const distance =
+        Phaser.Math.Distance.Between(
+          enemy.sprite.x,
+          enemy.sprite.y,
+          playerPosition.x,
+          playerPosition.y,
+        );
+      const nearby =
+        distance < 1800;
+
+      if (
+        !engaged &&
+        !nearby &&
+        !enemy.needsHomeSimulation
+      ) {
+        enemy.sleep();
+        continue;
+      }
+
       enemy.update(
         time,
         playerPosition,
         playerRadius,
-        this.engagedGroups.has(
-          enemy.groupId,
-        ),
+        engaged,
         onPlayerHit,
-        this.engagedGroups.has(
-          enemy.groupId,
-        ) ||
-          Phaser.Math.Distance.Between(
-            enemy.sprite.x,
-            enemy.sprite.y,
-            playerPosition.x,
-            playerPosition.y,
-          ) < 1800,
+        engaged || nearby,
       );
     }
   }

@@ -17,9 +17,9 @@ for(const hp of [0,1,24.7,67,100]){
   for(let n=0;n<100;n++){current=m.healthAfterMaxChange(current,100,125);current=m.healthAfterMaxChange(current,125,100);}
   assert(Math.abs(current-hp)<1e-9,'Changing skins must not heal');
 }
-assert(m.PLAYER_DASH_DISTANCE>=400,'Dash must cover a clearly visible distance');
+assert.equal(m.PLAYER_DASH_DISTANCE,210,'Dash distance should stay at the tuned half-length');
 assert(m.PLAYER_DASH_SPEED>=1200,'Dash velocity must be substantially faster than normal movement');
-assert(m.PLAYER_DASH_MAX_DURATION_MS>=400,'Dash timeout must allow the requested distance to complete after minor collision correction');
+assert(m.PLAYER_DASH_MAX_DURATION_MS>=m.PLAYER_DASH_DISTANCE/m.PLAYER_DASH_SPEED*1000+150,'Dash timeout is only a derived stall safety margin');
 const freshState=m.createDefaultGameState();
 assert.equal(freshState.schemaVersion,29);
 assert.deepEqual(freshState.onboarding,{moved:false,dashed:false,firstKill:false,hudSeen:false,backpackSeen:false,forgeSeen:false,bestiarySeen:false,tutorialStep:0,tutorialCompleted:false,skipped:false});

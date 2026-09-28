@@ -2,8 +2,8 @@ import { RELEASE_REGIONS, RELEASE_PASSAGES, RELEASE_WORLD_WIDTH, RELEASE_WORLD_H
 import { icon } from './GameIcons';
 import { REGION_RESOURCE_PROFILES } from '../economy/RegionEconomy';
 
-export type MapMarker = { x: number; y: number; kind: 'enemy' | 'boss' | 'main-boss' | 'wood' | 'stone' | 'metal' | 'crystal' | 'fiber'; label?: string; region?: number };
-export type MapLandmark = { x:number; y:number; name:string; kind?: 'landmark' | 'quest' };
+export type MapMarker = { x: number; y: number; kind: 'enemy' | 'boss' | 'main-boss' | 'wood' | 'stone' | 'metal' | 'crystal' | 'fiber' };
+export type MapLandmark = { x:number; y:number; kind: 'quest' | 'altar' };
 export type MapSnapshot = { x: number; y: number; facing: number; home: {x: number; y: number}; landmarks?: MapLandmark[]; markers: MapMarker[] };
 const COLORS: Record<string, string> = { enemy: '#eb8761', boss: '#ff554c', 'main-boss': '#ffd66f', wood: '#a7d37b', stone: '#e6d8b8', metal: '#c2ccd5', crystal: '#72eeff', fiber: '#d6ed63' };
 const REGION_COLORS = ['#66824c', '#9b8155', '#66637e', '#85503e', '#8e9c74', '#81604e', '#b07e50', '#763d3a'];
@@ -48,7 +48,7 @@ export class WorldMap {
       button.onclick=()=>{this.filter=id;for(const other of filters.children)other.setAttribute('aria-pressed',String(other===button));if(this.snapshot)this.draw(this.fullCanvas,this.snapshot,true);};filters.append(button);
     }info.append(filters);
     const legend=document.createElement('div');legend.className='world-map-legend';
-    legend.innerHTML=[['arrow','Вы здесь'],['quest','Цель задания'],['home','Поселение'],['elite','Главный босс региона'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
+    legend.innerHTML=[['arrow','Вы здесь'],['quest','Цель задания'],['home','Поселение'],['elite','Главный босс'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
     const regions=document.createElement('ol');regions.className='world-map-regions';
     regions.innerHTML=RELEASE_REGIONS.map(r=>'<li>'+r.id+'. '+r.name+'</li>').join('');info.append(regions);
     const hint = document.createElement('small'); hint.textContent = 'Игра приостановлена. Ресурсы отмечены только там, где ещё доступны для добычи.'; info.append(hint);
@@ -112,22 +112,22 @@ export class WorldMap {
     }
     for(const landmark of state.landmarks??[]){
       const distance=Math.hypot(landmark.x-state.x,landmark.y-state.y);
-      if(!full&&landmark.kind!=='quest'&&distance>1250)continue;
+      if(!full&&distance>1450)continue;
       const lx=px(landmark.x),ly=py(landmark.y);
       if(lx<-30||lx>w+30||ly<-30||ly>h+30)continue;
       const quest=landmark.kind==='quest';
-      if(quest){
-        ctx.save();ctx.shadowColor='#ffdc6e';ctx.shadowBlur=full?18:12;
-        ctx.beginPath();ctx.arc(lx,ly,full?13:11,0,Math.PI*2);ctx.fillStyle='#513711';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ffe49b';ctx.stroke();ctx.shadowBlur=0;
-        ctx.fillStyle='#ffe49b';ctx.font=`900 ${full?18:16}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',lx,ly-1);ctx.restore();
-      }else{
-        ctx.beginPath();ctx.arc(lx,ly,full?6:5,0,Math.PI*2);ctx.fillStyle='#f1d7a0';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#284039';ctx.stroke();
-      }
-      if(full||quest){
-        const labelX=lx+(full?18:14),labelY=ly-(full?10:8);
-        ctx.font=`700 ${full?11:10}px system-ui`;ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#142126';ctx.fillStyle=quest?'#ffe49b':'#f0dfb5';
-        ctx.strokeText(landmark.name,labelX,labelY);ctx.fillText(landmark.name,labelX,labelY);
-      }
+      ctx.save();
+      ctx.shadowColor=quest?'#ffdc6e':'#8fd6a8';
+      ctx.shadowBlur=full?12:8;
+      ctx.beginPath();ctx.arc(lx,ly,full?11:9,0,Math.PI*2);
+      ctx.fillStyle=quest?'#513711':'#17392b';ctx.fill();
+      ctx.lineWidth=2.5;ctx.strokeStyle=quest?'#ffe49b':'#9ce1b3';ctx.stroke();
+      ctx.shadowBlur=0;
+      ctx.fillStyle=quest?'#ffe49b':'#9ce1b3';
+      ctx.font=`900 ${full?16:14}px system-ui`;
+      ctx.textAlign='center';ctx.textBaseline='middle';
+      ctx.fillText(quest?'!':'✦',lx,ly-1);
+      ctx.restore();
     }
     for (const passage of RELEASE_PASSAGES) {
       const {a, b} = getPassageGeometry(passage); const open = this.isOpen(passage);
@@ -148,13 +148,50 @@ export class WorldMap {
       ctx.fillStyle = COLORS[marker.kind];
       if (marker.kind === 'main-boss') {
         const radius=full?10:8;
-        ctx.save();ctx.shadowColor='#ffd66f';ctx.shadowBlur=full?16:10;
-        ctx.beginPath();ctx.arc(x,y,radius+4,0,Math.PI*2);ctx.fillStyle='#382812dd';ctx.fill();ctx.lineWidth=full?3:2;ctx.strokeStyle='#ffe49a';ctx.stroke();
-        ctx.shadowBlur=0;ctx.fillStyle='#ffd66f';ctx.beginPath();ctx.moveTo(x-radius,y+radius*.55);ctx.lineTo(x-radius*.72,y-radius*.5);ctx.lineTo(x-radius*.18,y-radius*.05);ctx.lineTo(x,y-radius*.82);ctx.lineTo(x+radius*.18,y-radius*.05);ctx.lineTo(x+radius*.72,y-radius*.5);ctx.lineTo(x+radius,y+radius*.55);ctx.closePath();ctx.fill();ctx.restore();
-        if(full){ctx.font='bold 11px system-ui';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle='#ffe8a6';ctx.strokeStyle='#142126';ctx.lineWidth=3;const label=marker.label?'Главный босс · '+marker.label:'Главный босс';ctx.strokeText(label,x+15,y-13);ctx.fillText(label,x+15,y-13);}
+        ctx.save();ctx.translate(x,y);
+        ctx.shadowColor='#ffd66f';ctx.shadowBlur=full?14:9;
+        ctx.fillStyle='#ffd66f';ctx.strokeStyle='#3a2b12';ctx.lineWidth=full?2:1.5;
+        ctx.beginPath();
+        ctx.moveTo(-radius,radius*.55);
+        ctx.lineTo(-radius*.82,-radius*.46);
+        ctx.lineTo(-radius*.25,-radius*.04);
+        ctx.lineTo(0,-radius);
+        ctx.lineTo(radius*.25,-radius*.04);
+        ctx.lineTo(radius*.82,-radius*.46);
+        ctx.lineTo(radius,radius*.55);
+        ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.shadowBlur=0;
+        ctx.fillStyle='#7a5416';
+        for(const dx of [-.58,0,.58]){
+          ctx.beginPath();ctx.arc(dx*radius,radius*.45,full?1.5:1.1,0,Math.PI*2);ctx.fill();
+        }
+        ctx.restore();
+      } else if (marker.kind === 'boss') {
+        const radius=full?9:7;
+        ctx.save();ctx.translate(x,y);
+        ctx.shadowColor='#e74e46';ctx.shadowBlur=full?11:7;
+        ctx.fillStyle='#e75c52';ctx.strokeStyle='#471d1a';ctx.lineWidth=full?2:1.5;
+        ctx.beginPath();
+        ctx.arc(0,-radius*.12,radius*.76,Math.PI,0);
+        ctx.lineTo(radius*.72,radius*.38);
+        ctx.lineTo(radius*.34,radius*.75);
+        ctx.lineTo(radius*.08,radius*.48);
+        ctx.lineTo(-radius*.12,radius*.8);
+        ctx.lineTo(-radius*.38,radius*.5);
+        ctx.lineTo(-radius*.72,radius*.3);
+        ctx.closePath();ctx.fill();ctx.stroke();
+        ctx.shadowBlur=0;
+        ctx.fillStyle='#301513';
+        ctx.beginPath();ctx.arc(-radius*.28,-radius*.05,radius*.16,0,Math.PI*2);ctx.arc(radius*.28,-radius*.05,radius*.16,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.moveTo(0,radius*.08);ctx.lineTo(-radius*.12,radius*.3);ctx.lineTo(radius*.12,radius*.3);ctx.closePath();ctx.fill();
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        if(marker.kind==='crystal'){
+          ctx.moveTo(x,y-4);ctx.lineTo(x+3,y);ctx.lineTo(x,y+4);ctx.lineTo(x-3,y);ctx.closePath();
+        } else ctx.arc(x,y,full?2:marker.kind==='enemy'?3:3.5,0,Math.PI*2);
+        ctx.fill();
       }
-      else if (marker.kind === 'boss') { ctx.beginPath(); ctx.moveTo(x,y-5);ctx.lineTo(x+5,y);ctx.lineTo(x,y+5);ctx.lineTo(x-5,y);ctx.closePath();ctx.fill(); }
-      else {ctx.beginPath();if(marker.kind==='crystal'){ctx.moveTo(x,y-4);ctx.lineTo(x+3,y);ctx.lineTo(x,y+4);ctx.lineTo(x-3,y);ctx.closePath();}else ctx.arc(x,y,full?2:marker.kind==='enemy'?3:3.5,0,Math.PI*2);ctx.fill();}
     }
     ctx.textAlign='center';ctx.textBaseline='middle';
     for (const region of RELEASE_REGIONS) {

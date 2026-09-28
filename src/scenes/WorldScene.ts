@@ -202,7 +202,6 @@ import {
 import {
   FOREST_HEART,
   FOREST_HEART_DISCOVERY_RADIUS,
-  FOREST_LANDMARKS,
 } from '../game/world/ForestZone';
 import {
   BRIDGE_REPAIR_COST,
@@ -5954,21 +5953,24 @@ export class WorldScene
         y: SETTLEMENT_CENTER.y,
       },
       landmarks:
-        FOREST_LANDMARKS.map(
-          (landmark) => ({
-            x: landmark.x,
-            y: landmark.y,
-            name: landmark.name,
-            kind:
-              landmark.id ===
-                  'forest-heart' &&
-                this.questHudState
-                  ?.activeId ===
-                  'reach-forest-heart'
-                ? 'quest' as const
-                : 'landmark' as const,
-          }),
-        ),
+        this.questHudState
+          ?.activeId ===
+          'reach-forest-heart'
+          ? [{
+              x: FOREST_HEART.x,
+              y: FOREST_HEART.y,
+              kind: 'quest' as const,
+            }]
+          : this.gameState
+              ?.world
+              .discoveredLandmarks
+              .includes('forest-heart')
+            ? [{
+                x: FOREST_HEART.x,
+                y: FOREST_HEART.y,
+                kind: 'altar' as const,
+              }]
+            : [],
       markers: [
         ...(
           this.enemies
@@ -6003,10 +6005,7 @@ export class WorldScene
                   .isMain
                   ? 'main-boss' as const
                   : 'boss' as const,
-              label:
-                boss.definition.name,
-              region:
-                boss.definition.region,
+
             }),
           ),
         ...(

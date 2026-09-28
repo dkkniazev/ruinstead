@@ -5811,6 +5811,21 @@ export class WorldScene
         index + 1;
 
     if (
+      tutorialId ===
+      'intro-bestiary'
+    ) {
+      this.gameState.onboarding
+        .bestiarySeen = true;
+    }
+    if (
+      tutorialId ===
+      'intro-backpack'
+    ) {
+      this.gameState.onboarding
+        .backpackSeen = true;
+    }
+
+    if (
       this.gameState.onboarding
         .tutorialStep >=
       steps.length

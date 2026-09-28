@@ -1191,7 +1191,12 @@ export function sanitizeGameState(value: unknown): GameState {
       ),
       tutorialCompleted: booleanValue(
         onboarding?.tutorialCompleted,
-        defaults.onboarding.tutorialCompleted,
+        sourceSchemaVersion < 29
+          ? booleanValue(
+              onboarding?.skipped,
+              false,
+            )
+          : defaults.onboarding.tutorialCompleted,
       ),
       skipped: booleanValue(
         onboarding?.skipped,

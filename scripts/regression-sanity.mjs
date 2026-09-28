@@ -17,8 +17,8 @@ for(const hp of [0,1,24.7,67,100]){
   assert(Math.abs(current-hp)<1e-9,'Changing skins must not heal');
 }
 const freshState=m.createDefaultGameState();
-assert.equal(freshState.schemaVersion,28);
-assert.deepEqual(freshState.onboarding,{moved:false,dashed:false,firstKill:false,hudSeen:false,backpackSeen:false,forgeSeen:false,bestiarySeen:false,skipped:false});
+assert.equal(freshState.schemaVersion,29);
+assert.deepEqual(freshState.onboarding,{moved:false,dashed:false,firstKill:false,hudSeen:false,backpackSeen:false,forgeSeen:false,bestiarySeen:false,tutorialStep:0,tutorialCompleted:false,skipped:false});
 const bag=new m.BackpackSystem(0,{...m.emptyResourceCounts(),wood:100,coins:500});
 assert.equal(bag.usedCapacity,100);assert.equal(bag.add('coins',1000),1000);assert.equal(bag.add('wood',1),0);
 assert.equal(bag.state.carried.coins,1500);assert.equal(bag.usedCapacity,100);

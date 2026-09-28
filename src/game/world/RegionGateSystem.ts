@@ -114,6 +114,14 @@ export class RegionGateSystem {
     for (const body of this.scene.physics.world.bodies.entries) {
       if (!body.enable || !body.moves) continue;
       const previous = { x: body.prev.x + body.halfWidth, y: body.prev.y + body.halfHeight };
+      if (
+        Math.abs(previous.x - body.center.x) < 0.001 &&
+        Math.abs(previous.y - body.center.y) < 0.001 &&
+        Math.abs(body.velocity.x) < 0.001 &&
+        Math.abs(body.velocity.y) < 0.001
+      ) {
+        continue;
+      }
       const next = this.navigation.slide(previous, body.center, Math.max(body.halfWidth, body.halfHeight), body.velocity);
       body.position.x += next.x - body.center.x;
       body.position.y += next.y - body.center.y;

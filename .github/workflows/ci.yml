@@ -36,6 +36,7 @@ jobs:
           npm run check:gameplay
           npm run check:polish
           npm run check:regressions
+          npm run check:art
 
       - name: Typecheck and build
         run: npm run build

@@ -39,6 +39,10 @@ const RESOURCE_FOOTPRINT_RADIUS: Record<HarvestResourceType, number> = {
   crystal: 38,
   fiber: 26,
 };
+export function resourceFootprintRadius(type: HarvestResourceType): number {
+  return RESOURCE_FOOTPRINT_RADIUS[type];
+}
+
 const PICKUP_MAGNET_RANGE = 170;
 const PICKUP_COLLECT_RANGE = 24;
 const PICKUP_SPEED = 390;

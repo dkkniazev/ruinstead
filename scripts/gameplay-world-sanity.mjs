@@ -9,9 +9,10 @@ export * from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/world/WalkableWorld.ts';
 export * from './src/game/world/ReleaseRegionMap.ts';
 export * from './src/game/enemies/AttackWindup.ts';
+export * from './src/game/world/ObstacleNavigation.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
 const api=await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
-const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects,WalkableWorld,RELEASE_REGIONS,AttackWindup}=api;
+const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects,WalkableWorld,RELEASE_REGIONS,RELEASE_PASSAGES,getPassageMidpoint,AttackWindup,ObstacleNavigation}=api;
 const inventory=createDefaultWeaponInventory();
 inventory.variants.push({weaponId:'daggers',rarity:'rare',level:1,starCounts:[1,0,0,0,0,0]});
 inventory.loadout[4]={weaponId:'daggers',rarity:'rare',stars:0};inventory.primarySlot=4;
@@ -62,6 +63,24 @@ for(const region of RELEASE_REGIONS){
   }
 }
 assert(slid,'Found a polygon edge suitable for boundary sliding regression');
+
+const bridgePassage=RELEASE_PASSAGES.find(p=>p.id==='1-2');
+const bridgeMid=getPassageMidpoint(bridgePassage);
+const lockedBridge=new WalkableWorld([]);
+assert.equal(lockedBridge.contains(bridgeMid,18),false,'Locked bridge collision is centred on the authored passage midpoint');
+lockedBridge.sync(['stage-2']);
+assert.equal(lockedBridge.contains(bridgeMid,18),true,'Unlocking region 2 removes the authoritative bridge gate');
+
+const routeWorld=new WalkableWorld(['stage-2','stage-3','stage-4','stage-5','stage-6','stage-7','stage-8']);
+const navigation=new ObstacleNavigation(routeWorld);
+navigation.setObstacles([{x:500,y:500,halfWidth:70,halfHeight:70,circle:true}]);
+const from={x:350,y:500},homePoint={x:650,y:500};
+assert.equal(navigation.lineClear(from,homePoint,18),false,'Direct return path detects a blocking world object');
+const route=navigation.route(from,homePoint,18);
+assert(route.length>1,'Return-to-home navigation finds an alternate route around a blocking object');
+let cursor=from;
+for(const point of route){assert(navigation.lineClear(cursor,point,18),'Every return-to-home route segment is obstacle-clear');cursor=point;}
+assert(Math.hypot(cursor.x-homePoint.x,cursor.y-homePoint.y)<1,'Return route terminates at the requested home point');
 const windup=new AttackWindup();
 assert.equal(windup.update(0,true,10,0,300,800),false,'Entering attack range starts wind-up without damage');
 assert(windup.active&&windup.impactAt===300);

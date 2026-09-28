@@ -20,7 +20,17 @@ assert.deepEqual(resourceA,resourceB,'Same resource seed must reproduce the exac
 assert.notDeepEqual(resourceA.map(n=>[n.x,n.y]),resourceC.map(n=>[n.x,n.y]),'Different seeds must change the procedural layout');
 for(let i=0;i<resourceA.length;i++)for(let j=i+1;j<resourceA.length;j++){
   const a=resourceA[i],b=resourceA[j];
-  assert(Math.hypot(a.x-b.x,a.y-b.y)>45,'Procedural resource nodes must not stack');
+  const minimum=api.resourceFootprintRadius(a.type)+api.resourceFootprintRadius(b.type)+64;
+  assert(Math.hypot(a.x-b.x,a.y-b.y)>=minimum,'Procedural resource nodes must preserve authored footprint clearance');
+}
+for(const species of api.RELEASE_SPECIES){
+  const normal=api.enemyAggroDistance(species.id,false,3);
+  const largePack=api.enemyAggroDistance(species.id,false,8);
+  const elite=api.enemyAggroDistance(species.id,true,3);
+  assert(normal>150,'Every archetype needs a meaningful aggro radius');
+  assert(largePack>normal,'Larger packs gain a modest awareness radius');
+  assert(elite>normal,'Elite awareness exceeds the normal variant');
+  assert(api.enemyLeashDistance(species.id,false)>normal*2,'Leash must retain combat beyond initial aggro without permitting map-wide chase');
 }
 const sizes=new Set();let eliteBaseline,minGap=Infinity,total=0;
 const layouts=Number(process.argv[2])||24;

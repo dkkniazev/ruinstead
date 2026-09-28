@@ -32,7 +32,9 @@ export type SkinDefinition = {
   tint: number;
   source: SkinSource;
   productId?: string;
+  effects?: Partial<Record<SkinEffect,number>>;
 };
+export type SkinEffect=SkinBonusStat|'pickup-radius'|'dash-recovery'|'production-capacity';
 
 export const SKIN_RARITIES:
   Record<
@@ -268,6 +270,7 @@ export const SKIN_DEFINITIONS = {
     bonusStat: 'max-health',
     tint: 0x6fa28a,
     source: 'starter-pack',
+    effects: {'max-health':.08,'move-speed':.04},
   },
   'pass-champion': {
     name: 'Чемпион пути',
@@ -275,6 +278,7 @@ export const SKIN_DEFINITIONS = {
     bonusStat: 'damage',
     tint: 0xb060d1,
     source: 'level-pass',
+    effects: {damage:.1,'dash-recovery':.1},
   },
   'ashborn': {
     name: 'Рождённый в пепле',
@@ -282,6 +286,7 @@ export const SKIN_DEFINITIONS = {
     bonusStat: 'gathering',
     tint: 0xc8754d,
     source: 'region-pack',
+    effects: {gathering:.1,'pickup-radius':.25},
   },
   'founder-keeper': {
     name: 'Хранитель основания',
@@ -289,12 +294,24 @@ export const SKIN_DEFINITIONS = {
     bonusStat: 'production',
     tint: 0xd6b65f,
     source: 'founder-pack',
+    effects: {production:.1,'production-capacity':.2},
   },
 } as const satisfies
   Record<string, SkinDefinition>;
 
 export type SkinId =
   keyof typeof SKIN_DEFINITIONS;
+
+export function getSkinEffects(id:SkinId|null):Partial<Record<SkinEffect,number>> {
+  if(!id)return {};
+  const definition=SKIN_DEFINITIONS[id];
+  return 'effects' in definition?{...definition.effects}:{[definition.bonusStat]:SKIN_RARITIES[definition.rarity].statBonus};
+}
+
+export function describeSkinBonus(id:SkinId):string {
+  const labels:Record<SkinEffect,string>={damage:'урона','max-health':'здоровья','move-speed':'скорости',gathering:'добычи',production:'производства','pickup-radius':'радиуса подбора','dash-recovery':'к восстановлению рывка','production-capacity':'вместимости производств'};
+  return Object.entries(getSkinEffects(id)).map(([effect,amount])=>`+${Math.round(amount*100)}% ${labels[effect as SkinEffect]}`).join(' · ');
+}
 
 export const SKIN_CHESTS = {
   common: {

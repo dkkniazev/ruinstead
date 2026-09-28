@@ -538,7 +538,6 @@ export class ResourceSystem {
     delta: number,
     playerPosition:
       Phaser.Math.Vector2,
-    threatened: boolean,
   ): void {
     for (let i = 0; i < this.nodes.length; i += 1) {
       const node = this.nodes[i];
@@ -554,7 +553,6 @@ export class ResourceSystem {
     );
 
     if (
-      threatened ||
       time < this.nextHarvestAt
     ) {
       return;

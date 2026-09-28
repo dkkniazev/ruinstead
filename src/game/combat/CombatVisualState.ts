@@ -1,9 +1,11 @@
 import type { DamageEffectiveness } from './StageCombatProfile';
 import type { WeaponId } from './WeaponDefinitions';
+import type { OrbitalPhase } from './OrbitalAttack';
 
 export type OrbitalWeaponState = {
   slot:number;weaponId:WeaponId;color:number;x:number;y:number;facing:number;visible:boolean;
   attackAt:number;attackDirection:{x:number;y:number};
+  phase:OrbitalPhase;progress:number;
 };
 
 export type VisualHit = { at:number; amount:number; effectiveness:DamageEffectiveness };

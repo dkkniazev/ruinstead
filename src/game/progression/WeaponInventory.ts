@@ -709,6 +709,7 @@ export function normalizeWeaponLoadoutForPlayerLevel(
       ];
 
     if (
+      index >= unlocked ||
       !selection ||
       !hasOwnedLoadoutSelection(
         inventory,

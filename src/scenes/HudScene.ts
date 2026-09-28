@@ -17,6 +17,7 @@ const stateEvents: [string, keyof GameUIState][] = [
   [E.HUD_CITY_STATE_EVENT,'city'],[E.HUD_MONETIZATION_STATE_EVENT,'monetization'],
   [E.HUD_PLAYER_PROGRESS_STATE_EVENT,'progress'],[E.HUD_PREMIUM_STATE_EVENT,'premium'],
   [E.HUD_CHARACTER_STATE_EVENT,'character'],[E.HUD_AREA_EVENT,'area'],
+  [E.HUD_INTERACTION_STATE_EVENT,'interaction'],
 ];
 export class HudScene extends Phaser.Scene {
   private ui?: GameUI;
@@ -42,6 +43,9 @@ export class HudScene extends Phaser.Scene {
     }
     const notice=(message:string):void=>this.ui?.notice(message);
     const returnedHome=():void=>this.ui?.close();
+    const openForge=():void=>this.ui?.open('forge');
+    this.game.events.on(E.HUD_OPEN_FORGE_EVENT,openForge);
+    cleanups.push(()=>this.game.events.off(E.HUD_OPEN_FORGE_EVENT,openForge));
     this.game.events.on(E.HUD_RETURN_HOME_COMPLETED_EVENT,returnedHome);
     const level=(event:E.LevelUpHudEvent):void=>this.ui?.levelUp(event);
     this.game.events.on(E.HUD_NOTICE_EVENT,notice);this.game.events.on(E.HUD_TUTORIAL_EVENT,notice);this.game.events.on(E.HUD_LEVEL_UP_EVENT,level);

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { WalkableWorld } from './WalkableWorld';
 import {
   RELEASE_PASSAGES,
   RELEASE_REGIONS,
@@ -17,11 +18,11 @@ type GateVisual = {
     Phaser.GameObjects.Text;
 };
 
-const BOUNDARY_BLOCK = 84;
-const BOUNDARY_TARGET_SPACING = 68;
+
 
 
 export class RegionGateSystem {
+  readonly navigation: WalkableWorld;
   readonly barriers:
     Phaser.Physics.Arcade.StaticGroup;
 
@@ -94,6 +95,7 @@ export class RegionGateSystem {
   }
 
   destroy(): void {
+    this.scene.physics.world.off(Phaser.Physics.Arcade.Events.WORLD_STEP, this.constrainBodies, this);
     for (
       const visual of
       this.gateVisuals.values()
@@ -104,109 +106,15 @@ export class RegionGateSystem {
     this.barriers.destroy(true);
   }
 
-  private createRegionBoundaries(): void {
-    for (const region of RELEASE_REGIONS) {
-      const approaches = RELEASE_PASSAGES.filter(p => p.a === region.id || p.b === region.id)
-        .map(passage => ({ ...getPassageGeometry(passage), width: passage.width }));
-      for (let edge = 0; edge < region.outline.length; edge++) {
-        const a = region.outline[edge], b = region.outline[(edge + 1) % region.outline.length];
-        const segments = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / BOUNDARY_TARGET_SPACING);
-        for (let step = 0; step < segments; step++) {
-          const t = step / segments;
-          const x = a[0] + (b[0] - a[0]) * t, y = a[1] + (b[1] - a[1]) * t;
-          const opening = approaches.some(p => {
-            const forward = (x - p.a.x) * p.ux + (y - p.a.y) * p.uy;
-            const lateral = Math.abs((x - p.a.x) * -p.uy + (y - p.a.y) * p.ux);
-            return forward > -80 && forward < p.length + 80 && lateral < p.width / 2 + 55;
-          });
-          if (!opening) this.barriers.add(this.scene.add.rectangle(x, y, BOUNDARY_BLOCK, BOUNDARY_BLOCK, 0, 0));
-        }
-      }
-    }
-  }
-
-  private createCorridorWalls():
-    void {
-    for (
-      const passage of
-      RELEASE_PASSAGES
-    ) {
-      const endpoints =
-        getPassageGeometry(
-          passage,
-        );
-      const dx =
-        endpoints.b.x -
-        endpoints.a.x;
-      const dy =
-        endpoints.b.y -
-        endpoints.a.y;
-      const length =
-        Math.max(
-          1,
-          Math.hypot(dx, dy),
-        );
-      const nx =
-        -dy / length;
-      const ny =
-        dx / length;
-      const wallOffset =
-        passage.width / 2 +
-        58;
-      const steps =
-        Math.max(
-          2,
-          Math.ceil(
-            length / 100,
-          ),
-        );
-
-      for (
-        let index = 0;
-        index <= steps;
-        index += 1
-      ) {
-        const t =
-          index / steps;
-        const baseX =
-          Phaser.Math.Linear(
-            endpoints.a.x,
-            endpoints.b.x,
-            t,
-          );
-        const baseY =
-          Phaser.Math.Linear(
-            endpoints.a.y,
-            endpoints.b.y,
-            t,
-          );
-
-        for (
-          const side of
-          [-1, 1] as const
-        ) {
-          const wall =
-            this.scene.add
-              .rectangle(
-                baseX +
-                  nx *
-                    wallOffset *
-                    side,
-                baseY +
-                  ny *
-                    wallOffset *
-                    side,
-                96,
-                96,
-                0x18201f,
-                0,
-              );
-
-          this.barriers.add(
-            wall,
-          );
-        }
-      }
+  private constrainBodies(): void {
+    for (const body of this.scene.physics.world.bodies.entries) {
+      if (!body.enable || !body.moves) continue;
+      const previous = { x: body.prev.x + body.halfWidth, y: body.prev.y + body.halfHeight };
+      const next = this.navigation.slide(previous, body.center, Math.max(body.halfWidth, body.halfHeight), body.velocity);
+      body.position.x += next.x - body.center.x;
+      body.position.y += next.y - body.center.y;
+      body.updateCenter();
+      body.velocity.set(next.vx, next.vy);
     }
   }
 

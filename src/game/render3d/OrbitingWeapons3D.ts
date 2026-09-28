@@ -26,19 +26,19 @@ export class OrbitingWeapons3D {
         weapon.root.scale.setScalar(.78);root.add(weapon.root,halo,trail);this.root.add(root);
         model={root,weapon,weaponId:state.weaponId,halo,trail};this.models.set(state.slot,model);
       }
-      const age=(time-state.attackAt)/280,attacking=age>=0&&age<1;
-      const strike=attacking?Math.sin(age*Math.PI):0;
+      const attacking=state.phase!=='orbit';
+      const strike=state.phase==='attack'?state.progress:state.phase==='impact'?1:state.phase==='return'?1-state.progress:0;
       const direction=state.attackDirection;
       model.root.visible=state.visible;
-      model.root.position.set(state.x+direction.x*strike*22,heroHeight+50+Math.sin(time*.003+state.slot)*5+strike*8,state.y+direction.y*strike*22);
+      model.root.position.set(state.x,heroHeight+50+Math.sin(time*.003+state.slot)*5+strike*8,state.y);
       model.root.rotation.y=attacking?Math.atan2(direction.x,direction.y):state.facing;
-      model.weapon.root.rotation.set(.76+strike*(state.weaponId==='spear'?.75:1.4),0,attacking?-.35+age*.7:Math.sin(time*.002+state.slot)*.1);
+      model.weapon.root.rotation.set(.76+strike*(state.weaponId==='spear'?.75:1.4),0,attacking?-.35+strike*.7:Math.sin(time*.002+state.slot)*.1);
       const haloMaterial=model.halo.material as T.MeshBasicMaterial;
       haloMaterial.color.setHex(state.color);haloMaterial.opacity=.28+strike*.4;
       model.halo.scale.setScalar(1+strike*.25);
       model.trail.visible=attacking;
-      (model.trail.material as T.MeshBasicMaterial).opacity=attacking?Math.sin(age*Math.PI)*.65:0;
-      model.trail.rotation.z=attacking?-age*1.5:0;
+      (model.trail.material as T.MeshBasicMaterial).opacity=strike*.65;
+      model.trail.rotation.z=attacking?-strike*1.5:0;
     }
   }
 

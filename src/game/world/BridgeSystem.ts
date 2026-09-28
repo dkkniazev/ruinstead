@@ -227,7 +227,7 @@ export class BridgeSystem {
       BRIDGE_REPAIR_RADIUS;
 
     this.repairPrompt.setVisible(
-      this.canRepairHere,
+      false,
     );
   }
 

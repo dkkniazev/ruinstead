@@ -230,7 +230,7 @@ export class SettlementSystem {
       nextNear;
 
     this.interactionMarker
-      .setVisible(nextNear)
+      .setVisible(false)
       .setText(
         this.restored
           ? 'E · Кузница'

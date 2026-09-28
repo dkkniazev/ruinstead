@@ -119,7 +119,7 @@ export function createSkinOutfit(id:SkinId,rig:Rig,materials:Materials):{step:(t
     }else if(style.shoulders==='feathers'){
       orb(shoulder,'edge',side*2,1,0,12,8,12);
       for(let n=0;n<3;n++){
-        const feather=part(shoulder,shapes.wing,materials[n===0?'gold':'steel'],side*(4+n*5),4-n*3,5,side*7,12,9);feather.rotation.z=-side*.65;
+        const feather=part(shoulder,shapes.wing,materials[n===0?'gold':'steel'],side*(4+n*5),4-n*3,5,7,12,9);feather.rotation.set(0,side<0?Math.PI:0,-side*.65);
       }
     }else if(style.shoulders==='fur'){
       for(let n=0;n<5;n++)orb(shoulder,'steel',side*(n*3-2),1+Math.sin(n)*3,n%2?7:-5,7,8,8);
@@ -170,7 +170,7 @@ export function createSkinOutfit(id:SkinId,rig:Rig,materials:Materials):{step:(t
   if(style.back==='wings')for(const side of [-1,1]){
     rod(body,'gold',[side*8,82,-20],[side*32,103,-27],3);
     for(let n=0;n<5;n++){
-      const feather=part(body,shapes.wing,materials[n%2?'steel':'gold'],side*(21+n*5),89-n*5,-26,side*11,22-n,9);feather.rotation.z=-side*(.6+n*.12);
+      const feather=part(body,shapes.wing,materials[n%2?'steel':'gold'],side*(21+n*5),89-n*5,-26,11,22-n,9);feather.rotation.set(0,side<0?Math.PI:0,-side*(.6+n*.12));
     }
   }
   if(style.back==='roots')for(const side of [-1,1]){

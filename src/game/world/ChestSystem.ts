@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { withinInteractionRange, type InteractionCandidate } from './WorldInteractions';
 import type {
   BackpackSystem,
 } from '../gathering/BackpackSystem';
@@ -134,7 +135,7 @@ const CHESTS:
   readonly ChestDefinition[] =
   buildChests();
 
-const OPEN_RANGE = 82;
+export const CHEST_OPEN_RANGE = 82;
 
 type ChestVisual = {
   definition: ChestDefinition;
@@ -258,88 +259,23 @@ export class ChestSystem {
     }
   }
 
-  update(
-    playerPosition:
-      Phaser.Math.Vector2,
-    threatened: boolean,
-  ): void {
-    if (threatened) {
-      return;
+  get interactionCandidates():InteractionCandidate[] {
+    return this.chests.map(({definition})=>({id:definition.id,kind:'chest',label:'Открыть сундук · E',x:definition.x,y:definition.y,range:CHEST_OPEN_RANGE,available:!this.openedIds.includes(definition.id)}));
+  }
+
+  open(id:string,playerPosition:{x:number;y:number}):boolean {
+    const chest=this.chests.find(item=>item.definition.id===id);
+    if(!chest||this.openedIds.includes(id)||!withinInteractionRange(playerPosition,chest.definition,CHEST_OPEN_RANGE))return false;
+    if(!this.backpack.canAcceptBundle(chest.definition.rewards)){
+      this.onNotice('В рюкзаке недостаточно места для содержимого сундука');return false;
     }
-
-    for (
-      const chest of
-      this.chests
-    ) {
-      if (
-        this.openedIds.includes(
-          chest.definition.id,
-        )
-      ) {
-        continue;
-      }
-
-      const distance =
-        Phaser.Math.Distance.Between(
-          playerPosition.x,
-          playerPosition.y,
-          chest.definition.x,
-          chest.definition.y,
-        );
-
-      if (distance > OPEN_RANGE) {
-        continue;
-      }
-
-      if (
-        !this.backpack
-          .canAcceptBundle(
-            chest.definition
-              .rewards,
-          )
-      ) {
-        this.onNotice(
-          'В рюкзаке недостаточно места для содержимого сундука',
-        );
-        return;
-      }
-
-      this.backpack.addBundle(
-        chest.definition.rewards,
-      );
-      this.openedIds.push(
-        chest.definition.id,
-      );
-
-      chest.lid.setY(
-        chest.definition.y -
-          34,
-      );
-      chest.body.setFillStyle(
-        0x6c6250,
-        1,
-      );
-      chest.label
-        .setText('Сундук пуст')
-        .setColor(
-          '#b8b3a9',
-        );
-
-      this.onChanged();
-      this.onNotice(
-        `Сундук открыт: ${formatReward(
-          chest.definition
-            .rewards,
-        )}`,
-      );
-      this.onOpened?.(
-        chest.definition.id,
-        {
-          ...chest.definition
-            .rewards,
-        },
-      );
-    }
+    // Consume the interaction before callbacks can re-enter it.
+    this.openedIds.push(id);
+    this.backpack.addBundle(chest.definition.rewards);
+    chest.lid.setY(chest.definition.y-34);chest.body.setFillStyle(0x6c6250,1);
+    chest.label.setText('Сундук пуст').setColor('#b8b3a9');
+    this.onChanged();this.onNotice('Сундук открыт: '+formatReward(chest.definition.rewards));
+    this.onOpened?.(id,{...chest.definition.rewards});return true;
   }
 
   destroy(): void {

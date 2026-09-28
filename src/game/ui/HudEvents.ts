@@ -408,3 +408,6 @@ export type HudSettlementThemeHandler =
   ) => void;
 export type HudPetHandler =
   (id: PetId) => void;
+export const HUD_WORLD_INTERACT_EVENT='hud:world-interact';
+export const HUD_INTERACTION_STATE_EVENT='hud:interaction-state';
+export const HUD_OPEN_FORGE_EVENT='hud:open-forge';

@@ -1,4 +1,7 @@
 import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../game/qa/PolishPlaytest';
+import { resolveWorldInteraction, type InteractionCandidate } from '../game/world/WorldInteractions';
+import { HUD_WORLD_INTERACT_EVENT, HUD_INTERACTION_STATE_EVENT, HUD_OPEN_FORGE_EVENT } from '../game/ui/HudEvents';
+import { STAGE_ONE_BRIDGE_CENTER } from '../game/world/StageOneProgression';
 import Phaser from 'phaser';
 import { sellStoredResource } from '../game/economy/ResourceTrading';
 import { gameAudio, type AudioSettings } from '../game/audio/GameAudio';
@@ -127,6 +130,7 @@ import {
 } from '../game/state/GameState';
 import {
   SettlementSystem,
+  FORGE_POSITION, FORGE_INTERACTION_RADIUS,
   type SettlementHudState,
 } from '../game/settlement/SettlementSystem';
 import {
@@ -318,8 +322,7 @@ export class WorldScene
   private lastAreaName = '';
   private onboardingOrigin?: Phaser.Math.Vector2;
   private wasAtReturnPoint = false;
-  private bridgeRepairKey?:
-    Phaser.Input.Keyboard.Key;
+  private interactionSignature='';
 
   private weaponSlotKeys:
     Phaser.Input.Keyboard.Key[] = [];
@@ -615,57 +618,12 @@ export class WorldScene
     this.physics.add.collider(this.enemies.group, this.resourceSystem.obstacles);
     this.physics.add.collider(this.bosses.group, this.resourceSystem.obstacles);
     this.physics.add.collider(
-      this.player.sprite,
-      this.bridgeSystem
-        .barriers,
-    );
-    this.physics.add.collider(
-      this.player.sprite,
-      this.stageTwoGateSystem
-        .barriers,
-    );
-    this.physics.add.collider(
-      this.player.sprite,
-      this.regionGateSystem
-        .barriers,
-    );
-    this.physics.add.collider(
       this.enemies.group,
       world.obstacles,
     );
     this.physics.add.collider(
-      this.enemies.group,
-      this.bridgeSystem
-        .barriers,
-    );
-    this.physics.add.collider(
-      this.enemies.group,
-      this.stageTwoGateSystem
-        .barriers,
-    );
-    this.physics.add.collider(
-      this.enemies.group,
-      this.regionGateSystem
-        .barriers,
-    );
-    this.physics.add.collider(
       this.bosses.group,
       world.obstacles,
-    );
-    this.physics.add.collider(
-      this.bosses.group,
-      this.bridgeSystem
-        .barriers,
-    );
-    this.physics.add.collider(
-      this.bosses.group,
-      this.stageTwoGateSystem
-        .barriers,
-    );
-    this.physics.add.collider(
-      this.bosses.group,
-      this.regionGateSystem
-        .barriers,
     );
     this.physics.add.collider(
       this.player.sprite,
@@ -734,10 +692,7 @@ export class WorldScene
     this.applyMetaProgression();
 
     this.createWeaponKeys();
-    this.bridgeRepairKey =
-      this.input.keyboard?.addKey(
-        Phaser.Input.Keyboard.KeyCodes.E,
-      );
+    this.game.events.on(HUD_WORLD_INTERACT_EVENT,this.handleWorldInteraction,this);
 
     const camera =
       this.cameras.main;
@@ -1051,12 +1006,6 @@ export class WorldScene
         time,
         delta,
         this.player.position,
-        threatened,
-      );
-
-      this.chestSystem?.update(
-        this.player.position,
-        threatened,
       );
     }
 
@@ -1065,6 +1014,7 @@ export class WorldScene
     this.updateCityBuilder();
     this.updateForestObjective();
     this.updateBridgeRepair();
+    this.updateWorldInteraction();
     this.updateRegionDiscovery();
     this.updateQuestDirector();
     this.handleWeaponKeys();
@@ -3257,8 +3207,7 @@ export class WorldScene
         state,
       );
 
-    const skinBonus =
-      skin.multiplier - 1;
+    const skinEffects = skin.effects;
 
     const dragonHeartBonus =
       state.world.uniqueRewards
@@ -3283,11 +3232,7 @@ export class WorldScene
           .combat
           .effectPerRank
           .damageMultiplier +
-      (
-        skin.stat === 'damage'
-          ? skinBonus
-          : 0
-      ) +
+      (skinEffects['damage']??0) +
       (
         activeBlessing?.kind ===
           'damage'
@@ -3304,12 +3249,7 @@ export class WorldScene
           .vitality
           .effectPerRank
           .maxHealthMultiplier +
-      (
-        skin.stat ===
-          'max-health'
-          ? skinBonus
-          : 0
-      ) +
+      (skinEffects['max-health']??0) +
       (
         activeBlessing?.kind ===
           'health'
@@ -3326,12 +3266,7 @@ export class WorldScene
           .mobility
           .effectPerRank
           .moveSpeedMultiplier +
-      (
-        skin.stat ===
-          'move-speed'
-          ? skinBonus
-          : 0
-      ) +
+      (skinEffects['move-speed']??0) +
       (
         activeBlessing?.kind ===
           'speed'
@@ -3344,7 +3279,7 @@ export class WorldScene
     const dashCooldownMultiplier =
       Math.max(
         0.5,
-        1 +
+        1 / (1+(skinEffects['dash-recovery']??0)) +
           mastery.mobility *
             PLAYER_MASTERY
               .mobility
@@ -3360,12 +3295,7 @@ export class WorldScene
           .gathering
           .effectPerRank
           .gatheringYieldMultiplier +
-      (
-        skin.stat ===
-          'gathering'
-          ? skinBonus
-          : 0
-      ) +
+      (skinEffects['gathering']??0) +
       (
         activeBlessing?.kind ===
           'gathering'
@@ -3381,18 +3311,13 @@ export class WorldScene
           .settlement
           .effectPerRank
           .productionMultiplier;
-    const skinProductionBonus =
-      skin.stat ===
-        'production'
-        ? skinBonus
-        : 0;
+    const skinProductionBonus=skinEffects.production??0;
 
     const productionMultiplier =
       1 +
       settlementBonus +
       skinProductionBonus;
-    const capacityMultiplier =
-      1 +
+    const capacityMultiplier = 1 + (skinEffects['production-capacity']??0) +
       mastery.settlement *
         PLAYER_MASTERY
           .settlement
@@ -3428,8 +3353,7 @@ export class WorldScene
 
     this.resourceSystem
       ?.setPickupRangeMultiplier(
-        pet?.pickupRangeMultiplier ??
-          1,
+        (pet?.pickupRangeMultiplier??1)+(skinEffects['pickup-radius']??0),
       );
     this.petCompanion
       ?.setPet(
@@ -4668,9 +4592,7 @@ export class WorldScene
     id: PlayerUpgradeId,
   ): void {
     if (
-      !this.gameState ||
-      !this.settlementSystem
-        ?.restored
+      !this.gameState
     ) {
       return;
     }
@@ -5238,16 +5160,32 @@ export class WorldScene
       repairAccess,
     );
 
-    if (
-      this.bridgeRepairKey &&
-      Phaser.Input.Keyboard.JustDown(
-        this.bridgeRepairKey,
-      ) &&
-      this.bridgeSystem
-        .canRepairHere
-    ) {
-      this.handleBridgeRepair();
-    }
+  }
+
+  private resolveInteraction():InteractionCandidate|undefined {
+    if(!this.player||!this.combat||this.combat.state.health<=0)return;
+    const candidates:InteractionCandidate[]=[...(this.chestSystem?.interactionCandidates??[]),
+      {id:'forge',kind:'forge',label:'Открыть кузницу · E',...FORGE_POSITION,range:FORGE_INTERACTION_RADIUS,available:!!this.settlementSystem},
+      {id:'bridge-1-2',kind:'bridge',label:'Восстановить мост · E',...STAGE_ONE_BRIDGE_CENTER,range:170,available:this.bridgeSystem?.canRepairHere??false}];
+    return resolveWorldInteraction(this.player.position,candidates);
+  }
+
+  private updateWorldInteraction():void {
+    const interaction=this.resolveInteraction();
+    const signature=interaction?.id??'';
+    if(signature===this.interactionSignature)return;
+    this.interactionSignature=signature;
+    this.game.events.emit(HUD_INTERACTION_STATE_EVENT,interaction?{id:interaction.id,kind:interaction.kind,label:interaction.label}:null);
+  }
+
+  private handleWorldInteraction():void {
+    if(!this.scene.isActive()||!this.player)return;
+    // Resolve again at key/click time: the displayed target may have moved out of range.
+    const interaction=this.resolveInteraction();
+    if(interaction?.kind==='chest')this.chestSystem?.open(interaction.id,this.player.position);
+    else if(interaction?.kind==='forge')this.game.events.emit(HUD_OPEN_FORGE_EVENT);
+    else if(interaction?.kind==='bridge')this.handleBridgeRepair();
+    this.updateWorldInteraction();
   }
 
   private handleBridgeRepair(): void {
@@ -5810,6 +5748,7 @@ export class WorldScene
       this,
     );
     this.game.events.off(HUD_AUDIO_SETTINGS_CHANGE_EVENT, this.handleAudioSettingsChange, this);
+    this.game.events.off(HUD_WORLD_INTERACT_EVENT,this.handleWorldInteraction,this);
 
     this.scene.stop(
       'HudScene',

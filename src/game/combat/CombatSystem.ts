@@ -1,5 +1,6 @@
 import { healthAfterMaxChange } from './CombatMath';
 import type { OrbitalWeaponState } from './CombatVisualState';
+import { OrbitalAttack } from './OrbitalAttack';
 import Phaser from 'phaser';
 import type {
   BossSystem,
@@ -42,9 +43,7 @@ type OrbitingWeaponVisual = {
   profile: EquippedWeaponProfile;
   container:
     Phaser.GameObjects.Container;
-  nextHitAt: number;
-  attackAt: number;
-  attackDirection: {x:number;y:number};
+  flight: OrbitalAttack<CombatTarget>;
 };
 
 export type HealthPotionUseResult =
@@ -95,7 +94,8 @@ export class CombatSystem {
       slot:orbital.slot,weaponId:orbital.profile.weaponId,
       color:Number.parseInt(WEAPON_RARITIES[orbital.profile.rarity].color.slice(1),16),
       x:orbital.container.x,y:orbital.container.y,facing:Math.PI/2-orbital.container.rotation,
-      visible:!this.dead,attackAt:orbital.attackAt,attackDirection:orbital.attackDirection,
+      visible:!this.dead,attackAt:orbital.flight.attackAt,attackDirection:orbital.flight.direction,
+      phase:orbital.flight.phase,progress:orbital.flight.progress,
     }));
   }
   get visualCoinDrops():Array<{x:number;y:number;scale:number}> { return this.drops.visualDrops; }
@@ -1170,9 +1170,7 @@ export class CombatSystem {
         profile:
           entry.profile,
         container,
-        nextHitAt: 0,
-        attackAt: -Infinity,
-        attackDirection: {x:0,y:1},
+        flight: new OrbitalAttack<CombatTarget>(),
       });
     }
   }
@@ -1191,114 +1189,21 @@ export class CombatSystem {
     this.orbitals = [];
   }
 
-  private updateOrbitals(
-    time: number,
-  ): void {
-    const count =
-      this.orbitals.length;
-
-    if (count <= 0) {
-      return;
+  private updateOrbitals(time:number):void {
+    const count=this.orbitals.length;if(!count)return;
+    const center=this.player.combatPosition,radius=82+Math.min(22,count*4);
+    for(let index=0;index<count;index++){
+      const orbital=this.orbitals[index],definition=WEAPON_DEFINITIONS[orbital.profile.weaponId];
+      const angle=time*.00215+index*Math.PI*2/count;
+      const home={x:center.x+Math.cos(angle)*radius,y:center.y+Math.sin(angle)*radius*.72};
+      if(this.dead)orbital.flight.reset(home);
+      else orbital.flight.update(time,home,center,this.player.combatRadius,definition.range,definition.cooldownMs,
+        ()=>this.findNearestTarget(definition.range),target=>{
+          this.damageTarget(target,orbital.profile,definition.damage,.65);
+          this.showOrbitalHit(orbital.flight.x,orbital.flight.y,orbital.profile);
+        });
+      orbital.container.setPosition(orbital.flight.x,orbital.flight.y).setRotation(angle+Math.PI/2).setDepth(orbital.flight.y+150).setVisible(!this.dead);
     }
-
-    const center =
-      this.player.combatPosition;
-    const radius =
-      82 +
-      Math.min(
-        22,
-        count * 4,
-      );
-
-    this.orbitals.forEach(
-      (
-        orbital,
-        index,
-      ) => {
-        const angle =
-          time * 0.00215 +
-          index *
-            (
-              Math.PI *
-              2 /
-              count
-            );
-        const x =
-          center.x +
-          Math.cos(angle) *
-            radius;
-        const y =
-          center.y +
-          Math.sin(angle) *
-            radius *
-            0.72;
-
-        orbital.container
-          .setPosition(x, y)
-          .setRotation(
-            angle +
-            Math.PI / 2,
-          )
-          .setDepth(y + 150)
-          .setVisible(
-            !this.dead,
-          );
-
-        if (
-          this.dead ||
-          time <
-            orbital.nextHitAt
-        ) {
-          return;
-        }
-
-        const target =
-          this.findNearestTargetFrom(
-            new Phaser.Math.Vector2(
-              x,
-              y,
-            ),
-            34,
-            17,
-          );
-
-        if (!target) {
-          return;
-        }
-
-        const definition =
-          WEAPON_DEFINITIONS[
-            orbital.profile
-              .weaponId
-          ];
-
-        orbital.nextHitAt =
-          time +
-          Math.max(
-            280,
-            definition.cooldownMs *
-              1.25,
-          );
-
-        orbital.attackAt=time;
-        const targetPosition=target.combatPosition;
-        const dx=targetPosition.x-x,dy=targetPosition.y-y,distance=Math.hypot(dx,dy)||1;
-        orbital.attackDirection={x:dx/distance,y:dy/distance};
-
-        this.damageTarget(
-          target,
-          orbital.profile,
-          definition.damage,
-          0.65,
-        );
-
-        this.showOrbitalHit(
-          x,
-          y,
-          orbital.profile,
-        );
-      },
-    );
   }
 
   private damageTarget(

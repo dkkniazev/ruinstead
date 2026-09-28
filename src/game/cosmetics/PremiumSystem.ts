@@ -6,6 +6,8 @@ import {
   SKIN_CHESTS,
   SKIN_DEFINITIONS,
   SKIN_RARITIES,
+  getSkinEffects,
+  type SkinEffect,
   getChestSkinIds,
   isSkinId,
   type SkinBonusStat,
@@ -50,6 +52,7 @@ export type EquippedSkinBonus = {
   stat: SkinBonusStat | null;
   multiplier: number;
   tint: number | null;
+  effects: Partial<Record<SkinEffect,number>>;
 };
 
 export type ShardShopOffer = {
@@ -655,6 +658,7 @@ export function getEquippedSkinBonus(
       stat: null,
       multiplier: 1,
       tint: null,
+      effects: {},
     };
   }
 
@@ -667,6 +671,7 @@ export function getEquippedSkinBonus(
 
   return {
     skinId: id,
+    effects: getSkinEffects(id),
     stat:
       definition.bonusStat,
     multiplier:

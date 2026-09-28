@@ -3,12 +3,14 @@ import {build} from 'esbuild';
 const result=await build({stdin:{contents:`
 export * as T from 'three';
 export * from './src/game/render3d/HeroModel.ts';
+export * from './src/game/render3d/HeroSkinStyles.ts';
+export {SKIN_DEFINITIONS} from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/render3d/MeshBatching.ts';
 export * from './src/game/render3d/Trees.ts';
 export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {T,createHero,OrbitingWeapons3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const hero=createHero(),other=createHero();
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
   hero.setWeapon(weapon);
@@ -20,6 +22,30 @@ hero.setTint(0xff3311);
 let unaffected=false;other.root.traverse(o=>{if(o instanceof T.Mesh&&o.material.color.getHex()===0x355f78)unaffected=true;});
 assert(unaffected,'Tint must not mutate another hero or a cached portrait');
 hero.dispose();other.dispose();
+
+assert.deepEqual(Object.keys(HERO_SKIN_STYLES).sort(),Object.keys(SKIN_DEFINITIONS).sort(),'Every obtainable skin needs an authored outfit');
+const dressed=createHero(),neutral=createHero();dressed.step(.016,0);neutral.step(.016,0);
+const neutralBounds=new T.Box3().setFromObject(neutral.root),skinBounds=new Set();
+let liveGeometries=0;
+for(const id of Object.keys(SKIN_DEFINITIONS)){
+  dressed.setSkin(id);dressed.setWeapon('axe');
+  dressed.root.traverse(o=>{if(o.userData.batchedGeometry){liveGeometries++;o.geometry.addEventListener('dispose',()=>liveGeometries--);}});
+  for(const weapon of ['axe','sword','hammer','spear','daggers']){
+    dressed.setWeapon(weapon);
+    for(let i=0;i<30;i++)dressed.step(1/30,225,i<10,i>15,7.5,.2);
+    dressed.root.updateMatrixWorld(true);
+    dressed.root.traverse(o=>assert(o.matrixWorld.elements.every(Number.isFinite),id+' finite animated transforms'));
+    const bounds=new T.Box3().setFromObject(dressed.root);
+    assert(bounds.min.y>-30&&bounds.max.y<230,id+' safe outfit bounds');
+  }
+  dressed.step(.016,0);skinBounds.add(JSON.stringify(new T.Box3().setFromObject(dressed.root).getSize(new T.Vector3()).toArray()));
+}
+assert(skinBounds.size>20,'Outfits must change silhouettes, not only colours');
+dressed.setSkin(null);dressed.setWeapon('axe');
+assert.equal(liveGeometries,0,'Repeated skin changes release the previous outfit geometries');
+assert(!dressed.root.children.some(o=>o.name.startsWith('outfit-')));
+assert.deepEqual(new T.Box3().setFromObject(neutral.root),neutralBounds,'Changing a skin must not mutate another hero');
+dressed.dispose();neutral.dispose();
 
 // A raised elbow must not turn the blade back into the cape, at any gait phase.
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
@@ -46,7 +72,7 @@ assert(Math.abs(rapid.root.getObjectByName('primary-grip').rotation.x-latePitch)
 rapid.dispose();
 
 const satellites=new OrbitingWeapons3D();
-const states=['sword','hammer','spear','daggers'].map((weaponId,i)=>({slot:i+1,weaponId,color:0x73b9ff,x:100+i*40,y:200-i*40,facing:.4,visible:true,attackAt:-Infinity,attackDirection:{x:1,y:0}}));
+const states=['sword','hammer','spear','daggers'].map((weaponId,i)=>({slot:i+1,weaponId,color:0x73b9ff,x:100+i*40,y:200-i*40,facing:.4,visible:true,attackAt:-Infinity,attackDirection:{x:1,y:0},phase:'orbit',progress:0}));
 const assertFiniteTransforms=()=>{
   satellites.root.updateMatrixWorld(true);
   satellites.root.traverse(object=>assert(object.matrixWorld.elements.every(Number.isFinite),'All orbital transforms must be finite, even before the first hit'));
@@ -54,12 +80,12 @@ const assertFiniteTransforms=()=>{
 satellites.update(states,1000,75);assertFiniteTransforms();
 assert.equal(satellites.root.children.length,4,'Four secondary slots must have visible 3D models');
 for(const state of states){const object=satellites.root.getObjectByName(`orbital-slot-${state.slot}`);assert(object.getObjectByName(`weapon-${state.weaponId}`));assert.equal(object.position.x,state.x);assert.equal(object.position.z,state.y);assert(object.position.y>115,'Weapons hover at hero terrain height');}
-states[1].attackAt=1000;satellites.update(states,1140,75);
+states[1].attackAt=1000;states[1].phase='impact';states[1].x+=22;satellites.update(states,1140,75);
 const hammer=satellites.root.getObjectByName('orbital-slot-2');
-assert.equal(hammer.position.x,states[1].x+22,'An actual hit lunges toward its target');
+assert.equal(hammer.position.x,states[1].x,'The model must match the authoritative flight position at impact');
 assert.equal(hammer.rotation.y,Math.PI/2,'Strike faces its target');
 assert.equal(satellites.root.getObjectByName('orbital-slot-1').position.x,states[0].x,'Another slot does not share this cooldown event');
-satellites.update(states,1400,75);assert.equal(hammer.position.x,states[1].x,'Weapon returns to its orbit after the strike');
+states[1].phase='orbit';states[1].x-=22;satellites.update(states,1400,75);assert.equal(hammer.position.x,states[1].x,'Weapon follows its current orbit after return');
 let disposed=0;hammer.getObjectByName('weapon-hammer').addEventListener('removed',()=>disposed++);
 states[1]={...states[1],weaponId:'axe'};satellites.update(states,1500,75);
 assert.equal(disposed,1,'Changing equipment removes the old model');

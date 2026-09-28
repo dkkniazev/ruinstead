@@ -73,8 +73,9 @@ assert.equal(lockedBridge.contains(bridgeMid,18),true,'Unlocking region 2 remove
 
 const routeWorld=new WalkableWorld(['stage-2','stage-3','stage-4','stage-5','stage-6','stage-7','stage-8']);
 const navigation=new ObstacleNavigation(routeWorld);
-navigation.setObstacles([{x:500,y:500,halfWidth:70,halfHeight:70,circle:true}]);
-const from={x:350,y:500},homePoint={x:650,y:500};
+const routeCenter={x:RELEASE_REGIONS[0].center[0],y:RELEASE_REGIONS[0].center[1]};
+navigation.setObstacles([{x:routeCenter.x,y:routeCenter.y,halfWidth:70,halfHeight:70,circle:true}]);
+const from={x:routeCenter.x-150,y:routeCenter.y},homePoint={x:routeCenter.x+150,y:routeCenter.y};
 assert.equal(navigation.lineClear(from,homePoint,18),false,'Direct return path detects a blocking world object');
 const route=navigation.route(from,homePoint,18);
 assert(route.length>1,'Return-to-home navigation finds an alternate route around a blocking object');

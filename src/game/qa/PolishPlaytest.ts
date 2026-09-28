@@ -18,7 +18,17 @@ export function polishStateStore() {
   state.world.unlockedZones.push(...RELEASE_REGIONS.map(r=>r.stageId));
   for(const id of ['storage','sawmill','house','workshop','forge'] as const)state.settlement.buildings[id]=3;
   state.settlement.repairStages.forge=3;state.settlement.level=3;
-  state.onboarding.moved=true;
+  state.onboarding={
+    ...state.onboarding,
+    moved:true,
+    dashed:true,
+    firstKill:true,
+    hudSeen:true,
+    backpackSeen:true,
+    forgeSeen:true,
+    bestiarySeen:true,
+    skipped:true,
+  };
   state.consumables.returnTickets=3;
   state.resources={wood:1000,stone:1000,metal:1000,crystal:100,fiber:100,coins:10000};
   state.premium.unlockedSkinIds=['moss-guard'];

@@ -2,6 +2,7 @@ import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../ga
 import { resolveWorldInteraction, type InteractionCandidate } from '../game/world/WorldInteractions';
 import { ObstacleNavigation } from '../game/world/ObstacleNavigation';
 import { HUD_WORLD_INTERACT_EVENT, HUD_INTERACTION_STATE_EVENT, HUD_OPEN_FORGE_EVENT } from '../game/ui/HudEvents';
+import { WorldMap, type MapSnapshot } from '../game/ui/WorldMap';
 import { STAGE_ONE_BRIDGE_CENTER } from '../game/world/StageOneProgression';
 import Phaser from 'phaser';
 import { sellStoredResource } from '../game/economy/ResourceTrading';
@@ -185,6 +186,7 @@ import {
   HUD_AUDIO_SETTINGS_CHANGE_EVENT,
   HUD_LEVEL_UP_EVENT,
   HUD_TUTORIAL_EVENT,
+  HUD_TUTORIAL_ADVANCE_EVENT,
   HUD_TUTORIAL_SKIP_EVENT,
   type BlessingKind,
   type CharacterHudState,
@@ -194,6 +196,7 @@ import {
   type PlayerProgressHudState,
   type PremiumHudState,
   type SupplyResourceType,
+  type TutorialHudStep,
   type UpgradeHudState,
 } from '../game/ui/HudEvents';
 import {
@@ -321,6 +324,7 @@ export class WorldScene
   private debugOverlay?:
     DebugOverlay;
   private presentation3d?: WorldPresentation3D;
+  private worldMap?: WorldMap;
   private lastAreaName = '';
   private onboardingOrigin?: Phaser.Math.Vector2;
   private wasAtReturnPoint = false;
@@ -487,6 +491,7 @@ export class WorldScene
       );
     this.onboardingOrigin = new Phaser.Math.Vector2(startX, startY);
     this.game.events.on('ruinstead:player:dash', this.handleTutorialDash, this);
+    this.game.events.on(HUD_TUTORIAL_ADVANCE_EVENT, this.handleTutorialAdvance, this);
     this.game.events.on(HUD_TUTORIAL_SKIP_EVENT, this.handleTutorialSkip, this);
 
     this.petCompanion =
@@ -915,27 +920,69 @@ export class WorldScene
           this.lastAreaName,
       },
     );
-    if (
-      !this.gameState.onboarding.skipped &&
-      !this.gameState.onboarding.hudSeen
-    ) {
-      this.time.delayedCall(500, () => {
-        if (
-          !this.gameState ||
-          this.gameState.onboarding.skipped ||
-          this.gameState.onboarding.hudSeen
-        ) {
-          return;
-        }
-        this.gameState.onboarding.hudSeen = true;
-        this.showTutorial(
-          getLanguage() === 'en'
-            ? 'Health, level and XP are at the top. Follow the quest on the left; open the world map with Tab. Move with WASD or the joystick.'
-            : 'Сверху показаны здоровье, уровень и опыт. Слева — текущая цель, карта мира открывается на Tab. Двигайтесь WASD или стиком.',
-        );
-        this.saveState();
-      });
-    }
+    this.worldMap =
+      new WorldMap(
+        (passage) => {
+          if (passage.id === '1-2') {
+            return (
+              this.gameState
+                ?.settlement.buildings
+                .bridge ?? 0
+            ) > 0;
+          }
+
+          if (passage.id === '2-3') {
+            return (
+              this.gameState
+                ?.world.unlockedZones
+                .includes('stage-3') ??
+              false
+            );
+          }
+
+          const zones =
+            this.gameState?.world
+              .unlockedZones ?? [];
+
+          return (
+            regionIsUnlocked(
+              zones,
+              passage.a,
+            ) &&
+            regionIsUnlocked(
+              zones,
+              passage.b,
+            )
+          );
+        },
+        (open) => {
+          if (
+            open &&
+            this.scene.isActive(
+              'WorldScene',
+            )
+          ) {
+            this.scene.pause(
+              'WorldScene',
+            );
+          } else if (
+            !open &&
+            this.scene.isPaused(
+              'WorldScene',
+            )
+          ) {
+            this.scene.resume(
+              'WorldScene',
+            );
+          }
+        },
+      );
+
+    this.time.delayedCall(
+      500,
+      () =>
+        this.showIntroTutorialStep(),
+    );
 
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('debug') === '1') {
       this.debugOverlay = new DebugOverlay(this);
@@ -980,6 +1027,10 @@ export class WorldScene
     delta: number,
   ): void {
     this.player?.update(time);
+    this.worldMap?.update(
+      time,
+      () => this.worldMapSnapshot,
+    );
     this.updateOnboarding();
     this.petCompanion
       ?.update(delta);
@@ -1869,9 +1920,15 @@ export class WorldScene
       !this.gameState.onboarding.bestiarySeen
     ) {
       this.gameState.onboarding.bestiarySeen = true;
-      this.showTutorial(getLanguage() === 'en'
-        ? 'Bestiary is now useful: it shows weaknesses, resistances and kill milestones. Open it from the right-side menu.'
-        : 'Теперь пригодится Бестиарий: там показаны слабости, сопротивления и награды за убийства. Он находится в меню справа.');
+      this.showTutorial(
+        getLanguage() === 'en'
+          ? 'Bestiary is now useful: it shows weaknesses, resistances and kill milestones. Open it from the right-side menu.'
+          : 'Теперь пригодится Бестиарий: там показаны слабости, сопротивления и награды за убийства. Он находится в меню справа.',
+        '.r-nav [data-action="open:bestiary"]',
+        getLanguage() === 'en'
+          ? 'Bestiary'
+          : 'Бестиарий',
+      );
       this.saveState();
     }
 
@@ -2070,6 +2127,10 @@ export class WorldScene
         getLanguage() === 'en'
           ? 'Loot is carried in your backpack. Its capacity is shown at the bottom; return to the settlement to secure gathered resources.'
           : 'Добыча сначала попадает в рюкзак. Его заполнение показано снизу; вернитесь в поселение, чтобы сохранить собранные ресурсы.',
+        '.r-bottom [data-action="open:inventory"]',
+        getLanguage() === 'en'
+          ? 'Backpack'
+          : 'Рюкзак',
       );
     }
 
@@ -5239,6 +5300,10 @@ export class WorldScene
         getLanguage() === 'en'
           ? 'You are near the forge. Press E to interact with it. Weapon upgrades and fusion live here; hero attributes remain available from Character anywhere.'
           : 'Вы рядом с кузницей. Нажмите E для взаимодействия. Здесь улучшается и сливается оружие; характеристики героя доступны из меню персонажа в любом месте.',
+        '.r-nav [data-action="open:forge"]',
+        getLanguage() === 'en'
+          ? 'Forge'
+          : 'Кузница',
       );
       this.saveState();
     }
@@ -5590,13 +5655,201 @@ export class WorldScene
     this.saveState();
   }
 
-  private showTutorial(message: string): void {
+  private get introTutorialSteps():
+    TutorialHudStep[] {
+    const english =
+      getLanguage() === 'en';
+
+    return [
+      {
+        id: 'intro-vitals',
+        target: '.r-vitals',
+        title:
+          english
+            ? 'Health and level'
+            : 'Здоровье и уровень',
+        message:
+          english
+            ? 'Your health, level and experience are always shown here. Click this block to open the character screen.'
+            : 'Здесь всегда видны здоровье, уровень и опыт. Нажатие открывает экран персонажа.',
+      },
+      {
+        id: 'intro-quest',
+        target: '.r-quest',
+        title:
+          english
+            ? 'Current objective'
+            : 'Текущая цель',
+        message:
+          english
+            ? 'The current story objective stays on the left. Open it to see progress, rewards and the next hint.'
+            : 'Слева закреплена текущая сюжетная цель. Откройте её, чтобы увидеть прогресс, награду и следующую подсказку.',
+      },
+      {
+        id: 'intro-character',
+        target:
+          '.r-nav [data-action="open:character"]',
+        title:
+          english
+            ? 'Character and weapons'
+            : 'Персонаж и оружие',
+        message:
+          english
+            ? 'Character contains equipment, attributes and mastery. New weapon slots unlock as your hero levels up.'
+            : 'В «Герое» находятся снаряжение, характеристики и мастерство. Новые слоты оружия открываются с уровнем.',
+      },
+      {
+        id: 'intro-bestiary',
+        target:
+          '.r-nav [data-action="open:bestiary"]',
+        title:
+          english
+            ? 'Bestiary'
+            : 'Бестиарий',
+        message:
+          english
+            ? 'The bestiary records enemies, weaknesses, resistances and kill milestones.'
+            : 'Бестиарий хранит сведения о врагах, их слабостях, сопротивлениях и наградах за изучение.',
+      },
+      {
+        id: 'intro-map',
+        target: '.world-minimap',
+        title:
+          english
+            ? 'World map'
+            : 'Карта мира',
+        message:
+          english
+            ? 'Open the map here or with Tab. The golden crowned marker is the main boss whose defeat advances the region.'
+            : 'Откройте карту здесь или клавишей Tab. Золотая корона отмечает главного босса — его победа продвигает регион.',
+      },
+      {
+        id: 'intro-backpack',
+        target:
+          '.r-bottom [data-action="open:inventory"]',
+        title:
+          english
+            ? 'Backpack'
+            : 'Рюкзак',
+        message:
+          english
+            ? 'Gathered resources first go into the backpack. Its capacity is limited, so return home to secure the loot.'
+            : 'Собранные ресурсы сначала попадают в рюкзак. Вместимость ограничена — возвращайтесь домой, чтобы сохранить добычу.',
+      },
+    ];
+  }
+
+  private showIntroTutorialStep():
+    void {
+    if (
+      !this.gameState ||
+      this.gameState.onboarding
+        .skipped ||
+      this.gameState.onboarding
+        .tutorialCompleted
+    ) {
+      return;
+    }
+
+    const steps =
+      this.introTutorialSteps;
+    const index =
+      Math.min(
+        this.gameState.onboarding
+          .tutorialStep,
+        steps.length,
+      );
+
+    if (index >= steps.length) {
+      this.gameState.onboarding
+        .tutorialCompleted = true;
+      this.gameState.onboarding
+        .hudSeen = true;
+      this.saveState();
+      return;
+    }
+
+    this.game.events.emit(
+      HUD_TUTORIAL_EVENT,
+      {
+        ...steps[index],
+        step: index + 1,
+        total: steps.length,
+        sequence: true,
+      } satisfies TutorialHudStep,
+    );
+  }
+
+  private handleTutorialAdvance(
+    tutorialId: string,
+  ): void {
+    if (
+      !this.gameState ||
+      this.gameState.onboarding
+        .skipped ||
+      this.gameState.onboarding
+        .tutorialCompleted
+    ) {
+      return;
+    }
+
+    const steps =
+      this.introTutorialSteps;
+    const index =
+      this.gameState.onboarding
+        .tutorialStep;
+
+    if (
+      steps[index]?.id !==
+      tutorialId
+    ) {
+      return;
+    }
+
+    this.gameState.onboarding
+      .tutorialStep =
+        index + 1;
+
+    if (
+      this.gameState.onboarding
+        .tutorialStep >=
+      steps.length
+    ) {
+      this.gameState.onboarding
+        .tutorialCompleted = true;
+      this.gameState.onboarding
+        .hudSeen = true;
+      this.saveState();
+      return;
+    }
+
+    this.saveState();
+    this.showIntroTutorialStep();
+  }
+
+  private showTutorial(
+    message: string,
+    target?: string,
+    title =
+      getLanguage() === 'en'
+        ? 'Hint'
+        : 'Подсказка',
+  ): void {
     if (
       this.gameState?.onboarding.skipped
     ) {
       return;
     }
-    this.game.events.emit(HUD_TUTORIAL_EVENT, message);
+
+    this.game.events.emit(
+      HUD_TUTORIAL_EVENT,
+      {
+        id: 'context-hint',
+        title,
+        message,
+        target,
+      } satisfies TutorialHudStep,
+    );
   }
 
   private handleTutorialSkip(): void {
@@ -5623,19 +5876,117 @@ export class WorldScene
       this.onboardingOrigin.x, this.onboardingOrigin.y,
     ) < 130) return;
     this.gameState.onboarding.moved = true;
-    this.showTutorial(getLanguage() === 'en'
-      ? 'Use dash to evade danger. Character is on the right: the primary weapon is in your hands, other equipped weapons orbit you, and slots unlock at levels 5, 10, 15 and 20.'
-      : 'Уклоняйтесь рывком. Меню героя находится справа: primary-оружие в руках, остальные экипированные оружия летают вокруг, а слоты открываются на уровнях 5, 10, 15 и 20.');
+    this.showTutorial(
+      getLanguage() === 'en'
+        ? 'Use dash to evade danger. Character is on the right: the primary weapon is in your hands, other equipped weapons orbit you, and slots unlock at levels 5, 10, 15 and 20.'
+        : 'Уклоняйтесь рывком. Меню героя находится справа: основное оружие в руках, остальные экипированные оружия летают вокруг, а слоты открываются на уровнях 5, 10, 15 и 20.',
+      '.r-dash:not([hidden]), .r-nav [data-action="open:character"]',
+      getLanguage() === 'en'
+        ? 'Dash and equipment'
+        : 'Рывок и снаряжение',
+    );
     this.saveState();
   }
 
   private handleTutorialDash(): void {
     if (!this.gameState || this.gameState.onboarding.dashed) return;
     this.gameState.onboarding.dashed = true;
-    this.showTutorial(getLanguage() === 'en'
-      ? 'Dash is ready. Explore the region, gather resources and keep the map on Tab in mind; combat does not disable gathering or world interactions.'
-      : 'Рывок освоен. Исследуйте регион, собирайте ресурсы и помните про карту на Tab: бой сам по себе не блокирует сбор и взаимодействия.');
+    this.showTutorial(
+      getLanguage() === 'en'
+        ? 'Dash is ready. Explore the region, gather resources and keep the map on Tab in mind; combat does not disable gathering or world interactions.'
+        : 'Рывок освоен. Исследуйте регион, собирайте ресурсы и помните про карту на Tab: бой сам по себе не блокирует сбор и взаимодействия.',
+      '.world-minimap',
+      getLanguage() === 'en'
+        ? 'Explore freely'
+        : 'Исследуйте свободно',
+    );
     this.saveState();
+  }
+
+  private get worldMapSnapshot():
+    MapSnapshot {
+    const position =
+      this.player?.position ??
+      new Phaser.Math.Vector2(
+        SETTLEMENT_CENTER.x,
+        SETTLEMENT_CENTER.y,
+      );
+    const facing =
+      this.player?.visualFacing ??
+      new Phaser.Math.Vector2(
+        0,
+        1,
+      );
+
+    return {
+      x: position.x,
+      y: position.y,
+      facing:
+        Math.atan2(
+          facing.x,
+          facing.y,
+        ),
+      home: {
+        x: SETTLEMENT_CENTER.x,
+        y: SETTLEMENT_CENTER.y,
+      },
+      markers: [
+        ...(
+          this.enemies
+            ?.visualUnits ?? []
+        )
+          .filter(
+            (enemy) =>
+              enemy.alive,
+          )
+          .map(
+            (enemy) => ({
+              x: enemy.position.x,
+              y: enemy.position.y,
+              kind:
+                'enemy' as const,
+            }),
+          ),
+        ...(
+          this.bosses
+            ?.visualUnits ?? []
+        )
+          .filter(
+            (boss) =>
+              boss.alive,
+          )
+          .map(
+            (boss) => ({
+              x: boss.position.x,
+              y: boss.position.y,
+              kind:
+                boss.definition
+                  .isMain
+                  ? 'main-boss' as const
+                  : 'boss' as const,
+              label:
+                boss.definition.name,
+              region:
+                boss.definition.region,
+            }),
+          ),
+        ...(
+          this.resourceSystem
+            ?.visualNodes ?? []
+        )
+          .filter(
+            (node) =>
+              node.available,
+          )
+          .map(
+            (node) => ({
+              x: node.x,
+              y: node.y,
+              kind: node.type,
+            }),
+          ),
+      ],
+    };
   }
 
   private saveState(): void {
@@ -5697,7 +6048,10 @@ export class WorldScene
   private cleanup(): void {
     this.presentation3d?.destroy();
     this.presentation3d = undefined;
+    this.worldMap?.destroy();
+    this.worldMap = undefined;
     this.game.events.off('ruinstead:player:dash', this.handleTutorialDash, this);
+    this.game.events.off(HUD_TUTORIAL_ADVANCE_EVENT, this.handleTutorialAdvance, this);
     this.game.events.off(HUD_TUTORIAL_SKIP_EVENT, this.handleTutorialSkip, this);
     this.scale.off(
       Phaser.Scale.Events.RESIZE,

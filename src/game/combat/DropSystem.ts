@@ -10,6 +10,9 @@ type CoinDrop = {
 };
 
 export class DropSystem {
+  get visualDrops():Array<{x:number;y:number;scale:number}> {
+    return this.drops.map(drop=>({x:drop.sprite.x,y:drop.sprite.y,scale:drop.sprite.scaleX}));
+  }
   private readonly drops:
     CoinDrop[] = [];
 

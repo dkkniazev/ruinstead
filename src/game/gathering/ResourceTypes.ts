@@ -65,7 +65,7 @@ export const RESOURCE_DEFINITIONS:
     id: 'coins',
     name: 'Монеты',
     shortName: '₽',
-    weight: 0.25,
+    weight: 0,
   },
 };
 

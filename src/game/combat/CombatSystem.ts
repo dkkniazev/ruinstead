@@ -1,3 +1,4 @@
+import { healthAfterMaxChange } from './CombatMath';
 import Phaser from 'phaser';
 import type {
   BossSystem,
@@ -86,6 +87,7 @@ export type CombatState = {
 };
 
 export class CombatSystem {
+  get visualCoinDrops():Array<{x:number;y:number;scale:number}> { return this.drops.visualDrops; }
   get damageBonus(): number { return this.temporaryDamageMultiplier; }
   private maxHealth = 100;
   private health =
@@ -375,26 +377,7 @@ export class CombatSystem {
         ),
       );
 
-    if (
-      this.maxHealth >
-      previousMax
-    ) {
-      this.health =
-        Math.min(
-          this.maxHealth,
-          this.health +
-            (
-              this.maxHealth -
-              previousMax
-            ),
-        );
-    } else {
-      this.health =
-        Math.min(
-          this.health,
-          this.maxHealth,
-        );
-    }
+    this.health = healthAfterMaxChange(this.health,previousMax,this.maxHealth);
 
     this.weaponProfiles = {
       ...weaponProfiles,
@@ -861,6 +844,7 @@ export class CombatSystem {
     style: WeaponAttackStyle,
   ): void {
     this.audio.playSwing();
+    this.player.visualAttackAt = this.scene.time.now;
 
     const origin =
       this.player.combatPosition;
@@ -874,6 +858,7 @@ export class CombatSystem {
           origin.y,
       ).normalize();
 
+    this.player.visualAttackDirection = {x:direction.x,y:direction.y};
     this.showAttackEffect(
       origin,
       direction,

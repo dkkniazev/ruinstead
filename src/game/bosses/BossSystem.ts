@@ -1,7 +1,8 @@
+import { recordVisualHit } from '../combat/CombatVisualState';
 import Phaser from 'phaser';
 import { insideBossDanger, type BossDangerZone } from '../combat/CombatMath';
 import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
-import { enemySpawnAreaIsClear } from '../enemies/EnemySystem';
+import { BOSS_ARENAS, bossGroundIsClear } from './BossArenas';
 import { resourceNodeAreaIsClear } from '../gathering/ResourceSystem';
 import type {
   DamageEffectiveness,
@@ -24,12 +25,8 @@ import {
   RELEASE_BOSSES,
 } from '../world/ReleaseWorldContent';
 import {
-  getRegionDefinition,
-  pointInRegion,
-  regionPointAt,
   regionIsUnlocked,
   type RegionId,
-  type WorldPoint,
 } from '../world/ReleaseRegionMap';
 
 export type BossId =
@@ -166,33 +163,7 @@ const REGION_BOSS_COLORS:
   8: [0x4d2c30, 0xff643b],
 };
 
-function clearBossSpawn(
-  regionId: RegionId,
-  start: WorldPoint,
-  seed: number,
-): WorldPoint {
-  const region = getRegionDefinition(regionId);
-  const isClear = (point: WorldPoint): boolean =>
-    pointInRegion(region, point.x, point.y) &&
-    resourceNodeAreaIsClear(point.x, point.y, 190) &&
-    enemySpawnAreaIsClear(point.x, point.y, 230);
-
-  if (isClear(start)) return start;
-
-  for (let step = 0; step < 24; step += 1) {
-    const ring = 110 + Math.floor(step / 8) * 95;
-    const angle = seed * 2.399963 + step * Math.PI / 4;
-    const candidate: WorldPoint = {
-      x: start.x + Math.cos(angle) * ring,
-      y: start.y + Math.sin(angle) * ring,
-    };
-    if (isClear(candidate)) return candidate;
-  }
-
-  return start;
-}
-
-function buildBossDefinitions():
+export function buildBossDefinitions():
   BossDefinition[] {
   const perRegionIndex =
     new Map<number, number>();
@@ -208,27 +179,7 @@ function buildBossDefinitions():
         index + 1,
       );
 
-      const region =
-        getRegionDefinition(
-          source.region,
-        );
-      const offsets:
-        ReadonlyArray<
-          readonly [number, number]
-        > = [
-        [-0.52, -0.48],
-        [0.52, -0.38],
-        [0.18, 0.68],
-      ];
-      const offset = source.region === 1 && index === 2
-        ? [0.55, 0.5] as const
-        : offsets[index];
-      const authoredSpawn = regionPointAt(region, offset[0], offset[1]);
-      const spawnPoint = clearBossSpawn(
-        source.region,
-        authoredSpawn,
-        source.region * 10 + index,
-      );
+      const spawnPoint = BOSS_ARENAS[source.id];
       const special =
         Boolean(
           source.specialBoss,
@@ -450,7 +401,7 @@ function buildBossDefinitions():
             ? 780
             : undefined,
         bodyRadius:
-          special
+          source.id==='moss-ogre' ? 56 : special
             ? 52
             : source.isMain
               ? 46
@@ -481,7 +432,14 @@ const BOSS_DEFINITIONS:
   readonly BossDefinition[] =
   buildBossDefinitions();
 
+export function bossDisplayStats(id: string): { health: number; damage: number; radius: number; primaryColor: number; accentColor: number } {
+  const d = BOSS_DEFINITIONS.find(value => value.id === id)!;
+  return { primaryColor: d.primaryColor, accentColor: d.accentColor, health: d.maxHealth, damage: d.damage, radius: d.bodyRadius * (d.specialBoss ? 1.38 : d.isMain ? 1.2 : 1.05) };
+}
+
 export class BossUnit {
+  visualAttackAt = -Infinity;
+  visualHit?: import('../combat/CombatVisualState').VisualHit;
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
   readonly spawn:
@@ -519,6 +477,8 @@ export class BossUnit {
   private regenStartedAt = 0;
   private regenStartHealth = 0;
   private returning = false;
+  private previousMove?: {x:number;y:number;at:number};
+  private blockedMoveMs = 0;
   private _engaged = false;
   private _alive = true;
 
@@ -1012,6 +972,7 @@ export class BossUnit {
           this.definition
             .attackCooldownMs;
 
+        this.visualAttackAt=time;
         onPlayerHit(
           this.definition.damage,
         );
@@ -1044,6 +1005,8 @@ export class BossUnit {
     if (!this._alive) {
       return false;
     }
+
+    this.visualHit=recordVisualHit(this.visualHit,this.scene.time.now,amount,effectiveness);
 
     this.health =
       Math.max(
@@ -1155,6 +1118,7 @@ export class BossUnit {
           return;
         }
 
+        this.visualAttackAt=this.scene.time.now;
         if (insideBossDanger(danger, this.lastPlayerPosition.x, this.lastPlayerPosition.y)) {
           onPlayerHit(
             this.definition
@@ -1305,6 +1269,7 @@ export class BossUnit {
           return;
         }
 
+        this.visualAttackAt=this.scene.time.now;
         if (insideBossDanger(danger, this.lastPlayerPosition.x, this.lastPlayerPosition.y)) {
           onPlayerHit(
             damage,
@@ -1361,10 +1326,23 @@ export class BossUnit {
       this.sprite.body as
         Phaser.Physics.Arcade.Body;
 
-    body.setVelocity(
-      direction.x * speed,
-      direction.y * speed,
-    );
+    const now=this.scene.time.now,previous=this.previousMove;
+    this.blockedMoveMs=previous&&now-previous.at<100&&Math.hypot(this.sprite.x-previous.x,this.sprite.y-previous.y)<.3
+      ?this.blockedMoveMs+now-previous.at:0;
+    this.previousMove={x:this.sprite.x,y:this.sprite.y,at:now};
+    if(this.blockedMoveMs>1500){
+      this.beginReturn(now);body.reset(this.spawn.x,this.spawn.y);body.setVelocity(0,0);this.blockedMoveMs=0;return;
+    }
+    const forward=Math.atan2(direction.y,direction.x);
+    let moved=false;
+    for(const turn of [0,.5,-.5,1,-1,1.5,-1.5]){
+      const angle=forward+turn,dx=Math.cos(angle),dy=Math.sin(angle);
+      const next={x:this.sprite.x+dx*55,y:this.sprite.y+dy*55};
+      if(!bossGroundIsClear(this.definition.region,next,this.combatRadius)
+        ||!resourceNodeAreaIsClear(next.x,next.y,this.combatRadius+20))continue;
+      body.setVelocity(dx*speed,dy*speed);moved=true;break;
+    }
+    if(!moved)body.setVelocity(0,0);
 
     if (
       Math.abs(direction.x) >

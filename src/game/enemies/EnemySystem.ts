@@ -1,3 +1,6 @@
+import { formPack, packSize, packFormationRadius } from './PackFormation';
+import { recordVisualHit, type VisualHit } from '../combat/CombatVisualState';
+import { bossArenaAreaIsClear } from '../bosses/BossArenas';
 import Phaser from 'phaser';
 import { ENCOUNTER_BASE, REGION_COMBAT_BALANCE } from '../combat/RegionBalance';
 import { resourceNodeAreaIsClear } from '../gathering/ResourceSystem';
@@ -25,6 +28,7 @@ import {
   pointInRegion,
   regionPointAt,
   regionIsUnlocked,
+  distanceToRegionBoundary,
   type RegionId,
 } from '../world/ReleaseRegionMap';
 
@@ -308,6 +312,11 @@ function buildDefinitions():
 const DEFINITIONS =
   buildDefinitions();
 
+export function enemyDisplayStats(id: string, elite = false): { health: number; damage: number; radius: number } {
+  const d = DEFINITIONS[id];
+  return { health: Math.round(d.maxHealth * (elite ? ELITE_HEALTH_MULTIPLIER : 1)), damage: Math.round(d.damage * (elite ? ELITE_DAMAGE_MULTIPLIER : 1)), radius: d.bodyRadius * (elite ? 1.2 * 1.22 : 1) };
+}
+
 function buildHabitats():
   HabitatDefinition[] {
   const habitats:
@@ -433,7 +442,7 @@ function buildHabitats():
               groupPoint.y,
             ),
           ]);
-          if (index === 0) elites.push([
+          elites.push([
             Math.round(elitePoint.x),
             Math.round(elitePoint.y),
           ]);
@@ -542,62 +551,62 @@ function moveOutsideSettlement(
   );
 }
 
-const GROUP_MEMBER_OFFSETS:
-  ReadonlyArray<
-    readonly [number, number]
-  > = [
-  [-42, -24],
-  [38, -18],
-  [0, 38],
-];
-
-function buildSpawns():
-  GroupSpawn[] {
-  const spawns:
-    GroupSpawn[] = [];
-
-  for (
-    const habitat of HABITATS
-  ) {
-    habitat.groups.forEach(
-      ([x, y], groupIndex) => {
-        for (
-          const [offsetX, offsetY]
-          of GROUP_MEMBER_OFFSETS
-        ) {
-          spawns.push({
-            groupId:
-              `${habitat.species}-group-${groupIndex + 1}`,
-            species:
-              habitat.species,
-            x: x + offsetX,
-            y: y + offsetY,
-            rank: 'normal',
-          });
-        }
-      },
-    );
-
-    habitat.elites.forEach(
-      ([x, y], eliteIndex) => {
-        spawns.push({
-          groupId:
-            `${habitat.species}-elite-${eliteIndex + 1}`,
-          species:
-            habitat.species,
-          x,
-          y,
-          rank: 'elite',
-        });
-      },
-    );
+export function buildEnemySpawns(random = Math.random): GroupSpawn[] {
+  // Reserve existing elite anchors first: pack size never changes elite counts.
+  const eliteAnchors: GroupSpawn[] = HABITATS.flatMap(h => h.elites.map(([x,y],i) => ({
+    groupId: h.species + '-elite-' + (i+1), species: h.species, x,y,rank:'elite' as const,
+  })));
+  const footprint=(spawn: GroupSpawn)=>DEFINITIONS[spawn.species].bodyRadius*(spawn.rank==='elite'?1.464:1)*1.5;
+  const spawns:GroupSpawn[]=[];
+  for(const anchor of eliteAnchors){
+    const radius=footprint(anchor),region=getRegionDefinition(DEFINITIONS[anchor.species].region);
+    let chosen:GroupSpawn|undefined;
+    for(let step=0;step<600&&!chosen;step++){
+      const angle=step*2.399963,offset=step===0?0:65+Math.sqrt(step)*55;
+      const p={...anchor,x:anchor.x+Math.cos(angle)*offset,y:anchor.y+Math.sin(angle)*offset};
+      if(pointInRegion(region,p.x,p.y)&&distanceToRegionBoundary(region,p.x,p.y)>radius+24
+        &&(region.id!==1||Math.hypot(p.x-SETTLEMENT_CENTER.x,p.y-SETTLEMENT_CENTER.y)>SETTLEMENT_SAFE_RADIUS+radius+70)
+        &&resourceNodeAreaIsClear(p.x,p.y,radius+20)&&bossArenaAreaIsClear(p.x,p.y,radius)
+        &&spawns.every(other=>Math.hypot(p.x-other.x,p.y-other.y)>radius+footprint(other)+16))chosen=p;
+    }
+    if(!chosen)throw new Error('No clear elite spawn: '+anchor.groupId);
+    spawns.push(chosen);
   }
-
+  const formations: Array<{x:number;y:number;radius:number}> = [];
+  const plans=HABITATS.flatMap(h=>h.groups.map((anchor,index)=>({species:h.species,anchor,index,count:packSize(random)})));
+  plans.sort((a,b)=>packFormationRadius(b.count,DEFINITIONS[b.species].bodyRadius*3+16)-packFormationRadius(a.count,DEFINITIONS[a.species].bodyRadius*3+16));
+  for (const {species,anchor,index,count} of plans) {
+      const definition=DEFINITIONS[species],region=getRegionDefinition(definition.region);
+      const radius=definition.bodyRadius*1.5,spacing=radius*2+16;
+      const formationRadius=packFormationRadius(count,spacing);
+      const clear=(p:{x:number;y:number})=>pointInRegion(region,p.x,p.y)
+        && distanceToRegionBoundary(region,p.x,p.y)>radius+24
+        && (region.id!==1||Math.hypot(p.x-SETTLEMENT_CENTER.x,p.y-SETTLEMENT_CENTER.y)>SETTLEMENT_SAFE_RADIUS+radius+70)
+        && resourceNodeAreaIsClear(p.x,p.y,radius+20)
+        && bossArenaAreaIsClear(p.x,p.y,radius)
+        && spawns.every(other=>Math.hypot(p.x-other.x,p.y-other.y)>=radius+footprint(other)+(other.rank==='normal'?40:16));
+      let points: ReturnType<typeof formPack>;
+      for(let attempt=0;attempt<900&&!points;attempt++) {
+        const angle=attempt*2.399963,offset=attempt===0?0:100+Math.sqrt(attempt)*90;
+        const center=attempt<160?{x:anchor[0]+Math.cos(angle)*offset,y:anchor[1]+Math.sin(angle)*offset}
+          :regionPointAt(region,(random()-.5)*1.9,(random()-.5)*1.9);
+        // Reserve the whole formation, so nearby packs stay distinct and a
+        // village boundary cannot squeeze one into a thin crescent.
+        if(!pointInRegion(region,center.x,center.y)
+          ||distanceToRegionBoundary(region,center.x,center.y)<formationRadius+radius+24
+          ||(region.id===1&&Math.hypot(center.x-SETTLEMENT_CENTER.x,center.y-SETTLEMENT_CENTER.y)<SETTLEMENT_SAFE_RADIUS+formationRadius+radius+70)
+          ||formations.some(f=>Math.hypot(f.x-center.x,f.y-center.y)<(f.radius+formationRadius)*.55+50))continue;
+        points=formPack(center,count,spacing,clear,random);
+        if(points)formations.push({...center,radius:formationRadius});
+      }
+      if(!points)throw new Error('No clear formation for '+species+' group '+index);
+      for(const point of points)spawns.push({...point,groupId:species+'-group-'+(index+1),species,rank:'normal'});
+  }
   return spawns;
 }
 
 const ALL_SPAWNS =
-  buildSpawns();
+  buildEnemySpawns();
 
 export function enemySpawnAreaIsClear(
   x: number,
@@ -610,6 +619,8 @@ export function enemySpawnAreaIsClear(
 }
 
 export class EnemyUnit {
+  visualAttackAt = -Infinity;
+  visualHit?: VisualHit;
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
   readonly definition:
@@ -646,6 +657,7 @@ export class EnemyUnit {
     group:
       Phaser.Physics.Arcade.Group,
     spawn: GroupSpawn,
+    private readonly canRespawn: () => boolean = () => true,
   ) {
     this.definition =
       DEFINITIONS[spawn.species];
@@ -965,7 +977,8 @@ export class EnemyUnit {
         this.respawnAt > 0 &&
         time >= this.respawnAt
       ) {
-        this.respawn();
+        if (this.canRespawn()) this.respawn();
+        else this.respawnAt = time + 250;
       }
 
       return;
@@ -1052,6 +1065,7 @@ export class EnemyUnit {
           this.definition
             .attackCooldownMs;
 
+        this.visualAttackAt=time;
         onPlayerHit(
           this.damage,
         );
@@ -1086,6 +1100,8 @@ export class EnemyUnit {
     if (!this._alive) {
       return false;
     }
+
+    this.visualHit=recordVisualHit(this.visualHit,this.scene.time.now,amount,effectiveness);
 
     this.health =
       Math.max(
@@ -1570,6 +1586,8 @@ export class EnemySystem {
     this.group =
       scene.physics.add.group();
 
+    scene.physics.add.collider(this.group, this.group);
+
     for (
       let region = 1;
       region <= 8;
@@ -1621,6 +1639,8 @@ export class EnemySystem {
           this.scene,
           this.group,
           spawn,
+          () => this.enemies.every(other => !other.alive || Math.hypot(other.sprite.x-spawn.x,other.sprite.y-spawn.y)
+            >= (enemyDisplayStats(spawn.species,spawn.rank==='elite').radius+enemyDisplayStats(other.definition.id,other.rank==='elite').radius)*1.5+16),
         ),
       );
     }

@@ -121,7 +121,7 @@ export class BackpackSystem {
     const accepted =
       Math.min(
         safeAmount,
-        Math.floor(
+        weight === 0 ? safeAmount : Math.floor(
           this.remainingCapacity /
             weight,
         ),
@@ -253,6 +253,8 @@ export class BackpackSystem {
         RESOURCE_DEFINITIONS[
           type
         ].weight;
+
+      if (weight <= 0) continue;
 
       while (
         (this.carried[type] ?? 0) > 0 &&

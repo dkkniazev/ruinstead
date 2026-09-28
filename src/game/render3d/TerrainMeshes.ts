@@ -1,12 +1,14 @@
 import * as THREE from 'three';
-import { RELEASE_PASSAGES, getPassageGeometry, pointInRegion, type RegionDefinition } from '../world/ReleaseRegionMap';
+import { groundMaterial, boundarySurfaceMaterial } from './ArtMaterials';
+import { createRegionRoads } from './BiomeScenery';
+import { pointInRegion, type RegionDefinition } from '../world/ReleaseRegionMap';
 import { plateauHeight, sampleBoundaryTerrain } from '../world/WorldTerrain';
 
 export const REGION_PALETTES: Record<number, [number, number, number]> = {
-  1: [0x69904e, 0x81a961, 0x4e7546], 2: [0xb69c6b, 0xc6ad7d, 0x887753],
-  3: [0x727384, 0x878796, 0x505363], 4: [0x704d3d, 0x9c6244, 0x4e3d3b],
-  5: [0x9ba989, 0xb7bb96, 0x79846d], 6: [0x8d7968, 0xa28f78, 0x667d7d],
-  7: [0xa87954, 0xc59a68, 0x7b5946], 8: [0x66413e, 0x884c3f, 0x45383a],
+  1: [0x76a75d, 0x96bb6c, 0x588557], 2: [0xbca16d, 0xd8bc86, 0x96805c],
+  3: [0x686f8c, 0x858ca4, 0x50586f], 4: [0x50424b, 0x77605b, 0x3e3945],
+  5: [0x8bab79, 0xb8c68d, 0x688b70], 6: [0x847e79, 0xa89e87, 0x617b7e],
+  7: [0xbd905f, 0xdfb680, 0xa47b58], 8: [0x4f3a48, 0x735159, 0x363343],
 };
 
 function hash(x: number, y: number): number {
@@ -31,20 +33,10 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
   const shape = region.outline.map(([x, y]) => new THREE.Vector2(x, y));
   const triangles = THREE.ShapeUtils.triangulateShape(shape, []);
   const positions: number[] = [], colors: number[] = [];
-  const paths = RELEASE_PASSAGES.filter(p => p.a === region.id || p.b === region.id).map(p => {
-    const geometry = getPassageGeometry(p);
-    const end = p.a === region.id ? geometry.a : geometry.b;
-    return { dx: end.x - region.center[0], dy: end.y - region.center[1] };
-  });
   const palette = REGION_PALETTES[region.id].map(color => new THREE.Color(color));
   const landColor = (x: number, y: number) => {
     const patch = (Math.sin(x * 0.005) + Math.cos(y * 0.006) + 2) / 4;
     const color = palette[0].clone().lerp(patch > 0.5 ? palette[1] : palette[2], Math.abs(patch - 0.5) * 1.3);
-    const px = x - region.center[0], py = y - region.center[1];
-    if (paths.some(({dx,dy}) => {
-      const t = (px * dx + py * dy) / (dx * dx + dy * dy);
-      return t >= 0 && t <= 1.05 && Math.hypot(px - dx * t, py - dy * t) < 42;
-    })) color.lerp(new THREE.Color(region.id === 4 || region.id === 8 ? 0x9b7861 : 0xc4ad80), 0.75);
     return color;
   };
   const emit = (a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2, depth: number): void => {
@@ -61,7 +53,9 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     }
   };
   for (const [a,b,c] of triangles) emit(shape[a],shape[b],shape[c],0);
-  group.add(mesh(positions, colors));
+  const land=mesh(positions, colors);
+  (land.material as THREE.Material).dispose();land.material=groundMaterial(region.id);
+  group.add(land,createRegionRoads(region));
 
   const cliffPositions: number[] = [], cliffColors: number[] = [];
   const stone = new THREE.Color(region.id === 7 ? 0x9b6949 : region.id === 4 || region.id === 8 ? 0x51443e : region.id === 3 ? 0x686776 : 0x817c6d);
@@ -94,22 +88,30 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
 }
 
 export function createBoundaryGround(cx: number, cz: number, size: number, segments = 20): THREE.Group {
-  const group=new THREE.Group();
-  const geometry=new THREE.PlaneGeometry(size,size,segments,segments);
-  geometry.rotateX(-Math.PI/2);
-  const positions=geometry.attributes.position, colors:number[]=[];
-  for(let i=0;i<positions.count;i++) {
-    const x=cx+positions.getX(i), y=cz+positions.getZ(i);
-    const sample=sampleBoundaryTerrain(x,y);
-    positions.setY(i,sample.height);
-    const hex=sample.kind==='river'?0x2f8c9e:sample.kind==='lava'?0xde572b:sample.kind==='cliff'?0x9a8769
-      :sample.kind==='cut'?0x8e7b61:sample.height>780?0xaeb3b2:sample.region.id===7?0x95684e:0x62656a;
-    const color=new THREE.Color(hex).multiplyScalar(0.86+hash(Math.floor(x/90),Math.floor(y/90))*0.21);
-    colors.push(color.r,color.g,color.b);
+  const group=new THREE.Group(),source=new THREE.PlaneGeometry(size,size,segments,segments);
+  source.rotateX(-Math.PI/2);
+  const vertices=source.attributes.position;
+  const samples=Array.from({length:vertices.count},(_,i)=>sampleBoundaryTerrain(cx+vertices.getX(i),cz+vertices.getZ(i)));
+  const positions:number[][]=[[],[],[]],colors:number[][]=[[],[],[]];
+  for(let triangle=0;triangle<source.index!.count;triangle+=3){
+    const indices=[0,1,2].map(n=>source.index!.getX(triangle+n));
+    const kind=indices.every(i=>samples[i].kind==='river')?1:indices.every(i=>samples[i].kind==='lava')?2:0;
+    for(const i of indices){
+      const x=cx+vertices.getX(i),z=cz+vertices.getZ(i),sample=samples[i];
+      positions[kind].push(x,sample.height,z);
+      const color=kind>0?new THREE.Color(0xffffff):new THREE.Color(sample.kind==='river'?0x30969f:sample.kind==='lava'?0xc65333:sample.kind==='cliff'?0x9b8e77
+        :sample.kind==='cut'?0x96826b:sample.height>780?0xb8c6c7:sample.region.id===7?0xb58360:0x6c7b85);
+      if(kind===0)color.multiplyScalar(.9+hash(Math.floor(x/90),Math.floor(z/90))*.16);
+      else color.multiplyScalar(.76+Math.max(0,1-sample.distance/120)*.24);
+      colors[kind].push(color.r,color.g,color.b);
+    }
   }
-  geometry.setAttribute('color',new THREE.Float32BufferAttribute(colors,3));
-  geometry.computeVertexNormals();
-  const ground=new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.93,flatShading:true}));
-  ground.position.set(cx,0,cz);ground.receiveShadow=true;ground.userData.uniqueGeometry=true;group.add(ground);
+  source.dispose();
+  for(let kind=0;kind<3;kind++){
+    if(!positions[kind].length)continue;
+    const surface=mesh(positions[kind],colors[kind],kind===0);
+    if(kind>0){(surface.material as THREE.Material).dispose();surface.material=boundarySurfaceMaterial(kind===2);}
+    group.add(surface);
+  }
   return group;
 }

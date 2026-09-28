@@ -1,3 +1,6 @@
+import { creatureIdentity } from '../render3d/CreatureCatalog';
+import { enemyDisplayStats } from '../enemies/EnemySystem';
+import { bossDisplayStats } from '../bosses/BossSystem';
 import {
   trackAnalyticsEvent,
 } from '../analytics/Analytics';
@@ -32,6 +35,16 @@ export type BestiaryReward = {
 };
 
 export type BestiaryHudEntry = {
+  description: string;
+  region: number;
+  health: number;
+  damage: number;
+  eliteHealth: number;
+  eliteDamage: number;
+  primaryColor: number;
+  accentColor: number;
+  radius: number;
+  eliteRadius: number;
   entryId: string;
   kind: BestiaryEntryKind;
   entityId: string;
@@ -43,8 +56,6 @@ export type BestiaryHudEntry = {
   weakness: string;
   resistance: string;
   dropText: string;
-  texture: string;
-  eliteTexture: string | null;
   kills: number;
   eliteKills: number;
   level: number;
@@ -83,8 +94,6 @@ type BestiaryDefinition = {
   weakness: string;
   resistance: string;
   dropText: string;
-  texture: string;
-  eliteTexture?: string;
   thresholds:
     readonly [
       number,
@@ -100,53 +109,6 @@ const SPECIES_THRESHOLDS =
 const BOSS_THRESHOLDS =
   [0, 1, 3, 5, 10] as const;
 
-const LEGACY_SPECIES_TEXTURES:
-  Record<
-    string,
-    readonly [string, string]
-  > = {
-  goblin: [
-    'ruinstead-enemy-goblin',
-    'ruinstead-enemy-hobgoblin',
-  ],
-  slime: [
-    'ruinstead-enemy-slime',
-    'ruinstead-enemy-elder-slime',
-  ],
-  boar: [
-    'ruinstead-enemy-boar',
-    'ruinstead-enemy-boar-alpha',
-  ],
-  mushroom: [
-    'ruinstead-enemy-mushroom',
-    'ruinstead-enemy-elder-mushroom',
-  ],
-  beetle: [
-    'ruinstead-enemy-beetle',
-    'ruinstead-enemy-beetle-elite',
-  ],
-  'dust-jackal': [
-    'ruinstead-enemy-dust-jackal',
-    'ruinstead-enemy-dust-jackal-elite',
-  ],
-  sandling: [
-    'ruinstead-enemy-sandling',
-    'ruinstead-enemy-sandling-elite',
-  ],
-  'sun-scorpion': [
-    'ruinstead-enemy-sun-scorpion',
-    'ruinstead-enemy-sun-scorpion-elite',
-  ],
-  'ruin-gargoyle': [
-    'ruinstead-enemy-ruin-gargoyle',
-    'ruinstead-enemy-ruin-gargoyle-elite',
-  ],
-  emberling: [
-    'ruinstead-enemy-emberling',
-    'ruinstead-enemy-emberling-elite',
-  ],
-};
-
 function buildBestiaryDefinitions():
   BestiaryDefinition[] {
   const speciesEntries =
@@ -160,14 +122,6 @@ function buildBestiaryDefinitions():
           REGION_WEAPON_PROFILES[
             species.region
           ];
-        const textures =
-          LEGACY_SPECIES_TEXTURES[
-            species.id
-          ] ?? [
-            `ruinstead-enemy-${species.id}`,
-            `ruinstead-enemy-${species.id}-elite`,
-          ];
-
         return {
           entryId:
             `species:${species.id}`,
@@ -187,10 +141,6 @@ function buildBestiaryDefinitions():
             `${WEAPON_DEFINITIONS[profile.resistance].name} ×0.5`,
           dropText:
             'Монеты · элита даёт ×4',
-          texture:
-            textures[0],
-          eliteTexture:
-            textures[1],
           thresholds:
             SPECIES_THRESHOLDS,
         };
@@ -222,10 +172,8 @@ function buildBestiaryDefinitions():
             `${WEAPON_DEFINITIONS[boss.resistanceWeaponId].name} ×0.5`,
           dropText:
             boss.weaponDrop
-              ? `Ресурсы · монеты · ${WEAPON_DEFINITIONS[boss.weaponDrop].name} Common ☆`
+              ? `Ресурсы · монеты · ${WEAPON_DEFINITIONS[boss.weaponDrop].name} · случайная редкость`
               : 'Ресурсы · монеты',
-          texture:
-            `ruinstead-boss-${boss.id}`,
           thresholds:
             BOSS_THRESHOLDS,
         };
@@ -646,7 +594,18 @@ export class BestiarySystem {
           : 5
       );
 
+    const source = definition.kind === 'species' ? RELEASE_SPECIES.find(s => s.id === definition.entityId)! : RELEASE_BOSSES.find(b => b.id === definition.entityId)!;
+    const stats = definition.kind === 'species' ? enemyDisplayStats(definition.entityId) : bossDisplayStats(definition.entityId);
+    const elite = definition.kind === 'species' ? enemyDisplayStats(definition.entityId, true) : stats;
+    const palette = definition.kind === 'boss' ? bossDisplayStats(definition.entityId) : RELEASE_SPECIES.find(s => s.id === source.id)!;
     return {
+      description: discovered ? creatureIdentity(definition.entityId).description : 'Исследуйте мир, чтобы открыть запись.',
+      region: source.region,
+      health: discovered ? stats.health : 0, damage: discovered ? stats.damage : 0,
+      eliteHealth: discovered ? elite.health : 0, eliteDamage: discovered ? elite.damage : 0,
+      radius: stats.radius, eliteRadius: elite.radius,
+      primaryColor: 'primaryColor' in source ? source.primaryColor : palette.primaryColor,
+      accentColor: 'accentColor' in source ? source.accentColor : palette.accentColor,
       entryId:
         definition.entryId,
       kind:
@@ -694,11 +653,6 @@ export class BestiarySystem {
         discovered
           ? definition.dropText
           : 'Неизвестно',
-      texture:
-        definition.texture,
-      eliteTexture:
-        definition.eliteTexture ??
-        null,
       kills,
       eliteKills,
       level,

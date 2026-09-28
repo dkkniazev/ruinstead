@@ -81,7 +81,7 @@ export const RELEASE_SPECIES:
   { id: 'stone-elemental', region: 5, name: 'Каменный элементаль', eliteName: 'Древний монолит', archetype: 'tank', primaryColor: 0x77796c, accentColor: 0xc6c9a9 },
   { id: 'mountain-cat', region: 5, name: 'Горный хищник', eliteName: 'Белогривый хищник', archetype: 'charger', primaryColor: 0x8f7f68, accentColor: 0xd5c5a7 },
   { id: 'gale-spirit', region: 5, name: 'Дух ветра', eliteName: 'Дух бури', archetype: 'ranged', primaryColor: 0x7d9aa0, accentColor: 0xd2eef0 },
-  { id: 'cliff-ram', region: 5, name: 'Скальный баран', eliteName: 'Камнерог', archetype: 'melee', primaryColor: 0x756b5c, accentColor: 0xcbb88d },
+  { id: 'cliff-ram', region: 5, name: 'Горный козёл', eliteName: 'Камнерог', archetype: 'melee', primaryColor: 0x756b5c, accentColor: 0xcbb88d },
 
   { id: 'salamander', region: 6, name: 'Саламандра', eliteName: 'Раскалённая саламандра', archetype: 'fast', primaryColor: 0x9b4c38, accentColor: 0xf69a52 },
   { id: 'ash-cultist', region: 6, name: 'Культист русел', eliteName: 'Пепельный пророк', archetype: 'ranged', primaryColor: 0x5f4c4a, accentColor: 0xb47c62 },
@@ -93,7 +93,7 @@ export const RELEASE_SPECIES:
   { id: 'badland-jackal', region: 7, name: 'Степной шакал', eliteName: 'Костяной шакал', archetype: 'fast', primaryColor: 0x8b684a, accentColor: 0xd4ad73 },
   { id: 'sand-worm', region: 7, name: 'Песчаный червь', eliteName: 'Старший червь', archetype: 'tank', primaryColor: 0x9b6e48, accentColor: 0xe0b06d },
   { id: 'scrap-golem', region: 7, name: 'Ломовой голем', eliteName: 'Железный голем', archetype: 'tank', primaryColor: 0x66625c, accentColor: 0xaa8d6b },
-  { id: 'dust-vulture', region: 7, name: 'Пыльный стервятник', eliteName: 'Краснокрыл', archetype: 'ranged', primaryColor: 0x80664f, accentColor: 0xc6a270 },
+  { id: 'dust-vulture', region: 7, name: 'Пустынный филин', eliteName: 'Краснокрылый филин', archetype: 'ranged', primaryColor: 0x80664f, accentColor: 0xc6a270 },
 
   { id: 'fire-cultist', region: 8, name: 'Огненный культист', eliteName: 'Драконий жрец', archetype: 'ranged', primaryColor: 0x673a37, accentColor: 0xf36e3f },
   { id: 'drake', region: 8, name: 'Дрейк', eliteName: 'Багровый дрейк', archetype: 'charger', primaryColor: 0x663a32, accentColor: 0xdb623e },

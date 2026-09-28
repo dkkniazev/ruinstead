@@ -1,0 +1,78 @@
+import * as T from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+
+/** Shared bevels catch the key light without adding a separate outline pass. */
+export const softBox = new RoundedBoxGeometry(1, 1, 1, 1, .1);
+export const softOrb = new T.IcosahedronGeometry(1, 2);
+
+const shadowGeometry = new T.PlaneGeometry(2, 2);
+const shadowMaterial = new T.ShaderMaterial({
+  transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
+  vertexShader: `varying vec2 vUv; void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader: `varying vec2 vUv; void main(){float r=length((vUv-.5)*2.);float a=(1.-smoothstep(.05,1.,r))*.24;gl_FragColor=vec4(.055,.095,.11,a);}`,
+});
+
+/** Soft contact occlusion, independent of the resolution of the moving sun map. */
+export function contactShadow(width: number, depth = width): T.Mesh {
+  const mesh = new T.Mesh(shadowGeometry, shadowMaterial);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.scale.set(width, depth, 1);
+  mesh.position.y = 1.2;
+  mesh.renderOrder = 1;
+  return mesh;
+}
+
+const noiseGLSL = `
+float artHash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float artNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(artHash(i),artHash(i+vec2(1.,0.)),f.x),mix(artHash(i+vec2(0.,1.)),artHash(i+1.),f.x),f.y);}
+`;
+
+/** World-space colour layers stay continuous between terrain triangles. */
+export function groundMaterial(region: number): T.MeshStandardMaterial {
+  const material = new T.MeshStandardMaterial({vertexColors: true, roughness: .97, side: T.DoubleSide});
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = `varying vec3 vArtPosition;\n` + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvArtPosition=(modelMatrix*vec4(transformed,1.)).xyz;');
+    shader.fragmentShader = `varying vec3 vArtPosition;\n${noiseGLSL}\n` + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      vec2 p=vArtPosition.xz;
+      float broad=artNoise(p*.0032), terrainPatch=artNoise(p*.016);
+      float flecks=step(.85,artHash(floor(p/17.)))*(1.-smoothstep(.08,.38,length(fract(p/17.)-.5)));
+      diffuseColor.rgb*=.88+broad*.19+smoothstep(.3,.8,terrainPatch)*.12;
+      diffuseColor.rgb+=vec3(.022,.019,.009)*flecks;
+      ${region === 4 || region === 8 ? `
+      vec2 cell=p/155.,tile=floor(cell),f=fract(cell);float first=9.,second=9.;
+      for(int iy=-1;iy<=1;iy++)for(int ix=-1;ix<=1;ix++){
+        vec2 offset=vec2(float(ix),float(iy));
+        vec2 seed=tile+offset;
+        vec2 centre=offset+.18+.64*vec2(artHash(seed),artHash(seed+41.7));
+        float d=length(centre-f);
+        if(d<first){second=first;first=d;}else second=min(second,d);
+      }
+      float seam=1.-smoothstep(.002,.021,second-first);
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.18,.064,.032),seam*.38);` : ''}
+    `);
+  };
+  material.customProgramCacheKey = () => `ruin-ground-${region === 4 || region === 8 ? 'volcanic' : 'natural'}`;
+  return material;
+}
+
+/** Water and lava have their own surface response instead of painted terrain. */
+export function boundarySurfaceMaterial(lava: boolean): T.MeshStandardMaterial {
+  const material = new T.MeshStandardMaterial({
+    color: lava ? 0xf16c27 : 0x2ca9b8,
+    emissive: lava ? 0xf04b12 : 0x164853, emissiveIntensity: lava ? .65 : .13,
+    roughness: lava ? .68 : .3, metalness: lava ? 0 : .08, vertexColors: true,
+  });
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = `varying vec3 vArtPosition;\n` + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvArtPosition=(modelMatrix*vec4(transformed,1.)).xyz;');
+    shader.fragmentShader = `varying vec3 vArtPosition;\n${noiseGLSL}\n` + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+      float ripples=pow(.5+.5*sin(vArtPosition.z*.068+artNoise(vArtPosition.xz*.007)*9.),14.);
+      diffuseColor.rgb+=vec3(${lava ? '.19,.08,.006' : '.09,.15,.13'})*ripples;
+    `);
+  };
+  material.customProgramCacheKey = () => lava ? 'ruin-lava' : 'ruin-river';
+  return material;
+}

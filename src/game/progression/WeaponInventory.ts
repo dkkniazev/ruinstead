@@ -6,6 +6,7 @@ import {
 
 export const MAX_WEAPON_LEVEL = 10;
 export const MAX_WEAPON_STARS = 5;
+export const MAX_WEAPON_COPIES = 2 ** MAX_WEAPON_STARS;
 export const MAX_WEAPON_SLOTS = 5;
 
 export const WEAPON_SLOT_UNLOCK_LEVELS =
@@ -853,11 +854,24 @@ export function addWeaponDrop(
   };
 }
 
-/** A mastered tier also retires weaker copies; better rarities still progress. */
+/** Fusion conserves base copies: 0★=1, 1★=2, …, 5★=32. */
+export function weaponCopyCount(inventory:WeaponInventoryState,weaponId:WeaponId,rarity:WeaponRarityId):number {
+  return inventory.variants.filter(v=>v.weaponId===weaponId&&v.rarity===rarity)
+    .reduce((total,v)=>total+v.starCounts.reduce((sum,n,stars)=>sum+n*2**stars,0),0);
+}
+
+/** A full tier stops dropping before fusion; mastered higher tiers retire weaker ones too. */
 export function isWeaponDropCapped(inventory: WeaponInventoryState, weaponId: WeaponId, rarity: WeaponRarityId): boolean {
-  return inventory.variants.some(variant => variant.weaponId === weaponId
+  return weaponCopyCount(inventory,weaponId,rarity)>=MAX_WEAPON_COPIES || inventory.variants.some(variant => variant.weaponId === weaponId
     && WEAPON_RARITY_ORDER.indexOf(variant.rarity) >= WEAPON_RARITY_ORDER.indexOf(rarity)
     && (variant.starCounts[MAX_WEAPON_STARS] ?? 0) > 0);
+}
+
+export function grantWeaponLoot(inventory:WeaponInventoryState,weaponId:WeaponId,rarity:WeaponRarityId,random=Math.random):OwnedWeaponOption|null {
+  if(!isWeaponDropCapped(inventory,weaponId,rarity))return addWeaponDrop(inventory,weaponId,rarity);
+  const alternatives=WEAPON_ORDER.filter(id=>id!==weaponId&&!isWeaponDropCapped(inventory,id,rarity));
+  if(!alternatives.length)return null;
+  return addWeaponDrop(inventory,alternatives[Math.min(alternatives.length-1,Math.floor(random()*alternatives.length))],rarity);
 }
 
 export function cappedWeaponMaterials(rarity: WeaponRarityId): { crystal: number; fiber: number } {

@@ -14,10 +14,22 @@ export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
     positions.setXYZ(i, x, terrainHeight(x, y) + 10, y);
   }
   geometry.computeVertexNormals();
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
-    color: 0xff352c, transparent: true, opacity: 0.54, side: THREE.DoubleSide, depthWrite: false,
+  const material=new THREE.MeshBasicMaterial({
+    color: 0xff5148, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false,toneMapped:false,
     polygonOffset: true, polygonOffsetFactor: -2,
-  }));
+  });
+  material.onBeforeCompile=shader=>{
+    shader.vertexShader='varying vec2 vDangerUv;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvDangerUv=uv;');
+    shader.fragmentShader='varying vec2 vDangerUv;\n'+shader.fragmentShader;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+      float edge=${zone.shape==='circle'?'1.-length(vDangerUv*2.-1.)':'min(min(vDangerUv.x,1.-vDangerUv.x),min(vDangerUv.y,1.-vDangerUv.y))'};
+      float rim=1.-smoothstep(.014,.035,edge);
+      diffuseColor.a*=.32+rim*.68;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.52,.35),rim*.3);
+    `);
+  };
+  material.customProgramCacheKey=()=>`danger-${zone.shape}`;
+  const mesh = new THREE.Mesh(geometry,material);
   mesh.userData.zone = zone;
   return mesh;
 }

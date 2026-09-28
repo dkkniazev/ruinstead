@@ -10,6 +10,11 @@ export function safeZoneHealth(health: number, maxHealth: number, deltaMs: numbe
   return Math.min(maxHealth, health + maxHealth * Math.max(0, deltaMs) / 5000);
 }
 
+/** Reversible max-HP changes preserve health percentage, including zero HP. */
+export function healthAfterMaxChange(health:number,previousMax:number,nextMax:number):number {
+  return Math.max(0,Math.min(1,health/Math.max(1,previousMax)))*nextMax;
+}
+
 export type BossDangerZone =
   | { shape: 'circle'; x: number; y: number; radius: number }
   | { shape: 'line'; x: number; y: number; dx: number; dy: number; length: number; width: number };

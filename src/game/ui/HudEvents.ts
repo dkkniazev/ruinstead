@@ -140,6 +140,8 @@ export const HUD_CITY_PRODUCTION_DOUBLE_EVENT =
   'ruinstead:hud:city-production-double';
 export const HUD_RETURN_HOME_EVENT =
   'ruinstead:hud:return-home';
+export const HUD_RETURN_HOME_COMPLETED_EVENT = 'ruinstead:hud:return-home-completed';
+export const HUD_RESOURCE_SELL_EVENT = 'ruinstead:hud:resource-sell';
 export const HUD_BLESSING_EVENT =
   'ruinstead:hud:blessing';
 export const HUD_BOSS_RESPAWN_EVENT =

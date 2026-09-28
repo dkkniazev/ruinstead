@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { creatureIdentity } from './CreatureCatalog';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 
@@ -13,6 +14,7 @@ type CreatureAnimation = {
     turning?: number,
   ) => void;
   dispose?: () => void;
+  ready?: Promise<void>;
 };
 
 type LoadedCreature = {
@@ -40,53 +42,9 @@ function asset(
   return { file, key, hasWalk, scale };
 }
 
-function stableIndex(value: string, length: number): number {
-  let hash = 2166136261;
-  for (let index = 0; index < value.length; index += 1) {
-    hash ^= value.charCodeAt(index);
-    hash = Math.imul(hash, 16777619);
-  }
-  return (hash >>> 0) % Math.max(1, length);
-}
-
-/**
- * Deliberately conservative mapping: use an authored model only when the
- * silhouette matches. Everything else keeps Ruinstead's species-specific
- * procedural mesh instead of becoming a random animal.
- */
 function creatureAssetFor(id: string): CreatureAsset | null {
-  if (id.includes('ram')) {
-    return asset('Goat.glb', 'goat', true, 1.04);
-  }
-
-  if (id.includes('bat')) {
-    return asset('Bat.glb', 'bat', true, 0.95);
-  }
-
-  if (id.includes('harpy') || id.includes('vulture')) {
-    return asset('Owl.glb', 'owl', true, 1.04);
-  }
-
-  if (
-    id.includes('goblin') ||
-    id.includes('bandit') ||
-    id.includes('cultist') ||
-    id.includes('raider') ||
-    id.includes('warden') ||
-    id.includes('tyrant') ||
-    id.includes('priest') ||
-    id.includes('smith')
-  ) {
-    const minions = [
-      asset('minion-a01.glb', 'minion-a01', false, 1),
-      asset('minion-b01.glb', 'minion-b01', false, 1),
-      asset('minion-c01.glb', 'minion-c01', false, 1.02),
-      asset('minion-d01.glb', 'minion-d01', false, 1.03),
-    ] as const;
-    return minions[stableIndex(id, minions.length)];
-  }
-
-  return null;
+  const name = creatureIdentity(id).asset;
+  return name ? asset(name + '.glb', name, true, name === 'Bat' ? .76 : .8) : null;
 }
 
 function loadCreature(spec: CreatureAsset): Promise<LoadedCreature | null> {
@@ -175,6 +133,8 @@ export function withCreatureAsset(
   let currentAction: THREE.AnimationAction | null = null;
   let currentClip: THREE.AnimationClip | undefined;
   let disposed = false;
+  let fallbackDisposed = false;
+  const disposeFallback = (): void => { if (!fallbackDisposed) { fallbackDisposed = true; fallback.dispose?.(); } };
   const ownedMaterials = new Set<THREE.Material>();
 
   const play = (state: 'idle' | 'move' | 'attack'): void => {
@@ -203,7 +163,7 @@ export function withCreatureAsset(
     currentClip = clip;
   };
 
-  void loadCreature(spec).then((loaded) => {
+  const ready = loadCreature(spec).then((loaded) => {
     if (!loaded || disposed) return;
 
     model = cloneSkeleton(loaded.scene) as THREE.Group;
@@ -249,6 +209,7 @@ export function withCreatureAsset(
     modelBaseY = model.position.y;
 
     root.remove(fallback.root);
+    disposeFallback();
     root.add(model);
 
     clips = animationSet(loaded.animations, spec.hasWalk);
@@ -258,6 +219,7 @@ export function withCreatureAsset(
 
   return {
     root,
+    ready,
     step(seconds, speed, dash, attack, travel, turning) {
       if (!mixer || !model) {
         fallback.step(seconds, speed, dash, attack, travel, turning);
@@ -281,7 +243,9 @@ export function withCreatureAsset(
       }
     },
     dispose() {
+      if (disposed) return;
       disposed = true;
+      disposeFallback();
       mixer?.stopAllAction();
       mixer = null;
       for (const material of ownedMaterials) material.dispose();

@@ -8,7 +8,7 @@ import {
   MAX_WEAPON_LEVEL,
 } from './WeaponInventory';
 
-export const MAX_PLAYER_UPGRADE_LEVEL = 10;
+export const MAX_PLAYER_UPGRADE_LEVEL = 20;
 
 // Compatibility alias for older UI imports.
 export const MAX_UPGRADE_LEVEL =
@@ -118,14 +118,14 @@ export function getDashCooldownMs(
   const late =
     Math.max(
       0,
-      safeLevel - 5,
+      Math.min(safeLevel,10) - 5,
     );
 
   return Math.max(
-    360,
+    240,
     850 -
       early * 70 -
-      late * 28,
+      late * 28 - Math.max(0,safeLevel-10)*12,
   );
 }
 
@@ -145,13 +145,13 @@ export function getBackpackCapacity(
   const late =
     Math.max(
       0,
-      safeLevel - 5,
+      Math.min(safeLevel,10) - 5,
     );
 
   return (
     100 +
     early * 25 +
-    late * 35
+    late * 35 + Math.max(0,safeLevel-10)*60
   );
 }
 

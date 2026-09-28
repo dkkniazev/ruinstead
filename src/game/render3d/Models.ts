@@ -1,19 +1,33 @@
 import { withNatureAsset } from './NatureAssets';
-import { withCreatureAsset } from './CreatureAssets';
+import { softBox, softOrb, contactShadow } from './ArtMaterials';
+import { batchStaticMeshes } from './MeshBatching';
+import { createLivingTree } from './Trees';
+export { createHero } from './HeroModel';
+export { createCreature } from './CreatureModels';
 import * as THREE from 'three';
 import type { WeaponId } from '../combat/WeaponDefinitions';
 
-const cube = new THREE.BoxGeometry(1, 1, 1);
-const orb = new THREE.IcosahedronGeometry(1, 1);
+const cube = softBox;
+const orb = softOrb;
 const cone = new THREE.ConeGeometry(1, 1, 6);
 const cylinder = new THREE.CylinderGeometry(1, 1, 1, 8);
+const crystalGeometry = (()=>{
+  const positions:number[]=[];
+  for(let i=0;i<6;i++){
+    const a=i*Math.PI/3,b=(i+1)*Math.PI/3;
+    const vertices=[[Math.cos(a),0,Math.sin(a)],[Math.cos(b),0,Math.sin(b)],
+      [Math.cos(b),.73,Math.sin(b)],[Math.cos(a),.73,Math.sin(a)],[0,1,0]];
+    for(const n of [0,2,1,0,3,2,3,4,2])positions.push(...vertices[n]);
+  }
+  const geometry=new THREE.BufferGeometry();geometry.setAttribute('position',new THREE.Float32BufferAttribute(positions,3));geometry.computeVertexNormals();return geometry;
+})();
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 
 function mat(color: number, metalness = 0, emissive = 0): THREE.MeshStandardMaterial {
   const key = `${color}-${metalness}-${emissive}`;
   let value = materials.get(key);
   if (!value) {
-    value = new THREE.MeshStandardMaterial({ color, metalness, roughness: metalness ? 0.48 : 0.88, emissive, emissiveIntensity: emissive ? 0.35 : 0, flatShading: true });
+    value = new THREE.MeshStandardMaterial({ color, metalness, roughness: metalness ? 0.48 : 0.88, emissive, emissiveIntensity: emissive ? 0.35 : 0, flatShading: false });
     materials.set(key, value);
   }
   return value;
@@ -48,281 +62,13 @@ export type AnimatedModel = {
   root: THREE.Group;
   step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number) => void;
   setWeapon?: (weapon: WeaponId) => void;
+  setTint?: (tint: number | null) => void;
   dispose?: () => void;
+  ready?: Promise<void>;
 };
 
-export function createHero(): AnimatedModel {
-  const root = new THREE.Group();
-  const body = new THREE.Group();
-  root.add(body);
-  const leather = 0x5b4539;
-  const dark = 0x2e3031;
-  const steel = 0x9eabb0;
-  const blue = 0x355f78;
-  const skin = 0xe0aa77;
-  const gold = 0xd0a451;
-  // Every limb has its own pivot. The old sprite remains only as the invisible Arcade collider.
-  box(body, blue, 0, 65, 0, 34, 37, 22);
-  box(body, leather, 0, 44, 0, 35, 10, 24);
-  box(body, gold, 0, 49, 12.4, 29, 4, 3);
-  box(body, dark, 0, 36, 0, 32, 21, 24);
-  ball(body, skin, 0, 98, 2, 16, 18, 15);
-  ball(body, dark, 0, 111, -2, 17, 8, 16);
-  box(body, dark, 0, 106, -12, 28, 10, 9);
-  ball(body, 0x382a25, -6, 99, 16.5, 1.8, 2, 1);
-  ball(body, 0x382a25, 6, 99, 16.5, 1.8, 2, 1);
-  box(body, steel, 0, 82, 0, 5, 8, 25);
-  ball(body, gold, 0, 84, 14, 5, 5, 3);
-
-  const leftLeg = new THREE.Group();
-  const rightLeg = new THREE.Group();
-  leftLeg.position.set(-10, 37, 0);
-  rightLeg.position.set(10, 37, 0);
-  body.add(leftLeg, rightLeg);
-  for (const leg of [leftLeg, rightLeg]) {
-    box(leg, dark, 0, -11, 0, 12, 25, 14);
-    ball(leg, leather, 0, -25, 0, 7, 7, 8);
-    box(leg, leather, 0, -31, 6, 14, 15, 24);
-    box(leg, steel, 0, -20, 6, 13, 5, 15);
-  }
-
-  const leftArm = new THREE.Group();
-  const rightArm = new THREE.Group();
-  leftArm.position.set(-23, 78, 0);
-  rightArm.position.set(23, 78, 0);
-  body.add(leftArm, rightArm);
-  for (const [arm, side] of [[leftArm, -1], [rightArm, 1]] as const) {
-    ball(arm, steel, side * 2, -1, 0, 13, 9, 13);
-    box(arm, blue, 0, -13, 0, 11, 22, 11);
-    ball(arm, steel, 0, -27, 0, 7, 7, 7);
-    box(arm, leather, 0, -37, 0, 10, 19, 10);
-    ball(arm, skin, 0, -48, 0, 6, 7, 6);
-  }
-
-  const cape = new THREE.Group();
-  cape.position.set(0, 84, -13);
-  body.add(cape);
-  const capePanel = box(cape, 0x793c37, 0, -27, -4, 31, 55, 4);
-  capePanel.rotation.x = -0.13;
-  box(cape, gold, 0, -6, -2, 33, 5, 5);
-
-  const weaponMount = new THREE.Group();
-  weaponMount.position.set(0, -47, 1);
-  rightArm.add(weaponMount);
-  let currentWeapon: WeaponId = 'axe';
-  const setWeapon = (weapon: WeaponId): void => {
-    if (currentWeapon === weapon && weaponMount.children.length) return;
-    weaponMount.clear();
-    currentWeapon = weapon;
-    const long = weapon === 'spear' ? 82 : weapon === 'hammer' ? 62 : 54;
-    rod(weaponMount, leather, new THREE.Vector3(0, -10, 0), new THREE.Vector3(0, long, 0), 3.5);
-    if (weapon === 'axe') {
-      box(weaponMount, steel, 10, long - 7, 0, 24, 19, 5);
-      box(weaponMount, gold, 0, long - 17, 0, 5, 3, 7);
-    } else if (weapon === 'hammer') {
-      box(weaponMount, steel, 0, long - 5, 0, 31, 16, 16);
-    } else if (weapon === 'spear') {
-      const tip = part(weaponMount, cone, mat(steel, 0.55), 0, long + 7, 0, 6, 23, 6);
-      tip.rotation.z = Math.PI;
-    } else {
-      const blade = box(weaponMount, steel, 0, long - 7, 0, weapon === 'daggers' ? 5 : 7, 28, 4);
-      blade.material = mat(steel, 0.55);
-      box(weaponMount, gold, 0, long - 22, 0, 18, 4, 7);
-    }
-  };
-  setWeapon('axe');
-
-  let phase = 0;
-  let spring = 0;
-  let springVelocity = 0;
-  let turnSpring = 0;
-  let turnVelocity = 0;
-  let attackPhase = 0;
-  return {
-    root,
-    setWeapon,
-    step(seconds, speed, dash = false, attack = false, travel = 0, turning = 0) {
-      const dt = Math.min(seconds, 0.05);
-      const motion = Math.min(speed / 225, 1.7);
-      phase += Math.min(65, travel) * 0.063;
-      const stride = Math.min(0.82, motion * 0.65);
-      leftLeg.rotation.x = Math.sin(phase) * stride;
-      rightLeg.rotation.x = -Math.sin(phase) * stride;
-      leftArm.rotation.x = -Math.sin(phase) * stride * 0.8 - 0.12;
-      rightArm.rotation.x = Math.sin(phase) * stride * 0.55 - 0.28;
-      leftArm.rotation.z = -0.16;
-      rightArm.rotation.z = 0.16;
-      const targetLean = dash ? 0.4 : motion * 0.11;
-      springVelocity += (targetLean - spring) * 65 * dt;
-      springVelocity *= Math.exp(-10 * dt);
-      spring += springVelocity * dt;
-      turnVelocity += (Math.max(-0.25, Math.min(0.25, turning * 0.11)) - turnSpring) * 72 * dt;
-      turnVelocity *= Math.exp(-11 * dt);
-      turnSpring += turnVelocity * dt;
-      body.rotation.x = spring;
-      body.rotation.z = Math.sin(phase) * motion * 0.045 - turnSpring;
-      body.position.y = Math.abs(Math.sin(phase)) * motion * 3;
-      cape.rotation.x += ((-0.15 - motion * 0.26 - spring * 0.5) - cape.rotation.x) * Math.min(1, dt * 7);
-      cape.rotation.z = Math.sin(phase * 0.6) * 0.07;
-      if (attack) attackPhase = Math.min(1, attackPhase + dt * 6);
-      else attackPhase = Math.max(0, attackPhase - dt * 5);
-      rightArm.rotation.x -= Math.sin(attackPhase * Math.PI) * 1.3;
-      rightArm.rotation.z += Math.sin(attackPhase * Math.PI) * 0.5;
-    },
-  };
-}
-
-function eye(parent: THREE.Object3D, x: number, y: number, z: number, scale = 3): void {
-  ball(parent, 0xf6ead4, x, y, z, scale, scale * 0.8, scale * 0.55);
-  ball(parent, 0x25241e, x, y, z + scale * 0.48, scale * 0.38);
-}
-
-export function createCreature(id: string, primary: number, accent: number, large = false): AnimatedModel {
-  const root = new THREE.Group();
-  const body = new THREE.Group();
-  root.add(body);
-  const legs: THREE.Group[] = [];
-  const arms: THREE.Group[] = [];
-  const swaySegments: THREE.Object3D[] = [];
-  let float = false;
-  const is = (...terms: string[]) => terms.some((term) => id.includes(term));
-  if (is('slime', 'wisp', 'spirit', 'emberling', 'gale')) {
-    float = true;
-    ball(body, primary, 0, 27, 0, 25, 23, 24);
-    ball(body, accent, 0, 12, 0, 29, 9, 25);
-    eye(body, -8, 32, 21, 4);
-    eye(body, 8, 32, 21, 4);
-    for (let n = 0; n < 4; n++) ball(body, accent, Math.cos(n * 2) * 25, 14 + n * 8, Math.sin(n * 2) * 18, 5);
-  } else if (is('boar', 'jackal', 'hound', 'cat', 'ram', 'stalker', 'salamander', 'drake', 'wyvern', 'beast')) {
-    ball(body, primary, 0, 34, 0, 31, 23, 42);
-    ball(body, accent, 0, 41, 31, 24, 20, 24);
-    ball(body, primary, 0, 29, 51, 13, 10, 16);
-    for (const side of [-1, 1]) {
-      eye(body, side * 13, 46, 48, 3.5);
-      const ear = part(body, cone, mat(accent), side * 17, 66, 29, 8, 25, 9);
-      ear.rotation.z = side * 0.25;
-      for (const z of [-25, 27]) {
-        const leg = new THREE.Group(); leg.position.set(side * 22, 28, z); body.add(leg); legs.push(leg);
-        box(leg, primary, 0, -12, 0, 10, 27, 11);
-        box(leg, 0x3b302c, 0, -26, 5, 13, 8, 17);
-      }
-    }
-    if (is('boar', 'ram')) {
-      for (const side of [-1, 1]) {
-        const horn = part(body, cone, mat(0xe8d6a5), side * 19, 61, 42, 6, 26, 7);
-        horn.rotation.z = side * 0.55;
-      }
-    }
-    if (is('wyvern', 'drake')) {
-      for (const side of [-1, 1]) {
-        const wing = box(body, accent, side * 42, 61, -9, 58, 5, 38);
-        wing.rotation.z = side * 0.24;
-      }
-      const tail = part(body, cone, mat(primary), 0, 32, -67, 12, 65, 12);
-      tail.rotation.x = -Math.PI / 2;
-    }
-  } else if (is('scorpion', 'spider', 'beetle')) {
-    ball(body, primary, 0, 27, -8, 29, 20, 35);
-    ball(body, accent, 0, 26, 26, 22, 16, 22);
-    eye(body, -7, 34, 45, 3); eye(body, 7, 34, 45, 3);
-    for (const side of [-1, 1]) for (let i = 0; i < 3; i++) {
-      const leg = new THREE.Group(); leg.position.set(side * 21, 22, 24 - i * 22); body.add(leg); legs.push(leg);
-      rod(leg, primary, new THREE.Vector3(0, 0, 0), new THREE.Vector3(side * 32, 2, 0), 3.5);
-      rod(leg, accent, new THREE.Vector3(side * 32, 2, 0), new THREE.Vector3(side * 48, -20, 4), 3);
-    }
-    if (id.includes('scorpion')) {
-      rod(body, primary, new THREE.Vector3(0, 28, -34), new THREE.Vector3(0, 56, -62), 6);
-      rod(body, accent, new THREE.Vector3(0, 56, -62), new THREE.Vector3(0, 75, -42), 5);
-      part(body, cone, mat(accent), 0, 71, -39, 8, 22, 8).rotation.x = 0.5;
-    }
-  } else if (is('mushroom')) {
-    part(body, cylinder, mat(0xdac9a7), 0, 26, 0, 15, 43, 15);
-    part(body, cone, mat(accent), 0, 61, 0, 41, 35, 41);
-    eye(body, -7, 33, 14, 3); eye(body, 7, 33, 14, 3);
-    for (const side of [-1, 1]) ball(body, primary, side * 16, 12, 0, 9, 7, 13);
-  } else if (is('bat', 'harpy', 'vulture')) {
-    float = true;
-    ball(body, primary, 0, 48, 0, 18, 25, 15);
-    ball(body, accent, 0, 78, 5, 16, 17, 15);
-    eye(body, -7, 80, 18); eye(body, 7, 80, 18);
-    for (const side of [-1, 1]) {
-      const wing = box(body, primary, side * 43, 60, -5, 70, 4, 42);
-      wing.rotation.z = side * 0.28;
-      part(body, cone, mat(accent), side * 11, 14, 0, 6, 30, 6).rotation.z = Math.PI;
-    }
-  } else if (is('worm')) {
-    for (let index = 0; index < 7; index += 1) {
-      const taper = 1 - index * 0.085;
-      const segment = new THREE.Group();
-      segment.position.set(
-        Math.sin(index * 0.82) * 7,
-        20 - index * 0.7,
-        -index * 20,
-      );
-      body.add(segment);
-      swaySegments.push(segment);
-      ball(segment, index % 2 ? primary : accent, 0, 0, 0, 22 * taper, 18 * taper, 24 * taper);
-    }
-    ball(body, primary, 0, 25, 18, 25, 22, 27);
-    eye(body, -9, 31, 39, 3.8);
-    eye(body, 9, 31, 39, 3.8);
-    const maw = part(body, cone, mat(0x352729), 0, 18, 45, 10, 17, 10);
-    maw.rotation.x = Math.PI / 2;
-  } else if (is('elemental', 'golem', 'colossus', 'giant', 'guardian', 'serpent')) {
-    ball(body, primary, 0, 60, 0, 32, 37, 27);
-    box(body, accent, 0, 64, 24, 28, 9, 7);
-    ball(body, primary, 0, 104, 2, 19, 19, 18);
-    eye(body, -8, 107, 17, 3.5); eye(body, 8, 107, 17, 3.5);
-    for (const side of [-1, 1]) {
-      const arm = new THREE.Group(); arm.position.set(side * 39, 82, 0); body.add(arm); arms.push(arm);
-      ball(arm, accent, 0, -10, 0, 16, 20, 16);
-      ball(arm, primary, side * 5, -37, 4, 17, 18, 17);
-      const leg = new THREE.Group(); leg.position.set(side * 17, 38, 0); body.add(leg); legs.push(leg);
-      box(leg, primary, 0, -15, 0, 22, 30, 23);
-      box(leg, accent, 0, -30, 7, 25, 12, 29);
-    }
-  } else {
-    // Humanoid species have articulated hips, shoulders, faces and weapons.
-    box(body, primary, 0, 54, 0, 31, 34, 23);
-    box(body, accent, 0, 37, 0, 32, 10, 25);
-    ball(body, primary, 0, 85, 0, 16, 18, 16);
-    eye(body, -7, 87, 14, 3); eye(body, 7, 87, 14, 3);
-    for (const side of [-1, 1]) {
-      const leg = new THREE.Group(); leg.position.set(side * 10, 34, 0); body.add(leg); legs.push(leg);
-      box(leg, accent, 0, -13, 0, 12, 25, 13);
-      box(leg, 0x39352e, 0, -27, 5, 14, 10, 21);
-      const arm = new THREE.Group(); arm.position.set(side * 22, 67, 0); body.add(arm); arms.push(arm);
-      box(arm, primary, 0, -13, 0, 11, 27, 12);
-      ball(arm, accent, 0, -28, 1, 7);
-      const ear = part(body, cone, mat(primary), side * 18, 93, 0, 7, 18, 7);
-      ear.rotation.z = side * -0.45;
-    }
-    rod(body, 0x684d39, new THREE.Vector3(28, 34, 6), new THREE.Vector3(36, 93, 8), 3);
-    box(body, 0xc0c7bb, 37, 88, 9, 15, 17, 6);
-  }
-  if (large) {
-    root.scale.setScalar(1.38);
-    ball(body, accent, 0, 122, 0, 8, 8, 8);
-  }
-  let phase = 0;
-  const fallback: AnimatedModel = {
-    root,
-    step(seconds, speed) {
-      phase += Math.min(seconds, 0.05) * (3 + Math.min(speed / 50, 3) * 4);
-      const amount = Math.min(speed / 150, 1);
-      legs.forEach((leg, index) => { leg.rotation.x = Math.sin(phase + index * Math.PI * 0.75) * amount * 0.4; });
-      arms.forEach((arm, index) => { arm.rotation.x = Math.sin(phase + index * Math.PI) * amount * 0.32; });
-      swaySegments.forEach((segment, index) => {
-        segment.rotation.y = Math.sin(phase * 0.62 - index * 0.48) * (0.12 + amount * 0.18);
-      });
-      body.position.y = float ? Math.sin(phase * 0.65) * 7 : Math.abs(Math.sin(phase)) * amount * 2;
-      body.rotation.z = Math.sin(phase) * amount * 0.035;
-    },
-  };
-  return withCreatureAsset(id, primary, accent, large, fallback);
-}
-
 export function createTree(seed: number, region: number): THREE.Group {
+  if([1,3,5,6].includes(region))return createLivingTree(Math.abs(seed),region);
   const group = new THREE.Group();
   const height = 80 + (seed % 57);
   if (region === 4 || region === 8) {
@@ -357,7 +103,7 @@ export function createTree(seed: number, region: number): THREE.Group {
   };
   const choices = byRegion[region] ?? byRegion[1];
   const asset = choices[Math.abs(seed) % choices.length];
-  const visual = withNatureAsset(asset, 136 + Math.abs(seed % 5) * 6, group);
+  const visual = withNatureAsset(asset, 162 + Math.abs(seed % 5) * 7, group);
   visual.rotation.y = (Math.abs(seed) % 12) * 0.37;
   return visual;
 }
@@ -381,7 +127,7 @@ export function createRock(seed: number, region: number): THREE.Group {
     }
     const visual = withNatureAsset(
       variant === 0 ? 'rock_largeA' : 'rock_largeC',
-      27 + safeSeed % 8,
+      39 + safeSeed % 10,
       group,
     );
     visual.rotation.y = safeSeed % 10 * 0.43;
@@ -683,7 +429,7 @@ export function createSceneryProp(seed: number, region: number): THREE.Group {
 export function createBuilding(id: string, level: number): THREE.Group {
   const g = new THREE.Group();
   const wall = id === 'workshop' ? 0xaaa092 : id === 'house' ? 0xc6a37c : 0xb1936a;
-  const roof = id === 'workshop' ? 0x575e63 : id === 'house' ? 0x9b4d42 : 0x6e644b;
+  const roof = id === 'workshop' ? 0x526771 : id === 'house' ? 0x9e5c45 : id==='storage'?0x53786b:0x9b7a50;
   const width = id === 'workshop' ? 160 : 142;
   const depth = id === 'sawmill' ? 115 : 140;
   const h = 78 + Math.min(level, 8) * 6;
@@ -701,15 +447,28 @@ export function createBuilding(id: string, level: number): THREE.Group {
     box(g, 0xe3bb78, side * 39, 72, depth / 2 + 6, 18, 22, 2);
     box(g, 0x6f4e37, side * 39, 72, depth / 2 + 8, 3, 26, 3);
   }
+  // Close the gables and articulate the eaves: roofs sit on walls rather than floating plates.
+  const gableShape=new THREE.Shape();gableShape.moveTo(-width/2,h+13);gableShape.lineTo(0,h+56);gableShape.lineTo(width/2,h+13);gableShape.closePath();
+  const gable=new THREE.Mesh(new THREE.ExtrudeGeometry(gableShape,{depth,bevelEnabled:false}),mat(wall));gable.position.z=-depth/2;gable.castShadow=gable.receiveShadow=true;gable.userData.buildingOwned=true;g.add(gable);
+  box(g,0x604735,0,h+15,depth/2+3,width+8,9,8);
+  box(g,0x604735,0,h+15,-depth/2-3,width+8,9,8);
   const slopeWidth = width * 0.64;
   for (const side of [-1, 1]) {
     const slope = box(g, roof, side * width * 0.25, h + 35, 0, slopeWidth, 8, depth + 26);
     slope.rotation.z = side * -0.53;
-    for (let n = 0; n < 5; n++) {
-      const slat = box(g, 0x60483c, side * (width * 0.25 + (n - 2) * 12), h + 36 + side * (n - 2) * 7, 0, 3, 5, depth + 28);
-      slat.rotation.z = side * -0.53;
+    const tiles=new THREE.InstancedMesh(cube,mat(roof),28),transform=new THREE.Object3D();
+    for(let row=0;row<4;row++)for(let col=0;col<7;col++){
+      transform.position.set((row-1.5)*slopeWidth/4,5,(col-3)*(depth+26)/7);
+      transform.scale.set(slopeWidth/4-1,3,(depth+26)/7-1);transform.updateMatrix();
+      tiles.setMatrixAt(row*7+col,transform.matrix);
+      tiles.setColorAt(row*7+col,new THREE.Color().setScalar(.91+((row*3+col*5)%7)*.025));
+    }
+    tiles.position.copy(slope.position);tiles.rotation.copy(slope.rotation);tiles.castShadow=tiles.receiveShadow=true;g.add(tiles);
+    for(const end of [-1,1]){
+      const edge=box(g,0x614533,side*width*.25,h+33,end*(depth/2+15),slopeWidth+4,11,8);edge.rotation.z=-side*.53;
     }
   }
+  box(g,0x674c38,0,h+58,0,13,10,depth+34);
   if (id === 'workshop' || id === 'sawmill') {
     box(g, 0x6e4e39, width / 2 + 18, 29, 0, 30, 55, 60);
     rod(g, 0x8f714d, new THREE.Vector3(width / 2 + 18, 53, 0), new THREE.Vector3(width / 2 + 18, 78, 0), 5);
@@ -722,11 +481,34 @@ export function createBuilding(id: string, level: number): THREE.Group {
     box(g, 0x775535, x, 20, depth / 2 + 27, 22, 33, 25);
     box(g, 0x4f3d31, x, 35, depth / 2 + 27, 24, 4, 26);
   }
+  if(id==='sawmill'){
+    // Open timber bay and a circular saw distinguish the lumber building.
+    for(const x of [90,160])for(const z of [-32,52])box(g,0x715039,x,42,z,8,84,8);
+    const awning=box(g,0x9e7950,125,89,12,92,7,110);awning.rotation.z=-.12;
+    for(let i=0;i<6;i++){const log=part(g,cylinder,mat(0x705337),102+(i%3)*19,12+Math.floor(i/3)*18,25,9,80,9);log.rotation.x=Math.PI/2;const cut=part(g,cylinder,mat(0xc9a574),102+(i%3)*19,12+Math.floor(i/3)*18,66,8,2,8);cut.rotation.x=Math.PI/2;}
+    const saw=part(g,cylinder,mat(0xb6c1bd,.65),145,48,75,24,3,24);saw.rotation.x=Math.PI/2;
+    for(let i=0;i<12;i++){const angle=i/12*Math.PI*2;const tooth=box(g,0xc4cec5,145+Math.cos(angle)*23,48+Math.sin(angle)*23,75,8,8,4);tooth.rotation.z=angle;}
+  }
+  if(id==='storage'){
+    const cover=box(g,0x638579,0,h-6,depth/2+33,101,6,58);cover.rotation.x=.15;
+    for(const x of [-49,49])box(g,0x69503a,x,(h-9)/2,depth/2+55,5,h-9,5);
+    for(const x of [50,78]){part(g,cylinder,mat(0x886343),x,22,depth/2+20,13,40,13);for(const y of [9,34])part(g,cylinder,mat(0x4e5655,.35),x,y,depth/2+20,14,4,14);}
+  }
+  if(id==='workshop'){
+    box(g,0x473f37,0,38,depth/2+6,23,32,6);box(g,0xf3aa54,0,35,depth/2+10,17,17,3);
+    box(g,0x8d7655,98,30,63,45,9,38);for(const x of [81,115])box(g,0x574c3e,x,15,65,5,30,5);
+    box(g,0x586970,98,41,63,27,13,17);box(g,0x829494,102,48,63,38,5,19);
+  }
+  if(id==='house'){
+    for(const x of [-39,39]){box(g,0x6f513b,x,55,depth/2+13,30,9,16);for(let n=0;n<3;n++){ball(g,0x4d7452,x-10+n*10,62,depth/2+15,7,6,7);ball(g,0xd9b978,x-10+n*10,67,depth/2+15,3);}}
+    box(g,0x947357,0,11,depth/2+27,58,10,33);
+  }
   if (level > 0) {
     rod(g, 0x594733, new THREE.Vector3(-width / 2 + 13, h + 52, -depth / 2), new THREE.Vector3(-width / 2 + 13, h + 115, -depth / 2), 3);
     const flag = box(g, 0xb46c49, -width / 2 + 28, h + 105, -depth / 2, 28, 14, 3);
     flag.rotation.z = 0.08;
   }
+  batchStaticMeshes(g);
   return g;
 }
 
@@ -737,6 +519,7 @@ export function createResource(type: string, region: number, seed = 24): THREE.G
   marker.rotation.x = -Math.PI / 2;
   marker.position.y = 5;
   g.add(marker);
+  g.add(contactShadow(type==='wood'?50:type==='fiber'?27:41));
   if (type === 'wood') {
     g.add(createTree(seed, region));
   } else if (type === 'fiber') {
@@ -745,12 +528,13 @@ export function createResource(type: string, region: number, seed = 24): THREE.G
       ball(g, 0x9dbe68, side * 15, 42, 0, 15, 11, 13);
     }
     const shrub = new THREE.Group();
-    for (const child of [...g.children].slice(1)) { g.remove(child); shrub.add(child); }
+    for (const child of [...g.children].slice(2)) { g.remove(child); shrub.add(child); }
     g.add(withNatureAsset(seed % 2 ? 'plant_bushDetailed' : 'plant_flatTall', 44, shrub));
   } else if (type === 'crystal') {
-    for (const [x, size] of [[-15, 34], [6, 54], [24, 29]]) {
-      const crystal = part(g, cone, mat(0x65c9d1, 0.25, 0x247580), x, size / 2, 0, 13, size, 13);
-      crystal.rotation.y = x * 0.03;
+    ball(g,0x526b79,0,7,0,33,11,25);
+    for (const [x, size,z] of [[-16, 40,5], [3, 67,-4], [22, 32,11],[-4,24,19]]) {
+      const crystal = part(g, crystalGeometry, mat(x===3?0x91e9ef:0x49b6d1,.12,0x1e687e), x, 4, z, 10, size, 10);
+      crystal.rotation.set(0,x*.09,-x*.009);
     }
   } else if (type === 'metal') {
     g.add(createOre(seed, region));

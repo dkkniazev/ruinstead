@@ -3,6 +3,7 @@ import type { ResourceVisualState } from '../gathering/ResourceSystem';
 import { createResource } from './Models';
 import { terrainHeight } from '../world/WorldTerrain';
 import { getLanguage } from '../../i18n/I18n';
+import { disposeBatchedGeometry } from './MeshBatching';
 
 const chipGeometry = new THREE.BoxGeometry(5, 5, 5);
 const chipMaterials = new Map<string, THREE.MeshStandardMaterial>();
@@ -24,7 +25,7 @@ export class ResourceVisual3D {
   constructor(node: ResourceVisualState, region: number) {
     this.model = createResource(node.type, region, Math.abs(Math.round(node.x * 7 + node.y * 13)));
     this.root.add(this.model, this.chips);
-    this.height = node.type === 'wood' ? 194 : node.type === 'crystal' ? 91 : 72;
+    this.height = node.type === 'wood' ? 262 : node.type === 'crystal' ? 104 : 82;
     this.canvas.width = 256; this.canvas.height = 76;
     this.healthTexture = new THREE.CanvasTexture(this.canvas);
     this.healthTexture.colorSpace = THREE.SRGBColorSpace;
@@ -81,6 +82,7 @@ export class ResourceVisual3D {
   }
 
   destroy(): void {
+    disposeBatchedGeometry(this.model);
     this.healthTexture.dispose(); this.health.geometry.dispose();
     (this.health.material as THREE.Material).dispose();
     // The marker belongs to this resource; all model primitive geometry is shared.

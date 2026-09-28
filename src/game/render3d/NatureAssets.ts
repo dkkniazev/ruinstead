@@ -15,9 +15,9 @@ export function withNatureAsset(name: string, height: number, fallback: THREE.Gr
         object.castShadow = object.receiveShadow = true;
         const materials = Array.isArray(object.material) ? object.material : [object.material];
         for (const material of materials) if (material instanceof THREE.MeshStandardMaterial) {
-          material.metalness = 0; material.roughness = 0.94; material.flatShading = true;
+          material.metalness = 0; material.roughness = 0.9; material.flatShading = true;
           // Harmonise the pack's bright palette with the game's terrain.
-          if (/leaf|green/i.test(material.name)) material.color.setHex(name.includes('fall') ? 0xab8a48 : name.includes('dark') ? 0x3e6660 : 0x649955);
+          if (/leaf|green/i.test(material.name)) material.color.setHex(name.includes('fall') ? 0xc5a45d : name.includes('dark') ? 0x387c70 : 0x509b69);
           if (/bark/i.test(material.name)) material.color.setHex(0x775538);
           if (name.startsWith('rock_')) material.color.setHex(material.name === 'grass' ? 0xa4a491 : 0x7f8276);
           if (name.startsWith('plant_')) material.color.setHex(0x96ac59);

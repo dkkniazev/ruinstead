@@ -32,7 +32,10 @@ const DASH_DURATION_MS = 135;
 const PLAYER_BASELINE_OFFSET = 46;
 
 export class PlayerController {
+  visualAttackAt = -Infinity;
+  visualAttackDirection = {x:0,y:1};
   get visualWeaponId(): WeaponId { return this.weaponId; }
+  get visualTint(): number | null { return this.cosmeticTint; }
   get visualFacing(): Phaser.Math.Vector2 { return this.lastDirection.clone(); }
   isDashing(time: number): boolean { return time < this.dashUntil; }
   readonly sprite:

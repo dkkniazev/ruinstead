@@ -1,3 +1,9 @@
+import { contactShadow } from './ArtMaterials';
+import { batchStaticMeshes, disposeBatchedGeometry } from './MeshBatching';
+import { CombatEffects3D } from './CombatEffects3D';
+import { createGroundCover } from './BiomeScenery';
+import { settlementScenery, disposeSettlementScenery } from './SettlementScenery';
+import { buildingLabel, disposeBuildingLabels } from './BuildingLabels';
 import { WorldMap } from '../ui/WorldMap';
 import * as THREE from 'three';
 import Phaser from 'phaser';
@@ -41,6 +47,9 @@ function islandAt(x: number, z: number): { region: number; distance: number } {
 type Actor = { model: AnimatedModel; lastX: number; lastY: number; health: THREE.Group; healthFill: THREE.Mesh; telegraph?: THREE.Mesh };
 
 export class WorldPresentation3D {
+  get renderStats(): {calls:number;triangles:number} {
+    return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles};
+  }
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-640, 640, 360, -360, 1, 5000);
@@ -50,9 +59,14 @@ export class WorldPresentation3D {
   private readonly landRegions = new Map<number, THREE.Group>();
   private readonly chunks = new Map<string, THREE.Group>();
   private readonly actors = new Map<EnemyUnit | BossUnit, Actor>();
+  private readonly effects = new CombatEffects3D();
+  private readonly shownHits = new WeakMap<EnemyUnit | BossUnit,number>();
   private readonly resources = new Map<string, ResourceVisual3D>();
   private readonly chests = new Map<string, THREE.Group>();
   private readonly pickups: THREE.Group[] = [];
+  private readonly coinPickups = new THREE.InstancedMesh(new THREE.CylinderGeometry(12,12,4,12).rotateX(Math.PI/2),
+    new THREE.MeshStandardMaterial({color:0xffcf5a,metalness:.38,roughness:.3,emissive:0xa96914,emissiveIntensity:.2}),128);
+  private readonly coinTransform=new THREE.Object3D();
   private readonly settlement = new THREE.Group();
   private readonly bridges = new Map<string, { group: THREE.Group; centerX: number; centerZ: number; gate: THREE.Group; gap: THREE.Group }>();
   private readonly buildingGroups = new Map<string, { level: number; model: THREE.Group }>();
@@ -61,7 +75,7 @@ export class WorldPresentation3D {
   private lastFacing = 0;
   private lastHeroX = 0;
   private lastHeroY = 0;
-  private lastAttackAt = 0;
+
   private lastRectWidth = 0;
   private lastRectHeight = 0;
   private resizeObserver?: ResizeObserver;
@@ -75,6 +89,7 @@ export class WorldPresentation3D {
     private readonly chestSystem: ChestSystem,
     private readonly city: CityBuilderSystem,
     private readonly isPassageOpen: (passage: RegionPassage) => boolean,
+    private readonly getCoinDrops:()=>Array<{x:number;y:number;scale:number}> = ()=>[],
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
@@ -98,23 +113,27 @@ export class WorldPresentation3D {
     phaser.game.canvas.style.background = 'transparent';
 
     this.scene.background = new THREE.Color(0x8fa478);
-    this.scene.fog = new THREE.FogExp2(0x96a486, 0.00034);
-    this.scene.add(new THREE.HemisphereLight(0xd4e5ff, 0x746345, 1.12));
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.18));
-    this.sun.intensity = 2.0;
+    this.scene.fog = new THREE.Fog(0xa4b7a0, 2300, 4300);
+    this.scene.add(new THREE.HemisphereLight(0xc6e2ff, 0x81705b, 1.65));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 0.1));
+    this.sun.intensity = 2.8;
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(1024, 1024);
-    this.sun.shadow.camera.left = -950;
-    this.sun.shadow.camera.right = 950;
-    this.sun.shadow.camera.top = 950;
-    this.sun.shadow.camera.bottom = -950;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.camera.left = -1300;
+    this.sun.shadow.camera.right = 1300;
+    this.sun.shadow.camera.top = 1300;
+    this.sun.shadow.camera.bottom = -1300;
     this.sun.shadow.camera.near = 1;
     this.sun.shadow.camera.far = 2500;
-    this.sun.shadow.bias = -0.00035;
+    this.sun.shadow.bias = -0.00015;
+    this.sun.shadow.normalBias = 1;
+    this.sun.shadow.radius = 2;
     this.scene.add(this.sun, this.sunTarget);
     this.sun.target = this.sunTarget;
 
-    this.scene.add(this.hero.root);
+    this.hero.root.add(contactShadow(40,29));
+    this.coinPickups.count=0;this.coinPickups.frustumCulled=false;
+    this.scene.add(this.hero.root,this.effects.root,this.coinPickups);
     for (const region of RELEASE_REGIONS) {
       const land = createRegionLand(region);
       this.landRegions.set(region.id, land);
@@ -158,6 +177,8 @@ export class WorldPresentation3D {
     this.camera.top = height / 2;
     this.camera.bottom = -height / 2;
     this.camera.updateProjectionMatrix();
+    // A canvas resize clears its buffer even while a menu pauses the scene.
+    this.renderer.render(this.scene, this.camera);
   };
 
   update(time: number, delta: number): void {
@@ -168,7 +189,9 @@ export class WorldPresentation3D {
     const speed = Math.hypot(velocity.x, velocity.y);
     const harvest = this.resourceSystem.visualHarvestAction;
     const harvesting = !!harvest && time - harvest.hitAt < 580;
-    const facing = harvesting && speed < 20
+    const facing = time-this.player.visualAttackAt<260
+      ? Math.atan2(this.player.visualAttackDirection.x,this.player.visualAttackDirection.y)
+      : harvesting && speed < 20
       ? Math.atan2(harvest.x - x, harvest.y - z)
       : speed > 20 ? Math.atan2(velocity.x, velocity.y) : Math.atan2(this.player.visualFacing.x, this.player.visualFacing.y);
     const difference = Math.atan2(Math.sin(facing - this.lastFacing), Math.cos(facing - this.lastFacing));
@@ -176,9 +199,8 @@ export class WorldPresentation3D {
     this.hero.root.rotation.y = this.lastFacing;
     this.hero.root.position.set(x, terrainHeight(x, z) + 5, z);
     this.hero.setWeapon?.(this.player.visualWeaponId);
-    const threatened = this.enemies.isPlayerThreatened() || this.bosses.isPlayerThreatened();
-    const attacking = (harvesting && time - harvest.hitAt < 200) || (threatened && time - this.lastAttackAt < 130);
-    if (threatened && time - this.lastAttackAt > 650) this.lastAttackAt = time;
+    this.hero.setTint?.(this.player.visualTint);
+    const attacking = (harvesting && time - harvest.hitAt < 200) || time - this.player.visualAttackAt < 230;
     const travel = Math.hypot(x - this.lastHeroX, z - this.lastHeroY);
     this.hero.step(dt, speed, this.player.isDashing(time), attacking, travel, difference);
     this.lastHeroX = x;
@@ -194,7 +216,7 @@ export class WorldPresentation3D {
     const region = islandAt(x, z).region;
     const palette = palettes[region];
     (this.scene.background as THREE.Color).setHex(palette[1]).multiplyScalar(0.86);
-    (this.scene.fog as THREE.FogExp2).color.copy(this.scene.background as THREE.Color);
+    (this.scene.fog as THREE.Fog).color.copy(this.scene.background as THREE.Color);
     this.settlement.visible = Math.hypot(x - SETTLEMENT_CENTER.x, z - SETTLEMENT_CENTER.y) < 2100;
     for (const [id, bridge] of this.bridges) {
       bridge.group.visible = Math.hypot(x - bridge.centerX, z - bridge.centerZ) < 1900;
@@ -206,8 +228,12 @@ export class WorldPresentation3D {
     for (const region of RELEASE_REGIONS) {
       this.landRegions.get(region.id)!.visible = Math.hypot(x-region.center[0], z-region.center[1]) < Math.hypot(region.radiusX,region.radiusY)+2100;
     }
+    const labelScale=(this.camera.top-this.camera.bottom)/Math.max(1,this.lastRectHeight);
+    const labelWidth=this.lastRectHeight<600?128:164;
+    this.settlement.traverse(o=>{if(o instanceof THREE.Sprite&&o.userData.buildingLabel){o.scale.set(labelWidth*labelScale,labelWidth/5.125*labelScale,1);}});
     this.updateTerrain(x, z);
-    this.updateActors(dt, x, z);
+    this.updateActors(dt, x, z,time);
+    this.effects.update(time,x,groundHeight,z,this.lastFacing,this.player.visualAttackAt);
     this.updateResources(x, z, time);
     if (this.frame++ % 4 === 0) {
       this.updateChests(x, z);
@@ -219,6 +245,7 @@ export class WorldPresentation3D {
     this.worldMap.setObscured(hud?.hasOpenPanel ?? false);
     this.worldMap.update(time, () => ({
       x, y: z, facing: this.lastFacing, home: SETTLEMENT_CENTER,
+      landmarks: [...this.city.visualBuildings.map(b=>({x:b.x,y:b.y,name:b.id})),{x:FORGE_POSITION.x,y:FORGE_POSITION.y,name:'forge'}],
       markers: [
         ...this.resourceSystem.visualNodes.filter(n => n.available).map(n => ({x:n.x,y:n.y,kind:n.type})),
         ...this.bosses.visualUnits.filter(b => b.alive).map(b => ({x:b.sprite.x,y:b.sprite.y,kind:'boss' as const})),
@@ -261,26 +288,7 @@ export class WorldPresentation3D {
     const wz = (cz + 0.5) * TILE;
     const region = islandAt(wx, wz).region;
     const group = createBoundaryGround(wx, wz, TILE);
-    const grassGeometry = new THREE.ConeGeometry(3.5, 17, 3);
-    const grassMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, flatShading: true, side: THREE.DoubleSide });
-    const grass = new THREE.InstancedMesh(grassGeometry, grassMaterial, 90);
-    const instance = new THREE.Object3D();
-    for (let i = 0; i < 90; i++) {
-      const gx = cx * TILE + random(cx, cz, i * 7 + 81) * TILE;
-      const gz = cz * TILE + random(cx, cz, i * 7 + 82) * TILE;
-      const nearTown = Math.hypot(gx - SETTLEMENT_CENTER.x, gz - SETTLEMENT_CENTER.y) < 510;
-      const onIsland = islandAt(gx, gz).distance < 0.96;
-      instance.position.set(gx, terrainHeight(gx, gz) + (nearTown || !onIsland ? -100 : 7), gz);
-      instance.rotation.y = random(gx, gz) * Math.PI;
-      instance.scale.setScalar(0.7 + random(gz, gx) * 1.4);
-      instance.updateMatrix();
-      grass.setMatrixAt(i, instance.matrix);
-      const green = region === 2 || region === 7 ? new THREE.Color(0x9b9867) : region === 4 || region === 8 ? new THREE.Color(0x725747) : new THREE.Color(i % 3 ? 0x598449 : 0x7c9d56);
-      grass.setColorAt(i, green);
-    }
-    grass.instanceMatrix.needsUpdate = true;
-    grass.userData.uniqueGeometry = true;
-    group.add(grass);
+    group.add(createGroundCover(cx*TILE,cz*TILE,TILE,RELEASE_REGIONS[region-1]));
 
     // Small region-specific props are deliberately non-blocking. Keep them
     // away from combat/resource anchors so they never imply fake collision.
@@ -338,16 +346,25 @@ export class WorldPresentation3D {
     return group;
   }
 
-  private updateActors(dt: number, x: number, z: number): void {
+  private updateActors(dt: number, x: number, z: number,time:number): void {
     const visible = new Set<EnemyUnit | BossUnit>();
     const units: Array<EnemyUnit | BossUnit> = [...this.enemies.visualUnits, ...this.bosses.visualUnits];
     for (const unit of units) {
+      const hit=unit.visualHit;
+      if(hit&&time-hit.at<500&&(this.shownHits.get(unit)??-Infinity)<hit.at&&Math.hypot(unit.sprite.x-x,unit.sprite.y-z)<1600){
+        const height=Number(this.actors.get(unit)?.model.root.userData.visualHeight??unit.combatRadius*3);
+        this.effects.hit(unit.sprite.x,terrainHeight(unit.sprite.x,unit.sprite.y)+height+30,unit.sprite.y,hit);
+        this.shownHits.set(unit,hit.at);
+      }
       if (!unit.alive || Math.abs(unit.sprite.x - x) > 1750 || Math.abs(unit.sprite.y - z) > 1750) continue;
       visible.add(unit);
       let actor = this.actors.get(unit);
       if (!actor) {
-        const model = createCreature(unit.definition.id, unit.definition.primaryColor, unit.definition.accentColor, 'rank' in unit ? unit.rank === 'elite' : true);
-        if (!('rank' in unit)) model.root.scale.multiplyScalar(1.45);
+        const model = createCreature(unit.definition.id, unit.definition.primaryColor, unit.definition.accentColor, 'rank' in unit ? unit.rank === 'elite' : true, unit.combatRadius);
+        // Grounded shadows remain readable on dark terrain and under foliage.
+        const shadow=contactShadow(unit.combatRadius*1.38,unit.combatRadius*1.05);
+        shadow.scale.x/=model.root.scale.x;shadow.scale.y/=model.root.scale.x;
+        model.root.add(shadow);
         this.scene.add(model.root);
         const health = new THREE.Group();
         const boss = !('rank' in unit);
@@ -370,11 +387,12 @@ export class WorldPresentation3D {
       actor.model.root.position.set(px, terrainHeight(px, pz) + 4, pz);
       if (speed > 5) actor.model.root.rotation.y = Math.atan2(vx, vz);
       else actor.model.root.rotation.y = Math.atan2(x - px, z - pz);
-      actor.model.step(dt, speed);
+      actor.model.root.rotation.x=-Math.max(0,1-(time-(unit.visualHit?.at??-Infinity))/170)*.1;
+      actor.model.step(dt, speed,false,time-unit.visualAttackAt<230);
       const boss = !('rank' in unit);
       const ratio = Math.max(0, Math.min(1, unit.visualHealthRatio));
       actor.health.visible = boss || ratio < 0.999 || ('rank' in unit && unit.rank === 'elite');
-      actor.health.position.set(px, terrainHeight(px, pz) + (boss ? 200 : 114), pz);
+      actor.health.position.set(px, terrainHeight(px, pz) + Number(actor.model.root.userData.visualHeight ?? (boss ? 180 : 96)) + 18, pz);
       actor.health.quaternion.copy(this.camera.quaternion);
       actor.healthFill.scale.x = Math.max(0.001, ratio);
       actor.healthFill.position.x = -(boss ? 88 : 58) * (1 - ratio) / 2;
@@ -396,6 +414,7 @@ export class WorldPresentation3D {
       this.scene.remove(actor.model.root);
       actor.model.dispose?.();
       this.scene.remove(actor.health);
+      actor.health.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});
       if (actor.telegraph) disposeBossTelegraph(actor.telegraph);
       this.actors.delete(unit);
     }
@@ -437,6 +456,14 @@ export class WorldPresentation3D {
   }
 
   private updatePickups(x: number, z: number, time: number): void {
+    const coins=this.getCoinDrops().filter(drop=>Math.hypot(drop.x-x,drop.y-z)<1400).slice(0,128);
+    this.coinPickups.count=coins.length;
+    coins.forEach((drop,index)=>{
+      this.coinTransform.position.set(drop.x,terrainHeight(drop.x,drop.y)+22+Math.sin(time*.006+index)*4,drop.y);
+      this.coinTransform.rotation.set(0,time*.005+index,0);this.coinTransform.scale.setScalar(Math.max(.75,drop.scale));
+      this.coinTransform.updateMatrix();this.coinPickups.setMatrixAt(index,this.coinTransform.matrix);
+    });
+    this.coinPickups.instanceMatrix.needsUpdate=true;
     const nodes = this.resourceSystem.visualPickups.filter((pickup) => Math.abs(pickup.x - x) < 800 && Math.abs(pickup.y - z) < 800).slice(0, 80);
     while (this.pickups.length < nodes.length) {
       const g = new THREE.Group();
@@ -470,26 +497,30 @@ export class WorldPresentation3D {
       const iron = new THREE.MeshStandardMaterial({ color: 0x353a3b, roughness: 0.55, metalness: 0.6 });
       const warning = new THREE.MeshStandardMaterial({ color: 0xbb513d, emissive: 0x842e1f, emissiveIntensity: 0.35 });
       const gap = new THREE.Group(); group.add(gap);
-      const slope = Math.atan2(passageHeight(entry,1)-passageHeight(entry,0),length);
       const slabs = Math.max(3,Math.ceil(length/54));
-      for (let i=0;i<slabs;i++) {
-        const t=(i+0.5)/slabs, z=(t-0.5)*length;
-        const slab=new THREE.Mesh(new THREE.BoxGeometry(passage.width,18,length/slabs/Math.cos(slope)+2),passage.kind==='bridge'?timber:stone);
+      const breaks=(count:number)=>[...new Set([...Array.from({length:count+1},(_,i)=>i/count),entry.landingA/length,1-entry.landingB/length])].sort((a,b)=>a-b);
+      const deck=breaks(slabs);
+      for (let i=1;i<deck.length;i++) {
+        const t=(deck[i-1]+deck[i])/2, z=(t-0.5)*length,span=(deck[i]-deck[i-1])*length;
+        const slope=Math.atan2(passageHeight(entry,deck[i])-passageHeight(entry,deck[i-1]),span);
+        const slab=new THREE.Mesh(new THREE.BoxGeometry(passage.width,18,span/Math.cos(slope)+2),passage.kind==='bridge'?timber:stone);
         slab.position.set(0,passageHeight(entry,t)-9,z); slab.rotation.x=-slope;
         slab.castShadow=slab.receiveShadow=true;
         (Math.abs(z)<65 ? gap : group).add(slab);
       }
-      const posts=Math.ceil(length/100);
-      for(let i=0;i<=posts;i++) {
-        const t=i/posts, z=(t-0.5)*length, height=passageHeight(entry,t);
+      const posts=breaks(Math.ceil(length/100));
+      for(const t of posts) {
+        const z=(t-0.5)*length, height=passageHeight(entry,t);
         for(const side of [-1,1]) {
           const post=new THREE.Mesh(new THREE.BoxGeometry(12,46,12),stone);
           post.position.set(side*(passage.width/2-6),height+23,z);post.castShadow=true;group.add(post);
         }
       }
-      for(const side of [-1,1]) {
-        const rail=new THREE.Mesh(new THREE.BoxGeometry(9,10,length/Math.cos(slope)),timber);
-        rail.position.set(side*(passage.width/2-6),passageHeight(entry,0.5)+43,0);
+      for(const side of [-1,1])for(let i=1;i<posts.length;i++) {
+        const low=passageHeight(entry,posts[i-1]),high=passageHeight(entry,posts[i]),span=(posts[i]-posts[i-1])*length;
+        const slope=Math.atan2(high-low,span);
+        const rail=new THREE.Mesh(new THREE.BoxGeometry(9,10,span/Math.cos(slope)+3),timber);
+        rail.position.set(side*(passage.width/2-6),(low+high)/2+43,((posts[i-1]+posts[i])/2-.5)*length);
         rail.rotation.x=-slope;rail.castShadow=true;group.add(rail);
       }
       const gate=new THREE.Group();gate.position.y=passageHeight(entry,0.5);
@@ -516,49 +547,31 @@ export class WorldPresentation3D {
     const baseZ = SETTLEMENT_CENTER.y;
     const stone = new THREE.MeshStandardMaterial({ color: 0xa9a18a, roughness: 1, flatShading: true });
     const darkStone = new THREE.MeshStandardMaterial({ color: 0x827d71, roughness: 1, flatShading: true });
-    const road = new THREE.MeshStandardMaterial({ color: 0xb1a58b, roughness: 1 });
-    const roadEdge = new THREE.MeshStandardMaterial({ color: 0x827860, roughness: 1 });
-    for (const building of this.city.visualBuildings) {
-      const dx = building.x - baseX;
-      const dz = building.y - baseZ;
-      const length = Math.hypot(dx, dz);
-      const segmentCount = Math.max(1, Math.ceil(length / 64));
-      const direction = Math.atan2(dx, dz);
-      for (let step = 0; step < segmentCount; step++) {
-        const t = (step + 0.5) / segmentCount;
-        const px = baseX + dx * t;
-        const pz = baseZ + dz * t;
-        const segment = new THREE.Group();
-        const edge = new THREE.Mesh(new THREE.BoxGeometry(78, 2, length / segmentCount + 7), roadEdge);
-        edge.position.y = 0;
-        const surface = new THREE.Mesh(new THREE.BoxGeometry(68, 2, length / segmentCount + 5), road);
-        surface.position.y = 2;
-        surface.receiveShadow = true;
-        segment.add(edge, surface);
-        segment.position.set(px, terrainHeight(px, pz) + 5, pz);
-        segment.rotation.y = direction;
-        this.settlement.add(segment);
-      }
-    }
+    this.settlement.add(settlementScenery(baseX,baseZ,[...this.city.visualBuildings,{id:'forge',x:FORGE_POSITION.x,y:FORGE_POSITION.y}]));
     // Central well, stone arch, brazier and banners replace the previous flat settlement pads.
-    const well = new THREE.Mesh(new THREE.CylinderGeometry(52, 57, 42, 12, 1, true), darkStone);
+    const well = new THREE.Mesh(new THREE.CylinderGeometry(43, 49, 42, 12, 1, true), darkStone);
     well.position.set(baseX + 105, terrainHeight(baseX + 105, baseZ + 42) + 24, baseZ + 42);
     well.castShadow = well.receiveShadow = true;
     this.settlement.add(well);
-    const water = new THREE.Mesh(new THREE.CircleGeometry(49, 16), new THREE.MeshStandardMaterial({ color: 0x468e9a, metalness: 0.3, roughness: 0.28 }));
+    const water = new THREE.Mesh(new THREE.CircleGeometry(40, 16), new THREE.MeshStandardMaterial({ color: 0x468e9a, metalness: 0.3, roughness: 0.28 }));
     water.rotation.x = -Math.PI / 2;
     water.position.set(baseX + 105, terrainHeight(baseX + 105, baseZ + 42) + 12, baseZ + 42);
     this.settlement.add(water);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(44,8,4,12),stone);rim.rotation.x=Math.PI/2;rim.position.set(baseX+105,terrainHeight(baseX+105,baseZ+42)+45,baseZ+42);rim.castShadow=true;this.settlement.add(rim);
+    for(const side of [-1,1]){const post=new THREE.Mesh(new THREE.BoxGeometry(9,115,9),darkStone);post.position.set(baseX+105+side*48,terrainHeight(baseX+105,baseZ+42)+58,baseZ+42);post.castShadow=true;this.settlement.add(post);}
+    const beam=new THREE.Mesh(new THREE.BoxGeometry(115,10,12),darkStone);beam.position.set(baseX+105,terrainHeight(baseX+105,baseZ+42)+116,baseZ+42);beam.castShadow=true;this.settlement.add(beam);
     for (const side of [-1, 1]) {
-      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(12, 17, 105, 6), stone);
-      pillar.position.set(baseX + side * 64, terrainHeight(baseX, baseZ - 138) + 55, baseZ - 138);
+      const pillar = new THREE.Mesh(new THREE.CylinderGeometry(13, 17, 63, 6), stone);
+      pillar.position.set(baseX + side * 64, terrainHeight(baseX, baseZ - 138) + 33, baseZ - 138);
       pillar.castShadow = true;
       this.settlement.add(pillar);
     }
-    const lintel = new THREE.Mesh(new THREE.BoxGeometry(155, 20, 32), stone);
-    lintel.position.set(baseX, terrainHeight(baseX, baseZ - 138) + 111, baseZ - 138);
-    lintel.castShadow = true;
-    this.settlement.add(lintel);
+    for(let i=0;i<9;i++){
+      const angle=(i+.5)/9*Math.PI;
+      const block=new THREE.Mesh(new THREE.BoxGeometry(24,23,33),i===4?darkStone:stone);
+      block.position.set(baseX+Math.cos(angle)*64,terrainHeight(baseX,baseZ-138)+64+Math.sin(angle)*64,baseZ-138);
+      block.rotation.z=angle-Math.PI/2;block.castShadow=block.receiveShadow=true;this.settlement.add(block);
+    }
     const forge = new THREE.Group();
     const f = (geo: THREE.BufferGeometry, color: number, xx: number, yy: number, zz: number): void => {
       const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true }));
@@ -567,11 +580,24 @@ export class WorldPresentation3D {
     f(new THREE.BoxGeometry(110, 42, 75), 0x77716c, 0, 21, 0);
     f(new THREE.CylinderGeometry(18, 24, 100, 8), 0x595655, -35, 88, -20);
     f(new THREE.BoxGeometry(52, 11, 35), 0x484e50, 55, 48, 0);
-    f(new THREE.CylinderGeometry(17, 25, 25, 8), 0xe1843e, 0, 52, 14);
-    const light = new THREE.PointLight(0xff9c4a, 10000, 220, 2);
+    f(new THREE.BoxGeometry(24,27,22),0x414647,55,31,0);
+    f(new THREE.ConeGeometry(15,28,4),0x667273,91,48,0);
+    for(let row=0;row<3;row++)for(let col=0;col<4;col++)f(new THREE.BoxGeometry(24,12,14),row%2?0x8d8173:0xa39480,-42+col*26+(row%2)*5,8+row*13,42);
+    for(const x of [-79,30])f(new THREE.BoxGeometry(10,145,10),0x5e4430,x,73,-40);
+    f(new THREE.BoxGeometry(144,12,12),0x785635,-24,144,-40);
+    f(new THREE.BoxGeometry(153,10,110),0x485f68,-24,155,-32);
+    for(let i=0;i<7;i++)f(new THREE.BoxGeometry(5,5,114),0x6b7e80,-95+i*23,162,-32);
+    f(new THREE.BoxGeometry(38,13,34),0x8b5334,-65,29,36);
+    f(new THREE.BoxGeometry(45,6,39),0x4b3428,-65,38,36);
+    const coals=new THREE.Mesh(new THREE.IcosahedronGeometry(17,0),new THREE.MeshStandardMaterial({color:0xee903d,emissive:0xe86519,emissiveIntensity:1.3,roughness:1}));coals.position.set(0,49,14);coals.scale.set(1.3,.5,1);forge.add(coals);
+    const light = new THREE.PointLight(0xff9c4a, 2800, 160, 2);
     light.position.set(0, 68, 14); forge.add(light);
     forge.position.set(FORGE_POSITION.x, terrainHeight(FORGE_POSITION.x, FORGE_POSITION.y), FORGE_POSITION.y);
+    forge.add(buildingLabel('Кузница',185,'forge'));
     this.settlement.add(forge);
+    this.settlement.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.settlementOwned=true;});
+    batchStaticMeshes(this.settlement);
+    this.settlement.traverse(o=>{if(o instanceof THREE.Mesh&&!o.userData.settlementOwned)o.userData.settlementOwned=true;});
     this.updateBuildings();
   }
 
@@ -579,8 +605,10 @@ export class WorldPresentation3D {
     for (const building of this.city.visualBuildings) {
       const old = this.buildingGroups.get(building.id);
       if (old?.level === building.level) continue;
-      if (old) this.settlement.remove(old.model);
+      if (old) { disposeBuildingLabels(old.model);disposeBatchedGeometry(old.model);old.model.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();}); this.settlement.remove(old.model); }
       const model = createBuilding(building.id, building.level);
+      const names:Record<string,string>={storage:'Склад',sawmill:'Лесопилка',workshop:'Мастерская',house:'Дом'};
+      model.add(buildingLabel(names[building.id],190+building.level*6,building.id,building.level));
       model.position.set(building.x, terrainHeight(building.x, building.y), building.y);
       model.rotation.y = building.id === 'house' ? 0.2 : building.id === 'workshop' ? -0.24 : 0;
       this.settlement.add(model);
@@ -590,6 +618,10 @@ export class WorldPresentation3D {
 
   destroy(): void {
     this.worldMap.destroy();
+    disposeBuildingLabels(this.settlement);
+    disposeSettlementScenery(this.settlement);
+    for(const building of this.buildingGroups.values())disposeBatchedGeometry(building.model);
+    this.settlement.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();});
     this.resizeObserver?.disconnect();
     window.removeEventListener('resize', this.resize);
     this.phaser.cameras.main.setVisible(true);
@@ -600,8 +632,16 @@ export class WorldPresentation3D {
       if (actor.telegraph) disposeBossTelegraph(actor.telegraph);
       this.scene.remove(actor.model.root);
       this.scene.remove(actor.health);
+      actor.health.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});
     }
     this.actors.clear();
+    for(const root of [...this.landRegions.values(),...this.chunks.values()])root.traverse(o=>{
+      if(o instanceof THREE.Mesh&&o.userData.uniqueGeometry){o.geometry.dispose();for(const material of Array.isArray(o.material)?o.material:[o.material])material.dispose();}
+    });
+    this.landRegions.clear();this.chunks.clear();
+    this.hero.dispose?.();
+    this.effects.dispose();
+    this.coinPickups.geometry.dispose();(this.coinPickups.material as THREE.Material).dispose();
     this.renderer.domElement.remove();
     this.renderer.dispose();
   }

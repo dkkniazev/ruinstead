@@ -1,4 +1,6 @@
+import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../game/qa/PolishPlaytest';
 import Phaser from 'phaser';
+import { sellStoredResource } from '../game/economy/ResourceTrading';
 import { gameAudio, type AudioSettings } from '../game/audio/GameAudio';
 import { getLanguage } from '../i18n/I18n';
 import {
@@ -93,8 +95,8 @@ import {
 } from '../game/cosmetics/PetCompanion';
 import {
   WEAPON_RARITIES,
-  addWeaponDrop,
   cappedWeaponMaterials,
+  grantWeaponLoot,
   canFuseWeapon,
   clearWeaponSlot,
   equipWeaponInSlot,
@@ -146,6 +148,8 @@ import {
   HUD_HEALTH_POTION_EVENT,
   HUD_BLESSING_EVENT,
   HUD_RETURN_HOME_EVENT,
+  HUD_RETURN_HOME_COMPLETED_EVENT,
+  HUD_RESOURCE_SELL_EVENT,
   HUD_SUPPLY_EVENT,
   HUD_BUY_AD_FREE_WEEK_EVENT,
   HUD_MONETIZATION_ACTION_EVENT,
@@ -242,7 +246,7 @@ import {
 export class WorldScene
   extends Phaser.Scene {
   private readonly stateStore =
-    new GameStateStore();
+    isPolishPlaytest() ? polishStateStore() : new GameStateStore();
   private readonly adsProvider =
     createAdsProvider();
   private readonly purchaseProvider =
@@ -266,6 +270,7 @@ export class WorldScene
   private pendingBossRespawnId?:
     BossId;
   private bossRespawnOfferBlockedUntil = 0;
+  private readonly dismissedBossRespawnIds = new Set<string>();
   private lastMonetizationTickAt = 0;
 
   private gameState?:
@@ -829,6 +834,7 @@ export class WorldScene
       this.handleReturnHomeAction,
       this,
     );
+    this.game.events.on(HUD_RESOURCE_SELL_EVENT,this.handleResourceSale,this);
     this.game.events.on(
       HUD_BLESSING_EVENT,
       this.handleBlessingRequest,
@@ -973,13 +979,14 @@ export class WorldScene
           if (passage.id === '2-3') return this.gameState?.world.unlockedZones.includes('stage-3') ?? false;
           const zones = this.gameState?.world.unlockedZones ?? [];
           return regionIsUnlocked(zones, passage.a) && regionIsUnlocked(zones, passage.b);
-        });
+        },()=>this.combat?.visualCoinDrops??[]);
         this.cameras.main.setVisible(false);
       } catch (error) {
         console.warn('3D presentation unavailable; using the Phaser world renderer.', error);
       }
     }
 
+    if(isPolishPlaytest()&&this.player&&this.enemies&&this.combat&&this.bosses){const cleanup=installPolishPlaytest(this.player,this.enemies,this.combat,this.bosses,this.presentation3d);this.events.once(Phaser.Scenes.Events.SHUTDOWN,cleanup);}
     markYandexGameReady();
     startYandexGameplay();
   }
@@ -1576,16 +1583,16 @@ export class WorldScene
   }
 
   private grantWeaponReward(weaponId: WeaponId, rarity: WeaponRarityId): string {
-    const reward = addWeaponDrop(this.gameState!.player.weaponInventory, weaponId, rarity);
+    const reward = grantWeaponLoot(this.gameState!.player.weaponInventory, weaponId, rarity);
     if (reward) {
-      this.combat?.unlockWeapon(weaponId);
-      return `${reward.rarityName} · ${WEAPON_DEFINITIONS[weaponId].name} Lv.1`;
+      this.combat?.unlockWeapon(reward.weaponId);
+      return `${reward.weaponId!==weaponId?'Лимит копий: замена → ':''}${reward.rarityName} · ${WEAPON_DEFINITIONS[reward.weaponId].name} Lv.${reward.level}`;
     }
     const materials = cappedWeaponMaterials(rarity);
     const storage = this.gameState!.resources;
     storage.crystal += materials.crystal;
     storage.fiber += materials.fiber;
-    return `Оружие уже ★5: +${materials.crystal} кристаллов, +${materials.fiber} волокна в склад`;
+    return `Вся оружка этой редкости собрана: +${materials.crystal} кристаллов, +${materials.fiber} волокна на склад`;
   }
 
   private get characterHudState():
@@ -2854,6 +2861,7 @@ export class WorldScene
         placement ===
           'boss_respawn'
       ) {
+        if(this.pendingBossRespawnId)this.dismissedBossRespawnIds.add(this.pendingBossRespawnId);
         this.pendingBossRespawnId =
           undefined;
       }
@@ -2868,6 +2876,7 @@ export class WorldScene
       );
 
     if (!rewarded) {
+      if(placement==='boss_respawn'&&this.pendingBossRespawnId){this.dismissedBossRespawnIds.add(this.pendingBossRespawnId);this.pendingBossRespawnId=undefined;}
       this.game.events.emit(
         HUD_NOTICE_EVENT,
         placement ===
@@ -3554,6 +3563,7 @@ export class WorldScene
         );
 
     if (!dormant) {
+      if(!this.bosses.getNearestDormant(this.player.position,260))this.dismissedBossRespawnIds.clear();
       if (
         this.monetizationOffer
           ?.placement ===
@@ -3565,6 +3575,8 @@ export class WorldScene
       }
       return;
     }
+
+    if(this.dismissedBossRespawnIds.has(dormant.id))return;
 
     if (
       this.pendingBossRespawnId ===
@@ -3589,6 +3601,14 @@ export class WorldScene
       rewardText:
         '100% сброс таймера',
     });
+  }
+
+  private handleResourceSale(type:string,amount:number):void {
+    if(!this.gameState||!this.cityHudState.insideSettlement||(this.combat?.state.health??0)<=0)return;
+    const coins=sellStoredResource(this.gameState.resources,type,amount);
+    if(!coins)return;
+    this.saveState();this.emitProgressionState();this.emitCityState();
+    this.game.events.emit(HUD_NOTICE_EVENT,`Продано: ${amount} · +${coins} монет на склад`);
   }
 
   private async handleReturnHomeAction(
@@ -3666,6 +3686,8 @@ export class WorldScene
     );
     this.wasAtReturnPoint =
       false;
+
+    this.game.events.emit(HUD_RETURN_HOME_COMPLETED_EVENT);
 
     this.game.events.emit(
       HUD_NOTICE_EVENT,
@@ -5730,6 +5752,7 @@ export class WorldScene
       this.handleReturnHomeAction,
       this,
     );
+    this.game.events.off(HUD_RESOURCE_SELL_EVENT,this.handleResourceSale,this);
     this.game.events.off(
       HUD_BLESSING_EVENT,
       this.handleBlessingRequest,

@@ -1,4 +1,4 @@
-import { RELEASE_REGIONS, RELEASE_PASSAGES, distanceToRegionBoundary, getRegionAt,
+import { RELEASE_REGIONS, RELEASE_PASSAGES, distanceToRegionBoundary, getRegionAt, pointInRegion,
   getRegionDefinition, getPassageGeometry, type RegionDefinition, type RegionId } from './ReleaseRegionMap';
 
 export type BorderKind = 'river' | 'mountains' | 'cliff' | 'lava';
@@ -9,7 +9,22 @@ const borders: Record<string, BorderKind> = {
   '1-4': 'lava', '5-6': 'cliff', '6-7': 'river', '1-7': 'cliff', '1-8': 'lava',
 };
 
-export const TERRAIN_PASSAGES = RELEASE_PASSAGES.map(passage => ({ passage, ...getPassageGeometry(passage) }));
+export const TERRAIN_PASSAGES = RELEASE_PASSAGES.map(passage => {
+  const geometry=getPassageGeometry(passage);
+  // An angled bank can extend farther under one side of the deck than its centre.
+  const landing=(reverse:boolean)=>{
+    const region=getRegionDefinition(reverse?passage.b:passage.a),origin=reverse?geometry.b:geometry.a,sign=reverse?-1:1;
+    let distance=0;
+    for(let step=0;step<=48;step++){
+      const forward=geometry.length*step/100;
+      if([-.5,-.25,0,.25,.5].some(side=>pointInRegion(region,
+        origin.x+geometry.ux*forward*sign-geometry.uy*side*passage.width,
+        origin.y+geometry.uy*forward*sign+geometry.ux*side*passage.width)))distance=forward+12;
+    }
+    return Math.min(geometry.length*.47,distance);
+  };
+  return {passage,...geometry,landingA:landing(false),landingB:landing(true)};
+});
 
 function terrainNoise(x: number, y: number): number {
   const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
@@ -44,7 +59,10 @@ export function passageAt(x: number, y: number, margin = 0) {
 export function passageHeight(entry: typeof TERRAIN_PASSAGES[number], t: number): number {
   const a = plateauHeight(getRegionDefinition(entry.passage.a), entry.a.x, entry.a.y);
   const b = plateauHeight(getRegionDefinition(entry.passage.b), entry.b.x, entry.b.y);
-  return a + (b - a) * t + 10;
+  // Landings sit on their plateaus; the ramp starts beyond the entire bank.
+  // A slope across the full span previously cut through the higher bank.
+  const ramp=Math.max(0,Math.min(1,(t*entry.length-entry.landingA)/(entry.length-entry.landingA-entry.landingB)));
+  return a + (b - a) * ramp + 14;
 }
 
 export function terrainHeight(x: number, y: number): number {

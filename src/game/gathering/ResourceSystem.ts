@@ -16,6 +16,7 @@ import {
   getRegionDefinition,
   regionRadiusAlong,
   regionPointAt,
+  distanceToRegionBoundary,
   RELEASE_PASSAGES,
   type RegionId,
 } from '../world/ReleaseRegionMap';
@@ -101,7 +102,17 @@ function blocksPassageApproach(regionId: RegionId, x: number, y: number): boolea
   });
 }
 
-function buildNodeDefinitions():
+export const RESOURCE_LAYOUT_SEED = 0x52a71d3;
+
+function layoutUnit(seed:number,region:number,type:number,index:number,attempt:number,axis:number):number {
+  let value=(seed ^ Math.imul(region+17,0x9e3779b1) ^ Math.imul(type+31,0x85ebca6b)
+    ^ Math.imul(index+43,0xc2b2ae35) ^ Math.imul(attempt+59,0x27d4eb2d) ^ Math.imul(axis+71,0x165667b1))|0;
+  value=Math.imul(value^(value>>>16),0x7feb352d);
+  value=Math.imul(value^(value>>>15),0x846ca68b);
+  return ((value^(value>>>16))>>>0)/4294967296;
+}
+
+export function buildResourceNodeDefinitions(seed=RESOURCE_LAYOUT_SEED):
   ResourceNodeDefinition[] {
   const result:
     ResourceNodeDefinition[] = [];
@@ -177,38 +188,138 @@ function buildNodeDefinitions():
           index < count;
           index += 1
         ) {
-          // Offset each resource family into a different arc so farming
-          // routes have identity instead of one mixed resource carpet.
-          const angle =
-            (
-              profile.region *
-                0.83 +
-              typeIndex *
-                1.17 +
-              index *
-                1.91
-            ) %
-            (
-              Math.PI *
-              2
-            );
-          const ring = 0.29 + ((index + typeIndex) % 8) * 0.08;
-          const { x, y } = regionPointAt(region, Math.cos(angle) * ring, Math.sin(angle) * ring);
+          const footprint =
+            RESOURCE_FOOTPRINT_RADIUS[
+              type
+            ];
+          let chosen:
+            {x:number;y:number} |
+            undefined;
 
-          if (
-            profile.region === 1 &&
-            Phaser.Math.Distance.Between(
+          // Deterministic procedural scatter. A fixed seed keeps F5/reload
+          // stable while still avoiding memorised concentric resource arcs.
+          for (
+            let attempt = 0;
+            attempt < 96 &&
+            !chosen;
+            attempt += 1
+          ) {
+            const angle =
+              layoutUnit(
+                seed,
+                profile.region,
+                typeIndex,
+                index,
+                attempt,
+                0,
+              ) *
+              Math.PI *
+              2;
+            const ring =
+              0.24 +
+              layoutUnit(
+                seed,
+                profile.region,
+                typeIndex,
+                index,
+                attempt,
+                1,
+              ) *
+                0.62;
+            const skew =
+              (
+                layoutUnit(
+                  seed,
+                  profile.region,
+                  typeIndex,
+                  index,
+                  attempt,
+                  2,
+                ) -
+                0.5
+              ) *
+              0.18;
+            const point =
+              regionPointAt(
+                region,
+                Math.cos(angle) *
+                  ring,
+                Math.sin(angle) *
+                  (
+                    ring +
+                    skew
+                  ),
+              );
+            const x =
+              Math.round(
+                point.x,
+              );
+            const y =
+              Math.round(
+                point.y,
+              );
+
+            if (
+              distanceToRegionBoundary(
+                region,
+                x,
+                y,
+              ) <=
+                footprint +
+                  44
+            ) {
+              continue;
+            }
+            if (
+              profile.region === 1 &&
+              Phaser.Math.Distance.Between(
+                x,
+                y,
+                SETTLEMENT_CENTER.x,
+                SETTLEMENT_CENTER.y,
+              ) <
+                SETTLEMENT_SAFE_RADIUS +
+                  footprint +
+                  55
+            ) {
+              continue;
+            }
+            if (
+              blocksPassageApproach(
+                profile.region,
+                x,
+                y,
+              )
+            ) {
+              continue;
+            }
+            if (
+              result.some(
+                (other) =>
+                  Math.hypot(
+                    other.x - x,
+                    other.y - y,
+                  ) <
+                  RESOURCE_FOOTPRINT_RADIUS[
+                    other.type
+                  ] +
+                    footprint +
+                    64,
+              )
+            ) {
+              continue;
+            }
+
+            chosen = {
               x,
               y,
-              SETTLEMENT_CENTER.x,
-              SETTLEMENT_CENTER.y,
-            ) <
-              SETTLEMENT_SAFE_RADIUS + 35
-          ) {
-            continue;
+            };
           }
-          if (blocksPassageApproach(profile.region, x, y)) {
-            continue;
+
+          if (!chosen) {
+            throw new Error(
+              `No valid deterministic resource position: region ${profile.region} ${type} #${index + 1}`,
+            );
           }
 
           const baseDurability =
@@ -226,9 +337,9 @@ function buildNodeDefinitions():
               `region-${profile.region}-${type}-${index + 1}`,
             type,
             x:
-              Math.round(x),
+              chosen.x,
             y:
-              Math.round(y),
+              chosen.y,
             durability:
               baseDurability +
               Math.floor(
@@ -241,7 +352,7 @@ function buildNodeDefinitions():
             dropCount: harvestYield(type, profile.region, abundance),
             respawnMs: harvestRespawnMs(type),
           });
-        }
+        }}
       },
     );
   }
@@ -251,7 +362,7 @@ function buildNodeDefinitions():
 
 const NODE_DEFINITIONS:
   readonly ResourceNodeDefinition[] =
-  buildNodeDefinitions();
+  buildResourceNodeDefinitions();
 
 /**
  * Shared spawn-clearance check used by combat placement. This keeps mobs out

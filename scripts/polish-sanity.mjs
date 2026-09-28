@@ -15,6 +15,13 @@ export * from './src/game/layout/Viewport.ts';
 plugins:[{name:'math-only-phaser',setup(b){b.onResolve({filter:/^phaser$/},()=>({path:'phaser',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:`export default {Math:{Vector2:class {constructor(x=0,y=0){this.x=x;this.y=y;}},Distance:{Between:(a,b,c,d)=>Math.hypot(c-a,d-b)}}};`}));}}]});
 const api=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text+'\n//# sourceURL=polish-fixture.mjs').toString('base64')}`);
 const seeded=seed=>()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
+const resourceA=api.buildResourceNodeDefinitions(123456),resourceB=api.buildResourceNodeDefinitions(123456),resourceC=api.buildResourceNodeDefinitions(654321);
+assert.deepEqual(resourceA,resourceB,'Same resource seed must reproduce the exact layout');
+assert.notDeepEqual(resourceA.map(n=>[n.x,n.y]),resourceC.map(n=>[n.x,n.y]),'Different seeds must change the procedural layout');
+for(let i=0;i<resourceA.length;i++)for(let j=i+1;j<resourceA.length;j++){
+  const a=resourceA[i],b=resourceA[j];
+  assert(Math.hypot(a.x-b.x,a.y-b.y)>45,'Procedural resource nodes must not stack');
+}
 const sizes=new Set();let eliteBaseline,minGap=Infinity,total=0;
 const layouts=Number(process.argv[2])||24;
 for(let seed=1;seed<=layouts;seed++){

@@ -99,6 +99,17 @@ export type TutorialHudStep = {
   sequence?: boolean;
 };
 
+export type StoryHudBeat = {
+  id: string;
+  chapter: string;
+  title: string;
+  text: string;
+};
+
+export const HUD_STORY_EVENT =
+  'ruinstead:hud:story';
+
+
 export const HUD_TUTORIAL_EVENT =
   'ruinstead:hud:tutorial';
 export const HUD_TUTORIAL_ADVANCE_EVENT =

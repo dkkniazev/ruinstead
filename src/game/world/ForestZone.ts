@@ -58,3 +58,29 @@ export const FOREST_LANDMARKS = [
 
 export type ForestLandmarkId =
   (typeof FOREST_LANDMARKS)[number]['id'];
+
+
+const FOREST_LANDMARK_CLEARANCE: Record<ForestLandmarkId, number> = {
+  'forest-gate': 120,
+  'old-stump': 100,
+  'stone-ring': 130,
+  'forest-heart': 220,
+};
+
+export function forestLandmarkAreaIsClear(
+  x: number,
+  y: number,
+  clearance = 0,
+): boolean {
+  return FOREST_LANDMARKS.every(
+    (landmark) =>
+      Math.hypot(
+        landmark.x - x,
+        landmark.y - y,
+      ) >=
+      FOREST_LANDMARK_CLEARANCE[
+        landmark.id
+      ] +
+        clearance,
+  );
+}

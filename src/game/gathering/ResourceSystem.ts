@@ -24,6 +24,9 @@ import {
   SETTLEMENT_CENTER,
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
+import {
+  forestLandmarkAreaIsClear,
+} from '../world/ForestZone';
 
 type HarvestResourceType =
   Exclude<ResourceType, 'coins'>;
@@ -293,6 +296,16 @@ export function buildResourceNodeDefinitions(seed=RESOURCE_LAYOUT_SEED):
                 profile.region,
                 x,
                 y,
+              )
+            ) {
+              continue;
+            }
+            if (
+              profile.region === 1 &&
+              !forestLandmarkAreaIsClear(
+                x,
+                y,
+                footprint + 55,
               )
             ) {
               continue;

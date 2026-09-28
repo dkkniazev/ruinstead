@@ -21,6 +21,9 @@ import {
   SETTLEMENT_SAFE_RADIUS,
 } from '../world/WorldPrototype';
 import {
+  forestLandmarkAreaIsClear,
+} from '../world/ForestZone';
+import {
   REGION_WEAPON_PROFILES,
   RELEASE_SPECIES,
   type ReleaseEnemyArchetype,
@@ -507,7 +510,15 @@ function moveClearOfResourceNodes(
 
   if (
     pointInRegion(region, start.x, start.y) &&
-    resourceNodeAreaIsClear(start.x, start.y, clearance)
+    resourceNodeAreaIsClear(start.x, start.y, clearance) &&
+    (
+      regionId !== 1 ||
+      forestLandmarkAreaIsClear(
+        start.x,
+        start.y,
+        clearance,
+      )
+    )
   ) {
     return start;
   }
@@ -524,7 +535,15 @@ function moveClearOfResourceNodes(
     );
     if (
       pointInRegion(region, candidate.x, candidate.y) &&
-      resourceNodeAreaIsClear(candidate.x, candidate.y, clearance)
+      resourceNodeAreaIsClear(candidate.x, candidate.y, clearance) &&
+      (
+        regionId !== 1 ||
+        forestLandmarkAreaIsClear(
+          candidate.x,
+          candidate.y,
+          clearance,
+        )
+      )
     ) {
       return candidate;
     }
@@ -598,6 +617,7 @@ export function buildEnemySpawns(random = Math.random): GroupSpawn[] {
       if(pointInRegion(region,p.x,p.y)&&distanceToRegionBoundary(region,p.x,p.y)>radius+24
         &&(region.id!==1||Math.hypot(p.x-SETTLEMENT_CENTER.x,p.y-SETTLEMENT_CENTER.y)>SETTLEMENT_SAFE_RADIUS+radius+70)
         &&resourceNodeAreaIsClear(p.x,p.y,radius+20)&&bossArenaAreaIsClear(p.x,p.y,radius)
+        &&(region.id!==1||forestLandmarkAreaIsClear(p.x,p.y,radius+20))
         &&spawns.every(other=>Math.hypot(p.x-other.x,p.y-other.y)>radius+footprint(other)+16))chosen=p;
     }
     if(!chosen)throw new Error('No clear elite spawn: '+anchor.groupId);
@@ -615,6 +635,7 @@ export function buildEnemySpawns(random = Math.random): GroupSpawn[] {
         && (region.id!==1||Math.hypot(p.x-SETTLEMENT_CENTER.x,p.y-SETTLEMENT_CENTER.y)>SETTLEMENT_SAFE_RADIUS+radius+70)
         && resourceNodeAreaIsClear(p.x,p.y,radius+20)
         && bossArenaAreaIsClear(p.x,p.y,radius)
+        && (region.id!==1||forestLandmarkAreaIsClear(p.x,p.y,radius+20))
         && spawns.every(other=>Math.hypot(p.x-other.x,p.y-other.y)>=radius+footprint(other)+(other.rank==='normal'?40:16));
       let points: ReturnType<typeof formPack>;
       for(let attempt=0;attempt<900&&!points;attempt++) {

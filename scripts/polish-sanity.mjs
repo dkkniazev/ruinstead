@@ -10,12 +10,15 @@ export * from './src/game/world/ReleaseWorldContent.ts';
 export * from './src/game/world/ReleaseRegionMap.ts';
 export * from './src/game/world/WorldPrototype.ts';
 export * from './src/game/gathering/ResourceSystem.ts';
+export * from './src/game/world/ForestZone.ts';
 export * from './src/game/layout/Viewport.ts';
 `,loader:'ts',resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false,
 plugins:[{name:'math-only-phaser',setup(b){b.onResolve({filter:/^phaser$/},()=>({path:'phaser',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:`export default {Math:{Vector2:class {constructor(x=0,y=0){this.x=x;this.y=y;}},Distance:{Between:(a,b,c,d)=>Math.hypot(c-a,d-b)}}};`}));}}]});
 const api=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text+'\n//# sourceURL=polish-fixture.mjs').toString('base64')}`);
 const seeded=seed=>()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
 const resourceA=api.buildResourceNodeDefinitions(123456),resourceB=api.buildResourceNodeDefinitions(123456),resourceC=api.buildResourceNodeDefinitions(654321);
+assert(api.forestLandmarkAreaIsClear(api.FOREST_HEART.x,api.FOREST_HEART.y,0)===false,'Forest heart itself is a reserved landmark');
+assert(resourceA.every(node=>Math.hypot(node.x-api.FOREST_HEART.x,node.y-api.FOREST_HEART.y)>220+api.resourceFootprintRadius(node.type)),'Resources must not cover the forest altar');
 assert.deepEqual(resourceA,resourceB,'Same resource seed must reproduce the exact layout');
 assert.notDeepEqual(resourceA.map(n=>[n.x,n.y]),resourceC.map(n=>[n.x,n.y]),'Different seeds must change the procedural layout');
 for(let i=0;i<resourceA.length;i++)for(let j=i+1;j<resourceA.length;j++){

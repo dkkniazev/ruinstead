@@ -102,6 +102,7 @@ export class GameUI {
   }
   close():void{this.screen=null;this.overlay.hidden=true;this.modalChange(!this.confirmation.hidden);this.lastFocused?.focus();}
   notice(message:string):void{const toast=document.createElement('div');toast.className='r-toast';toast.textContent=message;this.addToast(toast,4300);}
+  tutorial(message:string):void{const toast=document.createElement('div');toast.className='r-toast r-tutorial';toast.innerHTML=`<strong>Подсказка</strong><p>${escape(message)}</p><div class="r-actions">${button('Пропустить обучение','tutorial-skip','close')}</div>`;this.addToast(toast,9000);}
   levelUp(event:E.LevelUpHudEvent):void{const toast=document.createElement('div');toast.className='r-toast';toast.innerHTML=`${tag('Новый уровень','upgrade')}<h3>Уровень ${event.level}</h3><p>${escape(event.rewards.join(' · '))}</p>`;this.addToast(toast,7000);}
   private addToast(toast:HTMLElement,ms:number):void{this.toasts.append(toast);while(this.toasts.children.length>3)this.toasts.firstElementChild?.remove();const timer=setTimeout(()=>{toast.remove();this.timerIds.delete(timer);},ms);this.timerIds.add(timer);}
   private renderHud():void{
@@ -224,6 +225,7 @@ export class GameUI {
     const target=(event.target as Element).closest<HTMLButtonElement>('[data-action]');if(!target||target.disabled)return;
     gameAudio.unlock();gameAudio.play('ui');const [action,...rest]=target.dataset.action!.split(':'),arg=rest.join(':');const w=this.selected();
     if(action==='interact'){this.emit(E.HUD_WORLD_INTERACT_EVENT);return;}
+    if(action==='tutorial-skip'){this.emit(E.HUD_TUTORIAL_SKIP_EVENT);this.toasts.querySelectorAll('.r-tutorial').forEach(node=>node.remove());return;}
     if(action==='open'){this.open(arg as Screen);return;}if(action==='close'){this.close();return;}
     if(action==='tab'){this.tab=arg;this.renderPanel();return;}if(action==='slot'){this.selectedSlot=Number(arg);this.renderPanel();return;}
     if(action==='weapon-type'){this.weaponFilter=arg;const first=this.state.character.inventory.filter(w=>arg==='all'||w.weaponId===arg).sort((a,b)=>weaponHitDamage(b)-weaponHitDamage(a))[0];if(first)this.selectedWeapon=this.weaponKey(first);this.renderPanel();return;}if(action==='weapon'){this.selectedWeapon=arg;this.renderPanel();return;}if(action==='entry'){this.selectedEntry=arg;this.eliteView=this.rankFilter==='elite';this.renderPanel();return;}

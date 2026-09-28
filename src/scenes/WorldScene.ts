@@ -185,6 +185,7 @@ import {
   HUD_AUDIO_SETTINGS_CHANGE_EVENT,
   HUD_LEVEL_UP_EVENT,
   HUD_TUTORIAL_EVENT,
+  HUD_TUTORIAL_SKIP_EVENT,
   type BlessingKind,
   type CharacterHudState,
   type GatheringHudState,
@@ -486,6 +487,7 @@ export class WorldScene
       );
     this.onboardingOrigin = new Phaser.Math.Vector2(startX, startY);
     this.game.events.on('ruinstead:player:dash', this.handleTutorialDash, this);
+    this.game.events.on(HUD_TUTORIAL_SKIP_EVENT, this.handleTutorialSkip, this);
 
     this.petCompanion =
       new PetCompanion(
@@ -913,12 +915,26 @@ export class WorldScene
           this.lastAreaName,
       },
     );
-    if (!this.gameState.onboarding.moved) {
-      this.time.delayedCall(500, () => this.showTutorial(
-        getLanguage() === 'en'
-          ? 'Move with WASD or the joystick. Your hero attacks nearby enemies automatically.'
-          : 'Двигайтесь WASD или стиком. Герой атакует ближайших врагов сам.',
-      ));
+    if (
+      !this.gameState.onboarding.skipped &&
+      !this.gameState.onboarding.hudSeen
+    ) {
+      this.time.delayedCall(500, () => {
+        if (
+          !this.gameState ||
+          this.gameState.onboarding.skipped ||
+          this.gameState.onboarding.hudSeen
+        ) {
+          return;
+        }
+        this.gameState.onboarding.hudSeen = true;
+        this.showTutorial(
+          getLanguage() === 'en'
+            ? 'Health, level and XP are at the top. Follow the quest on the left; open the world map with Tab. Move with WASD or the joystick.'
+            : 'Сверху показаны здоровье, уровень и опыт. Слева — текущая цель, карта мира открывается на Tab. Двигайтесь WASD или стиком.',
+        );
+        this.saveState();
+      });
     }
 
     if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('debug') === '1') {
@@ -1841,11 +1857,21 @@ export class WorldScene
     if (!this.bestiarySystem) {
       return;
     }
-    if (this.gameState && !this.gameState.onboarding.firstKill) {
+    if (
+      this.gameState &&
+      !this.gameState.onboarding.firstKill
+    ) {
       this.gameState.onboarding.firstKill = true;
+    }
+    if (
+      this.gameState &&
+      !this.gameState.onboarding.skipped &&
+      !this.gameState.onboarding.bestiarySeen
+    ) {
+      this.gameState.onboarding.bestiarySeen = true;
       this.showTutorial(getLanguage() === 'en'
-        ? 'Check the Bestiary: weakness doubles damage, resistance halves it. Follow quests on the left.'
-        : 'Откройте Бестиарий: слабость удваивает урон, сопротивление снижает его вдвое. Следите за заданиями слева.');
+        ? 'Bestiary is now useful: it shows weaknesses, resistances and kill milestones. Open it from the right-side menu.'
+        : 'Теперь пригодится Бестиарий: там показаны слабости, сопротивления и награды за убийства. Он находится в меню справа.');
       this.saveState();
     }
 
@@ -2033,6 +2059,19 @@ export class WorldScene
         carried.fiber ?? 0,
       coins: carried.coins,
     };
+
+    if (
+      !this.gameState.onboarding.skipped &&
+      !this.gameState.onboarding.backpackSeen &&
+      this.backpack.state.usedCapacity > 0
+    ) {
+      this.gameState.onboarding.backpackSeen = true;
+      this.showTutorial(
+        getLanguage() === 'en'
+          ? 'Loot is carried in your backpack. Its capacity is shown at the bottom; return to the settlement to secure gathered resources.'
+          : 'Добыча сначала попадает в рюкзак. Его заполнение показано снизу; вернитесь в поселение, чтобы сохранить собранные ресурсы.',
+      );
+    }
 
     this.game.events.emit(
       HUD_GATHERING_STATE_EVENT,
@@ -5189,6 +5228,20 @@ export class WorldScene
     if(signature===this.interactionSignature)return;
     this.interactionSignature=signature;
     this.game.events.emit(HUD_INTERACTION_STATE_EVENT,interaction?{id:interaction.id,kind:interaction.kind,label:interaction.label}:null);
+    if (
+      interaction?.kind === 'forge' &&
+      this.gameState &&
+      !this.gameState.onboarding.skipped &&
+      !this.gameState.onboarding.forgeSeen
+    ) {
+      this.gameState.onboarding.forgeSeen = true;
+      this.showTutorial(
+        getLanguage() === 'en'
+          ? 'You are near the forge. Press E to interact with it. Weapon upgrades and fusion live here; hero attributes remain available from Character anywhere.'
+          : 'Вы рядом с кузницей. Нажмите E для взаимодействия. Здесь улучшается и сливается оружие; характеристики героя доступны из меню персонажа в любом месте.',
+      );
+      this.saveState();
+    }
   }
 
   private handleWorldInteraction():void {
@@ -5538,7 +5591,29 @@ export class WorldScene
   }
 
   private showTutorial(message: string): void {
+    if (
+      this.gameState?.onboarding.skipped
+    ) {
+      return;
+    }
     this.game.events.emit(HUD_TUTORIAL_EVENT, message);
+  }
+
+  private handleTutorialSkip(): void {
+    if (
+      !this.gameState ||
+      this.gameState.onboarding.skipped
+    ) {
+      return;
+    }
+    this.gameState.onboarding.skipped = true;
+    this.saveState();
+    this.game.events.emit(
+      HUD_NOTICE_EVENT,
+      getLanguage() === 'en'
+        ? 'Interface hints disabled'
+        : 'Обучение интерфейсу отключено',
+    );
   }
 
   private updateOnboarding(): void {
@@ -5549,8 +5624,8 @@ export class WorldScene
     ) < 130) return;
     this.gameState.onboarding.moved = true;
     this.showTutorial(getLanguage() === 'en'
-      ? 'Use dash to evade danger. Open Character on the right: weapon slots unlock at levels 5, 10, 15 and 20.'
-      : 'Уклоняйтесь рывком. В меню героя справа слоты оружия открываются на уровнях 5, 10, 15 и 20.');
+      ? 'Use dash to evade danger. Character is on the right: the primary weapon is in your hands, other equipped weapons orbit you, and slots unlock at levels 5, 10, 15 and 20.'
+      : 'Уклоняйтесь рывком. Меню героя находится справа: primary-оружие в руках, остальные экипированные оружия летают вокруг, а слоты открываются на уровнях 5, 10, 15 и 20.');
     this.saveState();
   }
 
@@ -5558,8 +5633,8 @@ export class WorldScene
     if (!this.gameState || this.gameState.onboarding.dashed) return;
     this.gameState.onboarding.dashed = true;
     this.showTutorial(getLanguage() === 'en'
-      ? 'Explore the next region, grow stronger and restore the settlement.'
-      : 'Исследуйте новые регионы, усиливайте героя и восстанавливайте поселение.');
+      ? 'Dash is ready. Explore the region, gather resources and keep the map on Tab in mind; combat does not disable gathering or world interactions.'
+      : 'Рывок освоен. Исследуйте регион, собирайте ресурсы и помните про карту на Tab: бой сам по себе не блокирует сбор и взаимодействия.');
     this.saveState();
   }
 
@@ -5623,6 +5698,7 @@ export class WorldScene
     this.presentation3d?.destroy();
     this.presentation3d = undefined;
     this.game.events.off('ruinstead:player:dash', this.handleTutorialDash, this);
+    this.game.events.off(HUD_TUTORIAL_SKIP_EVENT, this.handleTutorialSkip, this);
     this.scale.off(
       Phaser.Scale.Events.RESIZE,
       this.handleResize,

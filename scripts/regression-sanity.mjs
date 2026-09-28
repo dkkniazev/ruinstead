@@ -8,6 +8,7 @@ export * from './src/game/progression/UpgradeBalance.ts';
 export * from './src/game/gathering/BackpackSystem.ts';
 export * from './src/game/gathering/ResourceTypes.ts';
 export * from './src/game/economy/ResourceTrading.ts';
+export * from './src/game/state/GameState.ts';
 `,loader:'ts',resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
 const m=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text+'\n//# sourceURL=regression-fixture.mjs').toString('base64')}`);
 for(const hp of [0,1,24.7,67,100]){
@@ -15,6 +16,9 @@ for(const hp of [0,1,24.7,67,100]){
   for(let n=0;n<100;n++){current=m.healthAfterMaxChange(current,100,125);current=m.healthAfterMaxChange(current,125,100);}
   assert(Math.abs(current-hp)<1e-9,'Changing skins must not heal');
 }
+const freshState=m.createDefaultGameState();
+assert.equal(freshState.schemaVersion,28);
+assert.deepEqual(freshState.onboarding,{moved:false,dashed:false,firstKill:false,hudSeen:false,backpackSeen:false,forgeSeen:false,bestiarySeen:false,skipped:false});
 const bag=new m.BackpackSystem(0,{...m.emptyResourceCounts(),wood:100,coins:500});
 assert.equal(bag.usedCapacity,100);assert.equal(bag.add('coins',1000),1000);assert.equal(bag.add('wood',1),0);
 assert.equal(bag.state.carried.coins,1500);assert.equal(bag.usedCapacity,100);

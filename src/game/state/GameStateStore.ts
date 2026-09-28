@@ -1161,6 +1161,39 @@ export function sanitizeGameState(value: unknown): GameState {
       moved: booleanValue(onboarding?.moved, defaults.onboarding.moved),
       dashed: booleanValue(onboarding?.dashed, defaults.onboarding.dashed),
       firstKill: booleanValue(onboarding?.firstKill, defaults.onboarding.firstKill),
+      hudSeen: booleanValue(
+        onboarding?.hudSeen,
+        sourceSchemaVersion < 28
+          ? booleanValue(onboarding?.moved, false)
+          : defaults.onboarding.hudSeen,
+      ),
+      backpackSeen: booleanValue(
+        onboarding?.backpackSeen,
+        sourceSchemaVersion < 28
+          ? booleanValue(onboarding?.moved, false)
+          : defaults.onboarding.backpackSeen,
+      ),
+      forgeSeen: booleanValue(
+        onboarding?.forgeSeen,
+        sourceSchemaVersion < 28
+          ? booleanValue(onboarding?.moved, false)
+          : defaults.onboarding.forgeSeen,
+      ),
+      bestiarySeen: booleanValue(
+        onboarding?.bestiarySeen,
+        sourceSchemaVersion < 28
+          ? booleanValue(onboarding?.firstKill, false)
+          : defaults.onboarding.bestiarySeen,
+      ),
+      skipped: booleanValue(
+        onboarding?.skipped,
+        sourceSchemaVersion < 28 &&
+          (
+            booleanValue(onboarding?.moved, false) ||
+            booleanValue(onboarding?.dashed, false) ||
+            booleanValue(onboarding?.firstKill, false)
+          ),
+      ),
     },
   };
 }

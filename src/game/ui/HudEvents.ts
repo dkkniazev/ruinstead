@@ -91,6 +91,8 @@ export const HUD_LEVEL_UP_EVENT =
   'ruinstead:hud:level-up';
 export const HUD_TUTORIAL_EVENT =
   'ruinstead:hud:tutorial';
+export const HUD_TUTORIAL_SKIP_EVENT =
+  'ruinstead:hud:tutorial-skip';
 export type LevelUpHudEvent = {
   level: number;
   gems: number;

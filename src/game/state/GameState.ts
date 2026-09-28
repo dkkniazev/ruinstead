@@ -3,7 +3,7 @@ import {
   type WeaponInventoryState,
 } from '../progression/WeaponInventory';
 
-export const SAVE_SCHEMA_VERSION = 27 as const;
+export const SAVE_SCHEMA_VERSION = 28 as const;
 
 export type BuildingId =
   | 'forge'
@@ -182,6 +182,11 @@ export type GameState = {
     moved: boolean;
     dashed: boolean;
     firstKill: boolean;
+    hudSeen: boolean;
+    backpackSeen: boolean;
+    forgeSeen: boolean;
+    bestiarySeen: boolean;
+    skipped: boolean;
   };
 };
 
@@ -338,6 +343,15 @@ export function createDefaultGameState(): GameState {
       musicVolume: 0.35,
       muted: false,
     },
-    onboarding: { moved: false, dashed: false, firstKill: false },
+    onboarding: {
+      moved: false,
+      dashed: false,
+      firstKill: false,
+      hudSeen: false,
+      backpackSeen: false,
+      forgeSeen: false,
+      bestiarySeen: false,
+      skipped: false,
+    },
   };
 }

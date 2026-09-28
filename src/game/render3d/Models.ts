@@ -6,6 +6,7 @@ export { createHero } from './HeroModel';
 export { createCreature } from './CreatureModels';
 import * as THREE from 'three';
 import type { WeaponId } from '../combat/WeaponDefinitions';
+import type { SkinId } from '../cosmetics/SkinEconomy';
 
 const cube = softBox;
 const orb = softOrb;
@@ -62,6 +63,7 @@ export type AnimatedModel = {
   root: THREE.Group;
   step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number, attackAt?: number) => void;
   setWeapon?: (weapon: WeaponId) => void;
+  setSkin?: (skin: SkinId | null) => void;
   setTint?: (tint: number | null) => void;
   dispose?: () => void;
   ready?: Promise<void>;

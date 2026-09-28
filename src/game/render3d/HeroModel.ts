@@ -3,6 +3,9 @@ import type { WeaponId } from '../combat/WeaponDefinitions';
 import type { AnimatedModel } from './Models';
 import { softBox, softOrb } from './ArtMaterials';
 import { createWeaponModel, type WeaponModel } from './WeaponModel';
+import type { SkinId } from '../cosmetics/SkinEconomy';
+import { HERO_SKIN_STYLES } from './HeroSkinStyles';
+import { createSkinOutfit } from './HeroSkinModel';
 
 const limb = new T.CapsuleGeometry(1, 1, 3, 8);
 const torso = new T.CylinderGeometry(.82, 1, 1, 8);
@@ -20,9 +23,9 @@ type Surface = keyof typeof palette;
 
 export function createHero(): AnimatedModel {
   const root = new T.Group(), body = new T.Group(); root.add(body);
-  const blue=palette.blue.clone();
+  const surfaces=Object.fromEntries(Object.entries(palette).map(([name,material])=>[name,material.clone()])) as typeof palette;
   const make = (parent:T.Object3D, geo:T.BufferGeometry, color:Surface, x:number,y:number,z:number, sx:number,sy:number,sz:number) => {
-    const mesh = new T.Mesh(geo,color==='blue'?blue:palette[color]);
+    const mesh = new T.Mesh(geo,surfaces[color]);
     mesh.position.set(x,y,z); mesh.scale.set(sx,sy,sz);
     mesh.castShadow=mesh.receiveShadow=true; parent.add(mesh); return mesh;
   };
@@ -31,26 +34,27 @@ export function createHero(): AnimatedModel {
   const joint = (p:T.Object3D,x:number,y:number,z:number)=>{const g=new T.Group();g.position.set(x,y,z);p.add(g);return g;};
 
   // Tapered armour, overlapping plates and rounded seams make a single silhouette.
+  const chest=new T.Group(),helmet=new T.Group();body.add(chest,helmet);
   make(body,torso,'blue',0,66,0,22,38,14);
-  ball(body,'edge',0,71,9,19,20,9);
-  ball(body,'steel',0,73,12,17,17,7);
-  box(body,'gold',0,69,19,4,26,2);
+  ball(chest,'edge',0,71,9,19,20,9);
+  ball(chest,'steel',0,73,12,17,17,7);
+  box(chest,'gold',0,69,19,4,26,2);
   box(body,'leather',0,47,0,39,8,29);
   box(body,'gold',0,47,16,10,9,3);
   box(body,'cloth',0,36,0,33,18,25);
   for(const side of [-1,1])box(body,'blue',side*14,37,8,12,20,20).rotation.z=side*.12;
   ball(body,'skin',0,100,2,15,18,14);
-  ball(body,'edge',0,110,-2,18,16,17);
-  ball(body,'steel',0,113,-2,17.5,14,16.5);
-  box(body,'edge',0,109,15,31,5,5);
+  ball(helmet,'edge',0,110,-2,18,16,17);
+  ball(helmet,'steel',0,113,-2,17.5,14,16.5);
+  box(helmet,'edge',0,109,15,31,5,5);
   for(const side of [-1,1]){
-    box(body,'steel',side*13,99,8,7,19,12).rotation.z=-side*.13;
+    box(helmet,'steel',side*13,99,8,7,19,12).rotation.z=-side*.13;
     ball(body,'dark',side*5.5,102,16,1.7,2,1);
-    box(body,'gold',side*11,91,11,4,5,3);
+    box(helmet,'gold',side*11,91,11,4,5,3);
   }
-  box(body,'gold',0,118,2,4,12,27);
+  box(helmet,'gold',0,118,2,4,12,27);
 
-  const legs: T.Group[] = [], knees: T.Group[] = [], arms:T.Group[] = [], elbows:T.Group[] = [];
+  const legs: T.Group[] = [], knees: T.Group[] = [], arms:T.Group[] = [], elbows:T.Group[] = [], shoulders:T.Group[]=[];
   for(const side of [-1,1]){
     const leg=joint(body,side*10,42,0),knee=joint(leg,0,-19,0);
     legs.push(leg);knees.push(knee);
@@ -62,9 +66,10 @@ export function createHero(): AnimatedModel {
     box(knee,'gold',0,-12,5,14,3,19);
     const arm=joint(body,side*22,81,0),elbow=joint(arm,side*2,-21,0);
     arms.push(arm);elbows.push(elbow);
-    ball(arm,'edge',side*2,-1,0,14,11,14);
-    ball(arm,'steel',side*2,1,1,13,9,13);
-    box(arm,'gold',side*3,5,7,14,3,13);
+    const shoulder=new T.Group();arm.add(shoulder);shoulders.push(shoulder);
+    ball(shoulder,'edge',side*2,-1,0,14,11,14);
+    ball(shoulder,'steel',side*2,1,1,13,9,13);
+    box(shoulder,'gold',side*3,5,7,14,3,13);
     make(arm,limb,'blue',0,-12,0,6,5.5,6);
     ball(elbow,'edge',0,0,0,7);
     make(elbow,limb,'leather',0,-9,0,6,5,6);
@@ -78,6 +83,18 @@ export function createHero(): AnimatedModel {
   const cape=new T.Mesh(capeGeo,capeMat);cape.position.set(0,59,-17);cape.castShadow=true;body.add(cape);
   const capeRest=Float32Array.from(capeGeo.attributes.position.array);
   const capeTrim=box(body,'gold',0,85,-15,36,4,6);
+  let skinId:SkinId|null=null,outfit:ReturnType<typeof createSkinOutfit>|undefined;
+  const setSkin=(id:SkinId|null):void=>{
+    if(id===skinId)return;
+    outfit?.dispose();outfit=undefined;skinId=id;root.userData.skinId=id;
+    const style=id?HERO_SKIN_STYLES[id]:undefined;
+    for(const name of Object.keys(palette) as Surface[])surfaces[name].color.copy(palette[name].color);
+    if(style)for(const [name,color] of Object.entries(style.colors))surfaces[name as Surface].color.setHex(color);
+    helmet.visible=!style;shoulders.forEach(shoulder=>shoulder.visible=!style);chest.visible=!style?.apron;
+    capeMat.color.setHex(style?.cape??0xe8aa45);
+    const [width,length]=style?.capeSize??[1,1];cape.scale.set(width,length,1);cape.position.y=86-27*length;
+    if(id)outfit=createSkinOutfit(id,{body,arms,elbows,knees},surfaces);
+  };
   const weaponMount=joint(elbows[1],0,-21,1);
   const offHand=joint(elbows[0],0,-21,1);
   weaponMount.name='primary-grip';offHand.name='secondary-grip';
@@ -90,10 +107,11 @@ export function createHero(): AnimatedModel {
   };
   setWeapon('axe');
   let phase=0,clock=0,lean=0,leanVelocity=0,turn=0,attackTime=1,wasAttacking=false,lastAttackAt=-Infinity;
-  return {root,setWeapon,setTint(tint){blue.color.setHex(tint??0x355f78);},dispose(){blue.dispose();capeGeo.dispose();capeMat.dispose();held?.dispose();second?.dispose();},
+  return {root,setWeapon,setSkin,setTint(tint){surfaces.blue.color.setHex(tint??0x355f78);},dispose(){outfit?.dispose();Object.values(surfaces).forEach(material=>material.dispose());capeGeo.dispose();capeMat.dispose();held?.dispose();second?.dispose();},
     step(seconds,speed,dash=false,attack=false,travel=0,turning=0,attackAt?:number){
       const dt=Math.min(seconds,.05),motion=Math.min(1.4,speed/225);
       clock+=dt;phase+=Math.min(65,travel)*.061;
+      outfit?.step(clock);
       if(attack&&(!wasAttacking||(attackAt!==undefined&&attackAt!==lastAttackAt)))attackTime=0;
       if(attackAt!==undefined)lastAttackAt=attackAt;
       wasAttacking=attack;attackTime+=dt;

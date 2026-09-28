@@ -204,7 +204,7 @@ export class WorldPresentation3D {
     this.hero.root.rotation.y = this.lastFacing;
     this.hero.root.position.set(x, terrainHeight(x, z) + 5, z);
     this.hero.setWeapon?.(this.player.visualWeaponId);
-    this.hero.setTint?.(this.player.visualTint);
+    this.hero.setSkin?.(this.player.visualSkinId);
     const attacking = (harvesting && time - harvest.hitAt < 200) || time - this.player.visualAttackAt < 230;
     const travel = Math.hypot(x - this.lastHeroX, z - this.lastHeroY);
     this.hero.step(dt, speed, this.player.isDashing(time), attacking, travel, difference,

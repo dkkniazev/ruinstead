@@ -3407,6 +3407,7 @@ export class WorldScene
     this.player
       ?.setCosmeticTint(
         skin.tint,
+        skin.skinId,
       );
     this.resourceSystem
       ?.setGatheringMultiplier(

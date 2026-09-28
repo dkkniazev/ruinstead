@@ -21,6 +21,7 @@ import { RELEASE_REGIONS } from '../world/ReleaseRegionMap';
 import { gameAudio } from '../audio/GameAudio';
 import { requestYandexAuthorization, getYandexPlatformState, YANDEX_PLATFORM_STATE_EVENT } from '../../platform/yandex/YandexPlatform';
 import { fillPortrait } from './ModelPortraits';
+import { HERO_SKIN_STYLES } from '../render3d/HeroSkinStyles';
 import { icon } from './GameIcons';
 
 export type GameUIState = {
@@ -124,8 +125,9 @@ export class GameUI {
     if(!cost)return '<p class="r-muted">Максимальный уровень</p>';
     return `<div class="r-cost">${Object.entries(cost).filter(([,v])=>v>0).map(([k,v])=>`<span class="${(owned[k as keyof ResourceCounts]??0)<v?'missing':''}" title="${resourceNames[k]}: доступно ${number(owned[k as keyof ResourceCounts]??0)}">${icon(k)}${number(v)}</span>`).join('')}</div>`;
   }
-  private image(id:string,primary:number,accent:number,elite=false,radius?:number):string{return `<img class="r-portrait" alt="${id==='hero'?'Модель героя':'Модель существа'}" data-model="${id}" data-primary="${primary}" data-accent="${accent}" data-elite="${elite}" ${radius?`data-radius="${radius}"`:''}>`;}
-  private portraits():void{this.overlay.querySelectorAll<HTMLImageElement>('img[data-model]').forEach(img=>fillPortrait(img,img.dataset.model!,Number(img.dataset.primary),Number(img.dataset.accent),img.dataset.elite==='true',Number(img.dataset.radius)||undefined));}
+  private image(id:string,primary:number,accent:number,elite=false,radius?:number,skinId?:SkinId):string{return `<img class="r-portrait" alt="${skinId?SKIN_DEFINITIONS[skinId].name:id==='hero'?'Модель героя':'Модель существа'}" data-model="${id}" data-primary="${primary}" data-accent="${accent}" data-elite="${elite}" ${skinId?`data-skin="${skinId}"`:''} ${radius?`data-radius="${radius}"`:''}>`;}
+  private heroImage(skinId:SkinId|null):string{return this.image('hero',skinId?SKIN_DEFINITIONS[skinId].tint:0x355f78,0xd0a451,false,undefined,skinId??undefined);}
+  private portraits():void{this.overlay.querySelectorAll<HTMLImageElement>('img[data-model]').forEach(img=>fillPortrait(img,img.dataset.model!,Number(img.dataset.primary),Number(img.dataset.accent),img.dataset.elite==='true',Number(img.dataset.radius)||undefined,img.dataset.skin as SkinId|undefined));}
   private weaponKey(w:OwnedWeaponOption):string{return `${w.weaponId},${w.rarity},${w.stars}`;}
   private selected():OwnedWeaponOption|undefined {return this.state.character.inventory.find(w=>this.weaponKey(w)===this.selectedWeapon)??this.state.character.inventory[0];}
   private weaponList():string{

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { SkinId } from '../cosmetics/SkinEconomy';
 import { gameAudio } from '../audio/GameAudio';
 import type {
   WeaponId,
@@ -36,6 +37,8 @@ export class PlayerController {
   visualAttackDirection = {x:0,y:1};
   get visualWeaponId(): WeaponId { return this.weaponId; }
   get visualTint(): number | null { return this.cosmeticTint; }
+  get visualSkinId(): SkinId | null { return this.cosmeticSkinId; }
+  private cosmeticSkinId: SkinId | null = null;
   get visualFacing(): Phaser.Math.Vector2 { return this.lastDirection.clone(); }
   isDashing(time: number): boolean { return time < this.dashUntil; }
   readonly sprite:
@@ -359,7 +362,9 @@ export class PlayerController {
 
   setCosmeticTint(
     tint: number | null,
+    skinId: SkinId | null = null,
   ): void {
+    this.cosmeticSkinId = skinId;
     this.cosmeticTint =
       tint;
   }

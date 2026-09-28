@@ -9,6 +9,7 @@ import type { CombatSystem } from '../combat/CombatSystem';
 import type { BossSystem } from '../bosses/BossSystem';
 import type { WorldPresentation3D } from '../render3d/WorldPresentation3D';
 import { WEAPON_DEFINITIONS, WEAPON_ORDER } from '../combat/WeaponDefinitions';
+import { SKIN_DEFINITIONS } from '../cosmetics/SkinEconomy';
 
 export const isPolishPlaytest = (): boolean => import.meta.env.DEV && new URLSearchParams(location.search).get('playtest') === 'polish';
 /** This fixture never touches local storage or cloud saves. */
@@ -21,6 +22,7 @@ export function polishStateStore() {
   state.consumables.returnTickets=3;
   state.resources={wood:1000,stone:1000,metal:1000,crystal:100,fiber:100,coins:10000};
   state.premium.unlockedSkinIds=['moss-guard'];
+  if(new URLSearchParams(location.search).get('skins')==='all')state.premium.unlockedSkinIds=Object.keys(SKIN_DEFINITIONS);
   state.player.maxHealthLevel=10;state.player.backpackLevel=10;
   state.world.bossRespawnAt['root-colossus']=Date.now()+3600000;
   if(new URLSearchParams(location.search).get('weapons')==='all'){

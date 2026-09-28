@@ -3,7 +3,8 @@ import { icon } from './GameIcons';
 import { REGION_RESOURCE_PROFILES } from '../economy/RegionEconomy';
 
 export type MapMarker = { x: number; y: number; kind: 'enemy' | 'boss' | 'main-boss' | 'wood' | 'stone' | 'metal' | 'crystal' | 'fiber'; label?: string; region?: number };
-export type MapSnapshot = { x: number; y: number; facing: number; home: {x: number; y: number}; landmarks?: {x:number;y:number;name:string}[]; markers: MapMarker[] };
+export type MapLandmark = { x:number; y:number; name:string; kind?: 'landmark' | 'quest' };
+export type MapSnapshot = { x: number; y: number; facing: number; home: {x: number; y: number}; landmarks?: MapLandmark[]; markers: MapMarker[] };
 const COLORS: Record<string, string> = { enemy: '#eb8761', boss: '#ff554c', 'main-boss': '#ffd66f', wood: '#a7d37b', stone: '#e6d8b8', metal: '#c2ccd5', crystal: '#72eeff', fiber: '#d6ed63' };
 const REGION_COLORS = ['#66824c', '#9b8155', '#66637e', '#85503e', '#8e9c74', '#81604e', '#b07e50', '#763d3a'];
 
@@ -47,7 +48,7 @@ export class WorldMap {
       button.onclick=()=>{this.filter=id;for(const other of filters.children)other.setAttribute('aria-pressed',String(other===button));if(this.snapshot)this.draw(this.fullCanvas,this.snapshot,true);};filters.append(button);
     }info.append(filters);
     const legend=document.createElement('div');legend.className='world-map-legend';
-    legend.innerHTML=[['arrow','Вы здесь'],['home','Поселение'],['elite','Главный босс региона'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
+    legend.innerHTML=[['arrow','Вы здесь'],['quest','Цель задания'],['home','Поселение'],['elite','Главный босс региона'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
     const regions=document.createElement('ol');regions.className='world-map-regions';
     regions.innerHTML=RELEASE_REGIONS.map(r=>'<li>'+r.id+'. '+r.name+'</li>').join('');info.append(regions);
     const hint = document.createElement('small'); hint.textContent = 'Игра приостановлена. Ресурсы отмечены только там, где ещё доступны для добычи.'; info.append(hint);
@@ -109,9 +110,24 @@ export class WorldMap {
         ctx.strokeStyle='#243b36';ctx.lineWidth=full?4:7;ctx.stroke();ctx.strokeStyle='#d1b98a99';ctx.lineWidth=full?2:3;ctx.stroke();
       }
     }
-    if(!full)for(const landmark of state.landmarks??[]){
-      const lx=px(landmark.x),ly=py(landmark.y);ctx.beginPath();ctx.moveTo(px(state.home.x),py(state.home.y));ctx.lineTo(lx,ly);ctx.strokeStyle='#d7c195aa';ctx.lineWidth=3;ctx.stroke();
-      ctx.fillStyle='#f1d7a0';ctx.strokeStyle='#284039';ctx.lineWidth=2;ctx.fillRect(lx-5,ly-5,10,10);ctx.strokeRect(lx-5,ly-5,10,10);
+    for(const landmark of state.landmarks??[]){
+      const distance=Math.hypot(landmark.x-state.x,landmark.y-state.y);
+      if(!full&&landmark.kind!=='quest'&&distance>1250)continue;
+      const lx=px(landmark.x),ly=py(landmark.y);
+      if(lx<-30||lx>w+30||ly<-30||ly>h+30)continue;
+      const quest=landmark.kind==='quest';
+      if(quest){
+        ctx.save();ctx.shadowColor='#ffdc6e';ctx.shadowBlur=full?18:12;
+        ctx.beginPath();ctx.arc(lx,ly,full?13:11,0,Math.PI*2);ctx.fillStyle='#513711';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#ffe49b';ctx.stroke();ctx.shadowBlur=0;
+        ctx.fillStyle='#ffe49b';ctx.font=`900 ${full?18:16}px system-ui`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('!',lx,ly-1);ctx.restore();
+      }else{
+        ctx.beginPath();ctx.arc(lx,ly,full?6:5,0,Math.PI*2);ctx.fillStyle='#f1d7a0';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#284039';ctx.stroke();
+      }
+      if(full||quest){
+        const labelX=lx+(full?18:14),labelY=ly-(full?10:8);
+        ctx.font=`700 ${full?11:10}px system-ui`;ctx.textAlign='left';ctx.textBaseline='middle';ctx.lineWidth=3;ctx.strokeStyle='#142126';ctx.fillStyle=quest?'#ffe49b':'#f0dfb5';
+        ctx.strokeText(landmark.name,labelX,labelY);ctx.fillText(landmark.name,labelX,labelY);
+      }
     }
     for (const passage of RELEASE_PASSAGES) {
       const {a, b} = getPassageGeometry(passage); const open = this.isOpen(passage);

@@ -991,6 +991,21 @@ export class EnemyUnit {
       return false;
     }
 
+    if (
+      Phaser.Math.Distance.Between(
+        this.spawn.x,
+        this.spawn.y,
+        playerPosition.x,
+        playerPosition.y,
+      ) >
+      enemyLeashDistance(
+        this.definition.id,
+        this.rank === 'elite',
+      )
+    ) {
+      return false;
+    }
+
     const center =
       this.combatPosition;
 

@@ -9,6 +9,7 @@ import {
 
   type RegionDefinition,
 } from './ReleaseRegionMap';
+import { FOREST_HEART } from './ForestZone';
 
 export const WORLD_WIDTH =
   RELEASE_WORLD_WIDTH;
@@ -604,7 +605,21 @@ function drawSettlement(
 
 function createPrototypeObstacles(scene: Phaser.Scene): Phaser.Physics.Arcade.StaticGroup {
   // Solid terrain props are now the actual harvestable nodes in ResourceSystem.
-  return scene.physics.add.staticGroup();
+  // The forest altar is a real landmark, so its visible stone footprint also
+  // participates in gameplay collision instead of letting actors walk through it.
+  const obstacles=scene.physics.add.staticGroup();
+  const altar=scene.add
+    .rectangle(
+      FOREST_HEART.x,
+      FOREST_HEART.y,
+      228,
+      176,
+      0x000000,
+      0,
+    )
+    .setVisible(false);
+  obstacles.add(altar);
+  return obstacles;
 }
 
 function drawPaintedProp(

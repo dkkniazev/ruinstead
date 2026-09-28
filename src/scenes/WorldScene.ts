@@ -587,10 +587,16 @@ export class WorldScene
             this.regionGateSystem.navigation,
           )
         : undefined;
-    enemyNavigation?.setObstacles(
-      this.resourceSystem
+    enemyNavigation?.setObstacles([
+      ...this.resourceSystem
         .navigationObstacles,
-    );
+      {
+        x: FOREST_HEART.x,
+        y: FOREST_HEART.y,
+        halfWidth: 126,
+        halfHeight: 100,
+      },
+    ]);
 
     this.enemies =
       new EnemySystem(

@@ -159,7 +159,7 @@ export class GameUI {
     this.tutorialPanel.style.left=left+'px';this.tutorialPanel.style.top=top+'px';
   };
   private hideTutorial():void{
-    this.activeTutorial=undefined;this.tutorialSpotlight.hidden=true;this.tutorialFocus.hidden=true;this.onModal(!!this.screen||!this.confirmation.hidden);
+    this.activeTutorial=undefined;this.tutorialSpotlight.hidden=true;this.tutorialFocus.hidden=true;this.onModal(!!this.activeStory||!!this.screen||!this.confirmation.hidden);this.showNextStory();
   }
   levelUp(event:E.LevelUpHudEvent):void{const toast=document.createElement('div');toast.className='r-toast';toast.innerHTML=`${tag('Новый уровень','upgrade')}<h3>Уровень ${event.level}</h3><p>${escape(event.rewards.join(' · '))}</p>`;this.addToast(toast,7000);}
   private addToast(toast:HTMLElement,ms:number):void{this.toasts.append(toast);while(this.toasts.children.length>3)this.toasts.firstElementChild?.remove();const timer=setTimeout(()=>{toast.remove();this.timerIds.delete(timer);},ms);this.timerIds.add(timer);}

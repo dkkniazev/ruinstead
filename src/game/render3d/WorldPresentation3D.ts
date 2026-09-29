@@ -348,9 +348,9 @@ export class WorldPresentation3D {
       this.scene.remove(chunk);
       chunk.traverse((object) => { if (object instanceof THREE.Mesh && object.geometry !== undefined) {
         // Terrain and foliage geometries are unique; model geometries are shared.
-        if (object.userData.uniqueGeometry) {
+        if (object.userData.uniqueGeometry || object.userData.batchedGeometry) {
           object.geometry.dispose();
-          if (object.material instanceof THREE.Material) object.material.dispose();
+          if (object.material instanceof THREE.Material && !object.material.userData.sharedArtMaterial) object.material.dispose();
         }
       } });
       this.chunks.delete(key);
@@ -417,6 +417,12 @@ export class WorldPresentation3D {
       ruin.position.set(wx, terrainHeight(wx, wz), wz);
       group.add(ruin);
     }
+    // Chunk decorations are rigid. Flatten their transforms, then merge by material.
+    const rigid:THREE.Mesh[]=[];group.updateMatrixWorld(true);
+    const isAsyncAsset=(o:THREE.Object3D):boolean=>{for(let p=o.parent;p&&p!==group;p=p.parent)if(p.userData.asyncNatureAsset)return true;return false;};
+    group.traverse(o=>{if(o instanceof THREE.Mesh&&!(o instanceof THREE.InstancedMesh)&&!isAsyncAsset(o)&&o.parent!==group&&o.material instanceof THREE.MeshStandardMaterial&&!o.material.transparent&&o.material.onBeforeCompile===THREE.Material.prototype.onBeforeCompile)rigid.push(o);});
+    for(const m of rigid){m.applyMatrix4(m.parent!.matrixWorld);m.removeFromParent();group.add(m);}
+    batchStaticMeshes(group);
     return group;
   }
 
@@ -721,7 +727,7 @@ export class WorldPresentation3D {
     }
     this.actors.clear();
     for(const root of [...this.landRegions.values(),...this.chunks.values()])root.traverse(o=>{
-      if(o instanceof THREE.Mesh&&o.userData.uniqueGeometry){o.geometry.dispose();for(const material of Array.isArray(o.material)?o.material:[o.material])material.dispose();}
+      if(o instanceof THREE.Mesh&&(o.userData.uniqueGeometry||o.userData.batchedGeometry||o.userData.geographyOwned)){o.geometry.dispose();for(const material of Array.isArray(o.material)?o.material:[o.material])if(!material.userData.sharedArtMaterial)material.dispose();}
     });
     this.landRegions.clear();this.chunks.clear();
     this.hero.dispose?.();

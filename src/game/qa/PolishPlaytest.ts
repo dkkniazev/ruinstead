@@ -1,3 +1,4 @@
+import { GEOGRAPHY_LANDMARKS } from '../world/RegionGeography';
 import { createDefaultGameState, type GameState } from '../state/GameState';
 import type { EnemySystem } from '../enemies/EnemySystem';
 import type { PlayerController } from '../player/PlayerController';
@@ -58,6 +59,11 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   const choose=()=>{const first=enemies.visualUnits.find(e=>e.definition.region===Number(select.value)&&e.rank==='normal')!;pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);};
   const button=(label:string,action:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=action;controls.append(b);};
   controls.append(select);button('К пачке',choose);button('В бой',()=>{player.teleport(pack[0].spawn.x,pack[0].spawn.y+90);});button('Домой',()=>player.teleport(SETTLEMENT_CENTER.x,SETTLEMENT_CENTER.y+260));controls.append(output);document.body.append(controls);
+  button('К ориентиру',()=>{const site=GEOGRAPHY_LANDMARKS.find(p=>p.region===Number(select.value));if(site)player.teleport(site.x,site.y+site.radius+170);});
+  button('Босс региона',()=>{
+    const region=RELEASE_REGIONS[Number(select.value)-1],boss=bosses.visualUnits.find(b=>b.definition.region===region.id&&b.definition.isMain);
+    if(boss){const dx=region.center[0]-boss.spawn.x,dy=region.center[1]-boss.spawn.y,d=Math.max(1,Math.hypot(dx,dy));player.teleport(boss.spawn.x+dx/d*270,boss.spawn.y+dy/d*270);}
+  });
   button('К переходу',()=>{const region=Number(select.value),passage=RELEASE_PASSAGES.find(p=>p.a===region||p.b===region)!;const point=getPassageMidpoint(passage);player.teleport(point.x,point.y);});
   button('Спящий босс',()=>{const p=BOSS_ARENAS['root-colossus'];player.teleport(p.x,p.y+90);});
   button('Громила',()=>{const p=BOSS_ARENAS['moss-ogre'];player.teleport(p.x,p.y+260);});
@@ -66,6 +72,8 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   button('Ранить',()=>combat.damagePlayer(100));
   let protectedView=false;
   const protection=document.createElement('button');protection.textContent='Защита: выкл';protection.onclick=()=>{protectedView=!protectedView;protection.textContent=protectedView?'Защита: вкл':'Защита: выкл';};controls.append(protection);
+  let frameCount=0,frameStarted=performance.now(),fps=0,frameHandle=0;
+  const frame=()=>{const now=performance.now();frameCount++;if(now-frameStarted>1000){fps=frameCount*1000/(now-frameStarted);frameCount=0;frameStarted=now;}frameHandle=requestAnimationFrame(frame);};frameHandle=requestAnimationFrame(frame);
   const timer=setInterval(()=>{
     if(protectedView&&combat.state.health>0)combat.restoreForLevelUp();
     const groups=new Map<string,number>();let min=Infinity,overlaps=0;
@@ -77,9 +85,10 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
     }
     const boss=bosses.visualUnits.find(b=>b.definition.id==='lava-golem');
     const counts=[...groups.values()];output.textContent=`Проверка без сохранения · ${groups.size} пачек · ${Math.min(...counts)}–${Math.max(...counts)} мобов · элит: ${enemies.visualUnits.filter(e=>e.rank==='elite').length} · пересечений: ${overlaps} · зазор: ${min.toFixed(1)} · выбранная пачка: ${pack.filter(e=>e.alive).length}/${pack.length} · ${enemies.isPlayerThreatened()?'бой':'покой'} · Босс 4 HP: ${((boss?.visualHealthRatio??1)*100).toFixed(1)}%`;
+    output.textContent+=' · FPS: '+fps.toFixed(0);
     if(presentation){const stats=presentation.renderStats;output.textContent+=` · draw: ${stats.calls} · треуг.: ${Math.round(stats.triangles/1000)}k`;}
     const orbitals=combat.visualOrbitals;
     if(orbitals.length)output.textContent+=` · Орбиты: ${orbitals.map(o=>`${WEAPON_DEFINITIONS[o.weaponId].name} ${Number.isFinite(o.attackAt)?(o.attackAt/1000).toFixed(1)+'с':'ожидает'}`).join(', ')}`;
   },500);
-  return ()=>{clearInterval(timer);controls.remove();};
+  return ()=>{clearInterval(timer);cancelAnimationFrame(frameHandle);controls.remove();};
 }

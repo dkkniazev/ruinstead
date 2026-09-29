@@ -2,6 +2,7 @@ import * as T from 'three';
 import { getPassageGeometry, RELEASE_PASSAGES, pointInRegion, type RegionDefinition } from '../world/ReleaseRegionMap';
 import { passageAt, plateauHeight, terrainHeight } from '../world/WorldTerrain';
 import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
+import { geographyAreaIsClear } from '../world/RegionGeography';
 
 export function artRandom(x:number,y:number,seed=0):number {
   const n=Math.sin(x*127.1+y*311.7+seed*74.7)*43758.5453;return n-Math.floor(n);
@@ -83,7 +84,7 @@ export function createGroundCover(cx:number,cz:number,size:number,region:RegionD
     const stones=new T.InstancedMesh(geo,material,45),dummy=new T.Object3D();let count=0;
     for(let i=0;i<45;i++){
       const x=cx+artRandom(cx,cz,i+9)*size,z=cz+artRandom(cx,cz,i+90)*size;
-      if(!pointInRegion(region,x,z)||passageAt(x,z,18)||distanceToRoad(region,x,z)<60)continue;
+      if(!pointInRegion(region,x,z)||!geographyAreaIsClear(x,z)||passageAt(x,z,18)||distanceToRoad(region,x,z)<60)continue;
       dummy.position.set(x,terrainHeight(x,z)+3,z);dummy.rotation.set(.1,i*.6,0);dummy.scale.setScalar(3+artRandom(x,z)*7);dummy.updateMatrix();stones.setMatrixAt(count++,dummy.matrix);
     }
     stones.count=count;stones.receiveShadow=true;stones.userData.uniqueGeometry=true;group.add(stones);return group;
@@ -104,7 +105,7 @@ export function createGroundCover(cx:number,cz:number,size:number,region:RegionD
     for(let n=0;n<15;n++){
       const angle=artRandom(cx+cluster,cz,n+70)*Math.PI*2,radius=Math.sqrt(artRandom(cx+n,cz,cluster+8))*88;
       const x=anchorX+Math.cos(angle)*radius,z=anchorZ+Math.sin(angle)*radius;
-      if(x<cx||z<cz||x>cx+size||z>cz+size||!pointInRegion(region,x,z)||passageAt(x,z,18)||distanceToRoad(region,x,z)<75
+      if(x<cx||z<cz||x>cx+size||z>cz+size||!pointInRegion(region,x,z)||!geographyAreaIsClear(x,z)||passageAt(x,z,18)||distanceToRoad(region,x,z)<75
         ||Math.hypot(x-SETTLEMENT_CENTER.x,z-SETTLEMENT_CENTER.y)<505)continue;
       transform.position.set(x,terrainHeight(x,z)+.3,z);transform.rotation.set(0,angle,0);
       const scale=.6+artRandom(x,z)*.7;transform.scale.setScalar(scale);transform.updateMatrix();foliage.setMatrixAt(count++,transform.matrix);

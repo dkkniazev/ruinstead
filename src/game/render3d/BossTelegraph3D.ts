@@ -4,7 +4,8 @@ import { terrainHeight } from '../world/WorldTerrain';
 
 export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
   const geometry = zone.shape === 'circle'
-    ? new THREE.CircleGeometry(zone.radius, 64)
+    // Interior rings follow hills too; a single centre fan cuts through raised ground.
+    ? new THREE.RingGeometry(0, zone.radius, 64, Math.max(1, Math.ceil(zone.radius / 30)))
     : new THREE.PlaneGeometry(zone.length, zone.width, Math.ceil(zone.length / 25), 6);
   const positions = geometry.getAttribute('position');
   for (let i = 0; i < positions.count; i++) {

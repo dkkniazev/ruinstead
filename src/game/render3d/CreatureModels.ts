@@ -1,3 +1,4 @@
+import { CREATURE_PALETTES, finishCreature, sharedCreatureGeometry } from './CreatureArt';
 import * as T from 'three';
 import { softBox, softOrb } from './ArtMaterials';
 import { batchStaticMeshes } from './MeshBatching';
@@ -31,7 +32,11 @@ function bone(g: T.Object3D,c: number,a: number[],b: number[],r: number): void {
 }
 function pivot(g:T.Object3D,x:number,y:number,z:number):T.Group { const p=new T.Group();p.position.set(x,y,z);g.add(p);return p; }
 function eyes(g:T.Object3D,y:number,z:number,spread=8):void {
-  for(const s of [-1,1]) {ball(g,0xffe9b4,s*spread,y,z,3.8,3.2,2);ball(g,0x202b30,s*spread,y,z+1.8,1.6);}
+  for(const s of [-1,1]) {
+    const socket=box(g,0x343638,s*spread,y,z,9,5.8,3);socket.rotation.z=s*.11;
+    ball(g,0xe5d69d,s*spread,y,z+1.5,3,2,1.3);
+    box(g,0x253137,s*spread,y,z+2.6,2,3.4,1);ball(g,0xfff1c4,s*spread-1,y+1,z+3.2,.65);
+  }
 }
 function horn(g:T.Object3D,c:number,x:number,y:number,z:number,size:number,lean=0):void {mesh(g,spike,c,x,y,z,size*.23,size,size*.23).rotation.z=lean;}
 const wingGeometry=new T.BufferGeometry();
@@ -40,6 +45,7 @@ wingGeometry.setAttribute('position',new T.Float32BufferAttribute([0,0,0, 24,24,
 /** Articulated species silhouettes; the visual core uses the existing combat radius. */
 export function createCreature(id:string,primary:number,accent:number,elite=false,combatRadius?:number):AnimatedModel {
   const identity=creatureIdentity(id),shape=identity.shape,boss=!!identity.boss;
+  [primary,accent]=CREATURE_PALETTES[id]??[primary,accent];
   // Intrinsic materials describe the creature; regional colors remain the trim palette.
   if(shape==='treant'){primary=0x6b5139;accent=0x799e55;}
   if(id==='prism-golem'){primary=0x628a9e;accent=0x8edce8;}
@@ -100,10 +106,10 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     core=thin?22:29;const y=low?20:35;
     ball(body,primary,0,y,0,core,low?13:22,34);ball(body,accent,0,y+9,30,thin?17:23,19,21);ball(body,primary,0,y+1,shape==='cat'?42:47,thin?10:16,10,shape==='cat'?9:18);eyes(body,y+15,45,thin?10:14);
     for(const s of [-1,1]){
-      if(!reptile)horn(body,primary,s*14,y+(shape==='cat'?28:thin?32:27),27,shape==='cat'?12:thin?27:17,s*.2);else horn(body,ivory,s*16,y+34,17,25,s*-.4);
+      if(!reptile)horn(body,primary,s*14,y+(shape==='cat'?28:thin?32:27),27,shape==='cat'?12:thin?27:17,s*.2);
       if(shape==='cat'){ball(body,ivory,s*7,y,48,6,4,4);for(let n=0;n<2;n++)bone(body,ivory,[s*10,y+n*3,47],[s*23,y+3+n*4,46],.6);}
       for(const z of shape==='wyvern'?[-18]:[-21,23]){const l=pivot(body,s*(low?28:19),y-6,z);legs.push(l);ball(l,primary,0,-2,0,thin?7:10,11,thin?8:11);bone(l,primary,[0,0,0],[s*(low?12:0),-23,5],thin?5:8);ball(l,dark,s*(low?12:0),-24,8,thin?7:10,6,14);}
-      if(shape==='boar'){horn(body,ivory,s*18,y+1,54,25,s*-.4);ball(body,accent,s*5,y-2,63,3);}
+      if(shape==='boar')ball(body,accent,s*5,y-2,63,3);
       if(shape==='ram')horn(body,ivory,s*17,y+36,27,33,s*-.25);
     }
     if(shape==='boar'||shape==='hound')for(let n=0;n<5;n++)horn(body,accent,0,y+22,-28+n*12,16+n*2);
@@ -160,12 +166,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     core=23;floating=true;ball(body,primary,0,40,0,23,29,19);ball(body,accent,0,64,8,22,20,17);eyes(body,66,22,11);wing(-1,48,.65);wing(1,48,.65);
     if(shape==='owl')horn(body,ivory,0,53,28,13);else for(const s of [-1,1])horn(body,accent,s*13,91,8,32,s*.3);
   }
-  if(elite||boss){
-    const height=humanoid?(['cultist','rogue','knight','harpy'].includes(shape)?120:109):['golem','sand','scrap','treant'].includes(shape)?130:shape==='mushroom'?84:shape==='slime'?47:shape==='serpent'||shape==='worm'?62:58;
-    const crown=pivot(body,0,height,shape==='serpent'||shape==='worm'?35:0);
-    for(let n=0;n<5;n++){const angle=n/5*Math.PI*2;horn(crown,0xd8b366,Math.cos(angle)*12,0,Math.sin(angle)*12,boss?15:10);}
-    if(boss&&['boar','cat','hound'].includes(shape))for(let n=0;n<4;n++)horn(body,accent,0,58,-23+n*13,25+n*3);
-  }
+  finishCreature(id,shape,body,arms,legs,wings,primary,accent,boss,elite);
   batchStaticMeshes(body);
   let phase=0,actionAge=1,attackWasActive=false;
   const base:AnimatedModel={root,step(dt,speed,_dash,attack){phase+=Math.min(dt,.05)*(speed>10?8:2);const move=Math.min(1,speed/150);
@@ -178,7 +179,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     body.position.y=floating?Math.sin(phase)*4+8:Math.abs(Math.sin(phase))*move*2;body.rotation.z=Math.sin(phase)*move*.025;
     body.rotation.x=swing*(humanoid?.12:.24);
     if(shape==='slime')body.scale.set(1+Math.sin(phase)*.05,1-Math.sin(phase)*.07,1+Math.sin(phase)*.05);
-  },dispose(){body.traverse(o=>{if(o instanceof T.Mesh){if(o.geometry===wingGeometry||o.userData.ownedMaterial)(o.material as T.Material).dispose();if(![round,block,spike,stick,rock,wingGeometry].includes(o.geometry))o.geometry.dispose();}});}};
+  },dispose(){body.traverse(o=>{if(o instanceof T.Mesh){if(o.geometry===wingGeometry||o.userData.ownedMaterial)(o.material as T.Material).dispose();if(![round,block,spike,stick,rock,wingGeometry].includes(o.geometry)&&!sharedCreatureGeometry(o.geometry))o.geometry.dispose();}});}};
   const model=withCreatureAsset(id,primary,accent,boss,base);
   const radius=combatRadius??(boss?55:elite?36:25);
   model.root.scale.setScalar(radius/core);

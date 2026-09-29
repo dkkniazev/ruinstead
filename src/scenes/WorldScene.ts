@@ -1,3 +1,4 @@
+import { GEOGRAPHY_LANDMARKS } from '../game/world/RegionGeography';
 import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../game/qa/PolishPlaytest';
 import { resolveWorldInteraction, type InteractionCandidate } from '../game/world/WorldInteractions';
 import { ObstacleNavigation } from '../game/world/ObstacleNavigation';
@@ -589,6 +590,7 @@ export class WorldScene
           )
         : undefined;
     enemyNavigation?.setObstacles([
+      ...GEOGRAPHY_LANDMARKS.map(p=>({x:p.x,y:p.y,halfWidth:p.radius,halfHeight:p.radius,circle:true})),
       ...this.resourceSystem
         .navigationObstacles,
       {

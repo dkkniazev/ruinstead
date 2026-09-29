@@ -1,3 +1,6 @@
+import { GEOGRAPHY_LANDMARKS, REGION_GEOGRAPHY } from '../world/RegionGeography';
+import { createGroundCover } from '../render3d/BiomeScenery';
+import { updateArtMaterials } from '../render3d/ArtMaterials';
 import * as THREE from 'three';
 import { createBoundaryGround, createRegionLand } from '../render3d/TerrainMeshes';
 import { ResourceVisual3D } from '../render3d/ResourceVisual3D';
@@ -47,19 +50,27 @@ const caption=document.createElement('div');caption.style.cssText='position:fixe
 let viewHeight=17000;let target=new THREE.Vector3(7200,0,8300);let overview=true;
 function resize(){renderer.setSize(innerWidth,innerHeight);const aspect=innerWidth/innerHeight;camera.left=-viewHeight*aspect/2;camera.right=viewHeight*aspect/2;camera.top=viewHeight/2;camera.bottom=-viewHeight/2;camera.updateProjectionMatrix();}
 function select(mode:string){
-  overview=mode==='overview';labels.visible=overview;closeGround.clear();base.visible=overview;
+  overview=mode==='overview';labels.visible=overview;
+  const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();
+  closeGround.traverse(o=>{if(o instanceof THREE.Mesh){
+    if(o.userData.uniqueGeometry||o.userData.batchedGeometry)geometries.add(o.geometry);
+    for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.sharedArtMaterial)materials.add(m);
+  }});
+  geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());closeGround.clear();base.visible=overview;
   resource.root.visible=mode==='harvest';
   if(overview){viewHeight=15600;target.set(7200,100,8350);camera.position.copy(target).add(new THREE.Vector3(0,19000,10000));caption.textContent='Контуры по рисунку • крупные регионы: 21–27 секунд бега • плато, горы, реки и лавовые разломы';}
   else {
     let x:number,y:number;
     if(mode==='harvest'){x=node.x;y=node.y;}
+    else if(mode.startsWith('region-')){const id=Number(mode.slice(7)),site=GEOGRAPHY_LANDMARKS.find(p=>p.region===id),r=RELEASE_REGIONS[id-1];x=site?.x??r.center[0];y=site?.y??r.center[1];}
     else {const passage=RELEASE_PASSAGES.find(p=>p.id===mode)!;const g=getPassageGeometry(passage);x=(g.a.x+g.b.x)/2;y=(g.a.y+g.b.y)/2;}
-    viewHeight=mode==='harvest'?460:1150;target.set(x,terrainHeight(x,y)+30,y);
+    viewHeight=mode==='harvest'?460:mode.startsWith('region-')?1600:1150;target.set(x,terrainHeight(x,y)+30,y);
     camera.position.copy(target).add(new THREE.Vector3(0,950,850));
     const tx=Math.floor(x/640),ty=Math.floor(y/640);
     for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++)closeGround.add(createBoundaryGround((tx+i+0.5)*640,(ty+j+0.5)*640,640));
     caption.textContent=mode==='harvest'?'Добыча: прочность, удар и разлёт щепок. Кнопка «Удар» проверяет каждый этап.':mode==='4-5'?'Ветреные высоты: плато на 450 единиц выше Магмового сердца.':mode==='2-3'?'Теневой перевал: каменный подъём через горный гребень.':'Мост над рекой между первым и вторым регионами.';
   }
+  if(mode.startsWith('region-')){const region=RELEASE_REGIONS[Number(mode.slice(7))-1];caption.textContent=region.name+' · '+REGION_GEOGRAPHY[region.id-1].name;for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)closeGround.add(createGroundCover(target.x+x*640,target.z+z*640,640,region));}
   camera.lookAt(target);resize();
 }
 for(const [name,mode]of [['Карта целиком','overview'],['Река 1–2','1-2'],['Горы 2–3','2-3'],['Обрыв 4–5','4-5'],['Добыча','harvest']]){
@@ -69,6 +80,7 @@ const hit=document.createElement('button');hit.textContent='Удар';hit.style.
   if(!node.available){node.health=3;node.available=true;node.hitAt=-10000;}
   else {node.health=Math.max(0,node.health-1);node.available=node.health>0;node.hitAt=performance.now();node.hitCount++;}
 };controls.appendChild(hit);
+for(const region of RELEASE_REGIONS){const b=document.createElement('button');b.textContent=region.id+'. '+region.name;b.onclick=()=>select('region-'+region.id);b.style.cssText='padding:8px;color:#f1e8ce;background:#334f4a;border:1px solid #8d9a7e;border-radius:4px';controls.append(b);}
 select('overview');window.addEventListener('resize',resize);
-function frame(time:number){requestAnimationFrame(frame);if(!overview)resource.update(node,time,100,camera);renderer.render(scene,camera);}
+function frame(time:number){requestAnimationFrame(frame);updateArtMaterials(time);if(!overview)resource.update(node,time,100,camera);renderer.render(scene,camera);}
 requestAnimationFrame(frame);

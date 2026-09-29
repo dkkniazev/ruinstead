@@ -12,11 +12,44 @@ export * from './src/game/world/WorldPrototype.ts';
 export * from './src/game/gathering/ResourceSystem.ts';
 export * from './src/game/world/ForestZone.ts';
 export * from './src/game/layout/Viewport.ts';
+export * from './src/game/world/RegionGeography.ts';
+export { distanceToRoad } from './src/game/render3d/BiomeScenery.ts';
+export { createRegionLand } from './src/game/render3d/TerrainMeshes.ts';
 `,loader:'ts',resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false,
 plugins:[{name:'math-only-phaser',setup(b){b.onResolve({filter:/^phaser$/},()=>({path:'phaser',namespace:'stub'}));b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:`export default {Math:{Vector2:class {constructor(x=0,y=0){this.x=x;this.y=y;}},Distance:{Between:(a,b,c,d)=>Math.hypot(c-a,d-b)}}};`}));}}]});
 const api=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text+'\n//# sourceURL=polish-fixture.mjs').toString('base64')}`);
 const seeded=seed=>()=>{seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};
 const resourceA=api.buildResourceNodeDefinitions(123456),resourceB=api.buildResourceNodeDefinitions(123456),resourceC=api.buildResourceNodeDefinitions(654321);
+for(const site of api.GEOGRAPHY_LANDMARKS){
+  const region=api.getRegionDefinition(site.region);
+  assert(api.distanceToRoad(region,site.x,site.y)>site.radius+90,site.id+' blocks a curved road');
+  for(const offset of [[-.46,-.12],[.5,.25]]){
+    const chest=api.regionPointAt(region,...offset);
+    assert(Math.hypot(chest.x-site.x,chest.y-site.y)>site.radius+150,site.id+' blocks a chest');
+  }
+}
+assert(resourceA.every(n=>api.geographyAreaIsClear(n.x,n.y,api.resourceFootprintRadius(n.type))),'Resources overlap scenic landmarks');
+let terrainTriangles=0;
+for(const region of api.RELEASE_REGIONS){
+  const land=api.createRegionLand(region),edges=new Map();let area=0;
+  for(const mesh of land.children.filter(o=>o.userData.regionSurface)){
+    const p=mesh.geometry.attributes.position,n=mesh.geometry.attributes.normal;
+    for(let i=0;i<p.count;i+=3){
+      const points=[0,1,2].map(j=>[p.getX(i+j),p.getZ(i+j)]);
+      const [a,b,c]=points;area+=Math.abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]))/2;terrainTriangles++;
+      for(let j=0;j<3;j++){
+        assert(n.getY(i+j)>0,'Terrain normals must face up');
+        const a=points[j],b=points[(j+1)%3],key=[a.map(v=>Math.round(v*100)).join(','),b.map(v=>Math.round(v*100)).join(',')].sort().join('/');
+        const e=edges.get(key)??{count:0,x:(a[0]+b[0])/2,y:(a[1]+b[1])/2};e.count++;edges.set(key,e);
+      }
+    }
+  }
+  const expected=Math.abs(region.outline.reduce((sum,p,i)=>{const q=region.outline[(i+1)%region.outline.length];return sum+p[0]*q[1]-q[0]*p[1];},0))/2;
+  assert(Math.abs(area-expected)<expected*.00001,'Region '+region.id+' terrain has missing/overlapping area');
+  for(const e of edges.values())assert(e.count===2||api.distanceToRegionBoundary(region,e.x,e.y)<.1,'Region '+region.id+' has an interior terrain crack');
+  const materials=new Set();land.traverse(o=>{if(o.geometry)o.geometry.dispose();if(o.material)for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.sharedArtMaterial)materials.add(m);});materials.forEach(m=>m.dispose());
+}
+console.log('Terrain: PASS — '+terrainTriangles+' triangles across 8 regions; complete polygon coverage, shared interior edges and upward normals.');
 assert(api.forestLandmarkAreaIsClear(api.FOREST_HEART.x,api.FOREST_HEART.y,0)===false,'Forest heart itself is a reserved landmark');
 assert(resourceA.every(node=>Math.hypot(node.x-api.FOREST_HEART.x,node.y-api.FOREST_HEART.y)>220+api.resourceFootprintRadius(node.type)),'Resources must not cover the forest altar');
 assert.deepEqual(resourceA,resourceB,'Same resource seed must reproduce the exact layout');

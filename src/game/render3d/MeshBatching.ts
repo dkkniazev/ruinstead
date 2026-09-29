@@ -51,7 +51,7 @@ export function batchStaticMeshes(root:T.Object3D):void {
     merged.userData.ownedMaterial=meshes.some(mesh=>mesh.userData.ownedMaterial);
     for(const mesh of meshes){
       root.remove(mesh);
-      if(mesh.userData.buildingOwned||mesh.userData.settlementOwned||mesh.userData.batchedGeometry)mesh.geometry.dispose();
+      if(mesh.userData.uniqueGeometry||mesh.userData.artOwnedGeometry||mesh.userData.buildingOwned||mesh.userData.settlementOwned||mesh.userData.batchedGeometry)mesh.geometry.dispose();
     }
     root.add(merged);
   }

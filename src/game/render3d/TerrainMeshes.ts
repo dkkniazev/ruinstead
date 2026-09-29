@@ -1,3 +1,4 @@
+import { createRegionLandmarks } from './GeographyModels';
 import * as THREE from 'three';
 import { groundMaterial, boundarySurfaceMaterial } from './ArtMaterials';
 import { createRegionRoads } from './BiomeScenery';
@@ -39,12 +40,7 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     const color = palette[0].clone().lerp(patch > 0.5 ? palette[1] : palette[2], Math.abs(patch - 0.5) * 1.3);
     return color;
   };
-  const emit = (a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2, depth: number): void => {
-    if (depth < 6 && Math.max(a.distanceTo(b), b.distanceTo(c), c.distanceTo(a)) > 190) {
-      const ab = a.clone().lerp(b, 0.5), bc = b.clone().lerp(c, 0.5), ca = c.clone().lerp(a, 0.5);
-      emit(a,ab,ca,depth+1); emit(ab,b,bc,depth+1); emit(ca,bc,c,depth+1); emit(ab,bc,ca,depth+1);
-      return;
-    }
+  const emit = (a: THREE.Vector2, b: THREE.Vector2, c: THREE.Vector2): void => {
     // Clockwise in X/Z gives upward facing terrain normals.
     const vertices = (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x) > 0 ? [a,c,b] : [a,b,c];
     for (const v of vertices) {
@@ -52,18 +48,67 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
       const color=landColor(v.x,v.y); colors.push(color.r,color.g,color.b);
     }
   };
-  for (const [a,b,c] of triangles) emit(shape[a],shape[b],shape[c],0);
-  const land=mesh(positions, colors);
-  (land.material as THREE.Material).dispose();land.material=groundMaterial(region.id);
-  group.add(land,createRegionRoads(region));
+  // Clip every authored triangle to the same grid. Independent recursive
+  // subdivisions produced T-junctions: different heights along a shared edge.
+  const grid=80;
+  const clip=(polygon:THREE.Vector2[],axis:'x'|'y',edge:number,sign:number):THREE.Vector2[]=>{
+    const result:THREE.Vector2[]=[];
+    for(let i=0;i<polygon.length;i++){
+      const a=polygon[i],b=polygon[(i+1)%polygon.length],da=(a[axis]-edge)*sign,db=(b[axis]-edge)*sign;
+      if(da>=0)result.push(a);
+      if((da<0)!==(db<0)){const p=a.clone().lerp(b,da/(da-db));p[axis]=edge;result.push(p);}
+    }
+    return result;
+  };
+  for(const indices of triangles){
+    const source=indices.map(i=>shape[i]);
+    const x0=Math.floor(Math.min(...source.map(p=>p.x))/grid),x1=Math.floor(Math.max(...source.map(p=>p.x))/grid);
+    const y0=Math.floor(Math.min(...source.map(p=>p.y))/grid),y1=Math.floor(Math.max(...source.map(p=>p.y))/grid);
+    for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){
+      let polygon=clip(source,'x',x*grid,1);polygon=clip(polygon,'x',(x+1)*grid,-1);
+      polygon=clip(polygon,'y',y*grid,1);polygon=clip(polygon,'y',(y+1)*grid,-1);
+      for(let i=1;i<polygon.length-1;i++){
+        const a=polygon[0],b=polygon[i],c=polygon[i+1];
+        if(Math.abs((b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x))>1e-5)emit(a,b,c);
+      }
+    }
+  }
+  // Partition the high-resolution surface so the camera does not submit an
+  // entire region's triangles when only a small corner is visible.
+  const tiles=new Map<string,{positions:number[];colors:number[]}>();
+  for(let i=0;i<positions.length;i+=9){
+    const cx=(positions[i]+positions[i+3]+positions[i+6])/3,cz=(positions[i+2]+positions[i+5]+positions[i+8])/3;
+    const key=Math.floor(cx/640)+':'+Math.floor(cz/640),tile=tiles.get(key)??{positions:[],colors:[]};
+    tile.positions.push(...positions.slice(i,i+9));tile.colors.push(...colors.slice(i,i+9));tiles.set(key,tile);
+  }
+  const surfaceMaterial=groundMaterial(region.id);
+  const normalCache=new Map<string,THREE.Vector3>();
+  for(const tile of tiles.values()){
+    const normals:number[]=[];
+    for(let i=0;i<tile.positions.length;i+=3){
+      const x=tile.positions[i],z=tile.positions[i+2],key=x.toFixed(3)+':'+z.toFixed(3);
+      let normal=normalCache.get(key);
+      if(!normal){normal=new THREE.Vector3(plateauHeight(region,x-5,z)-plateauHeight(region,x+5,z),10,plateauHeight(region,x,z-5)-plateauHeight(region,x,z+5)).normalize();normalCache.set(key,normal);}
+      normals.push(normal.x,normal.y,normal.z);
+    }
+    const land=mesh(tile.positions,tile.colors);(land.material as THREE.Material).dispose();land.material=surfaceMaterial;
+    land.geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));land.userData.regionSurface=true;group.add(land);
+  }
+  group.add(createRegionRoads(region),createRegionLandmarks(region.id));
 
   const cliffPositions: number[] = [], cliffColors: number[] = [];
   const stone = new THREE.Color(region.id === 7 ? 0x9b6949 : region.id === 4 || region.id === 8 ? 0x51443e : region.id === 3 ? 0x686776 : 0x817c6d);
   const rim:THREE.Vector2[]=[];
   for (let edge=0;edge<shape.length;edge++) {
     const a=shape[edge], b=shape[(edge+1)%shape.length];
-    const length=a.distanceTo(b), count=Math.ceil(length/115);
-    for(let i=0;i<count;i++)rim.push(a.clone().lerp(b,i/count));
+    const breaks=[0];
+    for(const axis of ['x','y'] as const){
+      const delta=b[axis]-a[axis];if(Math.abs(delta)<1e-6)continue;
+      const lo=Math.min(a[axis],b[axis]),hi=Math.max(a[axis],b[axis]);
+      for(let n=Math.ceil(lo/grid);n*grid<hi;n++){const t=(n*grid-a[axis])/delta;if(t>1e-6&&t<1-1e-6)breaks.push(t);}
+    }
+    breaks.sort((x,y)=>x-y);
+    for(let i=0;i<breaks.length;i++)if(i===0||breaks[i]-breaks[i-1]>1e-6)rim.push(a.clone().lerp(b,breaks[i]));
   }
   // Every panel shares both its side vertices and its stratum edges. Independent
   // bevels previously left open seams through which the river was visible.

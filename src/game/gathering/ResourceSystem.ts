@@ -1,3 +1,4 @@
+import { geographyAreaIsClear } from '../world/RegionGeography';
 import { harvestYield, harvestRespawnMs, harvestNodeCount } from '../economy/HarvestBalance';
 import type { NavigationObstacle } from '../world/ObstacleNavigation';
 import Phaser from 'phaser';
@@ -327,6 +328,8 @@ export function buildResourceNodeDefinitions(seed=RESOURCE_LAYOUT_SEED):
               continue;
             }
 
+            if (!geographyAreaIsClear(x,y,footprint+65)) continue;
+
             chosen = {
               x,
               y,
@@ -391,7 +394,7 @@ export function resourceNodeAreaIsClear(
   y: number,
   clearance = 72,
 ): boolean {
-  return NODE_DEFINITIONS.every((node) =>
+  return geographyAreaIsClear(x,y,clearance) && NODE_DEFINITIONS.every((node) =>
     Math.hypot(node.x - x, node.y - y) >=
       RESOURCE_FOOTPRINT_RADIUS[node.type] + clearance,
   );

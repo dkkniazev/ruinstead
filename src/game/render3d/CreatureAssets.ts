@@ -169,7 +169,6 @@ export function withCreatureAsset(
     model = cloneSkeleton(loaded.scene) as THREE.Group;
     const primaryTint = new THREE.Color(primary);
     const accentTint = new THREE.Color(accent);
-    let materialIndex = 0;
 
     model.traverse((object) => {
       if (!(object instanceof THREE.Mesh)) return;
@@ -183,10 +182,24 @@ export function withCreatureAsset(
 
         const withColor = copy as THREE.Material & { color?: THREE.Color };
         if (withColor.color) {
-          const tint = materialIndex++ % 3 === 1 ? accentTint : primaryTint;
-          // Keep authored palette intact; this is only enough to distinguish
-          // elites/regions that reuse the same source mesh.
-          withColor.color.lerp(tint, 0.08);
+          withColor.color.setRGB(.85,.85,.85);
+          // Match the regional palette while preserving neutral eyes, teeth,
+          // fur and the original texture's shading. The rig/atlas stay shared.
+          copy.onBeforeCompile = shader => {
+            shader.uniforms.creaturePrimary = {value:primaryTint};
+            shader.uniforms.creatureAccent = {value:accentTint};
+            shader.fragmentShader = 'uniform vec3 creaturePrimary; uniform vec3 creatureAccent;\n' + shader.fragmentShader;
+            shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+              vec3 sourcePigment=diffuseColor.rgb;
+              float pigmentMax=max(sourcePigment.r,max(sourcePigment.g,sourcePigment.b));
+              float pigmentMin=min(sourcePigment.r,min(sourcePigment.g,sourcePigment.b));
+              float pigmentMask=smoothstep(.07,.25,pigmentMax-pigmentMin)*smoothstep(.04,.12,pigmentMax);
+              float warmAccent=1.-smoothstep(.25,.5,sourcePigment.g/max(.001,sourcePigment.r));
+              vec3 pigment=mix(creaturePrimary,creatureAccent,warmAccent);
+              diffuseColor.rgb=mix(sourcePigment,pigment*(.68+pigmentMax*.7),pigmentMask);
+            `);
+          };
+          copy.customProgramCacheKey = () => 'regional-creature-pigment-v1';
         }
         return copy;
       };

@@ -1,3 +1,4 @@
+import { disposeBatchedGeometry } from './MeshBatching';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
@@ -6,7 +7,7 @@ const models = new Map<string, Promise<THREE.Group | null>>();
 
 /** CC0 meshes are shared by clones; each GLB is downloaded only once. */
 export function withNatureAsset(name: string, height: number, fallback: THREE.Group): THREE.Group {
-  const root = new THREE.Group(); root.add(fallback);
+  const root = new THREE.Group(); root.userData.asyncNatureAsset=true; root.add(fallback);
   let promise = models.get(name);
   if (!promise) {
     promise = loader.loadAsync(`${import.meta.env.BASE_URL}assets/models/kenney-nature/${name}.glb`).then(gltf => {
@@ -36,7 +37,7 @@ export function withNatureAsset(name: string, height: number, fallback: THREE.Gr
     const scale = height / Math.max(0.001, size.y);
     model.scale.multiplyScalar(scale);
     model.position.set(-center.x * scale, -bounds.min.y * scale, -center.z * scale);
-    root.remove(fallback); root.add(model);
+    root.remove(fallback); disposeBatchedGeometry(fallback); root.add(model);
   });
   return root;
 }

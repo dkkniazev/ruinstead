@@ -1,3 +1,4 @@
+import { regionalRelief, GEOGRAPHY_LANDMARKS } from './RegionGeography';
 import { RELEASE_REGIONS, RELEASE_PASSAGES, distanceToRegionBoundary, getRegionAt, pointInRegion,
   getRegionDefinition, getPassageGeometry, type RegionDefinition, type RegionId } from './ReleaseRegionMap';
 
@@ -40,10 +41,16 @@ export function borderKind(a: RegionId, b: RegionId): BorderKind {
 }
 
 export function plateauHeight(region: RegionDefinition, x: number, y: number): number {
-  const relief = Math.sin(x * 0.004) * 9 + Math.cos(y * 0.0047) * 7 + Math.sin((x + y) * 0.008) * 3;
-  const townDistance = Math.hypot(x - RELEASE_REGIONS[0].center[0], y - RELEASE_REGIONS[0].center[1] - 380);
-  const flatten = region.id === 1 ? Math.max(0, Math.min(1, (townDistance - 510) / 360)) : 1;
-  return region.elevation + relief * flatten;
+  let height = region.elevation + regionalRelief(region,x,y);
+  for(const site of GEOGRAPHY_LANDMARKS){
+    if(site.region!==region.id||site.kind!=='pool')continue;
+    const distance=Math.hypot(x-site.x,y-site.y);
+    if(distance>site.radius+180)continue;
+    const t=Math.max(0,Math.min(1,(distance-site.radius)/180)),blend=t*t*(3-2*t);
+    const waterBed=region.elevation+regionalRelief(region,site.x,site.y);
+    height=waterBed+(height-waterBed)*blend;
+  }
+  return height;
 }
 
 export function passageAt(x: number, y: number, margin = 0) {

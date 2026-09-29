@@ -1,3 +1,4 @@
+import { GEOGRAPHY_LANDMARKS } from './RegionGeography';
 import Phaser from 'phaser';
 import {
   RELEASE_PASSAGES,
@@ -608,6 +609,10 @@ function createPrototypeObstacles(scene: Phaser.Scene): Phaser.Physics.Arcade.St
   // The forest altar is a real landmark, so its visible stone footprint also
   // participates in gameplay collision instead of letting actors walk through it.
   const obstacles=scene.physics.add.staticGroup();
+  for(const site of GEOGRAPHY_LANDMARKS){
+    const rock=scene.add.circle(site.x,site.y,site.radius,0,0).setVisible(false);obstacles.add(rock);
+    const body=rock.body as Phaser.Physics.Arcade.StaticBody;body.setCircle(site.radius);body.updateFromGameObject();
+  }
   const altar=scene.add
     .rectangle(
       FOREST_HEART.x,

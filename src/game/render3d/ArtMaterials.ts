@@ -1,3 +1,4 @@
+import { REGION_GEOGRAPHY } from '../world/RegionGeography';
 import * as T from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
@@ -31,38 +32,49 @@ float artNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix
 
 /** World-space colour layers stay continuous between terrain triangles. */
 export function groundMaterial(region: number): T.MeshStandardMaterial {
-  const material = new T.MeshStandardMaterial({vertexColors: true, roughness: .97, side: T.DoubleSide});
-  material.onBeforeCompile = shader => {
-    shader.vertexShader = `varying vec3 vArtPosition;\n` + shader.vertexShader;
-    shader.vertexShader = shader.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvArtPosition=(modelMatrix*vec4(transformed,1.)).xyz;');
-    shader.fragmentShader = `varying vec3 vArtPosition;\n${noiseGLSL}\n` + shader.fragmentShader;
-    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
+  const palette=REGION_GEOGRAPHY[region-1];
+  const color=(hex:number)=>{const c=new T.Color(hex);return 'vec3('+[c.r,c.g,c.b].map(v=>v.toFixed(4)).join(',')+')';};
+  const volcanic=region===4||region===8,dry=region===2||region===7;
+  const material=new T.MeshStandardMaterial({vertexColors:true,roughness:.94,side:T.DoubleSide});
+  material.onBeforeCompile=shader=>{
+    shader.vertexShader='varying vec3 vArtPosition;varying vec3 vArtNormal;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvArtPosition=(modelMatrix*vec4(transformed,1.)).xyz;vArtNormal=normalize((modelMatrix*vec4(normal,0.)).xyz);');
+    shader.fragmentShader='varying vec3 vArtPosition;varying vec3 vArtNormal;\n'+noiseGLSL+shader.fragmentShader;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       vec2 p=vArtPosition.xz;
-      float broad=artNoise(p*.0032), terrainPatch=artNoise(p*.016);
-      float flecks=step(.85,artHash(floor(p/17.)))*(1.-smoothstep(.08,.38,length(fract(p/17.)-.5)));
-      diffuseColor.rgb*=.88+broad*.19+smoothstep(.3,.8,terrainPatch)*.12;
-      diffuseColor.rgb+=vec3(.022,.019,.009)*flecks;
-      ${region === 4 || region === 8 ? `
-      vec2 cell=p/155.,tile=floor(cell),f=fract(cell);float first=9.,second=9.;
-      for(int iy=-1;iy<=1;iy++)for(int ix=-1;ix<=1;ix++){
-        vec2 offset=vec2(float(ix),float(iy));
-        vec2 seed=tile+offset;
-        vec2 centre=offset+.18+.64*vec2(artHash(seed),artHash(seed+41.7));
-        float d=length(centre-f);
-        if(d<first){second=first;first=d;}else second=min(second,d);
-      }
-      float seam=1.-smoothstep(.002,.021,second-first);
-      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.18,.064,.032),seam*.38);` : ''}
+      float broad=artNoise(p*.0028),terrainPatch=artNoise(p*.0065+vec2(broad*.7)),grain=artNoise(p*.095);
+      float exposed=smoothstep(.035,.19,1.-vArtNormal.y);
+      float soil=smoothstep(.53,.81,terrainPatch+exposed*.45);
+      float gravel=smoothstep(.64,.83,artNoise(p*.032)+exposed*.35);
+      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.soil)},soil*.28);
+      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.rock)},gravel*.22+exposed*.28);
+      diffuseColor.rgb*=.93+broad*.11+grain*.055;
+      float flakes=smoothstep(.72,.84,artNoise(p*.13))*smoothstep(.54,.72,terrainPatch);
+      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.light)},flakes*.10);
+      ${volcanic||dry?`
+        vec2 cell=p/${volcanic?'120.':'110.'}+vec2(artNoise(p*.018),artNoise(p*.021+23.))*.35,tile=floor(cell),f=fract(cell);float first=9.,second=9.;
+        for(int iy=-1;iy<=1;iy++)for(int ix=-1;ix<=1;ix++){
+          vec2 offset=vec2(float(ix),float(iy)),seed=tile+offset;
+          float d=length(offset+.18+.64*vec2(artHash(seed),artHash(seed+41.7))-f);
+          if(d<first){second=first;first=d;}else second=min(second,d);
+        }
+        float fissureMask=smoothstep(.34,.6,terrainPatch);
+        float seam=(1.-smoothstep(.006,.030,second-first))*fissureMask;
+        float rim=(1.-smoothstep(.018,.065,second-first))*(1.-seam)*fissureMask;
+        diffuseColor.rgb*=1.-seam*.24;
+        diffuseColor.rgb+=${color(palette.light)}*rim*.10;
+        ${volcanic?`float hot=seam*smoothstep(.63,.79,broad)*.75;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.95,.25,.025),hot);`:''}
+      `:region===3?`float strata=smoothstep(.72,.88,artNoise(vec2(p.x*.016+p.y*.012,p.y*.058)));diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},strata*.25);`:region===6?`float mineral=smoothstep(.64,.82,artNoise(p*.005))*smoothstep(.4,.7,terrainPatch);diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},mineral*.5);`:`float moss=smoothstep(.56,.8,artNoise(p*.008))* (1.-soil);diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},moss*.16);`}
     `);
   };
-  material.customProgramCacheKey = () => `ruin-ground-${region === 4 || region === 8 ? 'volcanic' : 'natural'}`;
+  material.customProgramCacheKey=()=> 'ruin-geography-ground-'+region;
   return material;
 }
 
 /** Water and lava have their own surface response instead of painted terrain. */
 export function boundarySurfaceMaterial(lava: boolean): T.MeshStandardMaterial {
   const material = new T.MeshStandardMaterial({
-    color: lava ? 0xf16c27 : 0x2ca9b8,
+    color: lava ? 0xf16c27 : 0x338f9b,
     emissive: lava ? 0xf04b12 : 0x164853, emissiveIntensity: lava ? .65 : .13,
     roughness: lava ? .68 : .3, metalness: lava ? 0 : .08, vertexColors: true,
   });
@@ -74,7 +86,7 @@ export function boundarySurfaceMaterial(lava: boolean): T.MeshStandardMaterial {
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       vec2 flowPosition=vArtPosition.xz+vec2(artTime*2.7,-artTime*5.);
       float ripples=pow(.5+.5*sin(flowPosition.y*.068+artNoise(flowPosition*.007)*9.),14.);
-      diffuseColor.rgb+=vec3(${lava ? '.19,.08,.006' : '.09,.15,.13'})*ripples;
+      diffuseColor.rgb+=vec3(${lava ? '.19,.08,.006' : '.035,.065,.060'})*ripples;
       ${lava ? `float crust=smoothstep(.57,.61,artNoise(flowPosition*.012))*smoothstep(.43,.47,artNoise(flowPosition*.026));
       diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.12,.075,.09),crust*.88);` : ''}
     `);

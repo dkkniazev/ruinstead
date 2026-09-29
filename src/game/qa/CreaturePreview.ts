@@ -10,7 +10,7 @@ const grid=catalog.querySelector('section')!,nav=catalog.querySelector('nav')!;
 let generation=0;
 async function show(region:number){
  const token=++generation;grid.innerHTML='';
- for(const source of [...RELEASE_SPECIES,...RELEASE_BOSSES].filter(s=>s.region===region)){
+ for(const source of [...RELEASE_SPECIES,...RELEASE_BOSSES].filter(s=>region===0?'isMain' in s:s.region===region)){
   const boss='isMain' in source;
   for(const elite of boss?[false]:[false,true]){
    const stats=boss?bossDisplayStats(source.id):enemyDisplayStats(source.id,elite);
@@ -26,4 +26,5 @@ async function show(region:number){
  }
 }
 for(let n=1;n<=8;n++){const b=document.createElement('button');b.textContent='Регион '+n;b.style.cssText='padding:8px 12px;margin-right:6px;background:#35574f;color:#eee3bd;border:1px solid #c2a777;border-radius:5px';b.onclick=()=>show(n);nav.append(b);}
+const allBosses=document.createElement('button');allBosses.textContent='Все боссы';allBosses.style.cssText='padding:8px 12px;background:#69593c;color:#fff2ca;border:1px solid #c2a777;border-radius:5px';allBosses.onclick=()=>show(0);nav.append(allBosses);
 void show(1);

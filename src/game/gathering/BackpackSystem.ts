@@ -6,6 +6,7 @@ import {
   RESOURCE_TYPES,
   cloneResourceCounts,
   emptyResourceCounts,
+  totalResourceUnits,
   type ResourceCounts,
   type ResourceType,
 } from './ResourceTypes';
@@ -43,6 +44,11 @@ export class BackpackSystem {
 
   get capacity(): number {
     return this._capacity;
+  }
+
+  /** Weightless loot still needs depositing and still drops on death. */
+  get hasContents(): boolean {
+    return totalResourceUnits(this.carried) > 0;
   }
 
   setLevel(

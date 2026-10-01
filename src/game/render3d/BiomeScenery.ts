@@ -3,6 +3,7 @@ import { getPassageGeometry, RELEASE_PASSAGES, pointInRegion, type RegionDefinit
 import { passageAt, plateauHeight, terrainHeight } from '../world/WorldTerrain';
 import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
 import { geographyAreaIsClear } from '../world/RegionGeography';
+import { fernGeometry, fracturedRock, naturalSurfaceMaterial } from './NatureForms';
 
 export function artRandom(x:number,y:number,seed=0):number {
   const n=Math.sin(x*127.1+y*311.7+seed*74.7)*43758.5453;return n-Math.floor(n);
@@ -21,7 +22,7 @@ function roadLines(region:RegionDefinition):T.Vector2[][] {
     const curve=new T.CubicBezierCurve(start,
       start.clone().addScaledVector(delta,.32).addScaledVector(normal,bend),
       start.clone().addScaledVector(delta,.7).addScaledVector(normal,-bend*.5),last);
-    return curve.getPoints(Math.max(8,Math.ceil(delta.length()/65)));
+    return curve.getPoints(Math.max(8,Math.ceil(delta.length()/35)));
   });
   roadCache.set(region.id,cached);return cached;
 }
@@ -48,13 +49,14 @@ export function createRegionRoads(region:RegionDefinition):T.Group {
       const width=1+Math.sin(p.x*.011+p.y*.007)*.06+Math.sin(p.y*.025-p.x*.009)*.025;
       return p.clone().addScaledVector(normal,offset*width);
     };
-    for(const [lo,hi,alphaLo,alphaHi] of [[-70,-48,0,.82],[-48,48,.82,.82],[48,70,.82,0]]){
+    for(const [lo,hi,alphaLo,alphaHi] of [[-60,-48,0,.96],[-48,0,.96,.96],[0,48,.96,.96],[48,60,.96,0]]){
       const vertices=[edge(i-1,lo),edge(i-1,hi),edge(i,hi),edge(i,lo)];
       if(vertices.some(v=>!pointInRegion(region,v.x,v.y)))continue;
       for(const n of [0,1,2,0,2,3]){
         const p=vertices[n],town=Math.hypot(p.x-SETTLEMENT_CENTER.x,p.y-SETTLEMENT_CENTER.y);
-        positions.push(p.x,plateauHeight(region,p.x,p.y)+4.5,p.y);
-        colors.push(shade.r,shade.g,shade.b);
+        positions.push(p.x,plateauHeight(region,p.x,p.y)+9,p.y);
+        const tint=shade.clone().multiplyScalar(.93+artRandom(Math.floor(p.x/75),Math.floor(p.y/75))*.09);
+        colors.push(tint.r,tint.g,tint.b);
         alphas.push((n===0||n===3?alphaLo:alphaHi)*(region.id===1?T.MathUtils.clamp((town-190)/120,0,1):1));
       }
     }
@@ -79,13 +81,12 @@ export function createGroundCover(cx:number,cz:number,size:number,region:RegionD
   const group=new T.Group(),dry=[2,7].includes(region.id),volcanic=[4,8].includes(region.id);
   const positions:number[]=[],colors:number[]=[];
   if(volcanic){
-    const geo=new T.IcosahedronGeometry(1,0);geo.scale(1,.55,1);
-    const material=new T.MeshStandardMaterial({color:0x625962,roughness:.85});
-    const stones=new T.InstancedMesh(geo,material,45),dummy=new T.Object3D();let count=0;
+    const geo=fracturedRock(region.id,region.id===4?0x6d5960:0x554557).clone();geo.scale(1,.55,1);
+    const stones=new T.InstancedMesh(geo,naturalSurfaceMaterial,45),dummy=new T.Object3D();let count=0;
     for(let i=0;i<45;i++){
       const x=cx+artRandom(cx,cz,i+9)*size,z=cz+artRandom(cx,cz,i+90)*size;
       if(!pointInRegion(region,x,z)||!geographyAreaIsClear(x,z)||passageAt(x,z,18)||distanceToRoad(region,x,z)<60)continue;
-      dummy.position.set(x,terrainHeight(x,z)+3,z);dummy.rotation.set(.1,i*.6,0);dummy.scale.setScalar(3+artRandom(x,z)*7);dummy.updateMatrix();stones.setMatrixAt(count++,dummy.matrix);
+      dummy.position.set(x,terrainHeight(x,z)+.3,z);dummy.rotation.set(0,i*.6,0);dummy.scale.setScalar(3+artRandom(x,z)*7);dummy.updateMatrix();stones.setMatrixAt(count++,dummy.matrix);
     }
     stones.count=count;stones.receiveShadow=true;stones.userData.uniqueGeometry=true;group.add(stones);return group;
   }
@@ -93,16 +94,17 @@ export function createGroundCover(cx:number,cz:number,size:number,region:RegionD
   const lower=new T.Color(dry?0x8b864b:region.id===3?0x436c77:0x418359);
   const upper=new T.Color(dry?0xc9b979:region.id===3?0x87a3a0:region.id===5?0xbbd28b:0xa0c96c);
   for(let leaf=0;leaf<3;leaf++){
-    const angle=leaf*2.399,dx=Math.cos(angle),dz=Math.sin(angle),h=leaf===1?24:18;
+    const angle=leaf*2.399,dx=Math.cos(angle),dz=Math.sin(angle),h=(leaf===1?24:18)*(dry?.65:1);
     const vertices=[[-dz*3,0,dx*3],[dz*3,0,-dx*3],[dx*5,h*.64,dz*5],[dx*9,h,dz*9]];
     for(const n of [0,1,2,0,2,3]){positions.push(...vertices[n]);const color=n>1?upper:lower;colors.push(color.r,color.g,color.b);}
   }
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.computeVertexNormals();
-  const foliage=new T.InstancedMesh(geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}),220);
+  const clusterCount=dry?8:10,tuftsPerCluster=dry?9:12;
+  const foliage=new T.InstancedMesh(geometry,new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}),clusterCount*tuftsPerCluster);
   const transform=new T.Object3D();let count=0;
-  for(let cluster=0;cluster<14;cluster++){
+  for(let cluster=0;cluster<clusterCount;cluster++){
     const anchorX=cx+artRandom(cx,cz,cluster*7)*size,anchorZ=cz+artRandom(cx,cz,cluster*7+1)*size;
-    for(let n=0;n<15;n++){
+    for(let n=0;n<tuftsPerCluster;n++){
       const angle=artRandom(cx+cluster,cz,n+70)*Math.PI*2,radius=Math.sqrt(artRandom(cx+n,cz,cluster+8))*88;
       const x=anchorX+Math.cos(angle)*radius,z=anchorZ+Math.sin(angle)*radius;
       if(x<cx||z<cz||x>cx+size||z>cz+size||!pointInRegion(region,x,z)||!geographyAreaIsClear(x,z)||passageAt(x,z,18)||distanceToRoad(region,x,z)<75
@@ -112,5 +114,17 @@ export function createGroundCover(cx:number,cz:number,size:number,region:RegionD
     }
   }
   foliage.count=count;foliage.receiveShadow=true;foliage.userData.uniqueGeometry=true;group.add(foliage);
+  const fernColor=dry?0x99905b:region.id===3?0x588b8c:region.id===5?0x8eac67:region.id===6?0x699789:0x65925d;
+  const fernLimit=dry?6:12;
+  const ferns=new T.InstancedMesh(fernGeometry(fernColor,dry),new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}),fernLimit);
+  let fernCount=0;
+  for(let i=0;i<fernLimit;i++){
+    const x=cx+artRandom(cx,cz,i+801)*size,z=cz+artRandom(cx,cz,i+901)*size;
+    if(!pointInRegion(region,x,z)||!geographyAreaIsClear(x,z)||passageAt(x,z,24)||distanceToRoad(region,x,z)<85
+      ||Math.hypot(x-SETTLEMENT_CENTER.x,z-SETTLEMENT_CENTER.y)<560)continue;
+    transform.position.set(x,terrainHeight(x,z)+.6,z);transform.rotation.set(0,i*2.399,0);
+    transform.scale.setScalar(.65+artRandom(x,z)*.55);transform.updateMatrix();ferns.setMatrixAt(fernCount++,transform.matrix);
+  }
+  ferns.count=fernCount;ferns.receiveShadow=true;ferns.userData.uniqueGeometry=true;group.add(ferns);
   return group;
 }

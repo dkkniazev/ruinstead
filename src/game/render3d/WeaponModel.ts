@@ -11,7 +11,8 @@ const materials={
 };
 export type WeaponModel={root:T.Group;tip:T.Vector3;dispose:()=>void};
 
-/** The grip is the origin; the blade/shaft points up local +Y. */
+/** Grip at the origin, shaft along +Y, blade in XY; axe edge / hammer faces along X.
+ * The grip attachment must roll this authored frame to match its swing plane. */
 export function createWeaponModel(id:WeaponId,pairedDaggers=true):WeaponModel {
   const root=new T.Group(),owned:T.BufferGeometry[]=[];
   root.name=`weapon-${id}`;
@@ -44,7 +45,7 @@ export function createWeaponModel(id:WeaponId,pairedDaggers=true):WeaponModel {
     const geo=blade([[-5,start],[-6,start+length-13],[0,start+length],[6,start+length-13],[5,start]],3);
     const addBlade=(parent:T.Object3D)=>{
       grip(parent,id==='spear'?-22:-12,start);
-      part(parent,geo,'steel',0,0,0,1,1,1);
+      part(parent,geo,'steel',0,0,0,1,1,1).name='weapon-blade';
       box(parent,'gold',0,start,0,id==='spear'?13:24,4,7);
     };
     if(id==='daggers'&&pairedDaggers){

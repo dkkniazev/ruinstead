@@ -112,7 +112,10 @@ export class GameUI {
   open(screen:Screen):void{
     if(screen==='forge'&&!this.state.settlement.nearForge){this.notice('Для работы с оружием подойдите к кузнице.');return;}
     this.lastFocused=document.activeElement as HTMLElement;this.screen=screen;this.selectedEntry='';this.tab=screen==='shop'?'chests':screen==='cosmetics'?'skins':'equipment';
-    this.overlay.hidden=false;this.modalChange(true);this.renderPanel();this.overlay.querySelector<HTMLElement>('[data-action="close"]')?.focus();
+    this.overlay.hidden=false;this.modalChange(true);this.renderPanel();
+    // A different screen starts at its heading, not at the previous screen's scroll offset.
+    this.overlay.querySelector('.r-content')!.scrollTop=0;
+    this.overlay.querySelector<HTMLElement>('[data-action="close"]')?.focus();
   }
   close():void{this.screen=null;this.overlay.hidden=true;this.modalChange(!this.confirmation.hidden);this.lastFocused?.focus();}
   notice(message:string):void{const toast=document.createElement('div');toast.className='r-toast';toast.textContent=message;this.addToast(toast,4300);}
@@ -203,7 +206,8 @@ export class GameUI {
     if(this.tab==='training')return this.training();
     if(this.tab==='mastery')return `<h2>Очки мастерства: ${p.masteryAvailable}</h2><p class="r-muted">Новые очки открываются каждые пять уровней.</p><div class="r-grid" style="margin-top:20px">${Object.entries(PLAYER_MASTERY).map(([id,m],index)=>`<article class="r-card">${icon(['damage','health','speed','fiber','home'][index],'r-hero-icon')}<h3>${m.name}</h3><p>${['Урон +3% за ранг','Максимальное здоровье +4%','Скорость +2%, перезарядка рывка −4%','Выход ресурсов +5%','Производство и вместимость +5%'][index]}</p><div class="r-statline">${stars(p.masteryRanks[id as keyof typeof p.masteryRanks])}</div>${button('Изучить за 1 очко',`mastery:${id}`,'upgrade',p.masteryAvailable<1||p.masteryRanks[id as keyof typeof p.masteryRanks]>=m.maxRank)}</article>`).join('')}</div>`;
     const selected=this.selected(),equipped=c.slots[this.selectedSlot];
-    const delta=selected?weaponHitDamage(selected,c.damageBonus)-(equipped?weaponHitDamage(equipped,c.damageBonus):0):0;
+    const slotScale=this.selectedSlot===c.primarySlot?1:.65;
+    const delta=selected?weaponHitDamage(selected,c.damageBonus,slotScale)-(equipped?weaponHitDamage(equipped,c.damageBonus,slotScale):0):0;
     return `<div class="r-split"><aside class="r-character">${tag('Хранитель руин','hero')}${this.heroImage(s.premium.equippedSkinId)}<h2>Уровень ${p.level}</h2><p>${icon('xp')}${number(p.xp)} / ${number(p.xpToNext)} опыта</p><div style="margin:14px">${bar(p.xp,p.xpToNext,'xp')}</div><div class="r-statline">${stat('health',number(s.combat.maxHealth),'Макс. здоровье')}${stat('bag',number(s.gathering.backpack.capacity),'Вместимость')}</div></aside><section><div class="r-detail-head"><h2>Снаряжение</h2>${tag(`${c.unlockedSlots} / 5 слотов`)}</div><div class="r-slots">${WEAPON_SLOT_UNLOCK_LEVELS.map((level,i)=>{const w=c.slots[i],locked=i>=c.unlockedSlots;return `<button style="${w?'border-top:3px solid '+WEAPON_RARITIES[w.rarity].color:''}" class="r-slot ${locked?'locked':''} ${i===this.selectedSlot?'selected':''}" data-action="slot:${i}" ${locked?'disabled':''}>${icon(locked?'lock':w?.weaponId??'bag')}<b>${locked?`Уровень ${level}`:w?WEAPON_DEFINITIONS[w.weaponId].name:'Пустой слот'}</b><small>${locked?'Закрыто':i===c.primarySlot?'Основное':`Орбита ${i+1}`}</small>${w?stars(w.stars)+`<small>${weaponHitDamage(w,c.damageBonus,i===c.primarySlot?1:.65)} урона</small>`:''}</button>`;}).join('')}</div><p class="r-muted">Выберите слот, затем оружие из коллекции.</p><div class="r-loadout-browser"><div>${this.weaponList()}</div>${selected?this.weaponDetail(selected,delta):''}</div></section></div>`;
   }
   private weaponDetail(w:OwnedWeaponOption,delta:number):string{

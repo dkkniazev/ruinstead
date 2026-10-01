@@ -439,6 +439,8 @@ export function bossDisplayStats(id: string): { health: number; damage: number; 
 
 export class BossUnit {
   visualAttackAt = -Infinity;
+  visualWindupAt = -Infinity;
+  visualWindupMs = 1;
   visualHit?: import('../combat/CombatVisualState').VisualHit;
   readonly sprite:
     Phaser.Physics.Arcade.Sprite;
@@ -1069,6 +1071,8 @@ export class BossUnit {
       (damage: number) => void,
   ): void {
     this.specialPending = true;
+    this.visualWindupAt = this.scene.time.now;
+    this.visualWindupMs = this.definition.specialWindupMs;
 
     const radius =
       this.definition
@@ -1248,6 +1252,8 @@ export class BossUnit {
 
     this.lineSpecialPending =
       true;
+    this.visualWindupAt = this.scene.time.now;
+    this.visualWindupMs = windup;
     this.lineSpecialTelegraph =
       telegraph;
 

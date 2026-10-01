@@ -8,10 +8,26 @@ export * from './src/game/render3d/HeroSkinStyles.ts';
 export {SKIN_DEFINITIONS} from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/render3d/MeshBatching.ts';
 export * from './src/game/render3d/Trees.ts';
+export * from './src/game/render3d/NatureForms.ts';
 export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
+export * from './src/game/render3d/HeroOcclusion3D.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const occlusion=new HeroOcclusion3D(),occlusionHero=createHero();
+occlusionHero.root.position.set(123,45,678);occlusionHero.step(.016,140,false,true,2);occlusion.update(occlusionHero.root);
+assert(occlusion.root.children.length>0,'Occlusion overlay follows actual hero meshes');
+const originalMeshes=[];occlusionHero.root.traverse(o=>{if(o instanceof T.Mesh)originalMeshes.push(o);});
+for(const mesh of occlusion.root.children){
+  assert(originalMeshes.some(o=>o.geometry===mesh.geometry&&o.matrixWorld.equals(mesh.matrix)),'Overlay follows animated geometry/world transform');
+  assert.equal(mesh.material.depthWrite,false,'Overlay must not obstruct the world');
+}
+occlusionHero.setWeapon('spear');occlusionHero.setSkin('moss-guard');occlusion.update(occlusionHero.root);
+const hidden=occlusion.root.children.find(o=>o.material.colorWrite);
+assert.equal(hidden.material.depthFunc,T.GreaterDepth);assert.equal(hidden.material.stencilFunc,T.NotEqualStencilFunc,'Visible hero pixels are excluded');
+let releasedBorrowedGeometry=0;hidden.geometry.addEventListener('dispose',()=>releasedBorrowedGeometry++);
+occlusion.dispose();assert.equal(releasedBorrowedGeometry,0,'Overlay must not dispose geometry owned by the hero');
+occlusionHero.dispose();
 const hero=createHero(),other=createHero();
 for(const weapon of ['axe','sword','hammer','spear','daggers']){
   hero.setWeapon(weapon);
@@ -120,9 +136,31 @@ const textured=new T.Mesh(new T.BoxGeometry(),new T.MeshStandardMaterial({map:ne
 group.add(textured,textured.clone());batchStaticMeshes(group);
 assert(group.children.includes(textured)&&textured.geometry.hasAttribute('uv'),'Textured meshes retain UVs and stay outside colour batching');
 disposeBatchedGeometry(group);
+for(const seed of [0,1,2,3,4,5,6,7])for(const geometry of [foliageCrown(seed,0x579452),foliageCrown(seed,0x579452,true),fracturedRock(seed,0x838b7d)]){
+  const p=geometry.attributes.position,n=geometry.attributes.normal;
+  let volume=0,upperNormal=0,upperCount=0;
+  for(let i=0;i<p.count;i+=3){
+    const a=new T.Vector3().fromBufferAttribute(p,i),b=new T.Vector3().fromBufferAttribute(p,i+1),c=new T.Vector3().fromBufferAttribute(p,i+2);
+    volume+=a.dot(b.cross(c))/6;
+  }
+  for(let i=0;i<p.count;i++)if(p.getY(i)>.4){upperNormal+=n.getY(i);upperCount++;}
+  assert(volume>.5,'Closed nature forms must have outward winding, so front-face culling cannot hide their surface');
+  assert(upperNormal/upperCount>.3,'Canopy/rock tops must receive the light from above');
+  assert([...p.array,...n.array].every(Number.isFinite));
+}
 for(const region of [1,3,5,6])for(const seed of [0,1,11,101]){
   const tree=createLivingTree(seed,region),box=new T.Box3().setFromObject(tree);
-  assert(box.min.y>-6&&box.max.y>180&&box.max.y<260);assert(tree.children.length<=2,'Rigid canopy must be batched');disposeBatchedGeometry(tree);
+  assert(box.min.y>-6&&box.max.y>180&&box.max.y<260);assert(tree.children.length<=2,'Rigid canopy must be batched');
+  let triangles=0;tree.traverse(o=>{if(o instanceof T.Mesh)triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;});
+  assert(triangles<1500,'Authored crowns must stay cheaper than the old subdivided spheres');disposeBatchedGeometry(tree);
+}
+for(const region of [2,4,7,8])for(const seed of [0,1,11,101]){
+  const tree=createSparseTree(seed,region),box=new T.Box3().setFromObject(tree,true);
+  assert(box.min.y>-5&&box.max.y>=165&&box.max.y<220,'Arid/burnt harvest trees retain their established height');
+  assert(tree.children.length<=2,'Sparse trees must use at most two draw meshes');
+  const width=box.max.x-box.min.x,depth=box.max.z-box.min.z;
+  assert(width<185&&depth<185,`Sparse tree ${region}/${seed} exceeds its canopy footprint: ${width.toFixed(1)} × ${depth.toFixed(1)}`);
+  disposeBatchedGeometry(tree);
 }
 const hit=recordVisualHit(recordVisualHit(undefined,10,42,'neutral'),10,19,'neutral');assert.equal(hit.amount,61);
 assert.equal(recordVisualHit(hit,11,7,'neutral').amount,7);

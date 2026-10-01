@@ -1,12 +1,14 @@
 import { withNatureAsset } from './NatureAssets';
 import { softBox, softOrb, contactShadow } from './ArtMaterials';
 import { batchStaticMeshes } from './MeshBatching';
-import { createLivingTree } from './Trees';
+import { createLivingTree, createSparseTree } from './Trees';
+import { fracturedRock, naturalSurfaceMaterial } from './NatureForms';
 export { createHero } from './HeroModel';
 export { createCreature } from './CreatureModels';
 import * as THREE from 'three';
 import type { WeaponId } from '../combat/WeaponDefinitions';
 import type { SkinId } from '../cosmetics/SkinEconomy';
+import type { CreatureCombatPose } from './CreatureMotion';
 
 const cube = softBox;
 const orb = softOrb;
@@ -61,7 +63,7 @@ function rod(parent: THREE.Object3D, color: number, a: THREE.Vector3, b: THREE.V
 
 export type AnimatedModel = {
   root: THREE.Group;
-  step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number, attackAt?: number) => void;
+  step: (seconds: number, speed: number, dash?: boolean, attack?: boolean, travel?: number, turning?: number, attackAt?: number, combatPose?: CreatureCombatPose) => void;
   setWeapon?: (weapon: WeaponId) => void;
   setSkin?: (skin: SkinId | null) => void;
   setTint?: (tint: number | null) => void;
@@ -71,43 +73,7 @@ export type AnimatedModel = {
 
 export function createTree(seed: number, region: number): THREE.Group {
   if([1,3,5,6].includes(region))return createLivingTree(Math.abs(seed),region);
-  const group = new THREE.Group();
-  const height = 80 + (seed % 57);
-  if (region === 4 || region === 8) {
-    const trunk = part(group, cone, mat(0x373333), 0, height * 0.45, 0, 20, height, 18);
-    trunk.rotation.z = 0.1;
-    for (let n = 0; n < 4; n++) {
-      const branch = rod(group, 0x463631, new THREE.Vector3(0, 35 + n * 18, 0), new THREE.Vector3((n % 2 ? -1 : 1) * 28, 50 + n * 18, 8), 3);
-      branch.castShadow = true;
-    }
-    ball(group, 0xd0572f, 0, 7, 0, 13, 4, 13);
-  } else if (region === 2 || region === 7) {
-    rod(group, 0x6b5037, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, height * 0.6, 0), 7);
-    for (const side of [-1, 1]) rod(group, 0x6b5037, new THREE.Vector3(0, 40, 0), new THREE.Vector3(side * 35, height * 0.8, 0), 4);
-    for (const x of [-28, 0, 28]) ball(group, 0x8f9b55, x, height * 0.75, 0, 27, 17, 22);
-  } else {
-    rod(group, 0x654c35, new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, height * 0.7, 0), 10);
-    for (let n = 0; n < 3; n++) {
-      const green = region === 3 ? 0x56685d : region === 5 ? 0x96ae76 : 0x4e9255;
-      const leaf = part(group, cone, mat(n % 2 ? green : 0x67a45e), 0, height * (0.72 + n * 0.17), 0, 42 - n * 7, 56, 42 - n * 7);
-      leaf.rotation.y = n * 0.45;
-    }
-  }
-  const byRegion: Record<number, readonly string[]> = {
-    1: ['tree_oak', 'tree_detailed', 'tree_pineRoundA'],
-    2: ['tree_plateau_fall', 'tree_thin_dark'],
-    3: ['tree_pineTallA_detailed', 'tree_pineRoundA', 'tree_thin_dark'],
-    4: ['tree_thin_dark', 'tree_plateau_fall'],
-    5: ['tree_pineRoundA', 'tree_pineTallA_detailed', 'tree_oak'],
-    6: ['tree_oak', 'tree_detailed', 'tree_pineRoundA'],
-    7: ['tree_plateau_fall', 'tree_thin_dark', 'tree_detailed'],
-    8: ['tree_thin_dark', 'tree_plateau_fall'],
-  };
-  const choices = byRegion[region] ?? byRegion[1];
-  const asset = choices[Math.abs(seed) % choices.length];
-  const visual = withNatureAsset(asset, 162 + Math.abs(seed % 5) * 7, group);
-  visual.rotation.y = (Math.abs(seed) % 12) * 0.37;
-  return visual;
+  return createSparseTree(Math.abs(seed),region);
 }
 
 export function createRock(seed: number, region: number): THREE.Group {
@@ -122,52 +88,15 @@ export function createRock(seed: number, region: number): THREE.Group {
         ? 0x727784
         : 0x838b7d;
 
-  if (variant <= 1) {
-    ball(group, stone, -5, 9, 0, 18 + safeSeed % 8, 11 + safeSeed % 6, 17 + safeSeed % 7);
-    if (safeSeed % 3 !== 0) {
-      ball(group, 0xa1a48f, 10, 7, -5, 6, 4, 7);
-    }
-    const visual = withNatureAsset(
-      variant === 0 ? 'rock_largeA' : 'rock_largeC',
-      39 + safeSeed % 10,
-      group,
-    );
-    visual.rotation.y = safeSeed % 10 * 0.43;
-    return visual;
+  const count=variant===2?4:3;
+  for(let index=0;index<count;index++){
+    const angle=index*2.399+safeSeed*.11,main=index===0;
+    const rock=part(group,fracturedRock(safeSeed+index,stone),naturalSurfaceMaterial,
+      main?0:Math.cos(angle)*18,0,main?0:Math.sin(angle)*15,
+      main?22:8+index*2,main?37+safeSeed%11:10+index*5,main?19:7+index*2);
+    rock.rotation.y=angle;
   }
-
-  if (variant === 2) {
-    for (let index = 0; index < 4; index += 1) {
-      const angle = index * 1.53 + safeSeed * 0.11;
-      ball(
-        group,
-        index === 0 ? stone : 0x8f9185,
-        Math.cos(angle) * (6 + index * 4),
-        6 + index * 2,
-        Math.sin(angle) * (5 + index * 3),
-        13 - index,
-        8 + index,
-        11 - index * 0.5,
-      );
-    }
-    group.rotation.y = safeSeed % 9 * 0.37;
-    return group;
-  }
-
-  const slab = part(
-    group,
-    cube,
-    mat(stone),
-    0,
-    14,
-    0,
-    25,
-    28,
-    18,
-  );
-  slab.rotation.set(0.08, safeSeed % 7 * 0.31, -0.14);
-  ball(group, 0x9b9c8b, -12, 5, 8, 9, 5, 8);
-  ball(group, stone, 13, 4, -7, 7, 4, 9);
+  batchStaticMeshes(group);
   return group;
 }
 

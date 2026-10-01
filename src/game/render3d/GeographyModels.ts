@@ -3,6 +3,7 @@ import { GEOGRAPHY_LANDMARKS, REGION_GEOGRAPHY, type GeographyLandmark } from '.
 import { terrainHeight } from '../world/WorldTerrain';
 import { boundarySurfaceMaterial } from './ArtMaterials';
 import { batchStaticMeshes } from './MeshBatching';
+import { fracturedRock, naturalSurfaceMaterial } from './NatureForms';
 
 const noise=(n:number)=>{const v=Math.sin(n*127.13)*43758.5453;return v-Math.floor(v);};
 
@@ -47,9 +48,12 @@ export function createGeographyLandmark(site:GeographyLandmark):T.Group {
     const water=new T.Mesh(geometry,boundarySurfaceMaterial(false));water.userData.uniqueGeometry=true;group.add(water);
     const bed=new T.BufferGeometry();bed.setAttribute('position',new T.Float32BufferAttribute(bedPositions,3));bed.setAttribute('color',new T.Float32BufferAttribute(bedColors,3));bed.computeVertexNormals();
     const rim=new T.Mesh(bed,new T.MeshStandardMaterial({vertexColors:true,roughness:.9,side:T.DoubleSide}));rim.receiveShadow=true;rim.userData.buildingOwned=true;group.add(rim);
-    for(let n=0;n<10;n++){
-      const a=n/10*Math.PI*2+.14*Math.sin(n),r=site.radius*(.83+.07*Math.sin(a*3+site.seed)+.04*Math.sin(a*5));
-      const stone=outcrop(13+noise(n)*12,15+noise(n+4)*16,n+site.seed,[palette.rock,palette.light],'moss');stone.position.set(Math.cos(a)*r,14,Math.sin(a)*r);group.add(stone);
+    for(let n=0;n<9;n++){
+      const a=n/9*Math.PI*2+.19*Math.sin(n*2),r=site.radius*(.83+.07*Math.sin(a*3+site.seed)+.04*Math.sin(a*5));
+      const stone=new T.Mesh(fracturedRock(n+site.seed,n%3===0?palette.rock:palette.light).clone(),naturalSurfaceMaterial);
+      const width=14+noise(n+site.seed)*11,height=23+noise(n+4)*17;
+      stone.position.set(Math.cos(a)*r,7,Math.sin(a)*r);stone.scale.set(width,height,width*.82);stone.rotation.y=a;
+      stone.castShadow=stone.receiveShadow=true;stone.userData.buildingOwned=true;group.add(stone);
       if(site.region===1&&n%2===0)for(let k=0;k<3;k++)rootCurve(group,[new T.Vector3(Math.cos(a)*r,21,Math.sin(a)*r),new T.Vector3(Math.cos(a)*r+3*k,50+k*6,Math.sin(a)*r+4)],1.3,0x72905c);
     }
   } else {

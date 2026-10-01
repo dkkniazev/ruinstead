@@ -7,11 +7,11 @@
     "dev": "vite",
     "typecheck": "tsc --noEmit",
     "balance": "node scripts/balance-sanity.mjs",
-    "check:world": "node scripts/world-sanity.mjs",
+    "check:world": "node scripts/world-sanity.mjs && node scripts/terrain-path-sanity.mjs",
     "check:gameplay": "node scripts/gameplay-sanity.mjs",
     "check:polish": "node scripts/polish-sanity.mjs",
     "check:regressions": "node scripts/regression-sanity.mjs && node scripts/gameplay-world-sanity.mjs",
-    "check:art": "node scripts/art-sanity.mjs && node scripts/geography-art-sanity.mjs",
+    "check:art": "node scripts/art-sanity.mjs && node scripts/geography-art-sanity.mjs && node scripts/creature-rig-sanity.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

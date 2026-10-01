@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
 import {build} from 'esbuild';
 const bundle=await build({stdin:{contents:`
 export * from './src/game/combat/CombatMath.ts';
@@ -27,6 +28,13 @@ const bag=new m.BackpackSystem(0,{...m.emptyResourceCounts(),wood:100,coins:500}
 assert.equal(bag.usedCapacity,100);assert.equal(bag.add('coins',1000),1000);assert.equal(bag.add('wood',1),0);
 assert.equal(bag.state.carried.coins,1500);assert.equal(bag.usedCapacity,100);
 const deathDrop=bag.takeAll();assert.equal(deathDrop.coins,1500);assert.equal(deathDrop.wood,100);assert.equal(bag.state.carried.coins,0);
+const coinsOnly=new m.BackpackSystem(0,{...m.emptyResourceCounts(),coins:777});
+assert.equal(coinsOnly.usedCapacity,0);assert(coinsOnly.hasContents,'Coin-only loot must trigger the settlement deposit');
+assert.equal(coinsOnly.deposit().coins,777);assert(!coinsOnly.hasContents,'Deposit consumes coin-only loot once');
+const worldScene=await readFile('src/scenes/WorldScene.ts','utf8');
+const returnFlow=worldScene.slice(worldScene.indexOf('private handleReturnPoint'),worldScene.indexOf('private isAtReturnPoint'));
+assert(returnFlow.includes('!this.backpack.hasContents'),'Automatic deposit must check contents, not weight');
+assert(!returnFlow.includes('usedCapacity'),'Weight cannot decide whether loot exists');
 const oldOverweight=new m.BackpackSystem(0,{...m.emptyResourceCounts(),wood:200,coins:2000});
 assert.equal(oldOverweight.state.carried.coins,2000,'Capacity trimming cannot delete weightless coins');
 assert.equal(m.MAX_PLAYER_UPGRADE_LEVEL,20);assert.equal(m.getBackpackCapacity(10),400);assert.equal(m.getBackpackCapacity(20),1000);

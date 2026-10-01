@@ -1,5 +1,6 @@
 import { GEOGRAPHY_LANDMARKS } from '../game/world/RegionGeography';
 import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../game/qa/PolishPlaytest';
+import { weaponHitDamage } from '../game/combat/CombatMath';
 import { resolveWorldInteraction, type InteractionCandidate } from '../game/world/WorldInteractions';
 import { ObstacleNavigation } from '../game/world/ObstacleNavigation';
 import { HUD_WORLD_INTERACT_EVENT, HUD_INTERACTION_STATE_EVENT, HUD_OPEN_FORGE_EVENT } from '../game/ui/HudEvents';
@@ -1028,7 +1029,7 @@ export class WorldScene
       }
     }
 
-    if(isPolishPlaytest()&&this.player&&this.enemies&&this.combat&&this.bosses){const cleanup=installPolishPlaytest(this.player,this.enemies,this.combat,this.bosses,this.presentation3d);this.events.once(Phaser.Scenes.Events.SHUTDOWN,cleanup);}
+    if(isPolishPlaytest()&&this.player&&this.enemies&&this.combat&&this.bosses){const cleanup=installPolishPlaytest(this.player,this.enemies,this.combat,this.bosses,this.presentation3d,this.resourceSystem,this.chestSystem);this.events.once(Phaser.Scenes.Events.SHUTDOWN,cleanup);}
     markYandexGameReady();
     startYandexGameplay();
   }
@@ -2359,8 +2360,7 @@ export class WorldScene
         false;
 
       if (
-        this.backpack
-          .state.usedCapacity <= 0
+        !this.backpack.hasContents
       ) {
         if (potionsRefilled) {
           this.game.events.emit(
@@ -4884,16 +4884,9 @@ export class WorldScene
           .weaponInventory,
         weaponId,
       );
-    const multiplier =
-      getWeaponDamageMultiplier(
-        updated.level,
-        updated.rarity,
-        updated.stars,
-      );
-
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      `${WEAPON_DEFINITIONS[weaponId].name} улучшен до Lv.${newLevel} · ${WEAPON_RARITIES[updated.rarity].name} ${'★'.repeat(updated.stars)} · сила ×${multiplier.toFixed(2)}`,
+      `${WEAPON_DEFINITIONS[weaponId].name}: уровень ${newLevel} · ${WEAPON_RARITIES[updated.rarity].name} ${'★'.repeat(updated.stars)} · ${weaponHitDamage(updated,this.combat?.damageBonus??1)} урона`,
     );
     this.emitProgressionState();
     this.saveState();
@@ -5029,16 +5022,9 @@ export class WorldScene
 
     this.applyProgression();
 
-    const multiplier =
-      getWeaponDamageMultiplier(
-        fused.level,
-        fused.rarity,
-        fused.stars,
-      );
-
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      `${WEAPON_DEFINITIONS[weaponId].name}: ${WEAPON_RARITIES[fused.rarity].name} теперь ${'★'.repeat(fused.stars)} · сила ×${multiplier.toFixed(2)}`,
+      `${WEAPON_DEFINITIONS[weaponId].name}: ${WEAPON_RARITIES[fused.rarity].name} теперь ${'★'.repeat(fused.stars)} · ${weaponHitDamage(fused,this.combat?.damageBonus??1)} урона`,
     );
 
     this.emitProgressionState();
@@ -5180,7 +5166,7 @@ export class WorldScene
 
     this.game.events.emit(
       HUD_NOTICE_EVENT,
-      `Поселение: ${id} улучшено до Lv.${result.newLevel}`,
+      `${this.cityHudState.buildings.find(building=>building.id===id)?.name??'Здание'}: уровень ${result.newLevel}`,
     );
 
     this.grantPlayerXp(

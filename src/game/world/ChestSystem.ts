@@ -296,6 +296,9 @@ function formatReward(
   rewards: ResourceCounts,
 ): string {
   return [
+    rewards.wood
+      ? `дерево ×${rewards.wood}`
+      : '',
     rewards.crystal
       ? `кристалл ×${rewards.crystal}`
       : '',

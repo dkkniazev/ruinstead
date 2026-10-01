@@ -96,6 +96,23 @@ body:has(.ruin-ui[data-modal=true]) .world-minimap{visibility:hidden;pointer-eve
 .r-stat .r-icon{width:24px;height:24px}
 
 /* Story journal */
+/* Keep collection browsing and the selected item's actions together on phones. */
+@media(max-width:520px){
+  .r-forge-layout .r-weapon-scroll,.r-loadout-browser .r-weapon-scroll{max-height:clamp(135px,23dvh,190px)}
+  .r-forge-layout .r-weapon-list,.r-loadout-browser .r-weapon-list{gap:5px;margin-top:6px}
+  .r-forge-layout .r-weapon,.r-loadout-browser .r-weapon{grid-template-columns:30px minmax(0,1fr) auto;gap:2px 7px;padding:7px 8px}
+  .r-forge-layout .r-weapon>.r-icon,.r-loadout-browser .r-weapon>.r-icon{width:28px!important;height:34px!important;grid-row:1/4}
+  .r-weapon-list .r-weapon .damage{grid-column:3;grid-row:1/3;align-self:center;font-size:11px}
+  .r-weapon-list .r-weapon small{grid-column:2/4;font-size:10px}
+  .r-loadout-browser .r-detail .r-statline{grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+  .r-loadout-browser .r-detail .r-stat{padding:5px;display:block}
+  .r-loadout-browser .r-detail .r-stat>.r-icon{display:none}
+  .r-loadout-browser .r-detail .r-stat small{display:block;font-size:9px;margin:0}
+  .r-loadout-browser .r-detail .r-stat strong{font-size:16px}
+  .r-forge-layout .r-card{padding:12px}.r-forge-layout .r-card h2{font-size:21px;margin:6px 0}
+  .r-forge-layout .r-card .r-statline{margin:8px 0}.r-forge-layout .r-card p{margin:6px 0;font-size:12px}
+  .r-split:has(.r-loadout-browser) .r-slot{min-height:83px}.r-split:has(.r-loadout-browser)>section>.r-detail-head{display:none}
+}
 .r-quest-journal{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,.8fr);gap:18px;align-items:start}
 .r-story-card{padding:24px;background:radial-gradient(circle at 8% 0,#7d684324,transparent 36%),linear-gradient(145deg,#314546c7,#162c30)}
 .r-story-card .r-detail-head small{color:#bfae7c;font-weight:700}

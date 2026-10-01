@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { softBox } from './ArtMaterials';
+import { foliageCrown, flowerGeometry, flagstoneGeometry } from './NatureForms';
 import { terrainHeight } from '../world/WorldTerrain';
 
 type Site = { id: string; x: number; y: number };
@@ -9,15 +9,15 @@ const noise=(a:number,b:number)=>{const n=Math.sin(a*127.1+b*311.7)*43758.5453;r
 export function settlementScenery(cx:number,cz:number,sites:readonly Site[]):T.Group {
   const root=new T.Group();
   const stone=new T.MeshStandardMaterial({color:0xa89d84,roughness:1,flatShading:true});
-  const pavers=new T.InstancedMesh(softBox.clone(),stone,340);
+  const pavers=new T.InstancedMesh(flagstoneGeometry(),stone,340);
   const transform=new T.Object3D();let count=0;
   const pave=(x:number,z:number,w:number,d:number,angle:number)=>{
-    transform.position.set(x,terrainHeight(x,z)+3,z);transform.rotation.set(0,angle,0);transform.scale.set(w,5,d);transform.updateMatrix();pavers.setMatrixAt(count,transform.matrix);
-    pavers.setColorAt(count,new T.Color().setHSL(.105,.13,.64+noise(x,z)*.15));count++;
+    transform.position.set(x,terrainHeight(x,z)+1,z);transform.rotation.set(0,angle,0);transform.scale.set(w,4,d);transform.updateMatrix();pavers.setMatrixAt(count,transform.matrix);
+    pavers.setColorAt(count,new T.Color().setHSL(.105,.17,.57+noise(x,z)*.15));count++;
   };
   for(let row=-5;row<=5;row++)for(let col=-5;col<=5;col++){
     const x=col*24+(row%2)*12,z=row*23;if(Math.hypot(x,z)>122)continue;
-    pave(cx+x,cz+z,21+noise(row,col)*2,20+noise(col,row)*2,(noise(row+50,col)-.5)*.08);
+    pave(cx+x+(noise(row,col)-.5)*2,cz+z,21+noise(row,col)*2,20+noise(col,row)*2,(noise(row+50,col)-.5)*.15);
   }
   for(const site of sites){
     const endX=site.x,endZ=site.y+(site.id==='forge'?70:100),dx=endX-cx,dz=endZ-cz,length=Math.hypot(dx,dz);
@@ -39,17 +39,24 @@ export function settlementScenery(cx:number,cz:number,sites:readonly Site[]):T.G
 
   // Low planted beds frame the paths instead of scattering decoration in them.
   const beds=[[-120,-115,75,33],[190,145,80,37],[-325,145,60,30],[335,-190,70,32]];
-  const leaf=new T.MeshStandardMaterial({color:0x527957,roughness:1,flatShading:true}),flower=new T.MeshStandardMaterial({color:0xc5b775,roughness:1});
-  const foliage=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),leaf,32),flowers=new T.InstancedMesh(new T.IcosahedronGeometry(1,0),flower,32);
+  const leaf=new T.MeshStandardMaterial({vertexColors:true,roughness:1}),flower=new T.MeshStandardMaterial({color:0xfff3be,roughness:1,side:T.DoubleSide});
+  const foliage=new T.InstancedMesh(foliageCrown(3,0x518151).clone(),leaf,64),flowers=new T.InstancedMesh(flowerGeometry(),flower,192);
   let n=0;
   for(const [bx,bz,w,d]of beds){
-    for(let i=0;i<8;i++){
+    for(let i=0;i<16;i++){
       const x=cx+bx+(noise(i,bx)-.5)*w,z=cz+bz+(noise(i,bz)-.5)*d;
-      transform.position.set(x,terrainHeight(x,z)+10,z);transform.scale.set(12,13,10);transform.rotation.set(0,i,0);transform.updateMatrix();foliage.setMatrixAt(n,transform.matrix);
-      transform.position.y+=10;transform.scale.setScalar(3);transform.updateMatrix();flowers.setMatrixAt(n++,transform.matrix);
+      const height=7+noise(bx,i)*5;
+      transform.position.set(x,terrainHeight(x,z)+height,z);transform.scale.set(12+noise(i,bz)*5,height,11);transform.rotation.set(0,i,0);transform.updateMatrix();foliage.setMatrixAt(n,transform.matrix);
+      foliage.setColorAt(n,new T.Color().setHSL(.27,.23,.77+noise(i,bx)*.18));
+      for(let petal=0;petal<3;petal++){
+        transform.position.set(x+(petal-1)*6,terrainHeight(x,z)+height*1.55,z+Math.sin(petal*3)*5);
+        transform.scale.setScalar(3);transform.rotation.set(.2,petal,0);transform.updateMatrix();
+        const index=n*3+petal;flowers.setMatrixAt(index,transform.matrix);flowers.setColorAt(index,new T.Color(petal===1?0xdfa3ae:0xffdda0));
+      }
+      n++;
     }
   }
-  foliage.castShadow=true;root.add(foliage,flowers);
+  foliage.count=n;flowers.count=n*3;foliage.castShadow=true;root.add(foliage,flowers);
   root.traverse(o=>{if(o instanceof T.Mesh)o.userData.settlementOwned=true;});
   return root;
 }

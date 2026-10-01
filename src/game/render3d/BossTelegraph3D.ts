@@ -3,6 +3,7 @@ import type { BossDangerZone } from '../combat/CombatMath';
 import { terrainHeight } from '../world/WorldTerrain';
 
 export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
+  const progress={value:0};
   const geometry = zone.shape === 'circle'
     // Interior rings follow hills too; a single centre fan cuts through raised ground.
     ? new THREE.RingGeometry(0, zone.radius, 64, Math.max(1, Math.ceil(zone.radius / 30)))
@@ -20,19 +21,29 @@ export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
     polygonOffset: true, polygonOffsetFactor: -2,
   });
   material.onBeforeCompile=shader=>{
+    shader.uniforms.dangerProgress=progress;
     shader.vertexShader='varying vec2 vDangerUv;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvDangerUv=uv;');
-    shader.fragmentShader='varying vec2 vDangerUv;\n'+shader.fragmentShader;
+    shader.fragmentShader='varying vec2 vDangerUv;uniform float dangerProgress;\n'+shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       float edge=${zone.shape==='circle'?'1.-length(vDangerUv*2.-1.)':'min(min(vDangerUv.x,1.-vDangerUv.x),min(vDangerUv.y,1.-vDangerUv.y))'};
       float rim=1.-smoothstep(.014,.035,edge);
       diffuseColor.a*=.32+rim*.68;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.52,.35),rim*.3);
+      float sweep=${zone.shape==='circle'?'length(vDangerUv*2.-1.)':'vDangerUv.x'};
+      float charge=(1.-smoothstep(.015,.045,abs(sweep-dangerProgress)))*.55;
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.77,.4),charge);
+      diffuseColor.a=min(.9,diffuseColor.a+charge*.35);
     `);
   };
   material.customProgramCacheKey=()=>`danger-${zone.shape}`;
   const mesh = new THREE.Mesh(geometry,material);
   mesh.userData.zone = zone;
+  mesh.userData.progress = progress;
   return mesh;
+}
+
+export function updateBossTelegraph(mesh:THREE.Mesh,progress:number):void {
+  mesh.userData.progress.value=THREE.MathUtils.clamp(progress,0,1);
 }
 
 export function disposeBossTelegraph(mesh: THREE.Mesh): void {

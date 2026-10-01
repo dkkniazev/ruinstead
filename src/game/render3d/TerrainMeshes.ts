@@ -1,6 +1,7 @@
 import { createRegionLandmarks } from './GeographyModels';
 import * as THREE from 'three';
-import { groundMaterial, boundarySurfaceMaterial } from './ArtMaterials';
+import { groundMaterial, boundarySurfaceMaterial, rockFaceMaterial } from './ArtMaterials';
+import { REGION_GEOGRAPHY } from '../world/RegionGeography';
 import { createRegionRoads } from './BiomeScenery';
 import { pointInRegion, type RegionDefinition } from '../world/ReleaseRegionMap';
 import { plateauHeight, sampleBoundaryTerrain } from '../world/WorldTerrain';
@@ -128,11 +129,11 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     const a=rings[index],b=rings[(index+1)%rings.length];
     for(let band=0;band<levels.length-1;band++) {
       const vertices=[a[band],b[band],b[band+1],a[band+1]];
-      const shade=stone.clone().multiplyScalar(.72+hash(index,band)*.38+(band===0?.18:0));
+      const shade=stone.clone().multiplyScalar(.87+hash(index,0)*.15-band*.045+(band===0?.12:0));
       for(const j of [0,2,1,0,3,2]) {cliffPositions.push(...vertices[j]);cliffColors.push(shade.r,shade.g,shade.b);}
     }
   }
-  group.add(mesh(cliffPositions,cliffColors,true));
+  const cliff=mesh(cliffPositions,cliffColors,true);(cliff.material as THREE.Material).dispose();cliff.material=rockFaceMaterial();group.add(cliff);
   return group;
 }
 
@@ -148,8 +149,10 @@ export function createBoundaryGround(cx: number, cz: number, size: number, segme
     for(const i of indices){
       const x=cx+vertices.getX(i),z=cz+vertices.getZ(i),sample=samples[i];
       positions[kind].push(x,sample.height,z);
-      const color=kind>0?new THREE.Color(0xffffff):new THREE.Color(sample.kind==='river'?0x30969f:sample.kind==='lava'?0xc65333:sample.kind==='cliff'?0x9b8e77
-        :sample.kind==='cut'?0x96826b:sample.height>780?0xb8c6c7:sample.region.id===7?0xb58360:0x6c7b85);
+      const palette=REGION_GEOGRAPHY[sample.region.id-1];
+      const color=kind>0?new THREE.Color(0xffffff):new THREE.Color(sample.kind==='river'?0x30969f:sample.kind==='lava'?0xc65333
+        :sample.kind==='cut'?palette.soil:palette.rock);
+      if(kind===0&&sample.kind!=='cut')color.lerp(new THREE.Color(palette.light),THREE.MathUtils.clamp((sample.height-sample.region.elevation-130)/450,0,.36));
       if(kind===0)color.multiplyScalar(.9+hash(Math.floor(x/90),Math.floor(z/90))*.16);
       else color.multiplyScalar(.76+Math.max(0,1-sample.distance/120)*.24);
       colors[kind].push(color.r,color.g,color.b);
@@ -159,7 +162,7 @@ export function createBoundaryGround(cx: number, cz: number, size: number, segme
   for(let kind=0;kind<3;kind++){
     if(!positions[kind].length)continue;
     const surface=mesh(positions[kind],colors[kind],kind===0);
-    if(kind>0){(surface.material as THREE.Material).dispose();surface.material=boundarySurfaceMaterial(kind===2);}
+    (surface.material as THREE.Material).dispose();surface.material=kind>0?boundarySurfaceMaterial(kind===2):rockFaceMaterial();
     group.add(surface);
   }
   return group;

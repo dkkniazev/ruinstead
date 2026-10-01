@@ -1,4 +1,4 @@
-import { contactShadow, updateArtMaterials } from './ArtMaterials';
+import { contactShadow, softBox, updateArtMaterials } from './ArtMaterials';
 import { batchStaticMeshes, disposeBatchedGeometry } from './MeshBatching';
 import { CombatEffects3D } from './CombatEffects3D';
 import { OrbitingWeapons3D } from './OrbitingWeapons3D';
@@ -23,7 +23,8 @@ import { createBuilding, createChest, createCreature, createHero, createSceneryP
 import { terrainHeight, passageHeight, TERRAIN_PASSAGES } from '../world/WorldTerrain';
 import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './TerrainMeshes';
 
-import { createBossTelegraph, disposeBossTelegraph } from './BossTelegraph3D';
+import { createBossTelegraph, disposeBossTelegraph, updateBossTelegraph } from './BossTelegraph3D';
+import { HeroOcclusion3D } from './HeroOcclusion3D';
 import { ResourceVisual3D } from './ResourceVisual3D';
 import {
   weaponAttackAnimationMs,
@@ -93,13 +94,14 @@ function createForestAltar(): {root:THREE.Group; beacon:THREE.Mesh; rune:THREE.M
 
 
 export class WorldPresentation3D {
-  get renderStats(): {calls:number;triangles:number} {
-    return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles};
+  get renderStats(): {calls:number;triangles:number;frames:number} {
+    return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,frames:this.renderer.info.render.frame};
   }
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-640, 640, 360, -360, 1, 5000);
   private readonly hero = createHero();
+  private readonly heroOcclusion = new HeroOcclusion3D();
   private readonly sun = new THREE.DirectionalLight(0xffe6bd, 2.4);
   private readonly sunTarget = new THREE.Object3D();
   private readonly landRegions = new Map<number, THREE.Group>();
@@ -140,11 +142,11 @@ export class WorldPresentation3D {
     private readonly getOrbitals:()=>OrbitalWeaponState[] = ()=>[],
     private readonly getActiveQuestId:()=>string|null = ()=>null,
   ) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, stencil:true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
@@ -163,7 +165,7 @@ export class WorldPresentation3D {
 
     this.scene.background = new THREE.Color(0x8fa478);
     this.scene.fog = new THREE.Fog(0xa4b7a0, 2300, 4300);
-    this.scene.add(new THREE.HemisphereLight(0xc6e2ff, 0x81705b, 1.65));
+    this.scene.add(new THREE.HemisphereLight(0xc6e2ff, 0x81705b, 1.3));
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.1));
     this.sun.intensity = 2.8;
     this.sun.castShadow = true;
@@ -182,7 +184,7 @@ export class WorldPresentation3D {
 
     this.hero.root.add(contactShadow(40,29));
     this.coinPickups.count=0;this.coinPickups.frustumCulled=false;
-    this.scene.add(this.hero.root,this.effects.root,this.coinPickups,this.orbitingWeapons.root);
+    this.scene.add(this.hero.root,this.heroOcclusion.root,this.effects.root,this.coinPickups,this.orbitingWeapons.root);
     for (const region of RELEASE_REGIONS) {
       const land = createRegionLand(region);
       this.landRegions.set(region.id, land);
@@ -229,6 +231,7 @@ export class WorldPresentation3D {
     this.camera.bottom = -height / 2;
     this.camera.updateProjectionMatrix();
     // A canvas resize clears its buffer even while a menu pauses the scene.
+    this.heroOcclusion.update(this.hero.root);
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -316,6 +319,7 @@ export class WorldPresentation3D {
       this.updateBuildings();
     }
     this.updatePickups(x, z, time);
+    this.heroOcclusion.update(this.hero.root);
     if (this.frame % 10 === 0) this.resize();
     const altarDistance=Math.hypot(x-FOREST_HEART.x,z-FOREST_HEART.y);
     this.forestAltar.root.visible=altarDistance<2800;
@@ -433,7 +437,7 @@ export class WorldPresentation3D {
       const hit=unit.visualHit;
       if(hit&&time-hit.at<500&&(this.shownHits.get(unit)??-Infinity)<hit.at&&Math.hypot(unit.sprite.x-x,unit.sprite.y-z)<1600){
         const height=Number(this.actors.get(unit)?.model.root.userData.visualHeight??unit.combatRadius*3);
-        this.effects.hit(unit.sprite.x,terrainHeight(unit.sprite.x,unit.sprite.y)+height+30,unit.sprite.y,hit);
+        this.effects.hit(unit.sprite.x,terrainHeight(unit.sprite.x,unit.sprite.y)+height+30,unit.sprite.y,hit,height);
         this.shownHits.set(unit,hit.at);
       }
       if (!unit.alive || Math.abs(unit.sprite.x - x) > 1750 || Math.abs(unit.sprite.y - z) > 1750) continue;
@@ -467,10 +471,20 @@ export class WorldPresentation3D {
       actor.model.root.position.set(px, terrainHeight(px, pz) + 4, pz);
       if (speed > 5) actor.model.root.rotation.y = Math.atan2(vx, vz);
       else if ('rank' in unit) actor.model.root.rotation.y = Math.atan2(unit.visualFacing.x, unit.visualFacing.y);
-      else actor.model.root.rotation.y = Math.atan2(x - px, z - pz);
-      actor.model.root.rotation.x=-Math.max(0,1-(time-(unit.visualHit?.at??-Infinity))/170)*.1;
-      const winding='rank' in unit&&time-unit.visualWindupAt>=0&&time-unit.visualWindupAt<unit.definition.attackWindupMs;
-      actor.model.step(dt, speed,false,winding||time-unit.visualAttackAt<230);
+      else {
+        const danger=unit.visualTelegraph;
+        // The silhouette keeps the same aim as the locked damage rectangle.
+        actor.model.root.rotation.y = danger?.shape==='line'?Math.atan2(danger.dx,danger.dy):Math.atan2(x-px,z-pz);
+      }
+      const winding='rank' in unit?time-unit.visualWindupAt>=0&&time-unit.visualWindupAt<unit.definition.attackWindupMs:!!unit.visualTelegraph;
+      const recoveryMs='rank' in unit?460:650;
+      const striking=time-unit.visualAttackAt>=0&&time-unit.visualAttackAt<recoveryMs;
+      const windupMs='rank' in unit?unit.definition.attackWindupMs:unit.visualWindupMs;
+      actor.model.step(dt,speed,false,winding||striking,undefined,undefined,unit.visualAttackAt,{
+        phase:winding?'windup':striking?'strike':'idle',
+        progress:winding?(time-unit.visualWindupAt)/Math.max(1,windupMs):striking?(time-unit.visualAttackAt)/recoveryMs:0,
+        hit:Math.max(0,1-(time-(unit.visualHit?.at??-Infinity))/170),
+      });
       const boss = !('rank' in unit);
       const ratio = Math.max(0, Math.min(1, unit.visualHealthRatio));
       actor.health.visible = boss || ratio < 0.999 || ('rank' in unit && unit.rank === 'elite');
@@ -487,6 +501,7 @@ export class WorldPresentation3D {
             this.scene.add(actor.telegraph);
           }
           actor.telegraph.visible = true;
+          updateBossTelegraph(actor.telegraph,(time-unit.visualWindupAt)/unit.visualWindupMs);
         } else if (actor.telegraph) actor.telegraph.visible = false;
       }
       actor.lastX = px;
@@ -585,10 +600,27 @@ export class WorldPresentation3D {
       for (let i=1;i<deck.length;i++) {
         const t=(deck[i-1]+deck[i])/2, z=(t-0.5)*length,span=(deck[i]-deck[i-1])*length;
         const slope=Math.atan2(passageHeight(entry,deck[i])-passageHeight(entry,deck[i-1]),span);
-        const slab=new THREE.Mesh(new THREE.BoxGeometry(passage.width,18,span/Math.cos(slope)+2),passage.kind==='bridge'?timber:stone);
+        const slab=new THREE.Mesh(softBox,passage.kind==='bridge'?timber:stone);
+        slab.scale.set(passage.width,18,span/Math.cos(slope)+2);
         slab.position.set(0,passageHeight(entry,t)-9,z); slab.rotation.x=-slope;
         slab.castShadow=slab.receiveShadow=true;
         (Math.abs(z)<65 ? gap : group).add(slab);
+      }
+      // Individual planks/flags show the deck direction while retaining the same walkable top.
+      const course=breaks(Math.ceil(length/(passage.kind==='bridge'?23:46)));
+      for(let i=1;i<course.length;i++){
+        const a=course[i-1],b=course[i],t=(a+b)/2,z=(t-.5)*length,span=(b-a)*length;
+        const slope=Math.atan2(passageHeight(entry,b)-passageHeight(entry,a),span);
+        const wooden=passage.kind==='bridge',columns=wooden?1:4;
+        for(let col=0;col<columns;col++){
+          const material=(wooden?timber:stone).clone();
+          material.color.multiplyScalar(.88+random(i,col,entry.passage.a)*.2);
+          const flag=new THREE.Mesh(softBox,material),width=(passage.width-26)/columns;
+          flag.scale.set(width-2,4,Math.max(3,span/Math.cos(slope)-2));
+          flag.position.set((col-(columns-1)/2)*width,passageHeight(entry,t)+.5,z);
+          flag.rotation.x=-slope;flag.castShadow=flag.receiveShadow=true;
+          flag.userData.ownedMaterial=true;(Math.abs(z)<65?gap:group).add(flag);
+        }
       }
       const posts=breaks(Math.ceil(length/100));
       for(const t of posts) {
@@ -619,7 +651,17 @@ export class WorldPresentation3D {
         const bar=new THREE.Mesh(new THREE.BoxGeometry(8,91,9),iron);
         bar.position.set((i-(bars-1)/2)*(passage.width-48)/(bars-1),47,0);bar.castShadow=true;gate.add(bar);
       }
-      group.add(gate);this.scene.add(group);
+      group.add(gate);
+      const sourceMaterials=new Set<THREE.Material>();
+      group.traverse(o=>{if(o instanceof THREE.Mesh){
+        if(o.geometry!==softBox)o.userData.uniqueGeometry=true;
+        for(const m of Array.isArray(o.material)?o.material:[o.material])sourceMaterials.add(m);
+      }});
+      batchStaticMeshes(group);
+      const retained=new Set<THREE.Material>();
+      group.traverse(o=>{if(o instanceof THREE.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])retained.add(m);});
+      sourceMaterials.forEach(m=>{if(!retained.has(m))m.dispose();});
+      this.scene.add(group);
       this.bridges.set(passage.id,{group,centerX:middleX,centerZ:middleZ,gate,gap});
     }
   }
@@ -730,7 +772,16 @@ export class WorldPresentation3D {
       if(o instanceof THREE.Mesh&&(o.userData.uniqueGeometry||o.userData.batchedGeometry||o.userData.geographyOwned)){o.geometry.dispose();for(const material of Array.isArray(o.material)?o.material:[o.material])if(!material.userData.sharedArtMaterial)material.dispose();}
     });
     this.landRegions.clear();this.chunks.clear();
+    const bridgeMaterials=new Set<THREE.Material>();
+    for(const bridge of this.bridges.values())bridge.group.traverse(o=>{
+      if(o instanceof THREE.Mesh){
+        if(o.userData.uniqueGeometry||o.userData.batchedGeometry)o.geometry.dispose();
+        for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.sharedArtMaterial)bridgeMaterials.add(m);
+      }
+    });
+    bridgeMaterials.forEach(m=>m.dispose());this.bridges.clear();
     this.hero.dispose?.();
+    this.heroOcclusion.dispose();
     this.effects.dispose();
     this.orbitingWeapons.dispose();
     this.coinPickups.geometry.dispose();(this.coinPickups.material as THREE.Material).dispose();

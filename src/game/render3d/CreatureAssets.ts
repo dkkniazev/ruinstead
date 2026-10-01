@@ -2,20 +2,8 @@ import * as THREE from 'three';
 import { creatureIdentity } from './CreatureCatalog';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
-
-type CreatureAnimation = {
-  root: THREE.Group;
-  step: (
-    seconds: number,
-    speed: number,
-    dash?: boolean,
-    attack?: boolean,
-    travel?: number,
-    turning?: number,
-  ) => void;
-  dispose?: () => void;
-  ready?: Promise<void>;
-};
+import type { AnimatedModel as CreatureAnimation } from './Models';
+import { repairCreatureAssetRig } from './CreatureAssetRig';
 
 type LoadedCreature = {
   scene: THREE.Group;
@@ -167,6 +155,7 @@ export function withCreatureAsset(
     if (!loaded || disposed) return;
 
     model = cloneSkeleton(loaded.scene) as THREE.Group;
+    const rigClips=repairCreatureAssetRig(model,spec.key,loaded.animations);
     const primaryTint = new THREE.Color(primary);
     const accentTint = new THREE.Color(accent);
 
@@ -225,7 +214,7 @@ export function withCreatureAsset(
     disposeFallback();
     root.add(model);
 
-    clips = animationSet(loaded.animations, spec.hasWalk);
+    clips = animationSet(rigClips, spec.hasWalk);
     mixer = new THREE.AnimationMixer(model);
     play('idle');
   });
@@ -233,16 +222,25 @@ export function withCreatureAsset(
   return {
     root,
     ready,
-    step(seconds, speed, dash, attack, travel, turning) {
+    step(seconds, speed, dash, attack, travel, turning, attackAt, combatPose) {
       if (!mixer || !model) {
-        fallback.step(seconds, speed, dash, attack, travel, turning);
+        fallback.step(seconds, speed, dash, attack, travel, turning, attackAt, combatPose);
         return;
       }
 
       const dt = Math.min(0.05, Math.max(0, seconds));
       const moving = speed > 18;
       play(attack ? 'attack' : moving ? 'move' : 'idle');
+      if(currentAction){
+        const timedAttack=!!combatPose&&combatPose.phase!=='idle'&&currentClip===clips.attack;
+        currentAction.paused=timedAttack;
+        if(timedAttack&&currentClip){
+          const p=THREE.MathUtils.clamp(combatPose!.progress,0,1);
+          currentAction.time=currentClip.duration*(combatPose!.phase==='windup'?p*.35:.35+p*.65);
+        }
+      }
       mixer.update(dt);
+      model.rotation.x=-(combatPose?.hit??0)*.07;
 
       // Minion pack has idle/attack/dead but no walk clip. Add restrained
       // locomotion instead of letting a perfectly static rig slide over terrain.

@@ -117,6 +117,7 @@ body:has(.ruin-ui[data-modal=true]) .world-minimap{visibility:hidden;pointer-eve
   .r-split:has(.r-loadout-browser) .r-slot{min-height:83px}.r-split:has(.r-loadout-browser)>section>.r-detail-head{display:none}
 }
 .r-quest-journal{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(250px,.8fr);gap:18px;align-items:start}
+.r-side-quests{display:grid;gap:12px}.r-side-quests .r-side-quest{position:static;padding:16px}.r-side-quest h2{font-size:20px;margin:10px 0}.r-side-progress{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;font-size:12px;margin:12px 0;color:var(--gold)}.r-side-progress .r-icon{width:16px;height:16px}.r-side-quest summary{cursor:pointer;font-size:12px;color:#d4dccd}.r-side-quest details p{font-size:12px;line-height:1.5}.r-quest-side{display:block;border-top:1px solid #e5c07738;margin-top:8px;padding-top:7px;font:11px/1.4 system-ui;color:#d4dccd}
 .r-menu-toggle{display:none}
 body:has(.r-touch-controls:not([hidden])) .r-bottom{left:170px;bottom:15px}
 body:has(.r-touch-controls:not([hidden])) .r-bottom .r-bag-count{display:none}

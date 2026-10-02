@@ -265,6 +265,8 @@ export class WorldScene
     createAdsProvider();
   private readonly purchaseProvider =
     createPurchaseProvider();
+  private purchaseGrantQueue: Promise<void> = Promise.resolve();
+  private readonly confirmedPurchaseTokens = new Set<string>();
   private purchaseCatalog:
     Record<
       string,
@@ -3914,34 +3916,40 @@ export class WorldScene
     this.monetizationBusy = true;
     this.emitMonetizationState();
 
-    const result =
-      await this.purchaseProvider
-        .purchase(
-          productId,
-        );
-
-    this.monetizationBusy = false;
-
-    if (!result.success) {
+    try {
+      const result = await this.purchaseProvider.purchase(productId);
+      if (!result.success) {
+        this.game.events.emit(HUD_NOTICE_EVENT, 'Покупка не завершена');
+        return;
+      }
+      await this.grantPurchase(result.receipt);
+    } catch (error) {
+      console.warn('Purchase processing failed; pending receipts can be restored.', error);
       this.game.events.emit(
         HUD_NOTICE_EVENT,
-        'Покупка не завершена',
+        'Не удалось завершить обработку покупки. Повторим при следующем запуске',
       );
+    } finally {
+      this.monetizationBusy = false;
       this.emitMonetizationState();
-      return;
     }
-
-    await this.grantPurchase(
-      result.receipt,
-    );
   }
 
   private async grantPurchase(
     receipt: PurchaseReceipt,
   ): Promise<void> {
+    const grant = this.purchaseGrantQueue.then(() => this.applyPurchaseReceipt(receipt));
+    this.purchaseGrantQueue = grant.catch(() => undefined);
+    await grant;
+  }
+
+  private async applyPurchaseReceipt(
+    receipt: PurchaseReceipt,
+  ): Promise<void> {
     if (!this.gameState) {
       return;
     }
+    if (this.confirmedPurchaseTokens.has(receipt.purchaseToken)) return;
 
     const consumable =
       this.isConsumablePurchase(
@@ -3954,19 +3962,10 @@ export class WorldScene
           receipt.purchaseToken,
         );
 
-    if (
-      !consumable &&
-      this.isPermanentPurchaseOwned(
-        receipt.productId,
-      )
-    ) {
-      this.emitPremiumState();
-      this.emitPlayerProgressState();
-      return;
-    }
-
     if (!alreadyGranted) {
-      if (
+      if (!consumable && this.isPermanentPurchaseOwned(receipt.productId)) {
+        // Existing permanent ownership needs saving, never a second grant.
+      } else if (
         receipt.productId ===
           MONETIZATION_CONFIG
             .returnTicketProductId
@@ -4052,8 +4051,24 @@ export class WorldScene
         },
       );
 
-      this.saveState();
-      await flushYandexCloudSave();
+    }
+
+    try {
+      // Retry persistence even when the token was granted on an earlier run.
+      this.saveState({ requireLocal: true });
+      if (!import.meta.env.DEV || this.purchaseProvider.name === 'yandex') {
+        await flushYandexCloudSave({ requireCloud: true });
+      }
+    } catch (error) {
+      console.warn('Purchase persistence failed; receipt remains pending.', error);
+      this.game.events.emit(
+        HUD_NOTICE_EVENT,
+        'Покупка начислена · не удалось сохранить прогресс. Восстановим покупку при следующем запуске',
+      );
+      this.emitMonetizationState();
+      this.emitPremiumState();
+      this.emitPlayerProgressState();
+      return;
     }
 
     if (consumable) {
@@ -4062,12 +4077,15 @@ export class WorldScene
           .consume(
             receipt.purchaseToken,
           );
+        this.confirmedPurchaseTokens.add(receipt.purchaseToken);
       } catch {
         this.game.events.emit(
           HUD_NOTICE_EVENT,
           'Покупка начислена · подтверждение будет повторено при следующем запуске',
         );
       }
+    } else {
+      this.confirmedPurchaseTokens.add(receipt.purchaseToken);
     }
 
     this.emitMonetizationState();
@@ -6049,7 +6067,7 @@ export class WorldScene
     };
   }
 
-  private saveState(): void {
+  private saveState(options: { requireLocal?: boolean } = {}): void {
     if (!this.gameState) {
       return;
     }
@@ -6082,6 +6100,7 @@ export class WorldScene
     this.gameState =
       this.stateStore.save(
         this.gameState,
+        options,
       );
   }
 

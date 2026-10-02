@@ -76,7 +76,10 @@ export function createCreatureMotion(shape:CreatureShape,boss:boolean,floating:b
   let clock=0,stride=0,motion=0,fallbackAge=2,wasAttacking=false;
   return (seconds:number,speed:number,attack=false,combat?:CreatureCombatPose):void=>{
     const dt=T.MathUtils.clamp(seconds,0,.05);clock+=dt;
-    motion+=(Math.min(1,speed/(heavy?95:145))-motion)*(1-Math.exp(-dt*12));
+    // Patrols move at a third of chase speed. Keep a full walking pose at that
+    // speed; a small gait amplitude looks like a rigid model sliding around.
+    const walking=speed>3?.58+.42*Math.min(1,speed/(heavy?95:145)):0;
+    motion+=(walking-motion)*(1-Math.exp(-dt*12));
     // Distance drives feet. A stationary creature breathes instead of marching.
     stride+=Math.max(0,speed)*dt/Math.max(.5,worldScale)*(heavy?.045:.063);
     if(attack&&!wasAttacking)fallbackAge=0;wasAttacking=attack;fallbackAge+=dt;

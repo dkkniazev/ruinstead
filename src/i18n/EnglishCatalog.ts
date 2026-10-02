@@ -1,5 +1,15 @@
 // Russian source keys are resolved at the display boundary, after SDK language selection.
 export const ENGLISH_CATALOG: Record<string,string> = {
+  "Это долгосрочная цель. Дополнительные задания помогут подготовиться: оружие 3 уровня и два улучшения здоровья. Босса можно атаковать в любой момент; отходите из красных зон и восстанавливайтесь в поселении.": "This is a long-term goal. Side quests help you prepare: a level 3 weapon and two health upgrades. You can challenge the boss at any time; dodge red zones and recover in the settlement.",
+  "Лесные вылазки": "Forest Expeditions",
+  "Победите 12 лесных существ.": "Defeat 12 forest creatures.",
+  "Начните с небольших пачек слизней и гоблинов. Подходите к одной пачке, отступайте во время замаха и сдавайте добычу в поселении.": "Start with small slime and goblin packs. Pull one pack, retreat during windups and bank your loot in the settlement.",
+  "{0} / 12 лесных существ": "{0} / 12 forest creatures",
+  "Запас прочности": "Built to Last",
+  "Купите два улучшения здоровья в меню героя.": "Buy two health upgrades in the hero menu.",
+  "Откройте «Герой» → «Характеристики». Первые два улучшения стоят только монеты и камень. В безопасной зоне здоровье восстанавливается полностью за пять секунд.": "Open Hero → Attributes. The first two upgrades cost only coins and stone. The safe zone restores all your health in five seconds.",
+  "Улучшите оружие в восстановленной кузнице или характеристики героя в меню «Герой» → «Характеристики».": "Upgrade a weapon at the restored forge or your hero's attributes under Hero → Attributes.",
+  "{0} / 2 улучшения здоровья": "{0} / 2 health upgrades",
   "Загрузка мира…": "Loading the world…",
   "Попробовать снова": "Try again",
   "Изобилие ресурсов": "Resource abundance",
@@ -975,5 +985,7 @@ export const ENGLISH_CATALOG: Record<string,string> = {
   "Уклоняйтесь рывком. Меню героя находится справа: основное оружие в руках, остальные экипированные оружия летают вокруг, а слоты открываются на уровнях 5, 10, 15 и 20.": "Dash to dodge. Find the Hero menu on the right: your primary weapon is held in hand, other equipped weapons orbit you. Slots unlock at levels 5, 10, 15 and 20.",
   "Рывок и снаряжение": "Dash & Equipment",
   "Рывок освоен. Исследуйте регион, собирайте ресурсы и помните про карту на Tab: бой сам по себе не блокирует сбор и взаимодействия.": "Dash mastered. Explore the region, gather resources and remember the map on Tab. Combat does not block gathering or interactions.",
-  "Исследуйте свободно": "Explore Freely"
+  "Исследуйте свободно": "Explore Freely",
+  "Не удалось завершить обработку покупки. Повторим при следующем запуске": "Purchase processing could not be completed. We will retry on your next launch",
+  "Покупка начислена · не удалось сохранить прогресс. Восстановим покупку при следующем запуске": "Purchase granted · progress could not be saved. We will restore the purchase on your next launch"
 };

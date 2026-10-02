@@ -7,8 +7,19 @@ export {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 export * from './src/game/render3d/CreatureAssetRig.ts';
 export * from './src/game/render3d/CreatureModels.ts';
 export * from './src/game/render3d/CreatureCatalog.ts';
+export * from './src/game/render3d/CreatureMotion.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'}});
-const {T,GLTFLoader,repairCreatureAssetRig,createCreature,CREATURE_CATALOG}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const {T,GLTFLoader,repairCreatureAssetRig,createCreature,CREATURE_CATALOG,createCreatureMotion}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+for(const shape of ['goblin','boar','beetle','treant']){
+  const body=new T.Group(),legs=Array.from({length:shape==='beetle'?6:4},()=>new T.Group());
+  legs.forEach(leg=>body.add(leg));
+  const move=createCreatureMotion(shape,false,false,{body,legs,knees:[],arms:[],grips:[],wings:[],segments:[]},1);
+  let strideAngle=0;
+  for(let frame=0;frame<120;frame++){move(1/60,33);strideAngle=Math.max(strideAngle,Math.abs(legs[0].rotation.x));}
+  assert(strideAngle>.09,`${shape}: patrol must visibly articulate legs instead of sliding`);
+  for(let frame=0;frame<120;frame++)move(1/60,0);
+  assert(Math.abs(legs[0].rotation.x)<.001,`${shape}: stopped creature must not march in place`);
+}
 // Exercise the real GLB skeleton/weights in Node; GPU textures are irrelevant here.
 const bytes=fs.readFileSync('public/assets/models/gobkit-enemies/Goat.glb');
 const jsonSize=bytes.readUInt32LE(12),json=JSON.parse(bytes.toString('utf8',20,20+jsonSize));

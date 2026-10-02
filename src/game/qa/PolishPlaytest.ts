@@ -18,6 +18,14 @@ export const isPolishPlaytest = (): boolean => import.meta.env.DEV && new URLSea
 /** This fixture never touches local storage or cloud saves. */
 export function polishStateStore() {
   const state = createDefaultGameState();
+  if(new URLSearchParams(location.search).get('scenario')==='preparation'){
+    state.settlement.buildings.forge=1;state.settlement.repairStages.forge=3;
+    state.player.maxHealthLevel=1;state.onboarding.skipped=true;
+    state.resources={wood:30,stone:20,metal:12,crystal:0,fiber:0,coins:180};
+    state.world.discoveredLandmarks=['forest-heart'];
+    state.quests.completedIds=['first-departure','gather-first-wood','bank-first-haul','repair-forge-first-stage','restore-forge','buy-first-upgrade','reach-forest-heart'];
+    return {load:()=>state,save:(value:GameState)=>value};
+  }
   if(new URLSearchParams(location.search).get('scenario')==='new')return {load:()=>state,save:(value:GameState)=>value};
   state.world.unlockedZones.push(...RELEASE_REGIONS.map(r=>r.stageId));
   for(const id of ['storage','sawmill','house','workshop','forge'] as const)state.settlement.buildings[id]=3;
@@ -125,6 +133,39 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   // Real keyboard events held across frames exercise the normal input/physics path.
   const releaseTimers=new Map<number,ReturnType<typeof setTimeout>>();
   const release=(keyCode:number)=>{window.dispatchEvent(new KeyboardEvent('keyup',{keyCode,which:keyCode,bubbles:true}));releaseTimers.delete(keyCode);};
+  let walkTest: {started:number;lastX:number;lastY:number;distance:number;blockedFrames:number;frames:number}|undefined;
+  let walkResult='';
+  let sampleDelta=0,sampleRaw=0,sampleFrames=0;
+  const loop=player.sprite.scene.game.loop;
+  let limitedFrames=false;
+  const frameControl=document.createElement('button');frameControl.textContent='Кадры: обычные';
+  const configureFrames=()=>{
+    loop.raf.stop();loop.resetDelta();
+    loop.raf.start(loop.step.bind(loop),limitedFrames,limitedFrames?1000/30:1000/60);
+  };
+  frameControl.onclick=()=>{limitedFrames=!limitedFrames;frameControl.textContent=limitedFrames?'Кадры: 30 FPS':'Кадры: обычные';configureFrames();};
+  controls.append(frameControl);
+  const sampleFrame=(_time:number,delta:number)=>{
+    sampleDelta+=delta;sampleRaw+=loop.rawDelta;sampleFrames++;
+    if(walkTest){
+      const body=player.sprite.body as Phaser.Physics.Arcade.Body;
+      walkTest.distance+=Math.hypot(player.sprite.x-walkTest.lastX,player.sprite.y-walkTest.lastY);
+      walkTest.lastX=player.sprite.x;walkTest.lastY=player.sprite.y;walkTest.frames++;
+      if(body.blocked.down||body.touching.down)walkTest.blockedFrames++;
+    }
+  };
+  player.sprite.scene.events.on('update',sampleFrame);
+  button('Ходьба ↓ · 3 с',()=>{
+    if(walkTest)return;
+    walkTest={started:performance.now(),lastX:player.sprite.x,lastY:player.sprite.y,distance:0,blockedFrames:0,frames:0};
+    window.dispatchEvent(new KeyboardEvent('keydown',{keyCode:40,which:40,bubbles:true}));
+    releaseTimers.set(40,setTimeout(()=>{
+      release(40);if(!walkTest)return;
+      const seconds=(performance.now()-walkTest.started)/1000;
+      walkResult=` · Ходьба: ${(walkTest.distance/seconds).toFixed(0)} ед/с · коллизии: ${walkTest.blockedFrames}/${walkTest.frames}`;
+      walkTest=undefined;
+    },3000));
+  });
   for(const [label,keyCode]of [['Шаг ↑',38],['Шаг ↓',40],['Шаг ←',37],['Шаг →',39],['Рывок',32]] as const)button(label,()=>{
     clearTimeout(releaseTimers.get(keyCode));window.dispatchEvent(new KeyboardEvent('keydown',{keyCode,which:keyCode,bubbles:true}));
     releaseTimers.set(keyCode,setTimeout(()=>release(keyCode),keyCode===32?100:600));
@@ -147,6 +188,8 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
     const counts=[...groups.values()];output.textContent=`Проверка без сохранения · ${groups.size} пачек · ${Math.min(...counts)}–${Math.max(...counts)} мобов · элит: ${enemies.visualUnits.filter(e=>e.rank==='elite').length} · пересечений: ${overlaps} · зазор: ${min.toFixed(1)} · выбранная пачка: ${pack.filter(e=>e.alive).length}/${pack.length} · ${enemies.isPlayerThreatened()?'бой':'покой'} · Босс 4 HP: ${((boss?.visualHealthRatio??1)*100).toFixed(1)}%`;
     const node=resources?.visualNodes.find(n=>n.id===trackedNode);
     output.textContent+=` · Позиция: ${player.position.x.toFixed(0)},${player.position.y.toFixed(0)} · HP: ${combat.state.health}/${combat.state.maxHealth}`;
+    output.textContent+=` · шаг: ${(sampleDelta/Math.max(1,sampleFrames)).toFixed(1)}/${(sampleRaw/Math.max(1,sampleFrames)).toFixed(1)} мс · время: ${(sampleDelta/Math.max(1,sampleRaw)*100).toFixed(0)}%${walkResult}`;
+    sampleDelta=sampleRaw=sampleFrames=0;
     if(node)output.textContent+=` · ${node.type}: ${node.health}/${node.maxHealth} · ударов: ${node.hitCount}`;
     if(presentation){
       const stats=presentation.renderStats,now=performance.now(),fps=(stats.frames-lastFrames)*1000/Math.max(1,now-lastFrameTime);
@@ -156,5 +199,5 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
     const orbitals=combat.visualOrbitals;
     if(orbitals.length)output.textContent+=` · Орбиты: ${orbitals.map(o=>`${WEAPON_DEFINITIONS[o.weaponId].name} ${Number.isFinite(o.attackAt)?(o.attackAt/1000).toFixed(1)+'с':'ожидает'}`).join(', ')}`;
   },500);
-  return ()=>{clearInterval(timer);for(const [code,timer]of releaseTimers){clearTimeout(timer);release(code);}panel.remove();};
+  return ()=>{clearInterval(timer);player.sprite.scene.events.off('update',sampleFrame);for(const [code,timer]of releaseTimers){clearTimeout(timer);release(code);}if(limitedFrames){limitedFrames=false;configureFrames();}panel.remove();};
 }

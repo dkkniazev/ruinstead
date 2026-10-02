@@ -227,7 +227,7 @@ async function initializePlayer(
     await sdk.getPlayer();
 
   activePlayer = player;
-  await initializeYandexCloudSave(
+  const cloudReady = await initializeYandexCloudSave(
     player,
   );
 
@@ -238,7 +238,7 @@ async function initializePlayer(
         player
           .isAuthorized?.(),
       ),
-    cloudReady: true,
+    cloudReady,
   };
 
   emitPlatformState();
@@ -386,14 +386,14 @@ export async function requestYandexAuthorization():
     }
 
     activePlayer = player;
-    await initializeYandexCloudSave(
+    const cloudReady = await initializeYandexCloudSave(
       player,
     );
 
     platformState = {
       ...platformState,
       authorized: true,
-      cloudReady: true,
+      cloudReady,
     };
     emitPlatformState();
 

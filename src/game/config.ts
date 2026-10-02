@@ -17,6 +17,10 @@ export const gameConfig:
   transparent: true,
   width: viewport.renderWidth,
   height: viewport.renderHeight,
+  // Physics must advance by elapsed time, including after startup / refocus.
+  // Phaser's default smoothing clamps the first 120 frames to 60 Hz and
+  // makes walking and regeneration run in slow motion on slower devices.
+  fps: { smoothStep: false },
   scene: [
     BootScene,
     WorldScene,

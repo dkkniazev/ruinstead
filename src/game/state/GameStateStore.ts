@@ -1230,7 +1230,10 @@ export class GameStateStore {
     }
   }
 
-  save(state: GameState): GameState {
+  save(
+    state: GameState,
+    options: { requireLocal?: boolean } = {},
+  ): GameState {
     const next: GameState = {
       ...state,
       schemaVersion: SAVE_SCHEMA_VERSION,
@@ -1250,6 +1253,7 @@ export class GameStateStore {
         }),
       );
     } catch (error) {
+      if (options.requireLocal) throw error;
       console.warn(
         'Ruinstead local save could not be written.',
         error,

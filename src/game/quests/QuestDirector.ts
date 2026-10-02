@@ -5,6 +5,13 @@ import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
 
+const forestKills = (state: GameState): number => ['goblin','slime','boar','mushroom','beetle']
+  .reduce((total,id)=>total+(state.bestiary.speciesKills[id]??0),0);
+const forestPreparationAvailable = (state: GameState): boolean => state.settlement.buildings.forge>0
+  && !state.world.defeatedBosses.includes('root-colossus');
+
+type SideQuestHud = {id:string;title:string;progress:string;rewardText:string;objective?:string;hint?:string};
+
 export type QuestContext = {
   outsideSettlement: boolean;
   carried: ResourceCounts;
@@ -40,12 +47,8 @@ export type QuestHudState = {
   hint: string;
   sequenceProgress: string;
   rewardText: string;
-  optional: {
-    id: string;
-    title: string;
-    progress: string;
-    rewardText: string;
-  } | null;
+  optional: SideQuestHud | null;
+  optionalQuests?: SideQuestHud[];
 };
 
 export type QuestDirectorUpdate = {
@@ -60,6 +63,7 @@ type QuestDefinition = {
   objective: string;
   hint: string;
   reward: QuestReward;
+  available?: (state: GameState) => boolean;
   complete:
     (
       state: GameState,
@@ -422,7 +426,7 @@ const MAIN_QUESTS:
     objective:
       'Купите любое постоянное улучшение.',
     hint:
-      'Откройте восстановленную кузницу и выберите улучшение героя или оружия.',
+      'Улучшите оружие в восстановленной кузнице или характеристики героя в меню «Герой» → «Характеристики».',
     reward: {
       coins: 12,
       settlementXp: 15,
@@ -496,7 +500,7 @@ const MAIN_QUESTS:
     objective:
       'Победите Корневого колосса.',
     hint:
-      'Подготовьтесь в кузнице и найдите главного босса в глубине региона 1.',
+      'Это долгосрочная цель. Дополнительные задания помогут подготовиться: оружие 3 уровня и два улучшения здоровья. Босса можно атаковать в любой момент; отходите из красных зон и восстанавливайтесь в поселении.',
     reward: {
       coins: 45,
       settlementXp: 50,
@@ -942,6 +946,26 @@ const MAIN_QUESTS:
 const OPTIONAL_QUESTS:
   readonly QuestDefinition[] = [
   {
+    id: 'optional-forest-fights',
+    title: 'Лесные вылазки',
+    objective: 'Победите 12 лесных существ.',
+    hint: 'Начните с небольших пачек слизней и гоблинов. Подходите к одной пачке, отступайте во время замаха и сдавайте добычу в поселении.',
+    reward: {coins:60,settlementXp:20},
+    available: forestPreparationAvailable,
+    complete: state=>forestKills(state)>=12,
+    progress: state=>`${Math.min(12,forestKills(state))} / 12 лесных существ`,
+  },
+  {
+    id: 'optional-forest-vitality',
+    title: 'Запас прочности',
+    objective: 'Купите два улучшения здоровья в меню героя.',
+    hint: 'Откройте «Герой» → «Характеристики». Первые два улучшения стоят только монеты и камень. В безопасной зоне здоровье восстанавливается полностью за пять секунд.',
+    reward: {coins:25,settlementXp:15},
+    available: forestPreparationAvailable,
+    complete: state=>state.player.maxHealthLevel>=2,
+    progress: state=>`${Math.min(2,state.player.maxHealthLevel)} / 2 улучшения здоровья`,
+  },
+  {
     id: 'optional-three-returns',
     title: 'Надёжный добытчик',
     objective:
@@ -975,6 +999,7 @@ const OPTIONAL_QUESTS:
       coins: 25,
       settlementXp: 15,
     },
+    available: state=>state.settlement.buildings.forge>0,
     complete:
       (state) =>
         state.player
@@ -1072,6 +1097,7 @@ export class QuestDirector {
       if (
         state.quests.completedIds
           .includes(quest.id) ||
+        (quest.available && !quest.available(state)) ||
         !quest.complete(
           state,
           context,
@@ -1127,13 +1153,17 @@ export class QuestDirector {
             .includes(quest.id),
       ) ?? null;
 
-    const optional =
-      OPTIONAL_QUESTS.find(
+    const optionalQuests =
+      OPTIONAL_QUESTS.filter(
         (quest) =>
           !state.quests
             .completedIds
-            .includes(quest.id),
-      ) ?? null;
+            .includes(quest.id) && (!quest.available || quest.available(state)),
+      ).sort((a,b)=>{
+        const priority=['optional-forest-fights','optional-weapon-three','optional-forest-vitality','optional-three-returns'];
+        return priority.indexOf(a.id)-priority.indexOf(b.id);
+      }).map(quest=>({id:quest.id,title:quest.title,objective:quest.objective,hint:quest.hint,
+        progress:quest.progress(state,context),rewardText:formatReward(quest.reward)}));
 
     const completedMain =
       MAIN_QUESTS.filter(
@@ -1182,23 +1212,8 @@ export class QuestDirector {
               active.reward,
             )
           : '',
-      optional:
-        optional
-          ? {
-              id: optional.id,
-              title:
-                optional.title,
-              progress:
-                optional.progress(
-                  state,
-                  context,
-                ),
-              rewardText:
-                formatReward(
-                  optional.reward,
-                ),
-            }
-          : null,
+      optional: optionalQuests[0]??null,
+      optionalQuests,
     };
   }
 

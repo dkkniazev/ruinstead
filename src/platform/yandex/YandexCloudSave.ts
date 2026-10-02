@@ -20,6 +20,29 @@ type SaveMeta = {
 let player: YandexPlayer | undefined;
 let saveTimer: number | undefined;
 let latestState: GameState | undefined;
+let pendingWrite: Promise<void> = Promise.resolve();
+
+function writeCloudState(
+  activePlayer: YandexPlayer,
+  state: GameState,
+  flush: boolean,
+): Promise<void> {
+  // Capture before waiting: gameplay continues to mutate the live state.
+  const snapshot = JSON.parse(JSON.stringify(state)) as GameState;
+  const write = pendingWrite.then(() => activePlayer.setData(
+    {
+      [CLOUD_KEY]: snapshot,
+      [CLOUD_META_KEY]: {
+        savedAt: snapshot.savedAt,
+        version: snapshot.schemaVersion,
+      },
+    },
+    flush,
+  ));
+  // A failed request must not prevent subsequent saves from retrying.
+  pendingWrite = write.catch(() => undefined);
+  return write;
+}
 
 function readSavedAt(value: unknown): number {
   if (!value || typeof value !== 'object') return 0;
@@ -70,31 +93,32 @@ export function resolveYandexSaveSource(
 
 async function writeLatestState(
   flush: boolean,
+  requireCloud = false,
 ): Promise<void> {
   const stateToSave = latestState;
   const activePlayer = player;
 
-  if (!stateToSave || !activePlayer) return;
+  if (!stateToSave || !activePlayer) {
+    if (requireCloud) throw new Error('Yandex purchase save is unavailable');
+    return;
+  }
 
-  await activePlayer.setData(
-    {
-      [CLOUD_KEY]: stateToSave,
-      [CLOUD_META_KEY]: {
-        savedAt: stateToSave.savedAt,
-        version: stateToSave.schemaVersion,
-      },
-    },
-    flush,
-  );
+  await writeCloudState(activePlayer, stateToSave, flush);
 }
 
 export async function initializeYandexCloudSave(
   yandexPlayer: YandexPlayer,
-): Promise<void> {
-  player = yandexPlayer;
+): Promise<boolean> {
+  if (saveTimer !== undefined) {
+    window.clearTimeout(saveTimer);
+    saveTimer = undefined;
+  }
+  player = undefined;
+  latestState = undefined;
+  await pendingWrite;
 
   try {
-    const cloud = await player.getData([
+    const cloud = await yandexPlayer.getData([
       CLOUD_KEY,
       CLOUD_META_KEY,
     ]);
@@ -127,24 +151,21 @@ export async function initializeYandexCloudSave(
         }),
       );
     } else if (source === 'local' && localState) {
-      await player.setData(
-        {
-          [CLOUD_KEY]: localState,
-          [CLOUD_META_KEY]: {
-            savedAt: localSavedAt,
-            version:
-              localState.schemaVersion ??
-              SAVE_SCHEMA_VERSION,
-          },
-        },
-        true,
-      );
+      await writeCloudState(yandexPlayer, {
+        ...localState,
+        savedAt: localSavedAt,
+        schemaVersion: localState.schemaVersion ?? SAVE_SCHEMA_VERSION,
+      }, true);
     }
+    // Do not overwrite unread cloud progress if initialization failed.
+    player = yandexPlayer;
+    return true;
   } catch (error) {
     console.warn(
       'Yandex cloud save initialization failed.',
       error,
     );
+    return false;
   }
 }
 
@@ -173,15 +194,18 @@ export function queueYandexCloudSave(
   }, SAVE_DEBOUNCE_MS);
 }
 
-export async function flushYandexCloudSave(): Promise<void> {
+export async function flushYandexCloudSave(
+  options: { requireCloud?: boolean } = {},
+): Promise<void> {
   if (saveTimer !== undefined) {
     window.clearTimeout(saveTimer);
     saveTimer = undefined;
   }
 
   try {
-    await writeLatestState(true);
+    await writeLatestState(true, options.requireCloud);
   } catch (error) {
+    if (options.requireCloud) throw error;
     console.warn(
       'Yandex cloud save flush failed.',
       error,

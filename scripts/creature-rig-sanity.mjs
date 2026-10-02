@@ -6,10 +6,13 @@ export * as T from 'three';
 export {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 export * from './src/game/render3d/CreatureAssetRig.ts';
 export * from './src/game/render3d/CreatureModels.ts';
+export {installCreatureSurfaces} from './src/game/render3d/CreatureSculpt.ts';
 export * from './src/game/render3d/CreatureCatalog.ts';
 export * from './src/game/render3d/CreatureMotion.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'}});
-const {T,GLTFLoader,repairCreatureAssetRig,createCreature,CREATURE_CATALOG,createCreatureMotion}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const {T,GLTFLoader,repairCreatureAssetRig,createCreature,CREATURE_CATALOG,createCreatureMotion,installCreatureSurfaces}=await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
+const sculptBytes=fs.readFileSync('public/assets/models/creature-sculpt/surfaces.bin');
+installCreatureSurfaces(JSON.parse(fs.readFileSync('public/assets/models/creature-sculpt/manifest.json','utf8')),sculptBytes.buffer.slice(sculptBytes.byteOffset,sculptBytes.byteOffset+sculptBytes.byteLength));
 for(const shape of ['goblin','boar','beetle','treant']){
   const body=new T.Group(),legs=Array.from({length:shape==='beetle'?6:4},()=>new T.Group());
   legs.forEach(leg=>body.add(leg));
@@ -45,7 +48,7 @@ for(const clip of clips){
     assert(vertices().every(v=>v.toArray().every(Number.isFinite)),'Finite skinned vertices');
   }
 }
-let checkedWeaponSwings=0;
+let checkedWeaponSwings=0,checkedHeadAttachments=0;
 for(const [id,identity]of Object.entries(CREATURE_CATALOG)){
   if(identity.asset)continue;
   const creature=createCreature(id,0x728065,0xbca97c,!!identity.boss,identity.boss?55:25);
@@ -137,6 +140,16 @@ for(const [id,identity]of Object.entries(CREATURE_CATALOG)){
     checkedWeaponSwings++;
   }
   const neck=creature.root.getObjectByName('creature-neck');
+  const faceParts=[];creature.root.traverse(part=>{if(part.name==='creature-eye'||part.name==='creature-ear')faceParts.push(part);});
+  const faceFrames=new Map();
+  if(neck){
+    pose('idle',0);
+    for(const part of faceParts){
+      let parent=part.parent;while(parent&&parent!==neck)parent=parent.parent;
+      assert(parent===neck,id+' eyes and ears must belong to the animated head');
+      faceFrames.set(part,new T.Matrix4().multiplyMatrices(neck.matrixWorld.clone().invert(),part.matrixWorld));checkedHeadAttachments++;
+    }
+  }
   if(['serpent','worm'].includes(identity.shape)){
     assert(neck,'First body segment is the head attachment');
     assert(creature.root.children[0].children.every(o=>!o.userData.creatureHead&&o.userData.creatureSegment===undefined),'No loose face/scale plates remain on body root');
@@ -144,12 +157,24 @@ for(const [id,identity]of Object.entries(CREATURE_CATALOG)){
   for(let frame=0;frame<=120;frame++){
     const t=frame/120;pose(t<.65?'windup':'strike',t<.65?t/.65:(t-.65)/.35);
     assertGripDirection();
+    for(const [part,rest]of faceFrames){
+      const current=new T.Matrix4().multiplyMatrices(neck.matrixWorld.clone().invert(),part.matrixWorld);
+      assert(current.elements.every((value,i)=>Math.abs(value-rest.elements[i])<1e-5),id+' face remains attached throughout windup and strike');
+    }
     for(const grip of grips)assert.deepEqual(grip.position.toArray(),grip.userData.handAnchor,id+' grip stays inside palm');
     if(identity.shape==='scorpion'){
       const sting=creature.root.getObjectByName('scorpion-stinger'),socket=creature.root.getObjectByName('stinger-socket');
+      assert.deepEqual(creature.root.getObjectByName('scorpion-tail').position.toArray(),[0,28,-34],id+' tail base stays attached to the rear carapace');
       assert(sting&&socket);assert(sting.getWorldPosition(new T.Vector3()).distanceTo(socket.getWorldPosition(new T.Vector3()))<1e-6,id+' stinger stays on tail');
       const bounds=new T.Box3().setFromObject(sting);assert(bounds.min.y<socket.getWorldPosition(new T.Vector3()).y-5,id+' stinger hooks down');
     }
+  }
+  if(identity.shape==='scorpion'){
+    const sting=creature.root.getObjectByName('scorpion-stinger');
+    pose('windup',.78);const loaded=sting.getWorldPosition(new T.Vector3());
+    pose('strike',.08);const contact=sting.getWorldPosition(new T.Vector3());
+    assert(contact.z>loaded.z+12,id+' stinger drives toward the target during contact');
+    assert(contact.y<loaded.y-8,id+' tail loads high and delivers a downward strike');
   }
   // Walking changes shoulder rotations too: the wrist must preserve the pose.
   if(['rogue','cultist'].includes(identity.shape))for(let frame=0;frame<120;frame++){
@@ -157,4 +182,4 @@ for(const [id,identity]of Object.entries(CREATURE_CATALOG)){
   }
   creature.dispose?.();
 }
-console.log(`Creature rigs: PASS — ${checkedWeaponSwings} weapon attacks, 15 cutting-plane/hammer-face samples each; perpendicular daggers with blade/palm/sleeve clearance and forward staff over 121 attack + 120 walking frames; native Goat bind pose + 121 frames of each clip, face/body attachment, no planar clip drift; all procedural grips, connected stingers and segment armour throughout attack.`);
+console.log(`Creature rigs: PASS — ${checkedWeaponSwings} weapon attacks, 15 cutting-plane/hammer-face samples each; perpendicular daggers with blade/palm/sleeve clearance and forward staff over 121 attack + 120 walking frames; ${checkedHeadAttachments} eye/ear attachments over 121 combat frames; native Goat bind pose + 121 frames of each clip, face/body attachment, no planar clip drift; all procedural grips, connected stingers and segment armour throughout attack.`);

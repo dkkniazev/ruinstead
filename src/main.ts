@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import { gameAudio } from './game/audio/GameAudio';
 import './styles.css';
 import { gameConfig } from './game/config';
+import { preloadCreatureSurfaces } from './game/render3d/CreatureSculpt';
 import {
   syncGameViewport,
 } from './game/layout/Viewport';
@@ -43,7 +44,7 @@ async function bootstrap(): Promise<void> {
   }
   document.documentElement.lang = getLanguage();
 
-  await initializeYandexPlatform();
+  await Promise.all([initializeYandexPlatform(),preloadCreatureSurfaces()]);
   // The SDK language is authoritative inside Yandex Games.
   document.documentElement.lang = getLanguage();
   const startup = document.getElementById('startup-screen');

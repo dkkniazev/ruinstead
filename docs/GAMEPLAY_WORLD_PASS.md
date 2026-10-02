@@ -1,5 +1,11 @@
 # Gameplay / world / skins pass — в работе
 
+> Исторический отчёт прохода 28 сентября, сохранён как evidence. Его раздел
+> «Ещё сделать» не является текущим roadmap: aggro/wind-up/roam, полигоны,
+> seed ресурсов и onboarding уже реализованы и покрыты sanity fixtures.
+> Актуальные контракты: [PROJECT_SPEC](specs/PROJECT_SPEC.md);
+> текущие пробелы и новые результаты: [CURRENT_STATE](CURRENT_STATE.md).
+
 Запрос: 29 полноценных 3D-обликов, затем приложенные пункты 1–20 и дополнения 21–24
 от 28 сентября 2026. Работа локально, без commit/push. `git pull --ff-only origin main`
 подтвердил актуальность main (981c8b3 на момент начала). Уже сделанный overhaul сохранён.

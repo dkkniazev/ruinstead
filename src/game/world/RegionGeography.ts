@@ -1,7 +1,8 @@
 import { RELEASE_REGIONS, RELEASE_PASSAGES, getPassageGeometry, regionPointAt, distanceToRegionBoundary, type RegionDefinition } from './ReleaseRegionMap';
+import { watercourseAreaIsClear } from './WorldWatercourses';
 
 export const REGION_GEOGRAPHY = [
-  {name:'Мшистые террасы',soil:0x725a3d,rock:0x727b60,light:0xb3b78e,detail:0x486c48},
+  {name:'Мшистые террасы',soil:0x725a3d,rock:0x888d80,light:0xc0c2ad,detail:0x486c48},
   {name:'Выветренные нагорья',soil:0x826b53,rock:0xa28b72,light:0xd3bd95,detail:0x66645c},
   {name:'Сланцевый разлом',soil:0x4b505f,rock:0x505b74,light:0x91a0b1,detail:0x6e7895},
   {name:'Базальтовые ступени',soil:0x352d37,rock:0x3c3842,light:0x766878,detail:0xed7937},
@@ -69,5 +70,6 @@ export const GEOGRAPHY_LANDMARKS:readonly GeographyLandmark[]=RELEASE_REGIONS.fl
   return result;
 });
 export function geographyAreaIsClear(x:number,y:number,clearance=0):boolean {
-  return GEOGRAPHY_LANDMARKS.every(p=>Math.hypot(x-p.x,y-p.y)>p.radius+clearance+22);
+  return watercourseAreaIsClear(x,y,clearance)
+    && GEOGRAPHY_LANDMARKS.every(p=>Math.hypot(x-p.x,y-p.y)>p.radius+clearance+22);
 }

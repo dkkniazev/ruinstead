@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import {build} from 'esbuild';
+import fs from 'node:fs';
 const output=await build({stdin:{contents:`
 export * as T from 'three';
 export * from './src/game/render3d/CreatureModels.ts';
+export {installCreatureSurfaces} from './src/game/render3d/CreatureSculpt.ts';
 export * from './src/game/render3d/CreatureCatalog.ts';
 export * from './src/game/world/RegionGeography.ts';
 export * from './src/game/world/WorldTerrain.ts';
@@ -11,6 +13,8 @@ export * from './src/game/render3d/GeographyModels.ts';
 export * from './src/game/render3d/BossTelegraph3D.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'}});
 const a=await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
+const sculptBytes=fs.readFileSync('public/assets/models/creature-sculpt/surfaces.bin');
+a.installCreatureSurfaces(JSON.parse(fs.readFileSync('public/assets/models/creature-sculpt/manifest.json','utf8')),sculptBytes.buffer.slice(sculptBytes.byteOffset,sculptBytes.byteOffset+sculptBytes.byteLength));
 const bossBounds=new Set();let triangles=0;
 for(const [id,identity] of Object.entries(a.CREATURE_CATALOG)){
   if(identity.asset)continue; // Native GLB animations are checked in the browser.

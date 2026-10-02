@@ -1,4 +1,5 @@
 import { GEOGRAPHY_LANDMARKS } from '../world/RegionGeography';
+import { BROOK_BRIDGES } from '../world/WorldWatercourses';
 import { createDefaultGameState, type GameState } from '../state/GameState';
 import type { EnemySystem } from '../enemies/EnemySystem';
 import type { PlayerController } from '../player/PlayerController';
@@ -88,11 +89,11 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   const output=document.createElement('div');output.setAttribute('role','status');
   const initial=enemies.visualUnits.find(e=>e.definition.region===1&&e.rank==='normal')!;
   let pack=enemies.visualUnits.filter(e=>e.groupId===initial.groupId);
-  const choose=()=>{const first=enemies.visualUnits.find(e=>e.definition.region===Number(select.value)&&e.rank==='normal');if(!first)return;pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);};
+  const choose=()=>{const region=Number(select.value),first=enemies.visualUnits.find(e=>e.definition.region===region&&e.rank==='normal'&&e.definition.id==='goblin')??enemies.visualUnits.find(e=>e.definition.region===region&&e.rank==='normal');if(!first)return;pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);};
   const button=(label:string,action:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=action;controls.append(b);};
   controls.append(select);button('К пачке',choose);button('В бой',()=>{player.teleport(pack[0].spawn.x,pack[0].spawn.y+90);});button('Домой',()=>player.teleport(RETURN_POINT.x,RETURN_POINT.y));controls.append(output);document.body.append(panel);
   button('К ориентиру',()=>{
-    const region=RELEASE_REGIONS[Number(select.value)-1],site=GEOGRAPHY_LANDMARKS.find(p=>p.region===region.id);
+    const region=RELEASE_REGIONS[Number(select.value)-1],site=GEOGRAPHY_LANDMARKS.find(p=>p.region===region.id&&p.kind!=='pool')??GEOGRAPHY_LANDMARKS.find(p=>p.region===region.id);
     if(!site)return;
     const angle=Math.atan2(region.center[1]-site.y,region.center[0]-site.x),distance=site.radius+170;
     for(const turn of [0,.4,-.4,.8,-.8,1.5,-1.5,Math.PI]){
@@ -105,6 +106,10 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
     if(boss){const dx=region.center[0]-boss.spawn.x,dy=region.center[1]-boss.spawn.y,d=Math.max(1,Math.hypot(dx,dy));player.teleport(boss.spawn.x+dx/d*270,boss.spawn.y+dy/d*270);}
   });
   button('К переходу',()=>{const region=Number(select.value),passage=RELEASE_PASSAGES.find(p=>p.a===region||p.b===region)!;const point=getPassageMidpoint(passage);player.teleport(point.x,point.y);});
+  button('К ручью',()=>{
+    const bridge=BROOK_BRIDGES.find(p=>p.region===Number(select.value));
+    if(bridge){const d=bridge.length*.5+65;player.teleport(bridge.x-bridge.ux*d,bridge.y-bridge.uy*d);}
+  });
   button('Спящий босс',()=>{const p=BOSS_ARENAS['root-colossus'];player.teleport(p.x,p.y+90);});
   button('Громила',()=>{const p=BOSS_ARENAS['moss-ogre'];player.teleport(p.x,p.y+260);});
   button('Босс 4',()=>{const p=BOSS_ARENAS['lava-golem'];player.teleport(p.x,p.y+110);});

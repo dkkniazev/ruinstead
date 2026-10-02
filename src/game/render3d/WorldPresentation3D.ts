@@ -174,9 +174,9 @@ export class WorldPresentation3D {
 
     this.scene.background = new THREE.Color(0x8fa478);
     this.scene.fog = new THREE.Fog(0xa4b7a0, 2300, 4300);
-    this.scene.add(new THREE.HemisphereLight(0xc6e2ff, 0x81705b, 1.3));
+    this.scene.add(new THREE.HemisphereLight(0xcbdff1, 0x77765b, 1.45));
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.1));
-    this.sun.intensity = 2.8;
+    this.sun.intensity = 2.6;
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.camera.left = -1300;
@@ -187,7 +187,7 @@ export class WorldPresentation3D {
     this.sun.shadow.camera.far = 2500;
     this.sun.shadow.bias = -0.00015;
     this.sun.shadow.normalBias = 1;
-    this.sun.shadow.radius = 2;
+    this.sun.shadow.radius = 3;
     this.scene.add(this.sun, this.sunTarget);
     this.sun.target = this.sunTarget;
 

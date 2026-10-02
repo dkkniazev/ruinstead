@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { BossDangerZone } from '../combat/CombatMath';
-import { terrainHeight } from '../world/WorldTerrain';
+import { terrainSurfaceHeight } from '../world/WorldTerrain';
 
 export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
   const progress={value:0};
@@ -13,7 +13,7 @@ export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
     const u = positions.getX(i), v = positions.getY(i);
     const x = zone.shape === 'circle' ? zone.x + u : zone.x + (u + zone.length / 2) * zone.dx - v * zone.dy;
     const y = zone.shape === 'circle' ? zone.y + v : zone.y + (u + zone.length / 2) * zone.dy + v * zone.dx;
-    positions.setXYZ(i, x, terrainHeight(x, y) + 10, y);
+    positions.setXYZ(i, x, terrainSurfaceHeight(x, y) + 10, y);
   }
   geometry.computeVertexNormals();
   const material=new THREE.MeshBasicMaterial({

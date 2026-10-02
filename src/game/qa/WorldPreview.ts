@@ -7,6 +7,7 @@ import { ResourceVisual3D } from '../render3d/ResourceVisual3D';
 import { RELEASE_REGIONS, getRegionDefinition, getPassageGeometry, RELEASE_PASSAGES } from '../world/ReleaseRegionMap';
 import { terrainHeight, TERRAIN_PASSAGES, passageHeight } from '../world/WorldTerrain';
 import type { ResourceVisualState } from '../gathering/ResourceSystem';
+import { WORLD_WATERCOURSES } from '../world/WorldWatercourses';
 
 // Separate Vite-only page: visual QA never reads or writes a player's save.
 if (!import.meta.env.DEV) throw new Error('World preview is available only in development');
@@ -65,18 +66,20 @@ function select(mode:string){
   else {
     let x:number,y:number;
     if(mode==='harvest'){x=node.x;y=node.y;}
+    else if(mode.startsWith('brook-')){const course=WORLD_WATERCOURSES.find(p=>p.region===Number(mode.slice(6)))!;const p=course.points[Math.floor(course.points.length*.54)];x=p.x;y=p.y;}
     else if(mode.startsWith('region-')){const id=Number(mode.slice(7)),site=GEOGRAPHY_LANDMARKS.find(p=>p.region===id),r=RELEASE_REGIONS[id-1];x=site?.x??r.center[0];y=site?.y??r.center[1];}
     else {const passage=RELEASE_PASSAGES.find(p=>p.id===mode)!;const g=getPassageGeometry(passage);x=(g.a.x+g.b.x)/2;y=(g.a.y+g.b.y)/2;}
-    viewHeight=mode==='harvest'?460:mode.startsWith('region-')?1600:1150;target.set(x,terrainHeight(x,y)+30,y);
+    viewHeight=mode==='harvest'?460:mode.startsWith('region-')?1600:mode.startsWith('brook-')?1250:1150;target.set(x,terrainHeight(x,y)+30,y);
     camera.position.copy(target).add(new THREE.Vector3(0,950,850));
     const tx=Math.floor(x/640),ty=Math.floor(y/640);
     for(let i=-2;i<=2;i++)for(let j=-2;j<=2;j++)closeGround.add(createBoundaryGround((tx+i+0.5)*640,(ty+j+0.5)*640,640));
     caption.textContent=mode==='harvest'?'Добыча: прочность, удар и разлёт щепок. Кнопка «Удар» проверяет каждый этап.':mode==='4-5'?'Ветреные высоты: плато на 450 единиц выше Магмового сердца.':mode==='2-3'?'Теневой перевал: каменный подъём через горный гребень.':'Мост над рекой между первым и вторым регионами.';
   }
   if(mode.startsWith('region-')){const region=RELEASE_REGIONS[Number(mode.slice(7))-1];caption.textContent=region.name+' · '+REGION_GEOGRAPHY[region.id-1].name;for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)closeGround.add(createGroundCover(target.x+x*640,target.z+z*640,640,region));}
+  if(mode.startsWith('brook-')){const region=getRegionDefinition(Number(mode.slice(6)) as 1|6);caption.textContent=region.name+' · ручей, мелкий брод и береговые растения';for(let x=-1;x<=1;x++)for(let z=-1;z<=1;z++)closeGround.add(createGroundCover(target.x+x*640,target.z+z*640,640,region));}
   camera.lookAt(target);resize();
 }
-for(const [name,mode]of [['Карта целиком','overview'],['Река 1–2','1-2'],['Горы 2–3','2-3'],['Обрыв 4–5','4-5'],['Добыча','harvest']]){
+for(const [name,mode]of [['Карта целиком','overview'],['Река 1–2','1-2'],['Горы 2–3','2-3'],['Обрыв 4–5','4-5'],['Добыча','harvest'],['Лесной ручей','brook-1'],['Минеральный ручей','brook-6']]){
   const button=document.createElement('button');button.textContent=name;button.onclick=()=>select(mode);button.style.cssText='padding:10px 14px;background:#233f46;color:#fff0cf;border:1px solid #c2a77d;border-radius:5px;cursor:pointer';controls.appendChild(button);
 }
 const hit=document.createElement('button');hit.textContent='Удар';hit.style.cssText='padding:10px 18px;background:#b27d39;color:white;border:0;border-radius:5px';hit.onclick=()=>{

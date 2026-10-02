@@ -1,4 +1,5 @@
 import { regionalRelief, GEOGRAPHY_LANDMARKS } from './RegionGeography';
+import { sampleWatercourse, brookBridgeAt, type BrookBridge } from './WorldWatercourses';
 import { RELEASE_REGIONS, RELEASE_PASSAGES, distanceToRegionBoundary, getRegionAt, pointInRegion,
   getRegionDefinition, getPassageGeometry, type RegionDefinition, type RegionId } from './ReleaseRegionMap';
 
@@ -50,7 +51,23 @@ export function plateauHeight(region: RegionDefinition, x: number, y: number): n
     const waterBed=region.elevation+regionalRelief(region,site.x,site.y);
     height=waterBed+(height-waterBed)*blend;
   }
+  const stream = sampleWatercourse(region.id, x, y);
+  if (stream && stream.distance < stream.width + 140) {
+    const d = stream.distance, width = stream.width;
+    // Low banks and a real shallow bed. Feet, scenery and land use this sampler.
+    const t = Math.max(0, Math.min(1, (d - width * .68) / (width * .56)));
+    const bank = stream.level - 14 + 27 * t * t * (3 - 2 * t);
+    const blend = Math.max(0, Math.min(1, (d - width * 1.24) / (140 - width * .24)));
+    height = bank + (height - bank) * blend * blend * (3 - 2 * blend);
+  }
   return height;
+}
+
+/** Warning decals stay above shallow water while actors stand on the bed. */
+export function terrainSurfaceHeight(x: number, y: number): number {
+  const ground = terrainHeight(x, y), region = getRegionAt({ x, y });
+  const stream = region && sampleWatercourse(region.id, x, y);
+  return stream && stream.distance < stream.width ? Math.max(ground, stream.level) : ground;
 }
 
 export function passageAt(x: number, y: number, margin = 0) {
@@ -75,8 +92,23 @@ export function passageHeight(entry: typeof TERRAIN_PASSAGES[number], t: number)
 export function terrainHeight(x: number, y: number): number {
   const crossing = passageAt(x, y);
   if (crossing) return passageHeight(crossing, crossing.t);
+  const bridge=brookBridgeAt(x,y);
+  if(bridge)return brookBridgeHeight(bridge.bridge,bridge.t,bridge.lateral);
   const region = getRegionAt({ x, y });
   return region ? plateauHeight(region, x, y) : sampleBoundaryTerrain(x, y).height;
+}
+
+export function brookBridgeHeight(bridge: BrookBridge, t: number, lateral=0): number {
+  const forward=(t-.5)*bridge.length;
+  const x=bridge.x+bridge.ux*forward,y=bridge.y+bridge.uy*forward,region=getRegionDefinition(bridge.region);
+  const half=bridge.width*.5;
+  // A rigid plank has a straight cross-slope, which eases to level over water.
+  const left=plateauHeight(region,x+bridge.uy*half,y-bridge.ux*half);
+  const right=plateauHeight(region,x-bridge.uy*half,y+bridge.ux*half);
+  const base=plateauHeight(region,x,y)+2+(right-left)/bridge.width*lateral;
+  const ramp=Math.max(0,Math.min(1,Math.min(t,1-t)/.2));
+  const blend=ramp*ramp*(3-2*ramp);
+  return base+(bridge.level+18-base)*blend;
 }
 
 // A continuous mountain/valley floor supports the region plateaus. Only two

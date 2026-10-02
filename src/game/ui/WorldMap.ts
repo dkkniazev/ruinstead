@@ -1,5 +1,7 @@
 import { localizeText, localizeHTML } from '../../i18n/Localize';
 import { RELEASE_REGIONS, RELEASE_PASSAGES, RELEASE_WORLD_WIDTH, RELEASE_WORLD_HEIGHT, getRegionAt, getPassageGeometry, type RegionPassage } from '../world/ReleaseRegionMap';
+import { regionRoadLines } from '../world/RegionPaths';
+import { WORLD_WATERCOURSES, BROOK_BRIDGES } from '../world/WorldWatercourses';
 import { icon } from './GameIcons';
 import { REGION_RESOURCE_PROFILES } from '../economy/RegionEconomy';
 
@@ -113,11 +115,21 @@ export class WorldMap {
     // Same center-to-passage routes used by the terrain, drawn beneath markers.
     ctx.lineCap='round';ctx.lineJoin='round';
     for(const region of RELEASE_REGIONS){
-      for(const passage of RELEASE_PASSAGES.filter(p=>p.a===region.id||p.b===region.id)){
-        const geometry=getPassageGeometry(passage),end=passage.a===region.id?geometry.a:geometry.b;
-        ctx.beginPath();ctx.moveTo(px(region.center[0]),py(region.center[1]));ctx.lineTo(px(end.x),py(end.y));
+      for(const road of regionRoadLines(region)){
+        ctx.beginPath();road.forEach((p,i)=>i?ctx.lineTo(px(p.x),py(p.y)):ctx.moveTo(px(p.x),py(p.y)));
         ctx.strokeStyle='#243b36';ctx.lineWidth=full?4:7;ctx.stroke();ctx.strokeStyle='#d1b98a99';ctx.lineWidth=full?2:3;ctx.stroke();
       }
+    }
+    for(const course of WORLD_WATERCOURSES){
+      ctx.beginPath();course.points.forEach((p,i)=>i?ctx.lineTo(px(p.x),py(p.y)):ctx.moveTo(px(p.x),py(p.y)));
+      const width=course.points.reduce((sum,p)=>sum+p.width,0)/course.points.length;
+      ctx.strokeStyle='#163e43';ctx.lineWidth=Math.max(full?4:7,width*2*scale+2);ctx.stroke();
+      ctx.strokeStyle='#68b9c0';ctx.lineWidth=Math.max(full?2:4,width*2*scale);ctx.stroke();
+    }
+    for(const bridge of BROOK_BRIDGES){
+      ctx.beginPath();ctx.moveTo(px(bridge.x-bridge.ux*bridge.length*.5),py(bridge.y-bridge.uy*bridge.length*.5));
+      ctx.lineTo(px(bridge.x+bridge.ux*bridge.length*.5),py(bridge.y+bridge.uy*bridge.length*.5));
+      ctx.strokeStyle='#4e4030';ctx.lineWidth=full?4:6;ctx.stroke();ctx.strokeStyle='#e4c78e';ctx.lineWidth=full?2:3;ctx.stroke();
     }
     for(const landmark of state.landmarks??[]){
       const distance=Math.hypot(landmark.x-state.x,landmark.y-state.y);

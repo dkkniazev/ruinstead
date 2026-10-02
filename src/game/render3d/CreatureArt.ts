@@ -2,6 +2,7 @@ import * as T from 'three';
 import { softBox, softOrb } from './ArtMaterials';
 import type { CreatureShape } from './CreatureCatalog';
 import { headParts } from './CreatureMotion';
+import { refineCreatureAnatomy } from './CreatureAnatomy';
 
 const steel=0x798c99,ivory=0xe2d1a1,leather=0x675044,dark=0x293039,gold=0xcaa35e;
 const materials=new Map<string,T.MeshStandardMaterial>();
@@ -120,7 +121,7 @@ export function sculptCreature(body:T.Group,shape:CreatureShape):void {
 }
 
 export const CREATURE_PALETTES:Record<string,[number,number]>={
-  goblin:[0x7e965a,0x887253],slime:[0x75a7a4,0xb4d9b6],boar:[0x7e5a46,0x4e4340],mushroom:[0x796549,0xb95d4f],beetle:[0x536c64,0x899d6a],
+  goblin:[0x789e4e,0x887253],slime:[0x75a7a4,0xb4d9b6],boar:[0x7e5a46,0x4e4340],mushroom:[0x796549,0xb95d4f],beetle:[0x536c64,0x899d6a],
   'dust-jackal':[0xb3916a,0x6b5645],sandling:[0xa58d6a,0xe0c798],'sun-scorpion':[0x785843,0xb29864],'ruin-gargoyle':[0x858279,0xb4ac93],emberling:[0x473a3b,0xffa653],
   'shadow-bandit':[0x414755,0x8b7881],'venom-spider':[0x41434b,0x848d63],'cliff-stalker':[0x4e4b5b,0x8890a4],'dusk-wisp':[0x666183,0xba9be0],
   'cave-bat':[0x68657b,0x95747d],'cliff-ram':[0xa7a58b,0x777c73],'dust-vulture':[0x8a6e55,0xb6a483],
@@ -142,13 +143,14 @@ export const CREATURE_PALETTES:Record<string,[number,number]>={
 /** Large forms and layered surfaces are attached to the existing animated joints. */
 export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T.Group[],legs:T.Group[],wings:T.Group[],primary:number,accent:number,boss:boolean,elite:boolean):void {
   sculptCreature(body,shape);
+  refineCreatureAnatomy(body,shape,arms,legs,wings,primary,accent);
   const beast=['boar','jackal','cat','hound','salamander','drake','wyvern','dragon','ram'].includes(shape);
   if(['goblin','rogue','knight','smith','ogre','cultist'].includes(shape)){
     // Straps, overlapping torso plates, cuffs and a readable silhouette at game scale.
-    const chest=['knight'].includes(shape)?steel:leather;
+    const chest=shape==='knight'?steel:shape==='rogue'?new T.Color(primary).multiplyScalar(.72).getHex():shape==='cultist'?primary:leather;
     for(const s of [-1,1]){
       const a=arms[s===-1?0:1];if(a){
-        add(a,plate,shape==='ogre'?0x788a61:chest,0,0,0,shape==='ogre'?16:11,9,12);
+        add(a,plate,shape==='ogre'?0x788a61:chest,0,0,0,shape==='ogre'?16:shape==='goblin'?9:11,shape==='goblin'?6.5:9,shape==='goblin'?9:12);
         const cuff=box(a,chest,s*3,-23,3,shape==='ogre'?23:15,10,15);
         cuff.geometry.computeBoundingBox();cuff.updateMatrix();
         const cuffBounds=cuff.geometry.boundingBox!.clone().applyMatrix4(cuff.matrix);
@@ -185,7 +187,7 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
     // Defined nose, cheek planes, lower jaw, eyebrow ridge, and curved tusks.
     headParts(body,()=>{
     if(reptile){for(const s of [-1,1])box(body,dark,s*6,y+3,64,3,2,2);}
-    else box(body,dark,0,y+4,shape==='cat'?49:64,shape==='cat'?10:17,7,5);
+    else if(shape!=='boar'&&shape!=='ram')add(body,plate,dark,0,y+4,shape==='cat'?49:64,shape==='cat'?5:8,shape==='cat'?2.5:3.5,2);
     add(body,plate,ivory,0,y-4,46,12,5,15);
     for(const s of [-1,1]){
       const eye=body.children.find(o=>o.userData.faceEye===s);
@@ -198,8 +200,8 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
     if(reptile)for(let row=0;row<4;row++)for(const s of [-1,0,1]){
       const tile=add(body,plate,row%2?accent:primary,s*16,y+18-Math.abs(s)*5,-23+row*14,12,5,11);tile.rotation.z=s*.28;
     }
-    else for(let n=0;n<7;n++)add(body,plate,n%2?primary:accent,0,y+21,-29+n*9,8,6,11).rotation.x=-.3;
-    legs.forEach(l=>{for(let n=0;n<3;n++)add(l,cone,ivory,(n-1)*4,-25,18,1.8,7,2).rotation.x=Math.PI*.5;});
+    else if(shape==='boar'||shape==='hound')for(let n=0;n<4;n++)add(body,plate,primary,0,y+21,-25+n*12,6,5,8).rotation.x=-.3;
+    if(shape!=='boar'&&shape!=='ram')legs.forEach(l=>{for(let n=0;n<3;n++)add(l,cone,ivory,(n-1)*4,-25,18,1.5,5,2).rotation.x=Math.PI*.5;});
   }
   if(['scorpion','spider','beetle'].includes(shape)){
     for(let n=0;n<4;n++){
@@ -219,7 +221,7 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
   }
   if(shape==='slime'){
     const glaze=add(body,softOrb,0xd0ebcc,-10,35,15,6,2,3);glaze.rotation.z=-.45;
-    for(const s of [-1,1])add(body,softOrb,accent,s*22,7,11,13,5,13);
+    for(const s of [-1,1])add(body,softOrb,primary,s*22,4.5,11,12,3.5,12);
     box(body,0x355854,0,20,27,9,2,1);gem(body,0xe4d6a3,3,11,20,3,4,3);
   }
   if(['golem','sand','scrap','treant'].includes(shape)){
@@ -228,13 +230,13 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
       const a=arms[s===-1?0:1];if(a)for(let n=0;n<3;n++)box(a,primary,s*(2+n*7),-51,13,7,13,9);
     }
     if(shape==='scrap'){
-      ring(body,gold,12,3,0,64,26);box(body,dark,0,106,19,26,10,4);gem(body,0xf7ba66,6,106,23,4,3,2);
+      ring(body,gold,12,3,0,64,26);box(body,dark,0,106,19,26,10,4);
       for(let n=0;n<4;n++)box(body,steel,-15+n*10,46,20,6,15,5);
     }
   }
   if(shape==='harpy'||shape==='owl'){
-    for(let n=0;n<7;n++)feather(body,n%2?primary:accent,(n-3)*6,102+Math.abs(n-3)*2,-6,16,(n-3)*-.16);
-    for(let n=0;n<5;n++)feather(body,ivory,(n-2)*6,54,17,13,(n-2)*.1);
+    headParts(body,()=>{for(let n=0;n<7;n++)feather(body,n%2?primary:accent,(n-3)*5,(shape==='owl'?79:102)+Math.abs(n-3)*2,-6,shape==='owl'?9:16,(n-3)*-.16);});
+    for(let n=0;n<5;n++)feather(body,ivory,(n-2)*6,shape==='owl'?39:54,17,shape==='owl'?9:13,(n-2)*.1);
     wings.forEach(w=>{for(let n=0;n<6;n++)feather(w,n%2?ivory:accent,18+n*7,-4+n*1.1,-12-n*2.6,18-n*.7,-.65);});
   }
   if(shape==='serpent'||shape==='worm'){
@@ -250,14 +252,8 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
     if(shape==='wisp'){ring(body,c,25,1.4,0,34,0,.65,.3);for(let n=0;n<3;n++)gem(body,c,Math.cos(n*2.1)*24,44+n*4,Math.sin(n*2.1)*24,4,9,4);}
     else for(let n=0;n<5;n++){const a=n/5*Math.PI*2;add(body,plate,0x52484a,Math.cos(a)*20,18,Math.sin(a)*20,9,9,9);}
   }
-  if(elite&&!boss){
-    if(shape==='slime')for(let n=0;n<3;n++)gem(body,0xb8dfcc,(n-1)*10,43+Number(n===1)*5,-3,4,8,4);
-    if(shape==='mushroom')for(let n=0;n<3;n++){add(body,softOrb,accent,(n-1)*19,53,25,10,5,8);add(body,softOrb,ivory,(n-1)*19,56,26,3,1.5,3);}
-
-    // Elites use one restrained species-specific crest, not the same gold crown.
-    if(beast||['beetle','spider','scorpion'].includes(shape))for(const s of [-1,1])gem(body,accent,s*13,52,-17,6,14,7);
-    else if(arms.length)for(const a of arms)box(a,gold,0,6,5,17,4,15);
-  }
+  // Veteran anatomy and equipment are authored per family in CreatureSculpt.
+  void elite;
   if(boss)finishBoss(id,body,arms,wings);
 }
 

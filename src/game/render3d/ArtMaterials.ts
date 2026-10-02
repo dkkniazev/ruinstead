@@ -47,10 +47,12 @@ export function groundMaterial(region: number): T.MeshStandardMaterial {
       float soil=smoothstep(.53,.81,terrainPatch+exposed*.45);
       float gravel=smoothstep(.64,.83,artNoise(p*.032)+exposed*.35);
       diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.soil)},soil*.36);
-      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.rock)},gravel*.2+exposed*.38);
-      diffuseColor.rgb*=.85+broad*.23+grain*.035;
+      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.rock)},gravel*.16+exposed*.64);
+      // Coherent warm/cool masses, with restrained grain. Tiny flecks fought
+      // resource labels and made the open grass look noisy on a phone.
+      diffuseColor.rgb*=.87+broad*.22+grain*.012;
       float flakes=smoothstep(.76,.87,artNoise(p*.085))*smoothstep(.62,.77,terrainPatch);
-      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.light)},flakes*.065);
+      diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.light)},flakes*.025);
       ${volcanic||dry?`
         vec2 cell=p/${volcanic?'120.':'110.'}+vec2(artNoise(p*.018),artNoise(p*.021+23.))*.35,tile=floor(cell),f=fract(cell);float first=9.,second=9.;
         for(int iy=-1;iy<=1;iy++)for(int ix=-1;ix<=1;ix++){
@@ -64,7 +66,7 @@ export function groundMaterial(region: number): T.MeshStandardMaterial {
         diffuseColor.rgb*=1.-seam*.24;
         diffuseColor.rgb+=${color(palette.light)}*rim*.10;
         ${volcanic?`float hot=seam*smoothstep(.63,.79,broad)*.75;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.95,.25,.025),hot);`:''}
-      `:region===3?`float strata=smoothstep(.72,.88,artNoise(vec2(p.x*.016+p.y*.012,p.y*.058)));diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},strata*.25);`:region===6?`float mineral=smoothstep(.64,.82,artNoise(p*.005))*smoothstep(.4,.7,terrainPatch);diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},mineral*.5);`:`float moss=smoothstep(.52,.76,artNoise(p*.008))* (1.-soil);diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},moss*.24);`}
+      `:region===3?`float strata=smoothstep(.72,.88,artNoise(vec2(p.x*.016+p.y*.012,p.y*.058)));diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},strata*.25);`:region===6?`float mineral=smoothstep(.64,.82,artNoise(p*.005))*smoothstep(.4,.7,terrainPatch);diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},mineral*.5);`:`float moss=(1.-smoothstep(.3,.57,terrainPatch))*(1.-soil);diffuseColor.rgb=mix(diffuseColor.rgb,${color(palette.detail)},moss*.3);`}
     `);
     if(volcanic)shader.fragmentShader=shader.fragmentShader.replace('#include <emissivemap_fragment>',
       '#include <emissivemap_fragment>\ntotalEmissiveRadiance+=vec3(.84,.085,.006)*hot*.7;');

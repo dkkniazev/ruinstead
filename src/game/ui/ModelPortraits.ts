@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { localizeText } from '../../i18n/Localize';
 import { createCreature, createHero, type AnimatedModel } from '../render3d/Models';
 import type { SkinId } from '../cosmetics/SkinEconomy';
+import { creatureBodyBounds } from '../render3d/CreatureAura';
+import { preloadCreatureSurfaces } from '../render3d/CreatureSculpt';
 
 /** One renderer, one model at a time; portraits are cached snapshots of world models. */
 const cache = new Map<string, Promise<string>>();
@@ -15,6 +17,7 @@ export function modelPortrait(id: string, primary: number, accent: number, elite
     queue = queue.then(async () => {
       let model: AnimatedModel | undefined;
       try {
+        await preloadCreatureSurfaces();
         renderer ??= new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
         renderer.setSize(320, 320);renderer.setPixelRatio(1);renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;renderer.toneMappingExposure = 1.2;
@@ -24,12 +27,12 @@ export function modelPortrait(id: string, primary: number, accent: number, elite
         if(id==='hero'){if(skinId)model.setSkin?.(skinId);else model.setTint?.(primary);}
         await model.ready;model.step(.016,0);scene.add(model.root);
         model.root.updateMatrixWorld(true);
-        const bounds=new THREE.Box3().setFromObject(model.root),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
+        const bounds=creatureBodyBounds(model.root),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
         model.root.position.sub(center);
         const distance=Math.max(size.x,size.y,size.z)*3;
         const camera=new THREE.OrthographicCamera(-100,100,100,-100,.1,10000);
         camera.position.set(distance*.65,distance*.4,distance);camera.lookAt(0,0,0);camera.updateMatrixWorld(true);
-        const centered=new THREE.Box3().setFromObject(model.root);let span=1;
+        const centered=creatureBodyBounds(model.root);let span=1;
         for(const x of [centered.min.x,centered.max.x])for(const y of [centered.min.y,centered.max.y])for(const z of [centered.min.z,centered.max.z]){
           const projected=new THREE.Vector3(x,y,z).applyMatrix4(camera.matrixWorldInverse);span=Math.max(span,Math.abs(projected.x)*2,Math.abs(projected.y)*2);
         }

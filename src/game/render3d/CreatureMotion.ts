@@ -36,10 +36,11 @@ export function articulateHead(body:T.Group,shape:CreatureShape,segments:T.Group
   const beast=beasts.has(shape),giant=['golem','treant','scrap','sand'].includes(shape);
   const biped=['goblin','rogue','cultist','knight','smith','ogre','imp','gargoyle','harpy'].includes(shape);
   const serpent=shape==='serpent'||shape==='worm';
-  if(!beast&&!giant&&!biped&&!serpent)return;
+  const bird=shape==='bat'||shape==='owl';
+  if(!beast&&!giant&&!biped&&!serpent&&!bird)return;
   const low=shape==='salamander';
   const head=serpent?segments[0]:new T.Group();head.name='creature-neck';
-  if(!serpent)head.position.set(0,beast?(low?25:40):giant?94:77,beast?22:0);
+  if(!serpent)head.position.set(0,beast?(low?25:40):giant?94:bird?51:77,beast?22:0);
   const bounds=new T.Box3(),center=new T.Vector3();
   for(const child of [...body.children]){
     if(child.userData.creatureHead&&!(child instanceof T.Mesh)){child.position.sub(head.position);head.add(child);continue;}
@@ -47,7 +48,7 @@ export function articulateHead(body:T.Group,shape:CreatureShape,segments:T.Group
     child.geometry.computeBoundingBox();child.updateMatrix();
     bounds.copy(child.geometry.boundingBox!).applyMatrix4(child.matrix);bounds.getCenter(center);
     const belongs=child.userData.creatureHead|| (beast?false
-      :serpent?false
+      :serpent||bird?false
       :giant?center.y>98&&Math.abs(center.x)<25&&bounds.max.y<135
       :center.y>80&&Math.abs(center.x)<36);
     if(belongs){child.position.sub(head.position);head.add(child);}
@@ -59,12 +60,15 @@ export function articulateHead(body:T.Group,shape:CreatureShape,segments:T.Group
 /** Motion families share timing, but have distinct poses, gait and weight. */
 export function createCreatureMotion(shape:CreatureShape,boss:boolean,floating:boolean,rig:CreatureRig,worldScale:number){
   const {body,head,jaw,legs,knees,arms,grips,wings,segments,tail}=rig;
+  const stinger=tail?.getObjectByName('scorpion-stinger');
+  const tailJoints=tail?Array.from({length:5},(_,i)=>tail.getObjectByName('scorpion-tail-joint-'+i)).filter((joint):joint is T.Object3D=>!!joint):[];
   const beast=beasts.has(shape),bug=bugs.has(shape),heavy=giants.has(shape);
   const serpent=shape==='serpent'||shape==='worm',flier=shape==='harpy'||shape==='bat'||shape==='owl';
   const caster=shape==='cultist'||shape==='wisp'||shape==='flame'||shape==='sand';
   const restScale=body.scale.clone();
   const restLegs=legs.map(l=>l.position.clone()),restSegments=segments.map(s=>s.position.clone());
   const gripPose=new T.Quaternion(),gripEuler=new T.Euler();
+  const plantedFoot=new T.Vector3();
   const daggerGrips=shape==='rogue'?grips.map(grip=>{
     const forearm=grip.position.clone().sub(new T.Vector3(...grip.userData.forearmStart)).normalize();
     // Fixed hand-space frame: the blade projects out of the fist, perpendicular
@@ -93,7 +97,17 @@ export function createCreatureMotion(shape:CreatureShape,boss:boolean,floating:b
     const wind=pose.phase==='windup'?T.MathUtils.smoothstep(p,0,.72)*(1-contact):0;
     const strike=pose.phase==='strike'?1-T.MathUtils.smoothstep(p,.08,1):contact;
     const hit=T.MathUtils.clamp(pose.hit,0,1),breath=Math.sin(clock*(heavy?1.8:2.6));
-    if(tail){tail.rotation.x=wind*.18-strike*.38;tail.rotation.y=Math.sin(clock*1.6)*.035;}
+    if(tail){
+      tail.rotation.x=0;tail.rotation.y=Math.sin(clock*1.6)*.035;
+      const contactAngles=[.6,1.03,1.31,1.48,1.93];let previous=0;
+      tailJoints.forEach((joint,i)=>{
+        const angle=(contactAngles[i]-Number(joint.userData.restTailAngle))*strike-wind*.1*(.5+i/5);
+        joint.rotation.x=angle-previous;previous=angle;
+      });
+      // The base stays on the rear carapace. Articulations uncoil toward the
+      // target; the hook keeps its downward orientation at the moving endpoint.
+      if(stinger)stinger.rotation.x=-previous;
+    }
     body.position.set(0,0,0);body.rotation.set(0,0,0);body.scale.copy(restScale);
     if(head)head.rotation.set(breath*.014,Math.sin(clock*.7)*.025,0);
     if(jaw)jaw.rotation.x=0;
@@ -123,6 +137,15 @@ export function createCreatureMotion(shape:CreatureShape,boss:boolean,floating:b
     });
     body.position.y=floating?9+Math.sin(clock*2.4)*3.5:Math.abs(Math.sin(stride))*motion*(heavy?1.2:2.1);
     body.rotation.z=Math.sin(stride)*motion*(heavy?.045:bug?.012:.025);
+
+    if(!floating&&motion>0)legs.forEach((leg,i)=>{
+      const knee=knees[i];if(!knee)return;
+      // Compensate the ankle's vertical arc and torso bob at the support foot.
+      // The lifted foot retains its swing arc; the planted one no longer bobs
+      // into/above the floor just because the thigh and knee rotate.
+      plantedFoot.set(0,-16,4).applyEuler(knee.rotation).add(knee.position).applyEuler(leg.rotation);
+      leg.position.y-=(plantedFoot.y+29+body.position.y)*motion;
+    });
 
     if(beast){
       body.rotation.x=-wind*.1+strike*.15+Math.sin(stride*2)*motion*.025;
@@ -162,7 +185,7 @@ export function createCreatureMotion(shape:CreatureShape,boss:boolean,floating:b
       if(head)head.rotation.x=wind*.13-strike*.1;
     }else{
       const dual=shape==='rogue';
-      body.rotation.y=dual?0:-wind*.28+strike*.32;body.rotation.x=-wind*.04+strike*.07;
+      body.rotation.y=(dual?0:-wind*.28+strike*.32)+Math.sin(stride)*motion*.025;body.rotation.x=-wind*.04+strike*.07;
       arms.forEach((arm,i)=>{
         const active=i===1||dual;
         // Lift the hands for a cut; the knives follow their fixed wrist frames.

@@ -348,7 +348,7 @@ export const ENGLISH_CATALOG: Record<string,string> = {
   "Каменный великан с тяжёлыми кулаками и светящимися рунами.": "A stone giant with heavy fists and glowing runes.",
   "Светлый горный хищник с широкими лапами и гибким хвостом.": "A pale mountain predator with broad paws and a flexible tail.",
   "Спираль ветра вокруг парящего небесного кристалла.": "A spiral of wind around a floating sky crystal.",
-  "Горный козёл с высокими рогами и крепкими копытами.": "A mountain goat with tall horns and sturdy hooves.",
+  "Горный козёл с загнутыми рогами и крепкими копытами.": "A mountain goat with curved horns and sturdy hooves.",
   "Приземистая ящерица с широкими лапами и длинным огненным хвостом.": "A low-slung lizard with broad feet and a long fiery tail.",
   "Заклинатель в закрытой мантии. Несёт посох с пепельным камнем.": "A cloaked spellcaster carrying a staff tipped with an ashen stone.",
   "Багровый скорпион, прячущийся в трещинах русел.": "A crimson scorpion that hides in cracks along the channels.",

@@ -30,7 +30,9 @@ jobs:
         run: npm ci
 
       - name: Gameplay, economy and world sanity
+        # Release/campaign/live-device gates remain separate; see QA_RELEASE.md.
         run: |
+          npm run check:docs
           npm run balance
           npm run check:world
           npm run check:gameplay

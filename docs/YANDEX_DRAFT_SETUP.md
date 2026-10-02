@@ -1,5 +1,11 @@
 # Черновик Ruinstead в Яндекс Играх
 
+> История настройки карточки и предыдущих QA-сессий. Упоминание «последнего»
+> архива 13645716 ниже относится к тому наблюдению; более поздний журнал
+> RELEASE_READINESS записывает загрузку 13658626. Текущая консоль в SDD
+> bootstrap не проверялась. Актуальные локальные ограничения и gates:
+> [CURRENT_STATE](CURRENT_STATE.md), [QA_RELEASE](specs/QA_RELEASE.md).
+
 Игра 619868: https://games.yandex.ru/console/application/619868#application-info-draft
 
 Тестовый запуск: https://yandex.ru/games/app/619868?draft=true&lang=ru

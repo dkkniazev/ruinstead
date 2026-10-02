@@ -10,19 +10,19 @@ const noise=(n:number)=>{const v=Math.sin(n*127.13)*43758.5453;return v-Math.flo
 /** Layered, asymmetric rock masses. Shared contours keep strata watertight. */
 function outcrop(radius:number,height:number,seed:number,colors:readonly number[],kind:string):T.Mesh {
   const sides=kind==='basalt'?6:9,positions:number[]=[],rgb:number[]=[];
-  const levels=kind==='mesa'||kind==='strata'?[0,.12,.23,.51,.62,.88,1]:[0,.2,.55,.82,1];
+  const levels=kind==='moss'?[0,.12,.19,.46,.53,.83,.95,1]:kind==='mesa'||kind==='strata'?[0,.12,.23,.51,.62,.88,1]:[0,.2,.55,.82,1];
   const rings=levels.map((h,band)=>Array.from({length:sides},(_,n)=>{
-    const a=n/sides*Math.PI*2,profile=kind==='basalt'?1-.12*h:kind==='slate'?1-.73*h:kind==='obsidian'?1-.89*h:kind==='moss'?Math.sin(Math.PI*(.17+h*.73)):1-.48*h;
+    const a=n/sides*Math.PI*2,profile=kind==='basalt'?1-.12*h:kind==='slate'?1-.73*h:kind==='obsidian'?1-.89*h:kind==='moss'?1-.15*h:1-.48*h;
     const r=radius*profile*(.82+noise(seed+n*7)*.18)*(band%2?.93:1);
     return new T.Vector3(Math.cos(a)*r+h*radius*.14,h*height+(band===0?0:(noise(seed+n*11)-.5)*height*.09),Math.sin(a)*r);
   }));
   const emit=(a:T.Vector3,b:T.Vector3,c:T.Vector3,shade:T.Color)=>{for(const v of [a,b,c]){positions.push(v.x,v.y,v.z);rgb.push(shade.r,shade.g,shade.b);}};
   for(let band=1;band<rings.length;band++)for(let n=0;n<sides;n++){
-    const j=(n+1)%sides,color=new T.Color(kind==='moss'&&band===rings.length-1?0x6a8457:colors[band%colors.length]).multiplyScalar(.9+noise(seed+n)*.16);
+    const j=(n+1)%sides,color=new T.Color(kind==='moss'&&band===rings.length-1?0x73994c:colors[band%colors.length]).multiplyScalar(.88+noise(seed+n)*.18);
     emit(rings[band-1][n],rings[band][n],rings[band][j],color);emit(rings[band-1][n],rings[band][j],rings[band-1][j],color);
   }
   const top=rings[rings.length-1],middle=new T.Vector3().copy(top[0]);middle.set(0,height,0);
-  for(let n=0;n<sides;n++)emit(middle,top[(n+1)%sides],top[n],new T.Color(colors[1]).multiplyScalar(1.06));
+  for(let n=0;n<sides;n++)emit(middle,top[(n+1)%sides],top[n],new T.Color(kind==='moss'?0x8ab159:colors[1]).multiplyScalar(.96+noise(seed+n)*.12));
   const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('color',new T.Float32BufferAttribute(rgb,3));g.computeVertexNormals();
   const m=new T.Mesh(g,new T.MeshStandardMaterial({vertexColors:true,roughness:kind==='obsidian'?.48:.91,metalness:kind==='obsidian'?.16:0,flatShading:true}));
   m.castShadow=true;m.receiveShadow=true;m.userData.buildingOwned=true;return m;
@@ -60,7 +60,7 @@ export function createGeographyLandmark(site:GeographyLandmark):T.Group {
     const count=site.kind==='basalt'?9:site.kind==='slate'?5:4;
     for(let i=0;i<count;i++){
       const angle=i*2.4+site.seed,spread=i?site.radius*.56:0,r=site.radius*(site.kind==='basalt'?.27:i?.39:.62);
-      const height=site.kind==='mesa'?90+i*18:site.kind==='slate'?160-i*17:site.kind==='basalt'?90+noise(i+site.seed)*100:site.kind==='obsidian'?190-i*28:site.kind==='chalk'?125-i*12:76+i*11;
+      const height=site.kind==='moss'?145-i*21:site.kind==='mesa'?90+i*18:site.kind==='slate'?160-i*17:site.kind==='basalt'?90+noise(i+site.seed)*100:site.kind==='obsidian'?190-i*28:site.kind==='chalk'?125-i*12:76+i*11;
       const stone=outcrop(r,height,site.seed+i,site.kind==='mesa'||site.kind==='strata'?[palette.rock,palette.light,palette.rock,palette.soil]:[palette.rock,palette.rock,palette.soil,palette.rock],site.kind);
       const sx=Math.cos(angle)*spread,sz=Math.sin(angle)*spread;
       stone.position.set(sx,terrainHeight(site.x+sx,site.y+sz)-base-3,sz);stone.rotation.y=angle;

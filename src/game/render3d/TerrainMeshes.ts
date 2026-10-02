@@ -5,6 +5,7 @@ import { REGION_GEOGRAPHY } from '../world/RegionGeography';
 import { createRegionRoads } from './BiomeScenery';
 import { pointInRegion, type RegionDefinition } from '../world/ReleaseRegionMap';
 import { plateauHeight, sampleBoundaryTerrain } from '../world/WorldTerrain';
+import { createRegionWatercourses } from './WatercourseMeshes';
 
 export const REGION_PALETTES: Record<number, [number, number, number]> = {
   1: [0x76a75d, 0x96bb6c, 0x588557], 2: [0xbca16d, 0xd8bc86, 0x96805c],
@@ -51,7 +52,7 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
   };
   // Clip every authored triangle to the same grid. Independent recursive
   // subdivisions produced T-junctions: different heights along a shared edge.
-  const grid=80;
+  const grid=region.id===1||region.id===6?40:80;
   const clip=(polygon:THREE.Vector2[],axis:'x'|'y',edge:number,sign:number):THREE.Vector2[]=>{
     const result:THREE.Vector2[]=[];
     for(let i=0;i<polygon.length;i++){
@@ -95,10 +96,10 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     const land=mesh(tile.positions,tile.colors);(land.material as THREE.Material).dispose();land.material=surfaceMaterial;
     land.geometry.setAttribute('normal',new THREE.Float32BufferAttribute(normals,3));land.userData.regionSurface=true;group.add(land);
   }
-  group.add(createRegionRoads(region),createRegionLandmarks(region.id));
+  group.add(createRegionRoads(region),createRegionLandmarks(region.id),createRegionWatercourses(region.id));
 
   const cliffPositions: number[] = [], cliffColors: number[] = [];
-  const stone = new THREE.Color(region.id === 7 ? 0x9b6949 : region.id === 4 || region.id === 8 ? 0x51443e : region.id === 3 ? 0x686776 : 0x817c6d);
+  const stone = new THREE.Color(region.id === 7 ? 0x9b6949 : region.id === 4 || region.id === 8 ? 0x51443e : region.id === 3 ? 0x686776 : region.id===1?0x888d80:0xaaa693);
   const rim:THREE.Vector2[]=[];
   for (let edge=0;edge<shape.length;edge++) {
     const a=shape[edge], b=shape[(edge+1)%shape.length];
@@ -113,7 +114,7 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
   }
   // Every panel shares both its side vertices and its stratum edges. Independent
   // bevels previously left open seams through which the river was visible.
-  const levels=[0,.22,.56,.82,1];
+  const levels=[0,.035,.22,.56,.82,1];
   const rings=rim.map((p,index)=>{
     const previous=rim[(index+rim.length-1)%rim.length],next=rim[(index+1)%rim.length];
     const normal=new THREE.Vector2(-(next.y-previous.y),next.x-previous.x).normalize();
@@ -121,7 +122,7 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     const top=plateauHeight(region,p.x,p.y);
     const bottom=Math.min(region.elevation-115,sampleBoundaryTerrain(p.x+normal.x*140,p.y+normal.y*140).height-12);
     return levels.map((t,band)=>{
-      const bevel=band===0?0:band===4?12:7+hash(p.x+band*41,p.y)*16;
+      const bevel=band===0?0:band===levels.length-1?12:7+hash(p.x+band*41,p.y)*16;
       return [p.x+normal.x*bevel,top+(bottom-top)*t,p.y+normal.y*bevel];
     });
   });
@@ -129,7 +130,7 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     const a=rings[index],b=rings[(index+1)%rings.length];
     for(let band=0;band<levels.length-1;band++) {
       const vertices=[a[band],b[band],b[band+1],a[band+1]];
-      const shade=stone.clone().multiplyScalar(.87+hash(index,0)*.15-band*.045+(band===0?.12:0));
+      const shade=(band===0?palette[0]:stone).clone().multiplyScalar(.9+hash(index,0)*.13-band*.035);
       for(const j of [0,2,1,0,3,2]) {cliffPositions.push(...vertices[j]);cliffColors.push(shade.r,shade.g,shade.b);}
     }
   }

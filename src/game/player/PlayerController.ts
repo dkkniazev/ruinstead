@@ -137,8 +137,9 @@ export class PlayerController {
       );
 
     this.sprite.setVisible(false);
-    this.heroArt = scene.add.image(x, y, PAINTED_HERO_TEXTURE)
-      .setDisplaySize(112, 112)
+    const paintedHero = scene.textures.exists(PAINTED_HERO_TEXTURE);
+    this.heroArt = scene.add.image(x, y, paintedHero ? PAINTED_HERO_TEXTURE : PLAYER_TEXTURE)
+      .setDisplaySize(paintedHero ? 112 : 80, 112)
       .setDepth(y + PLAYER_BASELINE_OFFSET);
     this.weaponSprite.setVisible(false);
 
@@ -569,8 +570,8 @@ export class PlayerController {
     for (let i = 0; i < 3; i += 1) {
       this.scene.time.delayedCall(i * 48, () => {
         if (!this.sprite.active) return;
-        const ghost = this.scene.add.image(this.sprite.x, this.sprite.y, PAINTED_HERO_TEXTURE)
-          .setDisplaySize(112, 112)
+        const ghost = this.scene.add.image(this.sprite.x, this.sprite.y, this.heroArt.texture.key)
+          .setDisplaySize(this.heroArt.displayWidth, this.heroArt.displayHeight)
           .setTint(0x8cd8cb).setAlpha(0.3 - i * 0.06)
           .setDepth(this.sprite.depth - 1);
         ghost.setFlipX(this.sprite.flipX);

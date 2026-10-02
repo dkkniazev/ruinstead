@@ -42,7 +42,9 @@ for(const region of RELEASE_REGIONS) {
 const home=getRegionDefinition(1);
 const node:ResourceVisualState={id:'preview-wood',type:'wood',x:home.center[0]+540,y:home.center[1]+610,
   durability:3,dropCount:5,respawnMs:45000,available:true,health:3,maxHealth:3,hitAt:-10000,hitCount:0};
-const resource=new ResourceVisual3D(node,1);scene.add(resource.root);
+const resourceLabels=document.createElement('div');
+resourceLabels.style.cssText='position:fixed;inset:0;pointer-events:none;overflow:hidden';document.body.appendChild(resourceLabels);
+const resource=new ResourceVisual3D(node,1,resourceLabels);scene.add(resource.root);
 const controls=document.createElement('div');
 controls.style.cssText='position:fixed;top:16px;left:16px;display:flex;gap:8px;flex-wrap:wrap;z-index:5;font:14px system-ui';
 document.body.appendChild(controls);
@@ -58,6 +60,7 @@ function select(mode:string){
   }});
   geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());closeGround.clear();base.visible=overview;
   resource.root.visible=mode==='harvest';
+  resource.hideLabel();
   if(overview){viewHeight=15600;target.set(7200,100,8350);camera.position.copy(target).add(new THREE.Vector3(0,19000,10000));caption.textContent='Контуры по рисунку • крупные регионы: 21–27 секунд бега • плато, горы, реки и лавовые разломы';}
   else {
     let x:number,y:number;
@@ -82,5 +85,5 @@ const hit=document.createElement('button');hit.textContent='Удар';hit.style.
 };controls.appendChild(hit);
 for(const region of RELEASE_REGIONS){const b=document.createElement('button');b.textContent=region.id+'. '+region.name;b.onclick=()=>select('region-'+region.id);b.style.cssText='padding:8px;color:#f1e8ce;background:#334f4a;border:1px solid #8d9a7e;border-radius:4px';controls.append(b);}
 select('overview');window.addEventListener('resize',resize);
-function frame(time:number){requestAnimationFrame(frame);updateArtMaterials(time);if(!overview)resource.update(node,time,100,camera);renderer.render(scene,camera);}
+function frame(time:number){requestAnimationFrame(frame);updateArtMaterials(time);camera.updateMatrixWorld();if(resource.root.visible)resource.update(node,time,100,camera);renderer.render(scene,camera);}
 requestAnimationFrame(frame);

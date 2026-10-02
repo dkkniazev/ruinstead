@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import * as THREE from 'three';
 import { iconPath } from '../ui/GameIcons';
 export function buildingLabel(text: string, height: number, kind='home', level?:number): THREE.Sprite {
@@ -9,9 +10,11 @@ export function buildingLabel(text: string, height: number, kind='home', level?:
   ctx.fillStyle='#bda575';ctx.beginPath();ctx.moveTo(316,115);ctx.lineTo(328,127);ctx.lineTo(340,115);ctx.fill();
   ctx.save();ctx.translate(24,25);ctx.scale(2.7,2.7);ctx.strokeStyle='#dec28b';ctx.lineWidth=1.6;ctx.lineCap='round';ctx.lineJoin='round';
   ctx.stroke(new Path2D(iconPath(({storage:'bag',sawmill:'wood',workshop:'forge',house:'home'} as Record<string,string>)[kind]??kind)));ctx.restore();
-  ctx.fillStyle='#f3e7cd';ctx.font='600 44px "Segoe UI", sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(text,111,57,level===undefined?510:423);
-  if(level!==undefined){ctx.fillStyle='#bba372';ctx.beginPath();ctx.roundRect(559,23,69,69,14);ctx.fill();ctx.fillStyle='#183334';ctx.font='700 41px "Segoe UI", sans-serif';ctx.textAlign='center';ctx.fillText(String(level),594,58);}
+  ctx.fillStyle='#f3e7cd';ctx.font='700 48px "Segoe UI", sans-serif';ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillText(localizeText(text),111,57,level===undefined?510:423);
+  if(level!==undefined){ctx.fillStyle='#bba372';ctx.beginPath();ctx.roundRect(559,23,69,69,14);ctx.fill();ctx.fillStyle='#183334';ctx.font='700 41px "Segoe UI", sans-serif';ctx.textAlign='center';ctx.fillText(localizeText(String(level)),594,58);}
   const texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
+  // Fixed-size billboard text does not need mipmaps that soften small lettering.
+  texture.generateMipmaps=false;texture.minFilter=THREE.LinearFilter;texture.magFilter=THREE.LinearFilter;
   const label=new THREE.Sprite(new THREE.SpriteMaterial({map:texture,depthTest:false,depthWrite:false,fog:false,toneMapped:false}));
   label.scale.set(246,48,1);label.position.y=height;label.renderOrder=105;label.userData.buildingLabel=true;return label;
 }

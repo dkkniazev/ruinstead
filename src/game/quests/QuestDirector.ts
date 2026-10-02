@@ -455,10 +455,8 @@ const MAIN_QUESTS:
             .backpackLevel > 0 ||
           state.player
             .dashLevel > 0 ||
-          Object.values(
-            state.player.weaponLevels,
-          ).some(
-            (level) => level > 0,
+          state.player.weaponInventory.variants.some(
+            (variant) => variant.level > 1,
           )
         )
           ? '1 / 1'

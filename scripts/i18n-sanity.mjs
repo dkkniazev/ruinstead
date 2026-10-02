@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { build } from 'esbuild';
+import './collect-i18n.mjs';
+const result=await build({stdin:{contents:"export * from './src/i18n/I18n.ts'; export * from './src/i18n/Localize.ts'; export * from './src/i18n/EnglishCatalog.ts';",loader:'ts',resolveDir:process.cwd()},bundle:true,platform:'node',format:'esm',write:false});
+const api=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const entries=JSON.parse(fs.readFileSync('src/i18n/source-strings.json','utf8'));
+api.setLanguageFromCode('en');
+for(const {ru}of entries){
+  const en=api.ENGLISH_CATALOG[ru];assert(en,`Missing translation: ${ru}`);
+  const slots=s=>[...s.matchAll(/\{\d+\}/g)].map(m=>m[0]).sort();
+  assert.deepEqual(slots(ru),slots(en),`Placeholders: ${ru}`);
+  assert(!/[А-Яа-яЁё]/u.test(en),`Russian in English: ${ru}`);
+  const filled=ru.replace(/\{(\d+)\}/g,(_,i)=>String(Number(i)+12));
+  const output=api.translateText(filled);
+  assert(!/[А-Яа-яЁё]/u.test(output),`Russian remains: ${output}`);
+  assert(!/\{\d+\}/.test(output),`Unresolved placeholder: ${output}`);
+}
+assert.equal(api.translateText('1 · Заросший лес'),'1 · Overgrown Forest');
+assert.equal(api.translateText('Вы здесь: 1. Заросший лес\nИзобилие ресурсов\nКристаллы: 2/5\nВолокно: 3/5'),'You are here: 1. Overgrown Forest\nResource abundance\nCrystals: 2/5\nFiber: 3/5');
+assert.equal(api.translateText('дерево +4 · камень +2 · монеты +12'),'wood +4 · stone +2 · coins +12');
+assert.equal(api.translateText('Дерево ×30'),'Wood ×30');
+assert.equal(api.translateText('Есть награды'),'Rewards available');
+assert.equal(api.translateText('Выбрано: Топор · Обычный Lv.3 ★★'),'Selected: Axe · Common Lv.3 ★★');
+assert.equal(api.translateText('  Открыть сундук · E  '),'  Open chest · E  ');
+assert.equal(api.translateText('<player nickname>'),'<player nickname>');
+api.setLanguageFromCode('ru');
+assert.equal(api.translateText('Открыть сундук · E'),'Открыть сундук · E');
+api.setLanguageFromCode('en');
+assert.equal(api.translateText('Открыть сундук · E'),'Open chest · E');
+console.log(`Localization passed: ${entries.length} source strings, placeholders, composed rewards and language selection.`);

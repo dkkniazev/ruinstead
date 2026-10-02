@@ -1,9 +1,13 @@
 export type LanguageCode = 'ru' | 'en';
 
+// Only advertise languages with a complete, verified player interface.
+export const SUPPORTED_LANGUAGES: readonly LanguageCode[] = ['ru', 'en'];
+
 let currentLanguage: LanguageCode = 'ru';
 
 export function normalizeLanguageCode(value: string | undefined): LanguageCode {
-  return value?.toLowerCase().startsWith('ru') ? 'ru' : 'en';
+  const requested = value?.toLowerCase().split(/[-_]/)[0];
+  return SUPPORTED_LANGUAGES.find(language => language === requested) ?? 'ru';
 }
 
 export function initializeLanguageFromBrowser(): LanguageCode {

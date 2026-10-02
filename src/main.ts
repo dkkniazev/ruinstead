@@ -1,3 +1,4 @@
+import { localizeText, localizeDOM } from './i18n/Localize';
 import Phaser from 'phaser';
 import { gameAudio } from './game/audio/GameAudio';
 import './styles.css';
@@ -43,6 +44,10 @@ async function bootstrap(): Promise<void> {
   document.documentElement.lang = getLanguage();
 
   await initializeYandexPlatform();
+  // The SDK language is authoritative inside Yandex Games.
+  document.documentElement.lang = getLanguage();
+  const startup = document.getElementById('startup-screen');
+  if (startup) localizeDOM(startup);
 
   const game =
     new Phaser.Game(gameConfig);
@@ -239,4 +244,10 @@ async function bootstrap(): Promise<void> {
   );
 }
 
-void bootstrap();
+void bootstrap().catch(error => {
+  console.error('Game startup failed.', error);
+  const note = document.getElementById('startup-note');
+  if (note) note.textContent = localizeText('Не удалось открыть мир. Попробуйте загрузить игру снова.');
+  const retry = document.getElementById('startup-retry');
+  if (retry) retry.hidden = false;
+});

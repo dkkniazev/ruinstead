@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import { recordVisualHit } from '../combat/CombatVisualState';
 import Phaser from 'phaser';
 import { insideBossDanger, type BossDangerZone } from '../combat/CombatMath';
@@ -573,7 +574,7 @@ export class BossUnit {
       .text(
         definition.x,
         definition.y - 97,
-        definition.name,
+        localizeText(definition.name),
         {
           fontFamily:
             'system-ui, sans-serif',
@@ -598,7 +599,7 @@ export class BossUnit {
         .text(
           definition.x,
           definition.y + 10,
-          '',
+          localizeText(''),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -1720,9 +1721,9 @@ export class BossUnit {
 
     this.respawnLabel
       .setText(
-        `${this.definition.name}\nВозрождение ${minutes}:${seconds
+        localizeText(`${this.definition.name}\nВозрождение ${minutes}:${seconds
           .toString()
-          .padStart(2, '0')}`,
+          .padStart(2, '0')}`),
       )
       .setVisible(true);
   }
@@ -1755,7 +1756,7 @@ export class BossUnit {
         .text(
           this.sprite.x,
           this.sprite.y - 100,
-          `-${amount}${suffix}`,
+          localizeText(`-${amount}${suffix}`),
           {
             fontFamily:
               'system-ui, sans-serif',

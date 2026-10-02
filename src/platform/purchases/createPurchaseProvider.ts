@@ -13,7 +13,9 @@ import {
 
 export function createPurchaseProvider():
   PurchaseProvider {
-  return getYandexSdk()
-    ? new YandexPurchaseProvider()
-    : new MockPurchaseProvider();
+  if (import.meta.env.DEV && !getYandexSdk()) {
+    return new MockPurchaseProvider();
+  }
+
+  return new YandexPurchaseProvider();
 }

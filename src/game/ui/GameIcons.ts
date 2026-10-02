@@ -10,6 +10,7 @@ type IconDefinition = {
 };
 
 const icons: Record<string, IconDefinition> = {
+  menu:{body:'M4 5h16M4 12h16M4 19h16',fill:0},
   hero:{body:'M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8ZM4 21c.7-5 3.5-8 8-8s7.3 3 8 8Z',detail:'M8.5 16.5 12 19l3.5-2.5',fill:.18},
   bag:{body:'M5 8h14l1.5 13h-17L5 8Z',detail:'M8 8V6a4 4 0 0 1 8 0v2M8 13h8v4H8Z',fill:.22},
   book:{body:'M3.5 4.5C7 3.3 9.7 4 12 6v15c-2.4-2-5.2-2.7-8.5-1.5v-15Zm17 0C17 3.3 14.3 4 12 6v15c2.4-2 5.2-2.7 8.5-1.5v-15Z',detail:'M12 6v15M6.5 8.5h2.5m-2.5 4h2.5m6-4h2.5m-2.5 4h2.5',fill:.18},

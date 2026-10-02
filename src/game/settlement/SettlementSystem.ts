@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import type {
   ResourceCounts,
@@ -47,7 +48,7 @@ const FORGE_STAGE_TEXTURES = [
 const BLACKSMITH_TEXTURE =
   'ruinstead-blacksmith-stage4';
 
-const FORGE_STAGE_COSTS:
+export const FORGE_STAGE_COSTS:
   Record<number, ResourceCounts> = {
   0: {
     wood: 10,
@@ -132,14 +133,15 @@ export class SettlementSystem {
     this.forgeArt = scene.add.image(
       FORGE_POSITION.x,
       FORGE_POSITION.y - 55,
-      'ruinstead-forge-workshop',
-    ).setDisplaySize(188, 162).setDepth(FORGE_POSITION.y + 87);
+      scene.textures.exists('ruinstead-forge-workshop') ? 'ruinstead-forge-workshop' : FORGE_STAGE_TEXTURES[this.repairStage],
+    ).setDisplaySize(188, 162).setDepth(FORGE_POSITION.y + 87)
+      .setVisible(scene.textures.exists('ruinstead-forge-workshop'));
 
     this.interactionMarker = scene.add
       .text(
         FORGE_POSITION.x,
         FORGE_POSITION.y + 92,
-        '',
+        localizeText(''),
         {
           fontFamily:
             'system-ui, sans-serif',
@@ -174,7 +176,7 @@ export class SettlementSystem {
       .text(
         FORGE_POSITION.x + 126,
         FORGE_POSITION.y + 96,
-        'Кузнец',
+        localizeText('Кузнец'),
         {
           fontFamily:
             'system-ui, sans-serif',
@@ -232,9 +234,9 @@ export class SettlementSystem {
     this.interactionMarker
       .setVisible(false)
       .setText(
-        this.restored
+        localizeText(this.restored
           ? 'E · Кузница'
-          : 'E · Восстановить кузницу',
+          : 'E · Восстановить кузницу'),
       );
 
     return changed;
@@ -374,7 +376,7 @@ export class SettlementSystem {
         ],
       )
       .setVisible(
-        this.repairStage > 0,
+        this.repairStage > 0 || !this.forgeArt.visible,
       );
 
     const npcVisible =

@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import type {
   PlayerController,
@@ -55,7 +56,7 @@ export class PetCompanion {
         .text(
           player.sprite.x,
           player.sprite.y,
-          '',
+          localizeText(''),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -103,7 +104,7 @@ export class PetCompanion {
       .setVisible(true);
     this.label
       .setText(
-        definition.name,
+        localizeText(definition.name),
       )
       .setVisible(true);
   }

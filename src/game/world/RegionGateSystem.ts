@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import { WalkableWorld } from './WalkableWorld';
 import {
@@ -243,7 +244,7 @@ export class RegionGateSystem {
         .text(
           midX,
           midY - 86,
-          `Проход закрыт · регион ${target.id}`,
+          localizeText(`Проход закрыт · регион ${target.id}`),
           {
             fontFamily:
               'system-ui, sans-serif',

@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import type {
   BuildingId,
@@ -727,7 +728,7 @@ export class CityBuilderSystem {
       : id === 'workshop'
         ? 'ruinstead-forge-workshop'
         : null;
-    const art = artTexture
+    const art = artTexture && this.scene.textures.exists(artTexture)
       ? this.scene.add.image(x, y - 42, artTexture)
         .setDisplaySize(id === 'workshop' ? 170 : 145, id === 'workshop' ? 145 : 135)
         .setDepth(y + 25)
@@ -738,7 +739,7 @@ export class CityBuilderSystem {
         .text(
           x,
           y + 46,
-          '',
+          localizeText(''),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -779,7 +780,7 @@ export class CityBuilderSystem {
         .text(
           x + 58,
           y + 36,
-          '',
+          localizeText(''),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -861,9 +862,9 @@ export class CityBuilderSystem {
         .setTint(active ? this.themeTint : 0x79877f);
 
       visual.label.setText(
-        active
+        localizeText(active
           ? `${BUILDING_NAMES[id]} · Lv.${level}`
-          : `${BUILDING_NAMES[id]} · руины`,
+          : `${BUILDING_NAMES[id]} · руины`),
       );
 
       visual.npc.setVisible(
@@ -880,7 +881,7 @@ export class CityBuilderSystem {
               : `Жители ×${level * 2}`;
 
       visual.npcLabel
-        .setText(npcName)
+        .setText(localizeText(npcName))
         .setVisible(active);
     }
   }

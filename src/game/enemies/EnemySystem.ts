@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import { formPack, packSize, packFormationRadius } from './PackFormation';
 import { AttackWindup } from './AttackWindup';
 import type { ObstacleNavigation } from '../world/ObstacleNavigation';
@@ -788,7 +789,7 @@ export class EnemyUnit {
           : this.definition.texture,
       ) as Phaser.Physics.Arcade.Sprite;
 
-    if (spawn.species === 'goblin') {
+    if (spawn.species === 'goblin' && scene.textures.exists('ruinstead-goblin-painted')) {
       this.sprite.setVisible(false);
       this.paintedArt = scene.add.image(spawn.x, spawn.y, 'ruinstead-goblin-painted')
         .setDisplaySize(elite ? 112 : 92, elite ? 112 : 92);
@@ -1902,7 +1903,7 @@ export class EnemyUnit {
         .text(
           this.sprite.x,
           this.sprite.y - 56,
-          `-${amount}${suffix}`,
+          localizeText(`-${amount}${suffix}`),
           {
             fontFamily:
               'system-ui, sans-serif',

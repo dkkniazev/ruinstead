@@ -357,7 +357,81 @@ export function createSceneryProp(seed: number, region: number): THREE.Group {
   return shards(0x35323a, 0x74483e, true);
 }
 
+function createRuinedBuilding(id: string): THREE.Group {
+  const g=new THREE.Group(),forge=id==='forge';
+  const width=forge?110:id==='workshop'?160:142,depth=forge?75:id==='sawmill'?115:140;
+  const masonry=0x898373,timber=0x65513c,roof=id==='house'?0x9b6250:id==='workshop'?0x667779:0x778171;
+  // Broken courses outline the original footprint; filled rubble makes its
+  // existing collision boundary readable without a solid placeholder slab.
+  for(let row=0;row<3;row++)for(let col=0;col<6;col++){
+    const x=(col-2.5)*width/6,height=row*14+8;
+    if(row<2||col===0||col===4||col===5)box(g,masonry,x,height,-depth/2,width/6-2,13,17);
+    if(col<3&&(row<2||col===0))box(g,masonry,-width/2,height,(col-1)*depth/3,17,13,depth/3-2);
+  }
+  for(let col=0;col<5;col++){
+    if(col===2)continue;
+    const stone=box(g,0x98907d,(col-2)*width/5,9,depth/2,width/5-3,16,18);
+    stone.rotation.y=(col-2)*.035;
+  }
+  for(let n=0;n<18;n++){
+    const angle=n*2.4,radius=13+(n%5)*9;
+    const stone=part(g,fracturedRock(n,masonry),naturalSurfaceMaterial,
+      Math.cos(angle)*radius,0,Math.sin(angle)*radius,11+n%4*3,8+n%3*5,9+n%5);
+    stone.rotation.y=angle;
+  }
+  rod(g,timber,new THREE.Vector3(-width*.34,3,-depth*.3),new THREE.Vector3(width*.3,15,depth*.34),6);
+  rod(g,timber,new THREE.Vector3(width*.28,2,-depth*.35),new THREE.Vector3(-width*.26,10,depth*.2),5);
+  const post=box(g,timber,-width/2+8,38,depth/2-8,10,73,10);post.rotation.z=.13;
+  for(let n=0;n<9;n++){
+    const tile=box(g,roof,-width*.25+(n%3)*16,5+Math.floor(n/3)*3,12+Math.floor(n/3)*13,19,4,17);
+    tile.rotation.set(.09,n*.38,(n%2?1:-1)*.13);
+  }
+  if(id==='sawmill'){
+    for(let n=0;n<3;n++){const log=part(g,cylinder,mat(timber),width*.28+n*13,11,0,8,70,8);log.rotation.x=Math.PI/2;}
+  }else if(id==='storage'){
+    const crate=box(g,0x806044,23,17,depth*.18,31,28,27);crate.rotation.z=.26;
+    box(g,timber,27,7,depth*.37,35,4,27).rotation.y=.4;
+  }else if(id==='workshop'||forge){
+    for(let row=0;row<3;row++)box(g,row%2?0x6b6860:0x858071,width*.22,8+row*14,-depth*.27,25,13,25);
+    box(g,0x545d60,width*.19,20,depth*.1,38,8,24).rotation.z=-.18;
+  }else{
+    const door=box(g,timber,0,7,depth*.25,29,6,49);door.rotation.y=.17;
+  }
+  batchStaticMeshes(g);
+  g.userData.buildingStage='ruined';
+  return g;
+}
+
+export function createForge(repairStage: number): THREE.Group {
+  const stage=Math.max(0,Math.min(3,Math.floor(repairStage)));
+  if(stage===0)return createRuinedBuilding('forge');
+  const g=new THREE.Group();
+  box(g,0x77716c,0,21,0,110,42,75);
+  for(let row=0;row<3;row++)for(let col=0;col<4;col++)box(g,row%2?0x8d8173:0xa39480,-42+col*26+(row%2)*5,8+row*13,42,24,12,14);
+  box(g,0x414647,55,31,0,24,27,22);box(g,0x667273,55,48,0,52,11,35);
+  const nose=part(g,cone,mat(0x667273),91,48,0,15,28,15);nose.rotation.z=-Math.PI/2;
+  box(g,0x8b5334,-65,29,36,38,13,34);box(g,0x4b3428,-65,38,36,45,6,39);
+  for(const x of [-79,30])box(g,0x5e4430,x,73,-40,10,145,10);
+  box(g,0x785635,-24,144,-40,144,12,12);
+  if(stage>=2){
+    part(g,cylinder,mat(0x595655),-35,88,-20,18,100,18);
+    const roof=box(g,0x485f68,-24,155,-32,153,10,110);roof.rotation.z=-.045;
+    for(let n=0;n<7;n++)box(g,0x6b7e80,-95+n*23,162,-32,5,5,114);
+  }else{
+    rod(g,0x987751,new THREE.Vector3(-84,10,-35),new THREE.Vector3(-55,118,-35),3);
+    rod(g,0x987751,new THREE.Vector3(32,10,-35),new THREE.Vector3(10,119,-35),3);
+  }
+  if(stage===3){
+    part(g,orb,mat(0xee903d,0,0xe86519),0,49,14,22,.5*17,17);
+    const light=new THREE.PointLight(0xff9c4a,2800,160,2);light.position.set(0,68,14);g.add(light);
+  }
+  batchStaticMeshes(g);
+  g.userData.buildingStage=stage===3?'restored':'repairing';
+  return g;
+}
+
 export function createBuilding(id: string, level: number): THREE.Group {
+  if(level<=0)return createRuinedBuilding(id);
   const g = new THREE.Group();
   const wall = id === 'workshop' ? 0xaaa092 : id === 'house' ? 0xc6a37c : 0xb1936a;
   const roof = id === 'workshop' ? 0x526771 : id === 'house' ? 0x9e5c45 : id==='storage'?0x53786b:0x9b7a50;

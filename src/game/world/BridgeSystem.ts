@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import type {
   ResourceCounts,
@@ -98,7 +99,7 @@ export class BridgeSystem {
         .text(
           STAGE_ONE_BRIDGE_CENTER.x,
           STAGE_ONE_BRIDGE_CENTER.y,
-          '╳',
+          localizeText('╳'),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -119,9 +120,9 @@ export class BridgeSystem {
           STAGE_ONE_BRIDGE_CENTER.x,
           STAGE_ONE_BRIDGE_CENTER.y +
             118,
-          initiallyUnlocked
+          localizeText(initiallyUnlocked
             ? 'Восстановленный мост'
-            : 'Разрушенный мост',
+            : 'Разрушенный мост'),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -148,7 +149,7 @@ export class BridgeSystem {
           STAGE_ONE_BRIDGE_CENTER.x,
           STAGE_ONE_BRIDGE_CENTER.y -
             120,
-          'E · Восстановить мост\n20 дерева · 10 камня · 4 металла',
+          localizeText('E · Восстановить мост\n20 дерева · 10 камня · 4 металла'),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -236,7 +237,7 @@ export class BridgeSystem {
       );
 
     this.bridgeLabel.setText(
-      'Восстановленный мост',
+      localizeText('Восстановленный мост'),
     );
     this.repairPrompt.setVisible(
       false,

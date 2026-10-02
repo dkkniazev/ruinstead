@@ -123,6 +123,7 @@ import {
 } from '../game/progression/WeaponInventory';
 import { PlayerController } from '../game/player/PlayerController';
 import { WorldPresentation3D } from '../game/render3d/WorldPresentation3D';
+import { usesLegacyWorldArt } from '../game/render3d/RenderingSupport';
 import { DebugOverlay } from '../game/qa/DebugOverlay';
 import {
   trackAnalyticsEvent,
@@ -1015,14 +1016,14 @@ export class WorldScene
     void this.loadPurchaseCatalog();
     void this.reconcilePendingPurchases();
 
-    if (this.player && this.enemies && this.bosses && this.resourceSystem && this.chestSystem && this.cityBuilderSystem) {
+    if (!usesLegacyWorldArt() && this.player && this.enemies && this.bosses && this.resourceSystem && this.chestSystem && this.cityBuilderSystem) {
       try {
         this.presentation3d = new WorldPresentation3D(this, this.player, this.enemies, this.bosses, this.resourceSystem, this.chestSystem, this.cityBuilderSystem, (passage: RegionPassage) => {
           if (passage.id === '1-2') return (this.gameState?.settlement.buildings.bridge ?? 0) > 0;
           if (passage.id === '2-3') return this.gameState?.world.unlockedZones.includes('stage-3') ?? false;
           const zones = this.gameState?.world.unlockedZones ?? [];
           return regionIsUnlocked(zones, passage.a) && regionIsUnlocked(zones, passage.b);
-        },()=>this.combat?.visualCoinDrops??[],()=>this.combat?.visualOrbitals??[],()=>this.questHudState?.activeId??null);
+        },()=>this.combat?.visualCoinDrops??[],()=>this.combat?.visualOrbitals??[],()=>this.questHudState?.activeId??null,()=>this.settlementHudState.forge.repairStage,()=>this.backpack?.hasContents??false);
         this.cameras.main.setVisible(false);
       } catch (error) {
         console.warn('3D presentation unavailable; using the Phaser world renderer.', error);
@@ -1030,6 +1031,7 @@ export class WorldScene
     }
 
     if(isPolishPlaytest()&&this.player&&this.enemies&&this.combat&&this.bosses){const cleanup=installPolishPlaytest(this.player,this.enemies,this.combat,this.bosses,this.presentation3d,this.resourceSystem,this.chestSystem);this.events.once(Phaser.Scenes.Events.SHUTDOWN,cleanup);}
+    document.getElementById('startup-screen')?.remove();
     markYandexGameReady();
     startYandexGameplay();
   }
@@ -1291,7 +1293,8 @@ export class WorldScene
 
     return {
       enabled:
-        MONETIZATION_CONFIG.enabled,
+        MONETIZATION_CONFIG.enabled &&
+        this.rewardedAccessAvailable,
       busy:
         this.monetizationBusy,
       returnTickets:

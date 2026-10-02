@@ -136,7 +136,7 @@ export const CREATURE_PALETTES:Record<string,[number,number]>={
   'storm-harpy':[0x657a8b,0xb7c9cc],'stone-giant':[0x727a6d,0xb4b79a],'sky-lord':[0xa7bbb0,0xe6d6aa],
   'elder-salamander':[0x6d5a54,0xcf9871],'crystal-priest':[0x596d73,0xb3c6bb],'ash-serpent':[0x777572,0xb1a48a],
   'raider-king':[0x74634f,0xb79d70],'great-sand-worm':[0x9b7852,0xd0b080],'canyon-lord':[0x937757,0xc9af83],
-  'ancient-wyvern':[0x6c5969,0xbba185],'magma-serpent-lord':[0x57464a,0xcb9468],'fire-dragon':[0x814f48,0xc69865],
+  'ancient-wyvern':[0x6c5969,0xbba185],'magma-serpent-lord':[0x57464a,0xcb9468],'fire-dragon':[0x783331,0xe26c3c],
 };
 
 /** Large forms and layered surfaces are attached to the existing animated joints. */
@@ -352,9 +352,11 @@ function finishBoss(id:string,b:T.Group,arms:T.Group[],wings:T.Group[]):void {
     case 'fire-dragon':
       b.scale.set(1.18,1.2,1.28);wings.forEach(w=>w.scale.multiplyScalar(1.3));for(const s of [-1,1]){
         headParts(b,()=>{horn(b,ivory,[[s*13,63,28],[s*24,93,10],[s*19,100,-16]],7);});
-        for(let n=0;n<4;n++)add(b,plate,0xc89c6a,s*17,55,-21+n*14,13,6,12);
+        for(let n=0;n<4;n++)add(b,plate,n%2?0x473139:0x342c32,s*17,55,-21+n*14,13,6,12);
       }
-      headParts(b,()=>{for(const s of [-1,1])add(b,plate,0x633d3e,s*20,38,35,6,7,10);});
+      // Ember ridges stay attached to the torso; the head remains a separate rig.
+      for(let n=0;n<5;n++)gem(b,n%2?0xffa34b:0xee6328,0,59,-28+n*12,3.3,10,5);
+      headParts(b,()=>{for(const s of [-1,1])add(b,plate,0x473139,s*20,38,35,6,7,10);});
       break;
     default:throw new Error('Unspecified boss art: '+id);
   }

@@ -1,3 +1,4 @@
+import { localizeText, localizeHTML } from '../../i18n/Localize';
 import './GameUI.css';
 import { MAX_PLAYER_UPGRADE_LEVEL } from '../progression/UpgradeBalance';
 import { RESOURCE_SALE_PRICES, type SellableResource } from '../economy/ResourceTrading';
@@ -24,6 +25,8 @@ import { fillPortrait } from './ModelPortraits';
 import { HERO_SKIN_STYLES } from '../render3d/HeroSkinStyles';
 import type { InteractionPrompt } from '../world/WorldInteractions';
 import { icon } from './GameIcons';
+import { purchasePriceLabel } from './PurchasePrice';
+import { getLanguage } from '../../i18n/I18n';
 
 export type GameUIState = {
   combat: CombatState; gathering: E.GatheringHudState; settlement: SettlementHudState;
@@ -35,7 +38,7 @@ export type GameUIState = {
 type Screen = 'character'|'bestiary'|'city'|'forge'|'shop'|'cosmetics'|'quests'|'settings'|'home'|'inventory';
 type Emit = (event: string, ...args: unknown[])=>void;
 const escape = (v: unknown): string => String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
-const number = (v: number): string => Math.round(v).toLocaleString('ru-RU');
+const number = (v: number): string => Math.round(v).toLocaleString(getLanguage()==='en'?'en-US':'ru-RU');
 const regionEntriesCount=(entries:BestiaryHudEntry[],region:number):number=>entries.filter(entry=>entry.region===region).length;
 const resourceNames:Record<string,string>={wood:'Дерево',stone:'Камень',metal:'Металл',crystal:'Кристаллы',fiber:'Волокно',coins:'Монеты',gems:'Самоцветы'};
 const screenNames:Record<Screen,string>={character:'Персонаж',bestiary:'Бестиарий',city:'Поселение',forge:'Кузница',shop:'Лавка странника',cosmetics:'Облики и спутники',quests:'Дневник путешествия',settings:'Настройки',home:'Возвращение домой',inventory:'Рюкзак и склад'};
@@ -61,6 +64,7 @@ export class GameUI {
   private activeStory?:E.StoryHudBeat;
   private activeTutorial?:E.TutorialHudStep;
   private screen:Screen|null=null;
+  private menuOpen=false;
   private tab='equipment';
   private selectedSlot=0;
   private selectedWeapon='';
@@ -81,7 +85,7 @@ export class GameUI {
   private readonly chestReward=document.createElement('div');
   private lastFocused:HTMLElement|null=null;
   constructor(public state:GameUIState,private readonly emit:Emit,private readonly onModal:(open:boolean)=>void){
-    this.root.className='ruin-ui';this.root.setAttribute('aria-label','Интерфейс Ruinstead');
+    this.root.className='ruin-ui';this.root.setAttribute('aria-label',localizeText('Интерфейс Ruinstead'));
     this.overlay.className='r-backdrop';this.overlay.hidden=true;
     this.toasts.className='r-toast-stack';this.toasts.setAttribute('aria-live','polite');
     this.confirmation.className='r-confirm';this.confirmation.hidden=true;
@@ -96,7 +100,7 @@ export class GameUI {
     this.root.addEventListener('click',this.click);this.tutorialSpotlight.addEventListener('click',this.click);this.storyOverlay.addEventListener('click',this.click);this.root.addEventListener('change',this.change);this.root.addEventListener('input',this.input);
     this.root.addEventListener('pointerover',this.showTooltip);this.root.addEventListener('focusin',this.showTooltip);
     this.root.addEventListener('pointerout',this.hideTooltip);this.root.addEventListener('focusout',this.hideTooltip);this.root.addEventListener('pointerdown',this.hideTooltip);
-    window.addEventListener('keydown',this.keydown,true);window.addEventListener('resize',this.positionTutorial);window.addEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);
+    window.addEventListener('keydown',this.keydown,true);window.addEventListener('pointerdown',this.dismissMenu);window.addEventListener('resize',this.positionTutorial);window.addEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);
     this.renderHud();this.offer();
   }
   private modalChange(open:boolean):void{this.root.dataset.modal=String(open);this.hud.inert=open;this.overlay.inert=!this.confirmation.hidden;this.tooltip.hidden=true;this.onModal(open);}
@@ -110,6 +114,7 @@ export class GameUI {
   }
   private queueRender():void{if(this.renderQueued)return;this.renderQueued=true;queueMicrotask(()=>{this.renderQueued=false;if(!this.disposed)this.renderPanel();});}
   open(screen:Screen):void{
+    this.menuOpen=false;this.renderHud();
     if(screen==='forge'&&!this.state.settlement.nearForge){this.notice('Для работы с оружием подойдите к кузнице.');return;}
     this.lastFocused=document.activeElement as HTMLElement;this.screen=screen;this.selectedEntry='';this.tab=screen==='shop'?'chests':screen==='cosmetics'?'skins':'equipment';
     this.overlay.hidden=false;this.modalChange(true);this.renderPanel();
@@ -118,10 +123,11 @@ export class GameUI {
     this.overlay.querySelector<HTMLElement>('[data-action="close"]')?.focus();
   }
   close():void{this.screen=null;this.overlay.hidden=true;this.modalChange(!this.confirmation.hidden);this.lastFocused?.focus();}
-  notice(message:string):void{const toast=document.createElement('div');toast.className='r-toast';toast.textContent=message;this.addToast(toast,4300);}
+  notice(message:string):void{const toast=document.createElement('div');toast.className='r-toast';toast.textContent=localizeText(message);this.addToast(toast,4300);}
   tutorial(step:E.TutorialHudStep):void{
+    if(step.target&&this.hud.querySelector(step.target)?.closest('.r-nav')){this.menuOpen=true;this.renderHud();}
     this.activeTutorial=step;this.tutorialSpotlight.hidden=false;this.onModal(true);
-    this.tutorialPanel.innerHTML=`<div class="r-eyebrow">${step.step&&step.total?`Обучение · ${step.step} / ${step.total}`:'Подсказка'}</div><h2>${escape(step.title)}</h2><p>${escape(step.message)}</p><div class="r-actions">${button(step.sequence?'Далее':'Понятно','tutorial-next','arrow',false,'primary')}${button('Пропустить обучение','tutorial-skip','close',false,'quiet')}</div>`;
+    this.tutorialPanel.innerHTML=localizeHTML(`<div class="r-eyebrow">${step.step&&step.total?`Обучение · ${step.step} / ${step.total}`:'Подсказка'}</div><h2>${escape(step.title)}</h2><p>${escape(step.message)}</p><div class="r-actions">${button(step.sequence?'Далее':'Понятно','tutorial-next','arrow',false,'primary')}${button('Пропустить обучение','tutorial-skip','close',false,'quiet')}</div>`);
     requestAnimationFrame(this.positionTutorial);
     this.tutorialPanel.querySelector<HTMLElement>('[data-action="tutorial-next"]')?.focus();
   }
@@ -135,7 +141,7 @@ export class GameUI {
     const beat=this.activeStory;
     if(!beat)return;
     this.storyOverlay.hidden=false;this.onModal(true);
-    this.storyPanel.innerHTML=`${tag(beat.chapter,'quest')}<h1>${escape(beat.title)}</h1><p>${escape(beat.text)}</p><div class="r-story-rule"></div><div class="r-actions">${button('Продолжить','story-continue','arrow',false,'primary')}</div>`;
+    this.storyPanel.innerHTML=localizeHTML(`${tag(beat.chapter,'quest')}<h1>${escape(beat.title)}</h1><p>${escape(beat.text)}</p><div class="r-story-rule"></div><div class="r-actions">${button('Продолжить','story-continue','arrow',false,'primary')}</div>`);
     this.storyPanel.querySelector<HTMLElement>('[data-action="story-continue"]')?.focus();
   }
   private hideStory():void{
@@ -162,18 +168,21 @@ export class GameUI {
     this.tutorialPanel.style.left=left+'px';this.tutorialPanel.style.top=top+'px';
   };
   private hideTutorial():void{
+    this.menuOpen=false;this.renderHud();
     this.activeTutorial=undefined;this.tutorialSpotlight.hidden=true;this.tutorialFocus.hidden=true;this.onModal(!!this.activeStory||!!this.screen||!this.confirmation.hidden);this.showNextStory();
   }
-  levelUp(event:E.LevelUpHudEvent):void{const toast=document.createElement('div');toast.className='r-toast';toast.innerHTML=`${tag('Новый уровень','upgrade')}<h3>Уровень ${event.level}</h3><p>${escape(event.rewards.join(' · '))}</p>`;this.addToast(toast,7000);}
+  levelUp(event:E.LevelUpHudEvent):void{const toast=document.createElement('div');toast.className='r-toast';toast.innerHTML=localizeHTML(`${tag('Новый уровень','upgrade')}<h3>Уровень ${event.level}</h3><p>${escape(event.rewards.join(' · '))}</p>`);this.addToast(toast,7000);}
   private addToast(toast:HTMLElement,ms:number):void{this.toasts.append(toast);while(this.toasts.children.length>3)this.toasts.firstElementChild?.remove();const timer=setTimeout(()=>{toast.remove();this.timerIds.delete(timer);},ms);this.timerIds.add(timer);}
   private renderHud():void{
     const s=this.state,c=s.combat,p=s.progress,b=s.gathering.backpack;
     const rewards=s.bestiary.entries.reduce((total,e)=>total+(e.discovered?Array.from({length:e.level},(_,i)=>i+1).filter(level=>!e.claimedLevels.includes(level)).length:0),0);
     const danger=c.health/c.maxHealth<=.4;
+    this.root.dataset.menuOpen=String(this.menuOpen);
     reconcileDOM(this.hud,`<div class="r-top"><button class="r-vitals r-frame" data-action="open:character" title="Персонаж · P"><div class="r-level">${p.level}</div><div><small><b>Здоровье</b><span>${number(c.health)} / ${number(c.maxHealth)}</span></small>${bar(c.health,c.maxHealth)}${bar(p.xp,p.xpToNext,'xp')}</div></button><div class="r-wallet r-frame"><span title="Монеты">${icon('coins')}${number(s.gathering.storage.coins)}</span><span title="Самоцветы">${icon('gems')}${number(p.gems)}</span></div></div>
       <div class="r-hero-health ${danger?'danger':''}" ${c.health/c.maxHealth>=.8?'hidden':''}>${bar(c.health,c.maxHealth)}<small ${danger?'':'hidden'}>${number(c.health)} HP</small></div><div class="r-region"><small>RUINSTEAD</small><b>${escape(s.area)}</b></div>
       <button class="r-quest" data-action="open:quests">${tag('Текущая цель','quest')}<strong>${escape(s.quest.title)}</strong><p>${escape(s.quest.objective)}</p><small>${escape(s.quest.progress)}</small></button>
-      <nav class="r-nav" aria-label="Меню игры">${([['character','hero','Герой','P'],['bestiary','book','Бестиарий','B'],['city','home','Деревня','C'],['forge','forge','Кузница',''],['shop','shop','Магазин','M'],['cosmetics','skin','Облики',''],['settings','settings','Настройки','']] as const).map(([id,glyph,label,key])=>`<button data-action="open:${id}" title="${label}${key?' · '+key:''}" aria-label="${label}">${icon(glyph)}<span>${label}</span>${id==='bestiary'&&rewards>0?`<b class="r-badge" aria-label="${rewards} наград">${rewards}</b>`:''}</button>`).join('')}</nav>
+      <button class="r-menu-toggle r-btn" data-action="toggle-menu" aria-expanded="${this.menuOpen}" aria-controls="ruin-game-menu" aria-label="${this.menuOpen?'Закрыть меню':'Открыть меню'}">${icon(this.menuOpen?'close':'menu')}<span>Меню</span>${rewards>0?`<b class="r-badge" aria-label="${rewards} наград">${rewards}</b>`:''}</button>
+      <nav class="r-nav" id="ruin-game-menu" aria-label="Меню игры">${([['character','hero','Герой','P'],['bestiary','book','Бестиарий','B'],['city','home','Деревня','C'],['forge','forge','Кузница',''],['shop','shop','Магазин','M'],['cosmetics','skin','Облики',''],['settings','settings','Настройки','']] as const).map(([id,glyph,label,key])=>`<button data-action="open:${id}" title="${label}${key?' · '+key:''}" aria-label="${label}">${icon(glyph)}<span>${label}</span>${id==='bestiary'&&rewards>0?`<b class="r-badge" aria-label="${rewards} наград">${rewards}</b>`:''}</button>`).join('')}</nav>
       <div class="r-bottom ${danger?'r-low-health':''}"><span class="r-potion-health">${icon('health')}${number(c.health)} / ${number(c.maxHealth)}</span>${button(`${c.healthPotions}`, 'potion','potion',c.healthPotions<=0||c.healthPotionCooldownRemainingMs>0)}${button('Домой','open:home','home')}${button(`${b.usedCapacity} / ${b.capacity}`,'open:inventory','bag')}<span class="r-bag-count">Рюкзак</span></div>
       <div class="r-context">${s.interaction?button(s.interaction.label,'interact',s.interaction.kind==='chest'?'chest':'forge',false,'primary'):s.city.insideSettlement?`<span class="r-tag r-frame" style="padding:8px">${icon('health')}Безопасная зона</span>`:''}</div>`);
   }
@@ -251,15 +260,17 @@ export class GameUI {
   }
   private shop():string{
     const p=this.state.premium,m=this.state.monetization;
-    if(this.tab==='chests')return `<div class="r-detail-head"><p>Сундуки содержат фрагменты обликов.</p>${tag(`${p.gems} самоцветов`,'gems')}</div><div class="r-grid" style="margin-top:18px">${(['common','rare','epic'] as const).map((tier,i)=>{const chest=SKIN_CHESTS[tier];return `<article class="r-card" style="--rarity:${WEAPON_RARITIES[tier].color}"><div class="r-chest-art">${icon('chest')}</div><h2>${['Дорожный сундук','Редкий сундук','Эпический сундук'][i]}</h2><p>${chest.gemCost} самоцветов · 10 фрагментов</p><p class="r-muted">${Object.entries(chest.rarityWeights).filter(([,v])=>v>0).map(([r,v])=>`${WEAPON_RARITIES[r as keyof typeof WEAPON_RARITIES].name}: ${v}%`).join(' · ')}</p><div class="r-actions">${button('Открыть',`chest:${tier},gems`,'gems',p.gems<chest.gemCost||m.busy,'primary')}${p.freeSkinChests[tier]>0?button(`Бесплатно (${p.freeSkinChests[tier]})`,`chest:${tier},free`,'reward',m.busy):''}${tier==='common'?button(`Реклама (${p.rewardedCommonChestRemaining})`,`chest:${tier},rewarded`,'ad',p.rewardedCommonChestRemaining<1||m.busy||!m.enabled):''}</div></article>`;}).join('')}</div><p style="margin-top:16px" class="r-muted">Гарантия эпического сундука: ${p.epicChestPity} / 5. Облики и фрагменты находятся в разделе «Облики».</p>`;
-    if(this.tab==='supplies')return `<h2>Благословения на 3 минуты</h2><div class="r-grid">${(['damage','health','speed','gathering'] as const).map((id,i)=>`<article class="r-card">${icon(['damage','health','speed','fiber'][i],'r-hero-icon')}<h3>${['Сила +20%','Здоровье +25%','Скорость +15%','Добыча +50%'][i]}</h3><div class="r-actions">${button('Получить',`blessing:${id}`,'ad',m.busy||!m.enabled)}</div></article>`).join('')}</div><h2 style="margin-top:25px">Припасы</h2><p class="r-muted">${m.supplyCooldownRemainingMs>0?`Следующая поставка через ${Math.ceil(m.supplyCooldownRemainingMs/60000)} мин.`:'Одна поставка раз в 15 минут.'}</p><div class="r-grid" style="margin-top:13px">${Object.entries(MONETIZATION_CONFIG.supplyRewards).map(([id,count])=>`<article class="r-card"><h3>${icon(id)} ${resourceNames[id]} ×${count}</h3><div class="r-actions">${button('Получить',`supply:${id}`,'ad',m.busy||!m.enabled||m.supplyCooldownRemainingMs>0)}</div></article>`).join('')}</div><div class="r-actions">${button('Обновить боссов','boss-respawn','boss',m.busy||!m.enabled||m.bossRespawnResetCooldownRemainingMs>0)}${button('Билеты домой','open:home','ticket')}</div>`;
+    const adStatus=!m.enabled?'<p class="r-service-status" role="status">Реклама сейчас недоступна.</p>':'';
+    if(this.tab==='chests')return `${adStatus}<div class="r-detail-head"><p>Сундуки содержат фрагменты обликов.</p>${tag(`${p.gems} самоцветов`,'gems')}</div><div class="r-grid" style="margin-top:18px">${(['common','rare','epic'] as const).map((tier,i)=>{const chest=SKIN_CHESTS[tier];return `<article class="r-card" style="--rarity:${WEAPON_RARITIES[tier].color}"><div class="r-chest-art">${icon('chest')}</div><h2>${['Дорожный сундук','Редкий сундук','Эпический сундук'][i]}</h2><p>${chest.gemCost} самоцветов · 10 фрагментов</p><p class="r-muted">${Object.entries(chest.rarityWeights).filter(([,v])=>v>0).map(([r,v])=>`${WEAPON_RARITIES[r as keyof typeof WEAPON_RARITIES].name}: ${v}%`).join(' · ')}</p><div class="r-actions">${button('Открыть',`chest:${tier},gems`,'gems',p.gems<chest.gemCost||m.busy,'primary')}${p.freeSkinChests[tier]>0?button(`Бесплатно (${p.freeSkinChests[tier]})`,`chest:${tier},free`,'reward',m.busy):''}${tier==='common'?button(`Реклама (${p.rewardedCommonChestRemaining})`,`chest:${tier},rewarded`,'ad',p.rewardedCommonChestRemaining<1||m.busy||!m.enabled):''}</div></article>`;}).join('')}</div><p style="margin-top:16px" class="r-muted">Гарантия эпического сундука: ${p.epicChestPity} / 5. Облики и фрагменты находятся в разделе «Облики».</p>`;
+    if(this.tab==='supplies')return `${adStatus}<h2>Благословения на 3 минуты</h2><div class="r-grid">${(['damage','health','speed','gathering'] as const).map((id,i)=>`<article class="r-card">${icon(['damage','health','speed','fiber'][i],'r-hero-icon')}<h3>${['Сила +20%','Здоровье +25%','Скорость +15%','Добыча +50%'][i]}</h3><div class="r-actions">${button('Получить',`blessing:${id}`,'ad',m.busy||!m.enabled)}</div></article>`).join('')}</div><h2 style="margin-top:25px">Припасы</h2><p class="r-muted">${m.supplyCooldownRemainingMs>0?`Следующая поставка через ${Math.ceil(m.supplyCooldownRemainingMs/60000)} мин.`:'Одна поставка раз в 15 минут.'}</p><div class="r-grid" style="margin-top:13px">${Object.entries(MONETIZATION_CONFIG.supplyRewards).map(([id,count])=>`<article class="r-card"><h3>${icon(id)} ${resourceNames[id]} ×${count}</h3><div class="r-actions">${button('Получить',`supply:${id}`,'ad',m.busy||!m.enabled||m.supplyCooldownRemainingMs>0)}</div></article>`).join('')}</div><div class="r-actions">${button('Обновить боссов','boss-respawn','boss',m.busy||!m.enabled||m.bossRespawnResetCooldownRemainingMs>0)}${button('Билеты домой','open:home','ticket')}</div>`;
     const products:[string,string,string,boolean][]=[...Object.entries(GEM_PACKS).map(([id,n])=>[id,`${n} самоцветов`,'Валюта для сундуков, обликов и спутников.',false] as [string,string,string,boolean]),[STARTER_PACK.productId,'Набор новичка',`${STARTER_PACK.gems} самоцветов, ${STARTER_PACK.returnTickets} билетов и облик «${SKIN_DEFINITIONS[STARTER_PACK.skinId].name}».`,p.starterPackOwned],[FOUNDER_PACK.productId,'Набор основателя',`${FOUNDER_PACK.gems} самоцветов, ${FOUNDER_PACK.returnTickets} билетов и облик «${SKIN_DEFINITIONS[FOUNDER_PACK.skinId].name}».`,p.founderPackOwned],[LEVEL_PASS.productId,'Путь хранителя','Дополнительные награды на уровнях 5–50.',p.levelPassOwned],...(p.regionPackStage2Available?[['region_pack_stage_2','Набор Пепельных руин',`${REGION_PACKS.region_pack_stage_2.gems} самоцветов, 3 билета, 10 кристаллов, 20 волокна и облик.`,p.regionPackStage2Owned] as [string,string,string,boolean]]:[]),[MONETIZATION_CONFIG.adFreeWeekProductId,'Неделя без рекламы','Награды без просмотра рекламы в течение 7 дней.',m.adFreeUntil>Date.now()]];
-    return `<div class="r-grid">${products.map(([id,title,desc,owned])=>this.product(id,title,desc,owned)).join('')}</div>`;
+    const availableProducts=products.filter(([id,,,owned])=>owned||Boolean(p.purchaseCatalog[id]));
+    return availableProducts.length?`<div class="r-grid">${availableProducts.map(([id,title,desc,owned])=>this.product(id,title,desc,owned)).join('')}</div>`:'<p class="r-service-status" role="status">Покупки сейчас недоступны.</p>';
   }
-  private product(id:string,title:string,description:string,owned=false):string{const p=this.state.premium,c=p.purchaseCatalog[id];return `<article class="r-card">${icon(id.startsWith('gems')?'gems':'reward','r-hero-icon')}<h3>${escape(c?.title??title)}</h3><p>${escape(c?.description??description)}</p><div class="r-actions">${button(owned?'Получено':c?.price??'Недоступно',`purchase:${id}`,owned?'check':'shop',owned||!p.purchaseAvailable||!c||this.state.monetization.busy,'primary')}</div></article>`;}
+  private product(id:string,title:string,description:string,owned=false):string{const p=this.state.premium,c=p.purchaseCatalog[id];return `<article class="r-card">${icon(id.startsWith('gems')?'gems':'reward','r-hero-icon')}<h3>${escape(c?.title??title)}</h3><p>${escape(c?.description??description)}</p><div class="r-actions">${button(owned?'Получено':purchasePriceLabel(c),`purchase:${id}`,owned?'check':'shop',owned||!p.purchaseAvailable||!c||this.state.monetization.busy,'primary')}</div></article>`;}
   private cosmetics():string{
     const p=this.state.premium;
-    if(this.tab==='skins')return `<div class="r-actions" style="margin:0 0 18px">${button('Базовый облик','skin:','hero',!p.equippedSkinId)}</div><div class="r-cosmetic-grid">${(Object.entries(SKIN_DEFINITIONS) as [SkinId,(typeof SKIN_DEFINITIONS)[SkinId]][]).map(([id,skin])=>{const owned=p.unlockedSkinIds.includes(id),selected=p.equippedSkinId===id,rarity=SKIN_RARITIES[skin.rarity],product='productId' in skin?String(skin.productId):'';return `<article class="r-card r-skin-card ${selected?'selected':''}" style="--skin-accent:${WEAPON_RARITIES[skin.rarity].color};border-top:3px solid ${WEAPON_RARITIES[skin.rarity].color}"><div class="r-skin-stage">${this.heroImage(id)}</div>${tag(WEAPON_RARITIES[skin.rarity].name)}<h3>${skin.name}</h3><p class="r-skin-description">${HERO_SKIN_STYLES[id].description}</p><p>${describeSkinBonus(id)}</p><p class="r-muted">${owned?'Облик открыт':rarity.fragmentsToUnlock?`${p.skinFragments[id]??0} / ${rarity.fragmentsToUnlock} фрагментов`:'Особый облик'}</p><div class="r-actions">${owned?button(selected?'Надет':'Надеть',`skin:${id}`,'skin',selected):product?button(p.purchaseCatalog[product]?.price??'В наборе',`purchase:${product}`,'shop',!p.purchaseAvailable||!p.purchaseCatalog[product]):button(skin.source==='chest'?'В сундуках':'Награда набора','open:shop','chest')}</div></article>`;}).join('')}</div>`;
+    if(this.tab==='skins')return `<div class="r-actions" style="margin:0 0 18px">${button('Базовый облик','skin:','hero',!p.equippedSkinId)}</div><div class="r-cosmetic-grid">${(Object.entries(SKIN_DEFINITIONS) as [SkinId,(typeof SKIN_DEFINITIONS)[SkinId]][]).map(([id,skin])=>{const owned=p.unlockedSkinIds.includes(id),selected=p.equippedSkinId===id,rarity=SKIN_RARITIES[skin.rarity],product='productId' in skin?String(skin.productId):'';return `<article class="r-card r-skin-card ${selected?'selected':''}" style="--skin-accent:${WEAPON_RARITIES[skin.rarity].color};border-top:3px solid ${WEAPON_RARITIES[skin.rarity].color}"><div class="r-skin-stage">${this.heroImage(id)}</div>${tag(WEAPON_RARITIES[skin.rarity].name)}<h3>${skin.name}</h3><p class="r-skin-description">${HERO_SKIN_STYLES[id].description}</p><p>${describeSkinBonus(id)}</p><p class="r-muted">${owned?'Облик открыт':rarity.fragmentsToUnlock?`${p.skinFragments[id]??0} / ${rarity.fragmentsToUnlock} фрагментов`:'Особый облик'}</p><div class="r-actions">${owned?button(selected?'Надет':'Надеть',`skin:${id}`,'skin',selected):product&&p.purchaseCatalog[product]?button(purchasePriceLabel(p.purchaseCatalog[product]),`purchase:${product}`,'shop',!p.purchaseAvailable):product?tag('Особый облик'):button(skin.source==='chest'?'В сундуках':'Награда набора','open:shop','chest')}</div></article>`;}).join('')}</div>`;
     if(this.tab==='shards')return `<p style="margin-bottom:20px">Ежедневные предложения фрагментов.</p><div class="r-grid">${p.shardShopOffers.map(o=>`<article class="r-card">${this.heroImage(o.skinId)}<h3>${SKIN_DEFINITIONS[o.skinId].name}</h3><p>${o.fragments} фрагментов · ${o.gemCost} самоцветов</p><div class="r-actions">${button(o.purchased?'Получено':'Купить',`shard:${o.slot}`,'gems',o.purchased||o.unlocked||p.gems<o.gemCost,'primary')}</div></article>`).join('')}</div>`;
     if(this.tab==='pets')return `<div class="r-grid">${Object.entries(PETS).map(([id,pet])=>`<article class="r-card">${icon('elite','r-hero-icon')}<h3>${pet.name}</h3><p>Радиус подбора +${Math.round((pet.pickupRangeMultiplier-1)*100)}%</p><p>${p.ownedPets.includes(id)?'Спутник открыт':`${pet.gemCost} самоцветов`}</p><div class="r-actions">${button(p.equippedPet===id?'С вами':p.ownedPets.includes(id)?'Выбрать':'Открыть',`pet:${id}`,'check',p.equippedPet===id||!p.ownedPets.includes(id)&&p.gems<pet.gemCost)}</div></article>`).join('')}</div>`;
     return `<div class="r-grid">${Object.entries(SETTLEMENT_THEMES).map(([id,t])=>`<article class="r-card">${icon('home','r-hero-icon')}<h3>${t.name}</h3><p>${p.ownedSettlementThemes.includes(id)?'Тема открыта':`${t.gemCost} самоцветов`}</p><div class="r-actions">${button(p.equippedSettlementTheme===id?'Применено':p.ownedSettlementThemes.includes(id)?'Применить':'Открыть',`theme:${id}`,'home',p.equippedSettlementTheme===id||!p.ownedSettlementThemes.includes(id)&&p.gems<t.gemCost)}</div></article>`).join('')}</div>`;
@@ -274,27 +285,31 @@ export class GameUI {
   }
 
   private settings():string{const a=gameAudio.settings,y=getYandexPlatformState();return `<div class="r-split"><section><h2>Звук</h2><label class="r-setting">Без звука<input aria-label="Без звука" type="checkbox" data-audio="muted" ${a.muted?'checked':''}></label><label class="r-setting">Музыка<input aria-label="Громкость музыки" type="range" min="0" max="1" step=".05" value="${a.musicVolume}" data-audio="musicVolume"></label><label class="r-setting">Эффекты<input aria-label="Громкость эффектов" type="range" min="0" max="1" step=".05" value="${a.sfxVolume}" data-audio="sfxVolume"></label></section><article class="r-card">${icon('cloud','r-hero-icon')}<h2>Сохранение</h2><p>${y.authorized?'Yandex ID подключён. Облачное сохранение доступно.':y.available?'Подключите Yandex ID для облачного сохранения.':'Локальное сохранение в этом браузере.'}</p><div class="r-actions">${button(y.authorized?'Подключено':'Войти в Yandex ID','auth','cloud',!y.available||y.authorized)}</div></article></div>`;}
-  private home():string{const m=this.state.monetization,p=this.state.premium,c=p.purchaseCatalog[MONETIZATION_CONFIG.returnTicketProductId];return `<div class="r-grid"><article class="r-card">${icon('ticket','r-hero-icon')}<h2>Билет домой</h2><p>Мгновенное возвращение с ресурсами. Билетов: ${m.returnTickets}.</p><div class="r-actions">${button('Использовать билет','return:ticket','home',!m.canFastReturn||m.returnTickets<1||m.busy,'primary')}${button('За рекламу','return:rewarded','ad',!m.canFastReturn||m.busy||!m.enabled)}</div></article><article class="r-card">${icon('shop','r-hero-icon')}<h2>5 билетов</h2><p>Запас для следующих походов.</p><div class="r-actions">${button(c?.price??'Покупка недоступна','return:buy','ticket',!m.purchaseAvailable||!c||m.busy)}</div></article></div>`;}
-  private ask(title:string,body:string,action:()=>void,glyph='upgrade'):void{
-    this.confirmAction=action;this.confirmation.hidden=false;this.modalChange(true);this.confirmation.innerHTML=`<section role="alertdialog" aria-modal="true" aria-label="${escape(title)}">${icon(glyph,'r-hero-icon')}<h2>${escape(title)}</h2><p>${escape(body)}</p><div class="r-actions">${button('Подтвердить','confirm','check',false,'primary')}${button('Отмена','cancel')}</div></section>`;this.confirmation.querySelector<HTMLElement>('button')?.focus();
+  private home():string{
+    const m=this.state.monetization,p=this.state.premium,c=p.purchaseCatalog[MONETIZATION_CONFIG.returnTicketProductId];
+    return `${!m.enabled?'<p class="r-service-status">Реклама сейчас недоступна.</p>':''}<div class="r-grid"><article class="r-card">${icon('ticket','r-hero-icon')}<h2>Билет домой</h2><p>Мгновенное возвращение с ресурсами. Билетов: ${m.returnTickets}.</p><div class="r-actions">${button('Использовать билет','return:ticket','home',!m.canFastReturn||m.returnTickets<1||m.busy,'primary')}${button('За рекламу','return:rewarded','ad',!m.canFastReturn||m.busy||!m.enabled)}</div></article>${c?`<article class="r-card">${icon('shop','r-hero-icon')}<h2>5 билетов</h2><p>Запас для следующих походов.</p><div class="r-actions">${button(purchasePriceLabel(c),'return:buy','ticket',!m.purchaseAvailable||m.busy)}</div></article>`:''}</div>`;
   }
-  private cancel():void{this.confirmation.hidden=true;this.confirmation.innerHTML='';this.confirmAction=null;this.modalChange(!!this.screen);}
+  private ask(title:string,body:string,action:()=>void,glyph='upgrade'):void{
+    this.confirmAction=action;this.confirmation.hidden=false;this.modalChange(true);this.confirmation.innerHTML=localizeHTML(`<section role="alertdialog" aria-modal="true" aria-label="${escape(title)}">${icon(glyph,'r-hero-icon')}<h2>${escape(title)}</h2><p>${escape(body)}</p><div class="r-actions">${button('Подтвердить','confirm','check',false,'primary')}${button('Отмена','cancel')}</div></section>`);this.confirmation.querySelector<HTMLElement>('button')?.focus();
+  }
+  private cancel():void{this.confirmation.hidden=true;this.confirmation.innerHTML=localizeHTML('');this.confirmAction=null;this.modalChange(!!this.screen);}
   private offer():void{
     const m=this.state.monetization,o=m.offer,key=JSON.stringify([o,m.busy,m.enabled]);
     if(key===this.lastOffer)return;this.lastOffer=key;
     this.chestReward.hidden=o?.placement!=='chest_reward';
     if(o?.placement==='chest_reward'){
-      this.chestReward.innerHTML=`<section aria-label="Бонус открытого сундука"><strong>Базовая награда получена</strong><p>${escape(o.rewardText)}</p><div class="r-actions">${button('Ещё награда за рекламу','offer:watch','ad',m.busy||!m.enabled)}${button('Пропустить','offer:dismiss','close',m.busy)}</div></section>`;
+      this.chestReward.innerHTML=localizeHTML(`<section aria-label="Бонус открытого сундука"><strong>Базовая награда получена</strong><p>${escape(o.rewardText)}</p><div class="r-actions">${button('Ещё награда за рекламу','offer:watch','ad',m.busy||!m.enabled)}${button('Пропустить','offer:dismiss','close',m.busy)}</div></section>`);
       return;
     }
-    this.chestReward.innerHTML='';
+    this.chestReward.innerHTML=localizeHTML('');
     if(!o){if(this.confirmation.dataset.offer){delete this.confirmation.dataset.offer;this.cancel();}return;}
     this.confirmation.dataset.offer='true';this.confirmation.hidden=false;this.modalChange(true);
-    this.confirmation.innerHTML=`<section role="alertdialog" aria-modal="true" aria-label="${escape(o.title)}">${icon(o.placement==='death_revive'?'revive':o.placement==='boss_reward'?'boss':'chest','r-hero-icon')}<h2>${escape(o.title)}</h2><p>${escape(o.description)}</p><p style="color:#ecd28f">${escape(o.rewardText)}</p><div class="r-actions">${button(o.placement==='death_revive'?'Возродиться':o.placement==='boss_respawn'?'Возродить босса':'Получить награду','offer:watch','ad',m.busy||!m.enabled,'primary')}${button(o.placement==='death_revive'?'В поселение':o.placement==='boss_respawn'?'Пропустить':'Продолжить','offer:dismiss','arrow',m.busy)}</div><small>Дополнительная награда за просмотр рекламы</small></section>`;this.confirmation.querySelector<HTMLElement>('button:not(:disabled)')?.focus();
+    this.confirmation.innerHTML=localizeHTML(`<section role="alertdialog" aria-modal="true" aria-label="${escape(o.title)}">${icon(o.placement==='death_revive'?'revive':o.placement==='boss_reward'?'boss':'chest','r-hero-icon')}<h2>${escape(o.title)}</h2><p>${escape(o.description)}</p><p style="color:#ecd28f">${escape(o.rewardText)}</p><div class="r-actions">${button(o.placement==='death_revive'?'Возродиться':o.placement==='boss_respawn'?'Возродить босса':'Получить награду','offer:watch','ad',m.busy||!m.enabled,'primary')}${button(o.placement==='death_revive'?'В поселение':o.placement==='boss_respawn'?'Пропустить':'Продолжить','offer:dismiss','arrow',m.busy)}</div><small>Дополнительная награда за просмотр рекламы</small></section>`);this.confirmation.querySelector<HTMLElement>('button:not(:disabled)')?.focus();
   }
   private click=(event:MouseEvent):void=>{
     const target=(event.target as Element).closest<HTMLButtonElement>('[data-action]');if(!target||target.disabled)return;
     gameAudio.unlock();gameAudio.play('ui');const [action,...rest]=target.dataset.action!.split(':'),arg=rest.join(':');const w=this.selected();
+    if(action==='toggle-menu'){this.menuOpen=!this.menuOpen;this.renderHud();return;}
     if(action==='story-continue'){this.hideStory();return;}
     if(action==='tutorial-next'){const step=this.activeTutorial;if(!step)return;this.hideTutorial();if(step.sequence)this.emit(E.HUD_TUTORIAL_ADVANCE_EVENT,step.id);return;}
     if(action==='tutorial-skip'){this.hideTutorial();this.emit(E.HUD_TUTORIAL_SKIP_EVENT);return;}
@@ -322,11 +337,12 @@ export class GameUI {
   private showTooltip=(event:Event):void=>{
     const target=(event.target as Element).closest<HTMLElement>('[title],[data-tip]');if(!target)return;
     const text=target.title||target.dataset.tip;if(!text)return;target.dataset.tip=text;target.removeAttribute('title');target.setAttribute('aria-describedby',this.tooltip.id);
-    this.tooltip.textContent=text;this.tooltip.hidden=false;const rect=target.getBoundingClientRect();
+    this.tooltip.textContent=localizeText(text);this.tooltip.hidden=false;const rect=target.getBoundingClientRect();
     this.tooltip.style.left=Math.max(8,Math.min(innerWidth-this.tooltip.offsetWidth-8,rect.left+rect.width/2-this.tooltip.offsetWidth/2))+'px';
     this.tooltip.style.top=(rect.bottom+this.tooltip.offsetHeight+12<innerHeight?rect.bottom+8:Math.max(8,rect.top-this.tooltip.offsetHeight-8))+'px';
   };
   private hideTooltip=():void=>{this.tooltip.hidden=true;};
+  private dismissMenu=(event:PointerEvent):void=>{if(this.menuOpen&&!this.activeTutorial&&!(event.target as Element).closest('.r-nav,.r-menu-toggle')){this.menuOpen=false;this.renderHud();}};
   private input=(event:Event):void=>{const el=event.target as HTMLInputElement;if(el.dataset.saleQuantity){this.change(event);return;}if(el.dataset.filter==='search'){this.search=el.value;const cursor=el.selectionStart;this.renderPanel();const next=this.overlay.querySelector<HTMLInputElement>('[data-filter="search"]');next?.focus();if(cursor!==null)next?.setSelectionRange(cursor,cursor);} };
   private change=(event:Event):void=>{const el=event.target as HTMLInputElement;
     if(el.dataset.saleQuantity){const id=el.dataset.saleQuantity as SellableResource;this.saleAmounts[id]=Math.max(1,Math.min(this.state.gathering.storage[id]??0,Math.floor(Number(el.value)||1)));this.renderPanel();}
@@ -345,6 +361,7 @@ export class GameUI {
       event.stopImmediatePropagation();return;
     }
     if(document.querySelector('.world-map-modal:not([hidden])'))return;
+    if(event.code==='Escape'&&this.menuOpen){event.preventDefault();event.stopImmediatePropagation();this.menuOpen=false;this.renderHud();return;}
     if(event.code==='Escape'&&this.hasOpenPanel){event.preventDefault();event.stopImmediatePropagation();if(!this.confirmation.hidden){if(this.confirmation.dataset.offer)return;this.cancel();}else this.close();return;}
     if(this.hasOpenPanel){
       if(event.code==='Tab'){const host=this.confirmation.hidden?this.overlay:this.confirmation;const focusables=[...host.querySelectorAll<HTMLElement>('button:not(:disabled),input,select')].filter(e=>e.offsetParent!==null);const index=focusables.indexOf(document.activeElement as HTMLElement);if(focusables.length){event.preventDefault();focusables[(index+(event.shiftKey?-1:1)+focusables.length)%focusables.length].focus();}}
@@ -356,5 +373,5 @@ export class GameUI {
     if(keys[event.code]){event.preventDefault();event.stopImmediatePropagation();this.open(keys[event.code]);}
     else if(event.code==='KeyQ')this.emit(E.HUD_HEALTH_POTION_EVENT);
   };
-  destroy():void{this.disposed=true;for(const timer of this.timerIds)clearTimeout(timer);window.removeEventListener('keydown',this.keydown,true);window.removeEventListener('resize',this.positionTutorial);window.removeEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);this.tutorialSpotlight.remove();this.storyOverlay.remove();this.root.remove();this.onModal(false);}
+  destroy():void{this.disposed=true;for(const timer of this.timerIds)clearTimeout(timer);window.removeEventListener('keydown',this.keydown,true);window.removeEventListener('pointerdown',this.dismissMenu);window.removeEventListener('resize',this.positionTutorial);window.removeEventListener(YANDEX_PLATFORM_STATE_EVENT,this.platform);this.tutorialSpotlight.remove();this.storyOverlay.remove();this.root.remove();this.onModal(false);}
 }

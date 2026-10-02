@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Ruinstead · съёмка геймплея</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;background:#152d2b;color:#ecd5a5;font:14px system-ui}
+    header{padding:12px;width:1280px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    button,select,a{font:inherit;padding:8px 12px;border:1px solid #a39060;border-radius:5px;background:#2c4840;color:#f5e3ba;cursor:pointer}
+    #status{flex-basis:100%;min-height:20px}#stage{width:1280px;height:720px;position:relative;overflow:hidden}
+    iframe{position:absolute;inset:0;border:0;width:1280px;height:720px;transform-origin:top left}
+    #result{padding:16px}video{width:640px;display:block;margin-top:12px}
+    [hidden]{display:none!important}
+    body.capture{overflow:hidden}body.capture header,body.capture #result{display:none}body.capture #stage{position:fixed;inset:0}
+  </style>
+</head>
+<body>
+  <header>
+    <label>Режим <select id="device" aria-label="Режим съёмки"><option value="desktop">Десктоп</option><option value="touch">Телефон · эмуляция</option></select></label>
+    <label>Язык <select id="language" aria-label="Язык игры"><option value="ru">Русский</option><option value="en">English</option></select></label>
+    <button data-shot="forest">Бой в лесу</button><button data-shot="lava">Лавовый голем</button><button data-shot="heights">Ветреные высоты</button><button data-shot="canyon">Сухой каньон</button><button data-shot="home">Поселение</button><button data-shot="gather">Добыча кристалла</button>
+    <label>Длительность <select id="duration" aria-label="Длительность движения"><option value="1000">1 с</option><option value="2000">2 с</option><option value="4000" selected>4 с</option></select></label>
+    <button id="up">Вверх</button><button id="down">Вниз</button>
+    <button id="left">Влево</button><button id="right">Вправо</button>
+    <button id="halt">Стоп движения</button><button id="potion">Зелье</button>
+    <button id="show">Показать игровой кадр</button>
+    <button id="record">Записать 22 с · MP4</button><button id="stop" disabled>Остановить запись</button>
+    <span id="status" role="status">Тестовый профиль середины игры. Обычная экипировка, настоящий бой, без бессмертия и сохранений.</span>
+  </header>
+  <div id="stage"><iframe id="game" title="Настоящая игра Ruinstead"></iframe></div>
+  <section id="result" hidden><a id="download" download="ruinstead-gameplay.mp4">Скачать MP4</a><video id="video" controls muted></video></section>
+  <script type="module">
+    if (!import.meta.env.DEV) throw new Error('Только локальная съёмка');
+    const frame = document.querySelector('#game'), device = document.querySelector('#device');
+    const status = document.querySelector('#status'), recordButton = document.querySelector('#record'), stopButton = document.querySelector('#stop');
+    const keys = new Map(), chunks = []; let recorder, stopTimer, startedAt = 0;
+    const focusGame = () => {frame.focus();frame.contentWindow.focus();};
+    const key = (type, code) => frame.contentWindow.dispatchEvent(new KeyboardEvent(type,{keyCode:code,which:code,bubbles:true}));
+    const release = () => { for(const [code,timer] of keys){clearTimeout(timer);key('keyup',code);}keys.clear();
+      const stick=frame.contentDocument?.querySelector('.r-stick');if(stick)stick.dispatchEvent(new PointerEvent('pointerup',{pointerId:71,bubbles:true})); };
+    const move = (code,x,y) => {release();focusGame(); if(device.value==='touch'){
+        const stick=frame.contentDocument?.querySelector('.r-stick');if(!stick)return;
+        const r=stick.getBoundingClientRect();stick.dispatchEvent(new PointerEvent('pointerdown',{pointerId:71,pointerType:'touch',clientX:r.left+r.width/2+x*58,clientY:r.top+r.height/2+y*58,bubbles:true,cancelable:true}));
+        keys.set(code,setTimeout(release,Number(document.querySelector('#duration').value)));
+      } else {key('keydown',code);keys.set(code,setTimeout(release,Number(document.querySelector('#duration').value)));}
+      status.textContent='Движение через обычный ввод'; };
+    const load = () => {release();const touch=device.value==='touch';frame.style.width=touch?'896px':'1280px';frame.style.height=touch?'504px':'720px';frame.style.transform=touch?'scale(1.4285714286)':'none';
+      frame.src='/?playtest=polish&scenario=media&media=1&lang='+document.querySelector('#language').value+(touch?'&input=touch':'');status.textContent='Обычный бой в тестовом профиле. Снимки телефона — эмуляция интерфейса, не проверка физического устройства.';};
+    document.querySelector('#up').onclick=()=>move(38,0,-1);document.querySelector('#down').onclick=()=>move(40,0,1);
+    document.querySelector('#left').onclick=()=>move(37,-1,0);document.querySelector('#right').onclick=()=>move(39,1,0);
+    document.querySelector('#halt').onclick=release;
+    document.querySelector('#show').onclick=()=>{
+      const doc=frame.contentDocument;doc?.querySelector('[data-qa-capture]')?.click();focusGame();document.body.classList.add('capture');
+      // Restore tools on the next ordinary game click (for example, opening Hero
+      // to pause between takes), even when background browser timers are throttled.
+      doc?.addEventListener('click',()=>{document.body.classList.remove('capture');const panel=doc.querySelector('[data-qa-panel]');if(panel)panel.hidden=false;},{once:true});
+      setTimeout(()=>document.body.classList.remove('capture'),4000);
+    };
+    document.querySelector('#potion').onclick=()=>{key('keydown',81);setTimeout(()=>key('keyup',81),100);};
+    device.onchange=load;
+    document.querySelector('#language').onchange=load;
+    for(const button of document.querySelectorAll('[data-shot]'))button.onclick=()=>{
+      release();const doc=frame.contentDocument,region=doc?.querySelector('[aria-label="Регион проверки"]');if(!region)return;
+      doc.querySelector('.r-backdrop [data-action="close"]')?.click();
+      const menu=doc.querySelector('.r-menu-toggle[aria-expanded="true"]');menu?.click();
+      const action=label=>[...doc.querySelectorAll('[data-qa-panel] button')].find(b=>b.textContent===label)?.click();
+      const kind=button.dataset.shot;region.value=kind==='lava'?'4':kind==='heights'?'5':kind==='canyon'?'7':'1';
+      if(kind==='forest'){action('К пачке');action('В бой');}
+      else if(kind==='lava')action('Босс 4');
+      else if(kind==='home')action('Домой');
+      else if(kind==='gather'){doc.querySelector('[aria-label="Ресурс проверки"]').value='crystal';action('К ресурсу');}
+      else action('К ориентиру');
+      focusGame();status.textContent='Настоящий игровой кадр: '+button.textContent;
+    };
+    recordButton.onclick=()=>{
+      const canvas=frame.contentDocument?.querySelector('canvas[aria-hidden="true"]');
+      if(!(canvas instanceof frame.contentWindow.HTMLCanvasElement)){status.textContent='Дождитесь загрузки 3D мира.';return;}
+      const mime=['video/mp4;codecs=avc1.42E01E','video/mp4'].find(m=>MediaRecorder.isTypeSupported(m));
+      if(!mime){status.textContent='MP4 не поддержан этим браузером. Запись не начата.';return;}
+      chunks.length=0;const stream=canvas.captureStream(30);recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:7000000});
+      recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
+      recorder.onstop=()=>{clearTimeout(stopTimer);for(const track of stream.getTracks())track.stop();
+        const blob=new Blob(chunks,{type:'video/mp4'}),url=URL.createObjectURL(blob);document.querySelector('#video').src=url;
+        const reader=new FileReader();reader.onload=()=>{document.querySelector('#download').href=reader.result;document.querySelector('#result').hidden=false;status.textContent='MP4 готов · '+((performance.now()-startedAt)/1000).toFixed(1)+' с · '+(blob.size/1048576).toFixed(2)+' МБ · '+canvas.width+'×'+canvas.height+' · реальный 3D canvas, без DOM-интерфейса';};reader.readAsDataURL(blob);
+        recordButton.disabled=false;stopButton.disabled=true;};
+      startedAt=performance.now();recorder.start(1000);recordButton.disabled=true;stopButton.disabled=false;
+      focusGame();
+      status.textContent='Идёт запись настоящего 3D canvas · максимум 22 секунды';stopTimer=setTimeout(()=>recorder.state!=='inactive'&&recorder.stop(),22000);
+    };
+    stopButton.onclick=()=>{if(recorder?.state!=='inactive')recorder.stop();};
+    window.addEventListener('pagehide',()=>{release();clearTimeout(stopTimer);if(recorder?.state==='recording')recorder.stop();});
+    load();
+  </script>
+</body>
+</html>
+

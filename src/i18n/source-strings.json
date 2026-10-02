@@ -1,0 +1,5822 @@
+[
+  {
+    "ru": "Монеты · элита даёт ×4",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Ресурсы · монеты · {0} · случайная редкость",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Ресурсы · монеты",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Бестиарий: открыто — {0}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Бестиарий: открыта элитная форма — {0}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Бестиарий: {0} — уровень изучения {1}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Запись бестиария не найдена",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Нет доступной награды",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Бестиарий: награда {0} Lv.{1} получена — {2}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Исследуйте мир, чтобы открыть запись.",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Неизвестно",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Не обнаружен",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "{0} убийств · MASTER",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "{0} / {1} убийств",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "Д{0}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "К{0}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "М{0}",
+    "files": [
+      "src/game/bestiary/BestiarySystem.ts"
+    ]
+  },
+  {
+    "ru": "{0} Возрождение {1}:{2}",
+    "files": [
+      "src/game/bosses/BossSystem.ts"
+    ]
+  },
+  {
+    "ru": "Топор",
+    "files": [
+      "src/game/combat/WeaponDefinitions.ts"
+    ]
+  },
+  {
+    "ru": "Меч",
+    "files": [
+      "src/game/combat/WeaponDefinitions.ts"
+    ]
+  },
+  {
+    "ru": "Молот",
+    "files": [
+      "src/game/combat/WeaponDefinitions.ts"
+    ]
+  },
+  {
+    "ru": "Копьё",
+    "files": [
+      "src/game/combat/WeaponDefinitions.ts"
+    ]
+  },
+  {
+    "ru": "Кинжалы",
+    "files": [
+      "src/game/combat/WeaponDefinitions.ts"
+    ]
+  },
+  {
+    "ru": "Основатель",
+    "files": [
+      "src/game/cosmetics/PremiumStoreConfig.ts"
+    ]
+  },
+  {
+    "ru": "Классические руины",
+    "files": [
+      "src/game/cosmetics/PremiumStoreConfig.ts"
+    ]
+  },
+  {
+    "ru": "Зелёное возрождение",
+    "files": [
+      "src/game/cosmetics/PremiumStoreConfig.ts"
+    ]
+  },
+  {
+    "ru": "Пепельная крепость",
+    "files": [
+      "src/game/cosmetics/PremiumStoreConfig.ts"
+    ]
+  },
+  {
+    "ru": "Моховичок",
+    "files": [
+      "src/game/cosmetics/PremiumStoreConfig.ts"
+    ]
+  },
+  {
+    "ru": "Светляк",
+    "files": [
+      "src/game/cosmetics/PremiumStoreConfig.ts"
+    ]
+  },
+  {
+    "ru": "Предложение осколков недоступно",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Это предложение уже куплено сегодня",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Этот скин уже открыт",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Не хватает самоцветов",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Скин открыт: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "{0}: осколки +{1} ({2} / {3})",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Рекламные открытия этого сундука сегодня недоступны",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Нет бесплатного сундука этого типа",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Для этой редкости пока нет скинов",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Дубликат: {0} · самоцветы +{1}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Скин открыт: {0} · {1}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Базовый облик экипирован",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Этот скин ещё не открыт",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Экипирован: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Самоцветы +{0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Стартовый набор уже получен",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Стартовый набор получен",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Founder Pack уже получен",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Founder Pack получен · титул «{0}» открыт",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Level Pass активирован · доступные награды начислены",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Набор региона уже получен",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Сначала откройте этот регион",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Набор региона получен",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Legendary скин открыт: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Неизвестный товар",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Pass Lv.{0}: +{1} самоцветов",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Pass Lv.{0}: билеты ×{1}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Pass Lv.{0}: {1} сундук",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Тема поселения экипирована: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Тема поселения куплена: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Спутник выбран: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Спутник получен: {0}",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Первая охота",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Охотник на боссов",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Исследователь",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Возрождение",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Знаток мира",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Коллекционер",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Достижение «{0}» · +{1} самоцветов",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Обычный",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Необычный",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Редкий",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Эпический",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Легендарный",
+    "files": [
+      "src/game/cosmetics/PremiumSystem.ts"
+    ]
+  },
+  {
+    "ru": "Ученик углей",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Моховой страж",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Следопыт",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Лесной сборщик",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Мастер поселения",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Бронзовый налётчик",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Железное сердце",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Идущий с ветром",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Глубинный добытчик",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Ремесленник",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Багровый дуэлянт",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Каменный бастион",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Бегущий в буре",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Золотой добытчик",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Гильдейский мастер",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Клинок пустоты",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Солнечный хранитель",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Штормовой бегун",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Древний собиратель",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Архитектор руин",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Владыка феникса",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Страж титанов",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Астральный бегун",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Мудрец мирового корня",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Король руин",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Хранитель руин",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Чемпион пути",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Рождённый в пепле",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Хранитель основания",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "урона",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "здоровья",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "скорости",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "добычи",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "производства",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "радиуса подбора",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "к восстановлению рывка",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "вместимости производств",
+    "files": [
+      "src/game/cosmetics/SkinEconomy.ts"
+    ]
+  },
+  {
+    "ru": "Дерево",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Д",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "Камень",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "К",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "Металл",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "М",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "Солнечный кристалл",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "Кр",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "Сухое волокно",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "В",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts"
+    ]
+  },
+  {
+    "ru": "Монеты",
+    "files": [
+      "src/game/gathering/ResourceTypes.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Рывок",
+    "files": [
+      "src/game/input/TouchPlayerInput.ts",
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Джойстик движения",
+    "files": [
+      "src/game/input/TouchPlayerInput.ts"
+    ]
+  },
+  {
+    "ru": "Боевая подготовка",
+    "files": [
+      "src/game/progression/PlayerLevelBalance.ts"
+    ]
+  },
+  {
+    "ru": "Живучесть",
+    "files": [
+      "src/game/progression/PlayerLevelBalance.ts"
+    ]
+  },
+  {
+    "ru": "Подвижность",
+    "files": [
+      "src/game/progression/PlayerLevelBalance.ts"
+    ]
+  },
+  {
+    "ru": "Добытчик",
+    "files": [
+      "src/game/progression/PlayerLevelBalance.ts"
+    ]
+  },
+  {
+    "ru": "Управляющий",
+    "files": [
+      "src/game/progression/PlayerLevelBalance.ts"
+    ]
+  },
+  {
+    "ru": "Lv.{0}: билеты домой ×{1}",
+    "files": [
+      "src/game/progression/PlayerProgressionSystem.ts"
+    ]
+  },
+  {
+    "ru": "Lv.{0}: самоцветы +{1}",
+    "files": [
+      "src/game/progression/PlayerProgressionSystem.ts"
+    ]
+  },
+  {
+    "ru": "Lv.{0}: {1} сундук скинов ×1",
+    "files": [
+      "src/game/progression/PlayerProgressionSystem.ts"
+    ]
+  },
+  {
+    "ru": "Нет свободных очков мастерства",
+    "files": [
+      "src/game/progression/PlayerProgressionSystem.ts"
+    ]
+  },
+  {
+    "ru": "Эта ветка мастерства уже максимального ранга",
+    "files": [
+      "src/game/progression/PlayerProgressionSystem.ts"
+    ]
+  },
+  {
+    "ru": "{0}: ранг {1} / {2}",
+    "files": [
+      "src/game/progression/PlayerProgressionSystem.ts"
+    ]
+  },
+  {
+    "ru": "Обычное",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Необычное",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Редкое",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Эпическое",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Легендарное",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Слот откроется на Lv.{0}",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Такого оружия нет в инвентаре",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Один тип и одна редкость нельзя экипировать дважды",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Одно семейство оружия занимает не более двух слотов",
+    "files": [
+      "src/game/progression/WeaponInventory.ts"
+    ]
+  },
+  {
+    "ru": "Глава I · После Раскола",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Вы очнулись среди руин старого опорного пункта. На уцелевшей каменной плите вырезан знак восьми дорог — когда-то отсюда Хранители поддерживали связь между землями. Теперь дороги мертвы, а за стенами поселения бродят искажённые существа.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "В мастерских почти ничего не осталось. Если поселение должно снова стать убежищем, придётся начать с самого простого: собрать материалы и вернуть ему способность снабжать экспедиции.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Старые записи Хранителей предупреждают: всё, что вынесено из искажённых земель, легко потерять в пути. Тайник у костра был частью их экспедиционной системы и до сих пор пригоден для хранения добычи.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "На развалинах кузницы повторяется тот же знак восьми дорог. Под слоем копоти сохранилась надпись: «Сталь хранит память пути». Похоже, эта кузница была не просто ремесленной мастерской.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Чем больше восстанавливается кузница, тем отчётливее становятся старые метки на наковальне. Хранители усиливали здесь оружие перед переходами между регионами — значит, дороги можно вернуть.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Восстановленная кузница реагирует на материалы из внешних земель. Старые механизмы будто узнают оружие Хранителя. Прежде чем идти глубже, стоит проверить, что эта технология ещё работает.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Глава II · Голос алтаря",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После запуска кузницы на её плите проступил фрагмент старой карты. В лесу отмечен один уцелевший узел сети — Лесной алтарь. Если он ещё действует, он может объяснить, что произошло с дорогами.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Алтарь отвечает не словами, а памятью: огромный древесный страж когда-то охранял первую печать пути. После Раскола печать проросла скверной и исказила своего хранителя. Чтобы освободить дорогу, придётся оборвать эту связь силой.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "С гибелью Корневого колосса первая печать стихла. Алтарь показывает следующий узел за разрушенным мостом. Сам путь не восстановился — древняя сеть открывает двери, но пройти к ним всё ещё должен человек.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Глава III · Пепельный след",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "За мостом лес сменяется сухими нагорьями. Пепел здесь лежит слоями старше самого Раскола, но в нём чувствуется та же чужая сила. След ведёт дальше по цепи печатей.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Солнечный тиран удерживает вторую печать и питается её жаром. Это уже не случайное искажение: кто-то или что-то направляет энергию сети к центру материка.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Открытая печать ведёт в Теневой перевал. На камнях всё чаще встречается символ разломанного круга — знак, которого нет ни в одной старой записи поселения.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Страж перевала всё ещё выполняет древний приказ: никого не пропускать к центральному узлу. Только сам приказ давно искажён. За ним находится путь к Магмовому сердцу — месту, где сходятся несколько старых дорог.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Глава IV · Сердце дорог",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Магмовое сердце — не просто очередной регион. Здесь линии старой сети пересекаются, а камень под ногами вибрирует в такт алтарям. Именно отсюда Раскол распространился по нескольким направлениям.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Лавовый голем создан как аварийный страж центрального узла. Теперь он запечатал повреждение вместе с собой. Победа над ним рискованна, но без неё невозможно проследить источник искажения дальше.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После падения голема сеть оживает рывками. Ветреные высоты отвечают первыми: на старых башнях вновь вспыхивают знаки Хранителей, но один из них горит чужим светом.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Повелитель ветров собрал вокруг себя силу очередной печати. Освободив её, вы подтверждаете догадку: искажение движется по сети в обратную сторону — к далёкой кальдере.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Глава V · След Разлома",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепельные русла несут след той же энергии, что вы видели в Магмовом сердце. Здесь она уже не похожа на аварию древних механизмов — кто-то удерживал поток открытым после катастрофы.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепельный змей обвил собой узел сети и не даёт ему погаснуть. После его гибели поток резко слабеет, а на карте алтаря появляется путь через Сухой каньон.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "В каньоне сохранились обломки караванных дорог Хранителей. Все они когда-то сходились к одному последнему маршруту — назад через стартовые земли и дальше, к закрытой Драконьей кальдере.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Хозяин каньона носит предпоследнюю печать. Когда она гаснет, Лесной алтарь впервые показывает целую схему: источник Раскола находится в кальдере, а её хранитель всё ещё жив.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Глава VI · Последняя печать",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Драконья кальдера была закрыта ещё до падения поселения. Старые записи называют её «нулевым узлом» — местом, откуда сеть получала силу. Теперь именно оттуда идёт искажение.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Огненный дракон не создал Раскол — он стал его сосудом. Древняя печать вросла в него и не позволяет нулевому узлу погаснуть. Победа может остановить распространение скверны, но вместе с ней откроет вопрос: кто запустил сеть в таком режиме и зачем.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Память металла",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Когда горн разгорается впервые за долгие годы, на наковальне проступают восемь тонких линий. Семь из них обрываются во тьме. Одна уходит в лес. На её конце мерцает знак старого алтаря.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Память Лесного алтаря",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Камень отвечает прикосновению вспышкой чужой памяти. Вы видите восемь хранителей, стоящих у печатей пути. Затем — трещину света, проходящую через всю сеть. Первый хранитель падает на колени, а корни леса обвивают его тело.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Первая печать освобождена",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "С гибелью Корневого колосса лес на мгновение стихает. В алтаре гаснет багровая жила, а одна из восьми линий снова загорается золотом. Путь за мостом существует — осталось вернуть к нему дорогу.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "За лесом",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепел лежит здесь слоями, будто огонь приходил в нагорья задолго до Раскола. На разбитых камнях повторяется знак печати, но поверх него вырезан другой символ — разломанный круг.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Жар второй печати",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Сила покидает Солнечного тирана не наружу, а уходит глубже в землю — по старым линиям сети. Это не похоже на естественное разрушение. Кто-то направил поток к центру материка.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Знак разломанного круга",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "В Теневом перевале чужой знак встречается всё чаще. Он нанесён поверх старых символов Хранителей, будто кто-то переписал их приказы после катастрофы.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Приказ, который пережил хозяев",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Страж перевала падает, но до последнего пытается закрыть проход к центральному узлу. Его печать указывает в Магмовое сердце — место, где когда-то сходились несколько дорог одновременно.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Центральный узел",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Под раскалённой породой ощущается пульс. Линии печатей здесь не расходятся — они сходятся. Раскол не просто прошёл через Магмовое сердце. Отсюда он был разослан дальше.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Нулевой маршрут",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После падения голема центральный узел раскрывает старую схему. Среди восьми дорог есть девятая, не отмеченная на обычных картах. Она ведёт к узлу без номера — в Драконью кальдеру.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Сигнал в высотах",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "На ветреных башнях вновь загораются знаки Хранителей. Большинство светится ровно, но один отвечает багровым импульсом — тем же, что вы видели в памяти Лесного алтаря.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "След поворачивает назад",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Освобождённая печать показывает направление потока. Искажение не распространяется от центра наружу — оно тянется обратно, к далёкой кальдере, словно сеть что-то питает.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Поток, который не должен был жить",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепельные русла совпадают с линиями старой сети. Кто-то удерживал их открытыми уже после катастрофы. Раскол был событием, но его последствия поддерживали намеренно.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Перекрытый поток",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Когда Пепельный змей отпускает узел, багровый поток впервые заметно слабеет. На алтарной карте появляется путь через каньон — к предпоследней печати.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Дороги Хранителей",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "В каньоне сохранились остатки караванных путей. Все они сходились к маршруту, которого нет на новых картах. Хранители знали о кальдере и пытались что-то оттуда вывезти перед Расколом.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Семь линий из восьми",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Предпоследняя печать гаснет. Схема становится почти полной: все освобождённые линии указывают в Драконью кальдеру. Там находится источник питания сети — Нулевой узел.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Нулевой узел",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Кальдера встречает вас тишиной и жаром. Здесь нет следов обычной жизни Хранителей — только огромные каналы, уходящие к центру. Это место строили не для людей. Оно питало всю сеть.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Сосуд, а не источник",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Дракон падает, и багровый свет в каналах меркнет. Последняя печать освобождена. Но в памяти Нулевого узла остаётся один образ: человеческая фигура у панели управления незадолго до Раскола. Кто-то запустил сеть намеренно. Дракон лишь пережил последствия.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Первый выход",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Выйдите за пределы безопасной зоны поселения.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Идите по дороге на восток, к Опушке.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Материалы для ремонта",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Соберите 10 единиц дерева.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Деревья с зелёным кольцом за поселением дают древесину при подходе.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 10 дерева",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Вернуться с добычей",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Сдайте 10 дерева в походный тайник.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Вернитесь в поселение и подойдите к тайнику рядом с костром.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 10 на складе",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Начать восстановление",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Выполните первый этап ремонта кузницы.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Подойдите к развалинам кузницы и используйте действие E.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 1 этап",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Вернуть кузницу",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Восстановите кузницу полностью.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Собирайте дерево, камень и металл и завершите все три стадии.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 3 этапа",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Стать сильнее",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Купите любое постоянное улучшение.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Откройте восстановленную кузницу и выберите улучшение героя или оружия.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "В глубину леса",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Найдите Лесной алтарь в Сердце леса.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Лесной алтарь отмечен золотым знаком ! на миникарте и карте мира (Tab). Идите к нему в восточной части региона 1.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Найден",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Не найден",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Хозяин первой зоны",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Победите Корневого колосса.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Подготовьтесь в кузнице и найдите главного босса в глубине региона 1.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Побеждён",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Жив",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Дорога в Пепельные нагорья",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Восстановите мост между регионами 1 и 2.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После победы над Корневым колоссом подойдите к разрушенному мосту и вложите 20 дерева, 10 камня и 4 металла.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Мост восстановлен",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Мост разрушен",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепельные нагорья",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Перейдите в регион 2.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пройдите по восстановленному мосту. Кристалл и волокно доступны сразу за входом.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Регион исследован",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Не посещён",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Солнечный тиран",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите главного босса региона 2.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Ищите Солнечного тирана в дальней части Пепельных нагорий.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Теневой перевал",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Войдите в регион 3 через открытые Солнечные врата.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Проход из региона 2 ведёт на север, в Теневой перевал.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Страж перевала",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите главного босса региона 3.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Страж перевала охраняет путь к центральному Магмовому сердцу.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Магмовое сердце",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Войдите в регион 4.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После открытия региона одновременно становится доступен короткий путь 4 ↔ 1.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Лавовый голем",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите усиленного босса региона 4.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Лавовый голем сильнее обычных главных боссов и возрождается вдвое дольше.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Ветреные высоты",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Войдите в регион 5.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После открытия региона работают оба прохода: из 4 и из уже открытого 3.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Повелитель ветров",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите главного босса региона 5.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Ищите его на дальней площадке Ветреных высот.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепельные русла",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Войдите в регион 6.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "К региону ведут проходы из 5 и центрального региона 4.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Пепельный змей",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите главного босса региона 6.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Исследуйте русла и найдите арену Пепельного змея.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Сухой каньон",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Войдите в регион 7.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "После открытия становятся доступны пути 6 ↔ 7, 4 ↔ 7 и короткая дорога 7 ↔ 1.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Хозяин каньона",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите главного босса региона 7.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Эта победа открывает путь из стартового региона к Драконьей кальдере.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Драконья кальдера",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Войдите в регион 8.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Единственный путь в кальдеру идёт из региона 1.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Огненный дракон",
+    "files": [
+      "src/game/quests/QuestDirector.ts",
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Победите финального усиленного босса.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Огненный дракон — самый опасный противник релизной карты и возрождается вдвое дольше.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Надёжный добытчик",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Трижды вернитесь в поселение с добычей.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Не обязательно заполнять рюкзак полностью — важны успешные возвращения.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 3 возвращения",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Любимое оружие",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Прокачайте любое оружие до 3 уровня.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Улучшайте выбранное оружие в восстановленной кузнице.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 3 уровень",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "История пройдена",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Эпилог · Открытые дороги",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Основная цепь печатей восстановлена. Поселение снова связано с регионами, но происхождение Раскола остаётся неизвестным — это задел для следующей сюжетной главы.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Все восемь регионов и Огненный дракон пройдены.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Готово",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Можно усиливать оружие, закрывать бестиарий и повторно фармить боссов.",
+    "files": [
+      "src/game/quests/QuestDirector.ts"
+    ]
+  },
+  {
+    "ru": "Ушастый обитатель руин с коротким топором и кожаным поясом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Округлое студенистое тело растекается у земли и пружинит при движении.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Коренастый лесной зверь с мощными клыками и жёсткой щетиной.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Живой гриб под широкой пятнистой шляпкой. Распространяет опасные споры.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Шестиногий жук с разделённым надвое панцирем и крепкими жвалами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Длинноногий шакал с узкой мордой и острыми ушами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Оживший столб песчаника. Вокруг светящегося ядра парят обломки.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Пустынный скорпион с широкими клешнями и поднятым жалом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Крылатая каменная горгулья. Рога и когти высечены из той же породы, что и руины.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Живая искра в оболочке из тлеющих углей.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Разбойник в тёмном капюшоне. Вооружён парными клинками.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Крупный нетопырь с перепончатыми крыльями и длинными ушами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Восьминогий паук с раздутым ядовитым брюшком и парой клыков.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Тёмный кошачий хищник с длинным хвостом. Держится у скальных троп.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Блуждающий свет, окружённый кольцом осколков сумеречного камня.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Небольшой рогатый бес с крыльями, когтями и тонким хвостом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Тяжёлая гончая с угольной шкурой и раскалённым гребнем.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Жук с острыми пластинами обсидиана на шестиногом теле.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Человек в пепельной мантии с ритуальным посохом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Массивные глыбы удерживаются вместе раскалённым сердцем.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Крылатая женщина с оперёнными руками и цепкими птичьими лапами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Каменный великан с тяжёлыми кулаками и светящимися рунами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Светлый горный хищник с широкими лапами и гибким хвостом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Спираль ветра вокруг парящего небесного кристалла.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Горный козёл с высокими рогами и крепкими копытами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Приземистая ящерица с широкими лапами и длинным огненным хвостом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Заклинатель в закрытой мантии. Несёт посох с пепельным камнем.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Багровый скорпион, прячущийся в трещинах русел.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Парящий кристалл, вокруг которого вращаются маленькие призмы.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Молодой четырёхлапый дракон с рогатой головой и небольшими крыльями.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Налётчик в песчаном плаще и маске, вооружённый двумя клинками.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Сухопарый степной шакал с костяными отметинами на морде.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Бронированный червь с кольчатым телом и круглой зубастой пастью.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Собран из ржавых пластин, заклёпок и обломков механизмов.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Пустынный филин с крупными глазами и рыжим оперением.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Служитель дракона в алой мантии с огненным навершием посоха.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Багровый дракон на четырёх лапах с длинным хвостом и короткими крыльями.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Двуногий крылатый ящер. Передние конечности образуют перепончатые крылья.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Длинный безногий змей с раскалённым гребнем и раздвоенным языком.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Воин в чешуйчатой броне с рогатым шлемом, мечом и щитом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Мшистый огр с широкой челюстью, массивными руками и тяжёлой дубиной.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Вепрь с кристаллическими наростами вдоль спины и огромными клыками.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Древний ходячий дуб. Его руки — ветви, ноги — переплетённые корни.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Древняя матриархиня скорпионов с широкими клешнями и тяжёлым жалом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Голем из призматических глыб с открытым сияющим ядром.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Венценосный воин в солнечной броне с большим мечом и щитом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Крупный ночной хищник с гривой из тёмных шипов.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Огромная восьминогая паучиха с ядовитым брюшком.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Закованный в тяжёлую броню хранитель перевала.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Исполинский кузнец в кожаном фартуке с двуручным молотом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Могучий четырёхлапый зверь с гребнем из обсидиана.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Исполин из чёрных глыб. Из трещин и открытого сердца льётся лава.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Предводительница гарпий с широкими крыльями и венцом из перьев.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Скальный исполин с плечами из огромных монолитов.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Крылатый владыка высокогорья с длинным оперением и светлым венцом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Древняя саламандра с огненным гребнем и тяжёлым хвостом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Высший жрец в кристальном венце с длинным ритуальным посохом.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Огромный змей с пепельными чешуями и раскалённой пастью.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Король налётчиков с короной и двумя широкими клинками.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Исполинский песчаный червь с кольцами брони и венцом зубов.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Древний песчаный колосс, собравший тело из скал каньона.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Древняя двуногая виверна с широкими крыльями и длинными рогами.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Король магмовых змеев с костяным воротником и пылающим гребнем.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Четырёхлапый огненный дракон. Огромные крылья, рогатая голова и шипастый хвост.",
+    "files": [
+      "src/game/render3d/CreatureCatalog.ts"
+    ]
+  },
+  {
+    "ru": "Угольный капюшон, медные застёжки и знак тлеющего пламени.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Дубовая броня, венец из ветвей и наплечники из живых листьев.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Лёгкий капюшон с пером, походный ранец и короткая синяя накидка.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Широкополая шляпа, связка поленьев и кожаные наручи.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Рабочий фартук, пояс с инструментами и защитные очки.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Чеканная бронза, рогатый шлем и алый походный плащ.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Закрытое забрало, широкие железные латы и сердечник на груди.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Маска странника, белые перья и тонкий бирюзовый шарф.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Шахтёрский фонарь, каменные накладки и рюкзак с кристаллами.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Медные очки, зубчатые наплечники и свитки с чертежами.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Багровая маска, высокий плюмаж и серебряные доспехи.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Шлем-крепость, массивные каменные плечи и руна защиты.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Крылатый шлем и белые перья над морской синевой плаща.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Золотая шляпа, листовая броня и корзина трофеев.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Гильдейский берет, сливовый камзол и золотые знаки ремесла.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Глухая маска, обсидиановые шипы и парящий знак пустоты.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Солнечный венец, кремовые латы и золотой ореол за плечами.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Грозовая маска, ледяной гребень и крылья из стальных перьев.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Маска лесного духа, ветвистая корона и старые корни за спиной.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Геометрический венец, лиловая мантия и пояс древнего зодчего.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Корона пламени и распахнутые крылья феникса в алом золоте.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Рогатый шлем титана, монолитные плечи и светящийся сердечник.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Звёздный капюшон, кристальная корона и двойная астральная орбита.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Ветви мирового древа, нефритовые листья и янтарное сердце леса.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Зубчатая корона, меховой воротник и королевский бордовый плащ.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Нефритовый шлем хранителя, серебряные латы и длинный белый плащ.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Шлем чемпиона с высоким гребнем и аметистовые боевые наплечники.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Чёрный вулканический доспех с раскалёнными разломами и угольной короной.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "Корона основателя, синий парадный мундир и золотые печати города.",
+    "files": [
+      "src/game/render3d/HeroSkinStyles.ts"
+    ]
+  },
+  {
+    "ru": "ДЕРЕВО",
+    "files": [
+      "src/game/render3d/ResourceVisual3D.ts"
+    ]
+  },
+  {
+    "ru": "КАМЕНЬ",
+    "files": [
+      "src/game/render3d/ResourceVisual3D.ts"
+    ]
+  },
+  {
+    "ru": "РУДА",
+    "files": [
+      "src/game/render3d/ResourceVisual3D.ts"
+    ]
+  },
+  {
+    "ru": "КРИСТАЛЛ",
+    "files": [
+      "src/game/render3d/ResourceVisual3D.ts"
+    ]
+  },
+  {
+    "ru": "ВОЛОКНО",
+    "files": [
+      "src/game/render3d/ResourceVisual3D.ts"
+    ]
+  },
+  {
+    "ru": "Походный тайник",
+    "files": [
+      "src/game/render3d/ReturnCamp3D.ts"
+    ]
+  },
+  {
+    "ru": "Сдать добычу",
+    "files": [
+      "src/game/render3d/ReturnCamp3D.ts"
+    ]
+  },
+  {
+    "ru": "Лесной алтарь",
+    "files": [
+      "src/game/render3d/WorldPresentation3D.ts",
+      "src/game/world/ForestZone.ts"
+    ]
+  },
+  {
+    "ru": "Склад",
+    "files": [
+      "src/game/render3d/WorldPresentation3D.ts",
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Лесопилка",
+    "files": [
+      "src/game/render3d/WorldPresentation3D.ts",
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Мастерская",
+    "files": [
+      "src/game/render3d/WorldPresentation3D.ts",
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Дом",
+    "files": [
+      "src/game/render3d/WorldPresentation3D.ts",
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Кузница",
+    "files": [
+      "src/game/render3d/WorldPresentation3D.ts",
+      "src/game/ui/GameUI.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Сначала восстановите кузницу",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Нужен Склад Lv.1",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Нужны Лесопилка и Мастерская Lv.1",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Буфер производства: {0}",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "+{0} дерева / 30с",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Производит дерево",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "+{0} камня +{1} металла / 30с",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Производит камень и металл",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "+{0} монет / 30с · жителей +{1}",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Даёт жителей и монеты",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "{0} · руины",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Кладовщик",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Лесоруб",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Мастер",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Жители ×{0}",
+    "files": [
+      "src/game/settlement/CityBuilderSystem.ts"
+    ]
+  },
+  {
+    "ru": "Развалины",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Площадка расчищена",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts"
+    ]
+  },
+  {
+    "ru": "Каркас кузницы",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts"
+    ]
+  },
+  {
+    "ru": "Кузница восстановлена",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts"
+    ]
+  },
+  {
+    "ru": "Кузнец",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts"
+    ]
+  },
+  {
+    "ru": "E · Кузница",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts"
+    ]
+  },
+  {
+    "ru": "E · Восстановить кузницу",
+    "files": [
+      "src/game/settlement/SettlementSystem.ts"
+    ]
+  },
+  {
+    "ru": "Кристаллы",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Волокно",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Самоцветы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Персонаж",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Бестиарий",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Поселение",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Лавка странника",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Облики и спутники",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Дневник путешествия",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Настройки",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Возвращение домой",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Рюкзак и склад",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} из 5 звёзд",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Интерфейс Ruinstead",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Для работы с оружием подойдите к кузнице.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Обучение · {0} / {1}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Подсказка",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Далее",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Понятно",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Пропустить обучение",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Продолжить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Уровень {1}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Новый уровень",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Здоровье",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Меню",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Рюкзак",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Персонаж · P",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Меню игры",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Текущая цель",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Закрыть меню",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Открыть меню",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} наград",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Герой",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Деревня",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Магазин",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Облики",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Домой",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0}Безопасная зона",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Снаряжение",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Характеристики",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Мастерство",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сундуки",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Припасы и усиления",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Наборы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Фрагменты",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Спутники",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Esc · вернуться в мир",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Закрыть",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Атлас живого мира",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Путь хранителя",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Максимальный уровень",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{1}: доступно {2}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Модель героя",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Модель существа",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Порядок",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сначала сильное",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "По редкости",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "По звёздам",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сортировка оружия",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Все",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "{6} · ур. {7} · {8} шт.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{9} урона",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Оружия этого типа пока нет.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Очки мастерства: {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Новые очки открываются каждые пять уровней.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Урон +3% за ранг",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Максимальное здоровье +4%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Скорость +2%, перезарядка рывка −4%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Выход ресурсов +5%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Производство и вместимость +5%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Изучить за 1 очко",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Уровень {2}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{3}{4} / {5} опыта",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Выберите слот, затем оружие из коллекции.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Макс. здоровье",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Вместимость",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} / 5 слотов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Уровень {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Пустой слот",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Закрыто",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Основное",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Орбита {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} урона",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{2} · ур. {3}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{13}{14} урона к слоту {15}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "В слот",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Снять",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Урон за удар",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "с",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Интервал атаки",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Урон на орбите",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Скорость",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "ед./с",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "мест",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "мс перезарядки",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Характеристики можно улучшать в любом месте за ресурсы со склада. Значения показаны без временных усилений.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Уровень {2} / {3}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Улучшить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Максимум",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Возродите кузницу",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Этап {1} / {2}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Восстановление откроет улучшение и слияние оружия.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Для ремонта подойдите к кузнице.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Восстановить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сначала получите оружие.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Коллекция оружия",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Уровень {6} / 10",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Текущий урон",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "После улучшения",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Повысить уровень",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Слияние",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} → {1} звёзд",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Пять звёзд достигнуты",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Нужно 2 одинаковых экземпляра. В коллекции: {0}.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "После 32 базовых копий выпадает другое оружие той же редкости. Если собрано всё — материалы.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Объединить два экземпляра",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Для повышения уровня подойдите к кузнице. Слияние доступно из любой точки мира.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Все регионы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{3} / 8 закрыто",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Фильтр по регионам",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Регион полностью изучен",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Доступно наград: {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Фильтр по региону",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Полностью изучен",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Наград: {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} записей",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} / {1} открыто · {2} изучено полностью",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{5} Есть награды",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{6} Регион закрыт полностью",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Поиск существа",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Название существа",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Ранг",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "/ 8 регионов закрыто",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "8 регионов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Все ранги",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Обычные",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Элита",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Боссы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Награда",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Босс",
+    "files": [
+      "src/game/ui/GameUI.ts",
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Регион {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Ещё не обнаружен",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Существа с такими условиями не найдены.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Обитает",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{11} Слабость",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{13} Сопротивление",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Изучение вида · уровень {17} / 5",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Награда: {22}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "К списку",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Обычный вид",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Элитный вид",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Встретьте это существо, чтобы открыть его описание.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Урон",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Элитный",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} побед",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "· Элитных побеждено: {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Забрать награду",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Продолжайте исследование",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Поселение · уровень {0}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Производство",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Цикл производства: {4} с",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} жителей",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Забрать",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Забрать ×2",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Для строительства вернитесь в поселение.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Реклама сейчас недоступна.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сундуки содержат фрагменты обликов.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Гарантия эпического сундука: {3} / 5. Облики и фрагменты находятся в разделе «Облики».",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} самоцветов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{3} самоцветов · 10 фрагментов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Дорожный сундук",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Редкий сундук",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Эпический сундук",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Открыть",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Бесплатно ({0})",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Реклама ({0})",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Благословения на 3 минуты",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Припасы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сила +20%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Здоровье +25%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Скорость +15%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Добыча +50%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Получить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Следующая поставка через {0} мин.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Одна поставка раз в 15 минут.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Обновить боссов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Билеты домой",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Валюта для сундуков, обликов и спутников.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Набор новичка",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} самоцветов, {1} билетов и облик «{2}».",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Набор основателя",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Дополнительные награды на уровнях 5–50.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Набор Пепельных руин",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} самоцветов, 3 билета, 10 кристаллов, 20 волокна и облик.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Неделя без рекламы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Награды без просмотра рекламы в течение 7 дней.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Покупки сейчас недоступны.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Получено",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Базовый облик",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Облик открыт",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} / {1} фрагментов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Особый облик",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Надет",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Надеть",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "В сундуках",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Награда набора",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Ежедневные предложения фрагментов.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{2} фрагментов · {3} самоцветов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Купить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Радиус подбора +{2}%",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Спутник открыт",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "С вами",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Выбрать",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Тема открыта",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Применено",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Применить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Текущая задача",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Прогресс",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Побочное задание",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Рюкзак · {0} / {1}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Ресурсы переносятся на склад при возвращении в поселение. Монеты не занимают места, но добытые в походе выпадают при смерти.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Продажа со склада",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Выберите ресурс и количество. Выручка останется в поселении.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Продажа доступна в безопасной зоне поселения.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "С собой",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "На складе",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Вес: 0",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "За 1 шт.: {0} {1}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Количество",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Количество: {4}",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Продать ·",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Звук",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Без звука",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Музыка",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Эффекты",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Сохранение",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Громкость музыки",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Громкость эффектов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Yandex ID подключён. Облачное сохранение доступно.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Подключите Yandex ID для облачного сохранения.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Локальное сохранение в этом браузере.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Подключено",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Войти в Yandex ID",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Билет домой",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Мгновенное возвращение с ресурсами. Билетов: {2}.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Использовать билет",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "За рекламу",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "5 билетов",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Запас для следующих походов.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Подтвердить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Отмена",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Базовая награда получена",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Бонус открытого сундука",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Ещё награда за рекламу",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Пропустить",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Дополнительная награда за просмотр рекламы",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Возродиться",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Возродить босса",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Получить награду",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "В поселение",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Продать ресурс",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} ×{1} → {2} монет. Ресурс будет списан со склада.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Слияние оружия",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Два экземпляра «{0}» ({1} звёзд) станут одним с {2} звёздами. Материалы будут списаны со склада.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Открыть покупку",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} · {1}. Окончательное подтверждение — в окне Яндекса.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Открыть сундук",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Стоимость: {0} самоцветов.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Купить фрагменты",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} фрагментов за {1} самоцветов.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Открыть навсегда",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "{0} · {1} самоцветов.",
+    "files": [
+      "src/game/ui/GameUI.ts"
+    ]
+  },
+  {
+    "ru": "Модель временно недоступна",
+    "files": [
+      "src/game/ui/ModelPortraits.ts"
+    ]
+  },
+  {
+    "ru": "Недоступно",
+    "files": [
+      "src/game/ui/PurchasePrice.ts"
+    ]
+  },
+  {
+    "ru": "Открыть карту мира",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Карта мира · Tab",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Окрестности",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Карта · Tab",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Карта мира",
+    "files": [
+      "src/game/ui/WorldMap.ts",
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "RUINSTEAD · КАРТА МИРА",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Вернуться в игру · Esc",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Ориентиры",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Редкие",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Вы здесь",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Цель задания",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Главный босс",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Закрытый переход",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Игра приостановлена. Ресурсы отмечены только там, где ещё доступны для добычи.",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Переход",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Изобилие ресурсов Кристаллы: {0}/5 Волокно: {1}/5",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Вы здесь: {0}{1}",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "между регионами",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "С",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "5 с",
+    "files": [
+      "src/game/ui/WorldMap.ts"
+    ]
+  },
+  {
+    "ru": "Восстановленный мост",
+    "files": [
+      "src/game/world/BridgeSystem.ts"
+    ]
+  },
+  {
+    "ru": "Разрушенный мост",
+    "files": [
+      "src/game/world/BridgeSystem.ts"
+    ]
+  },
+  {
+    "ru": "E · Восстановить мост 20 дерева · 10 камня · 4 металла",
+    "files": [
+      "src/game/world/BridgeSystem.ts"
+    ]
+  },
+  {
+    "ru": "Сундук пуст",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "Сундук ресурсов",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "Открыть сундук · E",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "В рюкзаке недостаточно места для содержимого сундука",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "Сундук открыт:",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "дерево ×{0}",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "кристалл ×{0}",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "волокно ×{0}",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "металл ×{0}",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "камень ×{0}",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "монеты ×{0}",
+    "files": [
+      "src/game/world/ChestSystem.ts"
+    ]
+  },
+  {
+    "ru": "Заросшие ворота",
+    "files": [
+      "src/game/world/ForestZone.ts"
+    ]
+  },
+  {
+    "ru": "Старый пень",
+    "files": [
+      "src/game/world/ForestZone.ts"
+    ]
+  },
+  {
+    "ru": "Каменный круг",
+    "files": [
+      "src/game/world/ForestZone.ts"
+    ]
+  },
+  {
+    "ru": "Проход закрыт · регион {0}",
+    "files": [
+      "src/game/world/RegionGateSystem.ts"
+    ]
+  },
+  {
+    "ru": "Мшистые террасы",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Выветренные нагорья",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Сланцевый разлом",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Базальтовые ступени",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Известняковые седловины",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Минеральные русла",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Красный песчаник",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Обсидиановая кальдера",
+    "files": [
+      "src/game/world/RegionGeography.ts"
+    ]
+  },
+  {
+    "ru": "Заросший лес",
+    "files": [
+      "src/game/world/ReleaseRegionMap.ts"
+    ]
+  },
+  {
+    "ru": "Гоблин",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Хобгоблин",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Слизень",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Старший слизень",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Кабан",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Вожак кабанов",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Грибник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Старший грибник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Панцирник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Матёрый панцирник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пыльный шакал",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Вожак шакалов",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Песчаник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Древний песчаник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Солнечный скорпион",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Золотой скорпион",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Руинный страж",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Крылатый страж",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Искровик",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пылающий искровик",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Сумрачный разбойник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Ночной душегуб",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пещерный нетопырь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Кровавый нетопырь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Ядовитый паук",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Матка перевала",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Скальный охотник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Старший охотник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Сумеречный огонёк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Безлунный огонёк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Огненный бес",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пламенный бес",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Магмовый пёс",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Адский гончий",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Обсидиановый жук",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Чёрный панцирник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Культист пепла",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Жрец пепла",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Лавовый элементаль",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Сердце лавы",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Горная гарпия",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Штормовая гарпия",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Каменный элементаль",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Древний монолит",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Горный хищник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Белогривый хищник",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Дух ветра",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Дух бури",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Горный козёл",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Камнерог",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Саламандра",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Раскалённая саламандра",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Культист русел",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пепельный пророк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Овражный скорпион",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Багровый скорпион",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Кристальный огонёк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Призматический огонёк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Угольный дракончик",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пепельный дракончик",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Каньонный налётчик",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Главарь налётчиков",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Степной шакал",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Костяной шакал",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Песчаный червь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Старший червь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Ломовой голем",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Железный голем",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пустынный филин",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Краснокрылый филин",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Огненный культист",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Драконий жрец",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Дрейк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Багровый дрейк",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Виверна",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Королевская виверна",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Магмовый змей",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Древний магмовый змей",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Драконий страж",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Первый страж",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Мшистый громила",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Кристальный вепрь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Корневой колосс",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пепельная матриархиня",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Призменный голем",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Ночной преследователь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Ядовитая матка",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Пепельный кузнец",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Обсидиановый зверь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Каменный великан",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Древняя саламандра",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Кристальный жрец",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Король налётчиков",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Великий песчаный червь",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Древняя виверна",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Владыка магмовых змеев",
+    "files": [
+      "src/game/world/ReleaseWorldContent.ts"
+    ]
+  },
+  {
+    "ru": "Врата открыты",
+    "files": [
+      "src/game/world/StageTwoGateSystem.ts"
+    ]
+  },
+  {
+    "ru": "Солнечные врата",
+    "files": [
+      "src/game/world/StageTwoGateSystem.ts"
+    ]
+  },
+  {
+    "ru": "Руины поселения",
+    "files": [
+      "src/game/world/WorldPrototype.ts"
+    ]
+  },
+  {
+    "ru": "Межрегиональный проход",
+    "files": [
+      "src/game/world/WorldPrototype.ts"
+    ]
+  },
+  {
+    "ru": "Не удалось открыть мир. Попробуйте загрузить игру снова.",
+    "files": [
+      "src/main.ts"
+    ]
+  },
+  {
+    "ru": "Лимит копий: замена →",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Вся оружка этой редкости собрана: +{0} кристаллов, +{1} волокна на склад",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0} выполнена: {1} · +●{2} · +XP поселения {3}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Доп. цель",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Цель",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Теперь пригодится Бестиарий: там показаны слабости, сопротивления и награды за убийства. Он находится в меню справа.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Добыча сначала попадает в рюкзак. Его заполнение показано снизу; вернитесь в поселение, чтобы сохранить собранные ресурсы.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Зелья здоровья закончились",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Здоровье уже полное",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Зелье ещё перезаряжается",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Сейчас нельзя использовать зелье",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Последний шанс",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Один раз можно воскреснуть прямо здесь и продолжить этот бой. Если погибнете ещё раз — вернётесь домой.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0}% HP · рюкзак сохранён",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Поражение: рюкзак выпал на месте смерти — {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Поражение: рюкзак был пуст",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Зелья здоровья пополнены",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Добыча сохранена: {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "дерево +{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "камень +{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "металл +{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "кристалл +{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "волокно +{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "монеты +{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "ничего",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Первая победа: +{0} самоцветов",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0} повержен! Кинжалы открыты · Сердце корней получено · теперь можно восстановить мост{1}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "· выпал билет домой",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "· Ядро магмы: +10% добычи навсегда · Rare-сундук ×1 · билеты ×2",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "· Сердце дракона: +10% урона навсегда · Epic-сундук ×1 · 80 самоцветов · билеты ×5",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0} повержен!{1}{2}{3}{4}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "· открыт регион {0}: {1}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "· билет домой ×1",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0} повержен! Финальный босс мира побеждён{1}{2}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0} повержен{1}{2} · босс возродится позже",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "· выпало: {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "билет домой ×1",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Удвоить обычную награду босса?",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Повторяются ресурсы, монеты, выпавший билет и обычная копия оружия. Уникальные предметы и прогресс региона не дублируются.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Забрать содержимое сундука ещё раз?",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Обычная награда уже ваша. Активируйте бонус, чтобы получить ещё одну такую же.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Воскрешение не получено · можно повторить просмотр или выбрать смерть",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Награда не получена",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Воскрешение использовано · следующая смерть окончательная",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Награда босса получена повторно",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Дополнительная награда сундука: {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Босс возродился · следующий рекламный сброс доступен через час",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Удвоение производства не получено",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Производство ×2: {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Благословение не получено",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Благословение активно 3 минуты",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Благословение закончилось",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Возродить: {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Бонус полностью сбросит текущий таймер этого босса. Следующий такой сброс будет доступен через час.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "100% сброс таймера",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Продано: {0} · +{1} монет на склад",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Быстрый возврат в поселение",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Покупка не завершена",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Получено билетов домой: ×{0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Без рекламы активировано на 7 дней · rewarded-награды доступны без просмотра",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Покупка начислена · подтверждение будет повторено при следующем запуске",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Редкое снабжение откроется вместе со вторым регионом",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Поставка не получена",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Снабжение доставлено: {0} +{1}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Лимит рекламных Common-сундуков на сегодня исчерпан",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Сундук не открыт",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Level Pass уже активен",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Сначала откройте второй регион",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Этот Legendary скин уже открыт",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Кузница уже восстановлена",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Не хватает ресурсов на следующий этап ремонта",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Кузница восстановлена! В поселении появился кузнец",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Ремонт кузницы: этап {0} / 3",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Не хватает ресурсов для улучшения",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Достигнут максимальный уровень",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Улучшение героя выполнено",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Не хватает ресурсов для улучшения этого экземпляра оружия",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Этот экземпляр оружия уже максимального уровня",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0}: уровень {1} · {2} {3} · {4} урона",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Выбрано: {0} · {1} Lv.{2} {3}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Для слияния нужны два одинаковых оружия той же редкости и той же звёздности",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Не хватает ресурсов на слияние оружия",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0}: {1} теперь {2} · {3} урона",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Здание уже максимального уровня",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Сначала выполните требование предыдущего здания",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Не хватает ресурсов на улучшение здания",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "{0}: уровень {1}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Здание",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Производство пока пусто",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Производство получено: {0}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Открыто: Лесной алтарь · цель первой зоны достигнута",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Открыть кузницу · E",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Восстановить мост · E",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Вы рядом с кузницей. Нажмите E для взаимодействия. Здесь улучшается и сливается оружие; характеристики героя доступны из меню персонажа в любом месте.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Для моста нужно: 20 дерева · 10 камня · 4 металла. В рюкзаке: {0} / {1} / {2}",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Мост восстановлен из ресурсов рюкзака · проход во вторую зону открыт",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Открыт регион {0}: {1} · +25 самоцветов",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Слот {0}: {1} {2} экипирован",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Оружие не экипировано",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Здоровье и уровень",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Здесь всегда видны здоровье, уровень и опыт. Нажатие открывает экран персонажа.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Слева закреплена текущая сюжетная цель. Откройте её, чтобы увидеть прогресс, награду и следующую подсказку.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Персонаж и оружие",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "В «Герое» находятся снаряжение, характеристики и мастерство. Новые слоты оружия открываются с уровнем.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Бестиарий хранит сведения о врагах, их слабостях, сопротивлениях и наградах за изучение.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Откройте карту здесь или клавишей Tab. Золотая корона отмечает главного босса — его победа продвигает регион.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Собранные ресурсы сначала попадают в рюкзак. Вместимость ограничена — возвращайтесь домой, чтобы сохранить добычу.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Обучение интерфейсу отключено",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Уклоняйтесь рывком. Меню героя находится справа: основное оружие в руках, остальные экипированные оружия летают вокруг, а слоты открываются на уровнях 5, 10, 15 и 20.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Рывок и снаряжение",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Рывок освоен. Исследуйте регион, собирайте ресурсы и помните про карту на Tab: бой сам по себе не блокирует сбор и взаимодействия.",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  },
+  {
+    "ru": "Исследуйте свободно",
+    "files": [
+      "src/scenes/WorldScene.ts"
+    ]
+  }
+]

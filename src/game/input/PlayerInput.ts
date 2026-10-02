@@ -13,6 +13,8 @@ export interface PlayerInputSource {
 }
 
 export function detectInputMode(): InputMode {
+  const captureParams = new URLSearchParams(location.search);
+  if (import.meta.env.DEV && captureParams.get('playtest') === 'polish' && ['new','media'].includes(captureParams.get('scenario')??'') && captureParams.get('media') === '1' && captureParams.get('input') === 'touch') return 'touch';
   const coarsePointer =
     window.matchMedia?.('(pointer: coarse)').matches ?? false;
 

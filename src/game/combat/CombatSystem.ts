@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import { healthAfterMaxChange } from './CombatMath';
 import type { OrbitalWeaponState } from './CombatVisualState';
 import { OrbitalAttack } from './OrbitalAttack';
@@ -1136,10 +1137,10 @@ export class CombatSystem {
         this.scene.add.text(
           0,
           0,
-          WEAPON_DEFINITIONS[
+          localizeText(WEAPON_DEFINITIONS[
             entry.profile.weaponId
           ].shortName
-            .slice(0, 1),
+            .slice(0, 1)),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -1411,7 +1412,7 @@ export class CombatSystem {
         .text(
           position.x,
           position.y - 76,
-          `+${amount}`,
+          localizeText(`+${amount}`),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -1450,7 +1451,7 @@ export class CombatSystem {
         .text(
           position.x,
           position.y - 70,
-          `-${amount}`,
+          localizeText(`-${amount}`),
           {
             fontFamily:
               'system-ui, sans-serif',

@@ -26,6 +26,15 @@ const state:GameUIState={
   monetization:{enabled:true,busy:false,returnTickets:5,canFastReturn:true,purchaseAvailable:false,activeBlessing:null,bossRespawnResetCooldownRemainingMs:0,supplyCooldownRemainingMs:0,adFreeUntil:0,offer:null},
   premium:{gems:1200,purchaseAvailable:false,rewardedCommonChestRemaining:3,freeSkinChests:{common:2,rare:1,epic:0},epicChestPity:3,skinFragments:{'ember-initiate':20},unlockedSkinIds:['moss-guard'],equippedSkinId:'moss-guard',starterPackOwned:false,founderPackOwned:false,levelPassOwned:false,regionPackStage2Owned:false,regionPackStage2Available:true,ownedSettlementThemes:['default'],equippedSettlementTheme:'default',ownedPets:[],equippedPet:null,shardShopOffers:[{slot:0,skinId:'ember-initiate',rarity:'common',fragments:10,gemCost:60,purchased:false,unlocked:false}],purchaseCatalog:{}},area:'Теневой перевал',
 };
+if(new URLSearchParams(location.search).has('catalog')){
+  state.premium.purchaseAvailable=true;
+  state.monetization.purchaseAvailable=true;
+  state.premium.purchaseCatalog={
+    starter_pack:{title:'Набор новичка',description:'Проверка отображения цены · тестовый каталог',price:'25 TEST',currencyIconUrl:'/src/game/qa/currency-fixture.svg'},
+    return_tickets_5:{title:'5 билетов',description:'Проверка отображения цены · тестовый каталог',price:'10 TEST',currencyIconUrl:'/src/game/qa/currency-fixture.svg'},
+    legendary_skin_phoenix:{title:'Владыка феникса',description:'Проверка отображения цены · тестовый каталог',price:'50 TEST',currencyIconUrl:'/src/game/qa/currency-fixture.svg'},
+  };
+}
 const log=document.createElement('output');log.style.cssText='position:fixed;bottom:2px;left:50%;z-index:100;color:white;background:#142b2d;font:11px system-ui;pointer-events:none';document.body.append(log);
 const ui=new GameUI(state,(event,...args)=>{log.textContent=event+' '+JSON.stringify(args);if(event===E.HUD_MONETIZATION_ACTION_EVENT)ui.update('monetization',{...state.monetization,offer:null});},()=>{});
 const fixtures=document.createElement('nav');fixtures.style.cssText='position:fixed;top:2px;left:45%;z-index:100;display:flex;gap:4px';

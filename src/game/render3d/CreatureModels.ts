@@ -65,7 +65,22 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
   let floating=false,core=25,scorpionTail:T.Group|undefined;
   const wing=(side:number,y:number,scale=1,feathers=false):void=>{
     const w=pivot(body,side*14,y,-4);w.scale.set(side*scale,scale,scale);wings.push(w);
-    if(!feathers){const membrane=mesh(w,wingGeometry,accent,0,0,0,1);membrane.material=new T.MeshStandardMaterial({color:accent,roughness:.85,side:T.DoubleSide,flatShading:true});}
+    if(!feathers){
+      const fire=id==='fire-dragon',geometry=fire?wingGeometry.clone():wingGeometry;
+      if(fire){
+        const positions=geometry.getAttribute('position'),colors:number[]=[];
+        const rootColor=new T.Color(0x6d2929),middleColor=new T.Color(0xca4b2c),edgeColor=new T.Color(0xeea54c);
+        for(let i=0;i<positions.count;i++){
+          const span=Math.max(0,Math.min(1,positions.getX(i)/62));
+          const color=span<.5?rootColor.clone().lerp(middleColor,span*2):middleColor.clone().lerp(edgeColor,(span-.5)*2);
+          colors.push(color.r,color.g,color.b);
+        }
+        geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
+      }
+      const membrane=mesh(w,geometry,accent,0,0,0,1);
+      membrane.material=new T.MeshStandardMaterial({color:fire?0xffffff:accent,roughness:fire?.65:.85,side:T.DoubleSide,flatShading:true,vertexColors:fire,emissive:fire?0x7b260d:0,emissiveIntensity:fire?.18:0});
+      membrane.userData.ownedMaterial=true;
+    }
     bone(w,primary,[0,0,0],[24,24,-12],3);bone(w,primary,[24,24,-12],[62,4,-32],2);
     if(!feathers){bone(w,primary,[24,24,-12],[34,-18,-25],1.5);bone(w,primary,[24,24,-12],[9,-27,-15],1.3);}
     if(feathers) for(let n=0;n<9;n++) { const f=ball(w,n%2?accent:primary,8+n*6,3+n*1.3,-9-n*2.4,5,21-n*.6,3);f.rotation.z=-.65; }

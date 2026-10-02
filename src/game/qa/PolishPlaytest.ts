@@ -3,7 +3,7 @@ import { createDefaultGameState, type GameState } from '../state/GameState';
 import type { EnemySystem } from '../enemies/EnemySystem';
 import type { PlayerController } from '../player/PlayerController';
 import { getPassageMidpoint, pointInRegion, RELEASE_PASSAGES, RELEASE_REGIONS } from '../world/ReleaseRegionMap';
-import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
+import { RETURN_POINT } from '../world/WorldPrototype';
 import { BOSS_ARENAS } from '../bosses/BossArenas';
 import { FORGE_POSITION } from '../settlement/SettlementSystem';
 import type { CombatSystem } from '../combat/CombatSystem';
@@ -51,12 +51,28 @@ export function polishStateStore() {
       primarySlot:0,
     };
   }
+  if(new URLSearchParams(location.search).get('scenario')==='media'){
+    // Achievable mid-game equipment. Normal enemies, damage, cooldowns and death.
+    state.progression.playerLevel=20;
+    state.player.maxHealthLevel=8;state.player.backpackLevel=8;
+    state.player.unlockedWeaponIds=[...WEAPON_ORDER];
+    state.player.weaponInventory={
+      variants:WEAPON_ORDER.map(weaponId=>({weaponId,rarity:'common',level:4,starCounts:[0,1,0,0,0,0]})),
+      equipped:Object.fromEntries(WEAPON_ORDER.map(id=>[id,{rarity:'common',stars:1}])),
+      loadout:WEAPON_ORDER.map(weaponId=>({weaponId,rarity:'common',stars:1})),primarySlot:0,
+    };
+    state.world.bossRespawnAt={};
+  }
   return {load:()=>state,save:(value:GameState)=>value};
 }
 export function installPolishPlaytest(player: PlayerController, enemies: EnemySystem,combat:CombatSystem,bosses:BossSystem,presentation?:WorldPresentation3D,resources?:ResourceSystem,chests?:ChestSystem): ()=>void {
+  // Media capture uses the ordinary new-game fixture without the QA overlay.
+  const captureParams = new URLSearchParams(location.search);
+  if (import.meta.env.DEV && captureParams.get('scenario') === 'new' && captureParams.get('media') === '1') return () => {};
   const panel=document.createElement('details');
   panel.style.cssText='position:fixed;right:8px;bottom:8px;z-index:100;background:#152c30ef;color:#eed9aa;border:1px solid #b99b60;border-radius:7px;padding:6px 10px;font:12px system-ui;max-width:min(640px,90vw);max-height:42vh;overflow:auto';
   const summary=document.createElement('summary');summary.textContent='Проверка · без сохранения';panel.append(summary);
+  panel.dataset.qaPanel='true';
   const controls=document.createElement('div');
   panel.append(controls);
   const select=document.createElement('select');select.setAttribute('aria-label','Регион проверки');
@@ -64,9 +80,9 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   const output=document.createElement('div');output.setAttribute('role','status');
   const initial=enemies.visualUnits.find(e=>e.definition.region===1&&e.rank==='normal')!;
   let pack=enemies.visualUnits.filter(e=>e.groupId===initial.groupId);
-  const choose=()=>{const first=enemies.visualUnits.find(e=>e.definition.region===Number(select.value)&&e.rank==='normal')!;pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);};
+  const choose=()=>{const first=enemies.visualUnits.find(e=>e.definition.region===Number(select.value)&&e.rank==='normal');if(!first)return;pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);};
   const button=(label:string,action:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=action;controls.append(b);};
-  controls.append(select);button('К пачке',choose);button('В бой',()=>{player.teleport(pack[0].spawn.x,pack[0].spawn.y+90);});button('Домой',()=>player.teleport(SETTLEMENT_CENTER.x,SETTLEMENT_CENTER.y+260));controls.append(output);document.body.append(panel);
+  controls.append(select);button('К пачке',choose);button('В бой',()=>{player.teleport(pack[0].spawn.x,pack[0].spawn.y+90);});button('Домой',()=>player.teleport(RETURN_POINT.x,RETURN_POINT.y));controls.append(output);document.body.append(panel);
   button('К ориентиру',()=>{
     const region=RELEASE_REGIONS[Number(select.value)-1],site=GEOGRAPHY_LANDMARKS.find(p=>p.region===region.id);
     if(!site)return;
@@ -115,6 +131,8 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   });
   let protectedView=false;
   const protection=document.createElement('button');protection.textContent='Защита: выкл';protection.onclick=()=>{protectedView=!protectedView;protection.textContent=protectedView?'Защита: вкл':'Защита: выкл';};controls.append(protection);
+  const capture=document.createElement('button');capture.textContent='Чистый кадр · 4 с';capture.dataset.qaCapture='true';
+  capture.onclick=()=>{panel.hidden=true;setTimeout(()=>{panel.hidden=false;},4000);};controls.append(capture);
   let lastFrames=presentation?.renderStats.frames??0,lastFrameTime=performance.now();
   const timer=setInterval(()=>{
     if(protectedView&&combat.state.health>0)combat.restoreForLevelUp();

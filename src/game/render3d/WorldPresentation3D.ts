@@ -18,7 +18,7 @@ import { FORGE_POSITION } from '../settlement/SettlementSystem';
 import { FOREST_HEART } from '../world/ForestZone';
 import { regionNormalizedDistance, RELEASE_PASSAGES, RELEASE_REGIONS, type RegionPassage } from '../world/ReleaseRegionMap';
 import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
-import { createBuilding, createChest, createCreature, createHero, createSceneryProp, type AnimatedModel } from './Models';
+import { createBuilding, createForge, createChest, createCreature, createHero, createSceneryProp, type AnimatedModel } from './Models';
 
 import { terrainHeight, passageHeight, TERRAIN_PASSAGES } from '../world/WorldTerrain';
 import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './TerrainMeshes';
@@ -26,6 +26,8 @@ import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './Terra
 import { createBossTelegraph, disposeBossTelegraph, updateBossTelegraph } from './BossTelegraph3D';
 import { HeroOcclusion3D } from './HeroOcclusion3D';
 import { ResourceVisual3D } from './ResourceVisual3D';
+import { RenderVisibility } from './RenderVisibility';
+import { ReturnCamp3D } from './ReturnCamp3D';
 import {
   weaponAttackAnimationMs,
 } from './WeaponAnimation';
@@ -107,6 +109,7 @@ export class WorldPresentation3D {
   private readonly landRegions = new Map<number, THREE.Group>();
   private readonly chunks = new Map<string, THREE.Group>();
   private readonly actors = new Map<EnemyUnit | BossUnit, Actor>();
+  private readonly view = new RenderVisibility();
   private readonly effects = new CombatEffects3D();
   private readonly orbitingWeapons = new OrbitingWeapons3D();
   private readonly shownHits = new WeakMap<EnemyUnit | BossUnit,number>();
@@ -117,6 +120,7 @@ export class WorldPresentation3D {
     new THREE.MeshStandardMaterial({color:0xffcf5a,metalness:.38,roughness:.3,emissive:0xa96914,emissiveIntensity:.2}),128);
   private readonly coinTransform=new THREE.Object3D();
   private readonly settlement = new THREE.Group();
+  private readonly returnCamp = new ReturnCamp3D();
   private readonly bridges = new Map<string, { group: THREE.Group; centerX: number; centerZ: number; gate: THREE.Group; gap: THREE.Group }>();
   private readonly buildingGroups = new Map<string, { level: number; model: THREE.Group }>();
   private readonly forestAltar = createForestAltar();
@@ -127,6 +131,7 @@ export class WorldPresentation3D {
 
   private lastRectWidth = 0;
   private lastRectHeight = 0;
+  private readonly resourceLabelLayer = document.createElement('div');
   private resizeObserver?: ResizeObserver;
 
   constructor(
@@ -141,6 +146,8 @@ export class WorldPresentation3D {
     private readonly getCoinDrops:()=>Array<{x:number;y:number;scale:number}> = ()=>[],
     private readonly getOrbitals:()=>OrbitalWeaponState[] = ()=>[],
     private readonly getActiveQuestId:()=>string|null = ()=>null,
+    private readonly getForgeRepairStage:()=>number = ()=>0,
+    private readonly hasCarriedLoot:()=>boolean = ()=>false,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, stencil:true, powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
@@ -159,6 +166,8 @@ export class WorldPresentation3D {
     canvas.style.zIndex = '1';
     canvas.style.pointerEvents = 'none';
     canvas.style.margin = '0';
+    Object.assign(this.resourceLabelLayer.style, {position: 'absolute', zIndex: '3', pointerEvents: 'none', overflow: 'hidden'});
+    parent.appendChild(this.resourceLabelLayer);
     phaser.game.canvas.style.position = 'relative';
     phaser.game.canvas.style.zIndex = '2';
     phaser.game.canvas.style.background = 'transparent';
@@ -193,6 +202,8 @@ export class WorldPresentation3D {
     this.lastHeroX = player.sprite.x;
     this.lastHeroY = player.sprite.y;
     this.createSettlement();
+    // Added after settlement batching: the fire and deposit ring remain animated.
+    this.settlement.add(this.returnCamp.root);
     this.scene.add(this.settlement);
     this.forestAltar.root.position.set(
       FOREST_HEART.x,
@@ -219,6 +230,7 @@ export class WorldPresentation3D {
     canvas.style.top = `${rect.top - parentRect.top}px`;
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
+    Object.assign(this.resourceLabelLayer.style, {left: canvas.style.left, top: canvas.style.top, width: canvas.style.width, height: canvas.style.height});
     if (Math.abs(rect.width - this.lastRectWidth) < 1 && Math.abs(rect.height - this.lastRectHeight) < 1) return;
     this.lastRectWidth = rect.width;
     this.lastRectHeight = rect.height;
@@ -288,6 +300,7 @@ export class WorldPresentation3D {
     const target = new THREE.Vector3(x, groundHeight + 36, z + 35);
     this.camera.position.copy(target).add(new THREE.Vector3(0, 1250, 1080));
     this.camera.lookAt(target);
+    this.view.update(this.camera);
     this.sun.position.set(x - 460, groundHeight + 950, z + 410);
     this.sunTarget.position.set(x, groundHeight, z);
 
@@ -296,6 +309,7 @@ export class WorldPresentation3D {
     (this.scene.background as THREE.Color).setHex(palette[1]).multiplyScalar(0.86);
     (this.scene.fog as THREE.Fog).color.copy(this.scene.background as THREE.Color);
     this.settlement.visible = Math.hypot(x - SETTLEMENT_CENTER.x, z - SETTLEMENT_CENTER.y) < 2100;
+    this.returnCamp.update(time,x,z,this.hasCarriedLoot());
     for (const [id, bridge] of this.bridges) {
       bridge.group.visible = Math.hypot(x - bridge.centerX, z - bridge.centerZ) < 1900;
       const passage = RELEASE_PASSAGES.find((item) => item.id === id)!;
@@ -307,7 +321,7 @@ export class WorldPresentation3D {
       this.landRegions.get(region.id)!.visible = Math.hypot(x-region.center[0], z-region.center[1]) < Math.hypot(region.radiusX,region.radiusY)+2100;
     }
     const labelScale=(this.camera.top-this.camera.bottom)/Math.max(1,this.lastRectHeight);
-    const labelWidth=this.lastRectHeight<600?128:164;
+    const labelWidth=this.lastRectHeight<600?145:164;
     this.settlement.traverse(o=>{if(o instanceof THREE.Sprite&&o.userData.buildingLabel){o.scale.set(labelWidth*labelScale,labelWidth/5.125*labelScale,1);}});
     this.updateTerrain(x, z);
     this.updateActors(dt, x, z,time);
@@ -441,8 +455,20 @@ export class WorldPresentation3D {
         this.shownHits.set(unit,hit.at);
       }
       if (!unit.alive || Math.abs(unit.sprite.x - x) > 1750 || Math.abs(unit.sprite.y - z) > 1750) continue;
-      visible.add(unit);
       let actor = this.actors.get(unit);
+      const actorGround=terrainHeight(unit.sprite.x,unit.sprite.y);
+      const actorHeight=Number(actor?.model.root.userData.visualHeight??Math.max(140,unit.combatRadius*5));
+      if(!this.view.includes(unit.sprite.x,actorGround,unit.sprite.y,unit.combatRadius*2,actorHeight)){
+        if(actor){
+          // Keep nearby models cached across the screen edge, but stop their
+          // animation and shadow submission while safely outside the frame.
+          visible.add(unit);actor.model.root.visible=false;actor.health.visible=false;
+          if(actor.telegraph)actor.telegraph.visible=false;
+          actor.lastX=unit.sprite.x;actor.lastY=unit.sprite.y;
+        }
+        continue;
+      }
+      visible.add(unit);
       if (!actor) {
         const model = createCreature(unit.definition.id, unit.definition.primaryColor, unit.definition.accentColor, 'rank' in unit ? unit.rank === 'elite' : true, unit.combatRadius);
         // Grounded shadows remain readable on dark terrain and under foliage.
@@ -464,11 +490,12 @@ export class WorldPresentation3D {
       }
       const px = unit.sprite.x;
       const pz = unit.sprite.y;
+      actor.model.root.visible=true;
       const velocity = unit.sprite.body as Phaser.Physics.Arcade.Body | null;
       const vx = velocity?.velocity.x ?? (px - actor.lastX) / Math.max(dt, 0.001);
       const vz = velocity?.velocity.y ?? (pz - actor.lastY) / Math.max(dt, 0.001);
       const speed = Math.hypot(vx, vz);
-      actor.model.root.position.set(px, terrainHeight(px, pz) + 4, pz);
+      actor.model.root.position.set(px, actorGround + 4, pz);
       if (speed > 5) actor.model.root.rotation.y = Math.atan2(vx, vz);
       else if ('rank' in unit) actor.model.root.rotation.y = Math.atan2(unit.visualFacing.x, unit.visualFacing.y);
       else {
@@ -488,7 +515,7 @@ export class WorldPresentation3D {
       const boss = !('rank' in unit);
       const ratio = Math.max(0, Math.min(1, unit.visualHealthRatio));
       actor.health.visible = boss || ratio < 0.999 || ('rank' in unit && unit.rank === 'elite');
-      actor.health.position.set(px, terrainHeight(px, pz) + Number(actor.model.root.userData.visualHeight ?? (boss ? 180 : 96)) + 18, pz);
+      actor.health.position.set(px, actorGround + Number(actor.model.root.userData.visualHeight ?? (boss ? 180 : 96)) + 18, pz);
       actor.health.quaternion.copy(this.camera.quaternion);
       actor.healthFill.scale.x = Math.max(0.001, ratio);
       actor.healthFill.position.x = -(boss ? 88 : 58) * (1 - ratio) / 2;
@@ -522,13 +549,17 @@ export class WorldPresentation3D {
     for (const node of this.resourceSystem.visualNodes) {
       const distance = Math.hypot(node.x - x, node.y - z);
       if ((!node.available && time - node.hitAt > 500) || distance > 1750) continue;
-      visible.add(node.id);
       let visual = this.resources.get(node.id);
+      if(!this.view.includes(node.x,terrainHeight(node.x,node.y),node.y,80,node.type==='wood'?300:150)){
+        if(visual){visible.add(node.id);visual.root.visible=false;visual.hideLabel();}
+        continue;
+      }
+      visible.add(node.id);
       if (!visual) {
-        visual = new ResourceVisual3D(node, islandAt(node.x,node.y).region);
+        visual = new ResourceVisual3D(node, islandAt(node.x,node.y).region, this.resourceLabelLayer);
         this.resources.set(node.id,visual);this.scene.add(visual.root);
       }
-      visual.update(node,time,distance,this.camera);
+      visual.root.visible=true;visual.update(node,time,distance,this.camera);
     }
     for(const [id,visual] of this.resources) if(!visible.has(id)) { visual.destroy();this.resources.delete(id); }
   }
@@ -696,29 +727,7 @@ export class WorldPresentation3D {
       block.position.set(baseX+Math.cos(angle)*64,terrainHeight(baseX,baseZ-138)+64+Math.sin(angle)*64,baseZ-138);
       block.rotation.z=angle-Math.PI/2;block.castShadow=block.receiveShadow=true;this.settlement.add(block);
     }
-    const forge = new THREE.Group();
-    const f = (geo: THREE.BufferGeometry, color: number, xx: number, yy: number, zz: number): void => {
-      const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, roughness: 0.85, flatShading: true }));
-      mesh.position.set(xx, yy, zz); mesh.castShadow = mesh.receiveShadow = true; forge.add(mesh);
-    };
-    f(new THREE.BoxGeometry(110, 42, 75), 0x77716c, 0, 21, 0);
-    f(new THREE.CylinderGeometry(18, 24, 100, 8), 0x595655, -35, 88, -20);
-    f(new THREE.BoxGeometry(52, 11, 35), 0x484e50, 55, 48, 0);
-    f(new THREE.BoxGeometry(24,27,22),0x414647,55,31,0);
-    f(new THREE.ConeGeometry(15,28,4),0x667273,91,48,0);
-    for(let row=0;row<3;row++)for(let col=0;col<4;col++)f(new THREE.BoxGeometry(24,12,14),row%2?0x8d8173:0xa39480,-42+col*26+(row%2)*5,8+row*13,42);
-    for(const x of [-79,30])f(new THREE.BoxGeometry(10,145,10),0x5e4430,x,73,-40);
-    f(new THREE.BoxGeometry(144,12,12),0x785635,-24,144,-40);
-    f(new THREE.BoxGeometry(153,10,110),0x485f68,-24,155,-32);
-    for(let i=0;i<7;i++)f(new THREE.BoxGeometry(5,5,114),0x6b7e80,-95+i*23,162,-32);
-    f(new THREE.BoxGeometry(38,13,34),0x8b5334,-65,29,36);
-    f(new THREE.BoxGeometry(45,6,39),0x4b3428,-65,38,36);
-    const coals=new THREE.Mesh(new THREE.IcosahedronGeometry(17,0),new THREE.MeshStandardMaterial({color:0xee903d,emissive:0xe86519,emissiveIntensity:1.3,roughness:1}));coals.position.set(0,49,14);coals.scale.set(1.3,.5,1);forge.add(coals);
-    const light = new THREE.PointLight(0xff9c4a, 2800, 160, 2);
-    light.position.set(0, 68, 14); forge.add(light);
-    forge.position.set(FORGE_POSITION.x, terrainHeight(FORGE_POSITION.x, FORGE_POSITION.y), FORGE_POSITION.y);
-    forge.add(buildingLabel('Кузница',185,'forge'));
-    this.settlement.add(forge);
+
     this.settlement.traverse(o=>{if(o instanceof THREE.Mesh)o.userData.settlementOwned=true;});
     batchStaticMeshes(this.settlement);
     this.settlement.traverse(o=>{if(o instanceof THREE.Mesh&&!o.userData.settlementOwned)o.userData.settlementOwned=true;});
@@ -732,15 +741,24 @@ export class WorldPresentation3D {
       if (old) { disposeBuildingLabels(old.model);disposeBatchedGeometry(old.model);old.model.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();}); this.settlement.remove(old.model); }
       const model = createBuilding(building.id, building.level);
       const names:Record<string,string>={storage:'Склад',sawmill:'Лесопилка',workshop:'Мастерская',house:'Дом'};
-      model.add(buildingLabel(names[building.id],190+building.level*6,building.id,building.level));
+      model.add(buildingLabel(names[building.id],building.level>0?190+building.level*6:105,building.id,building.level));
       model.position.set(building.x, terrainHeight(building.x, building.y), building.y);
       model.rotation.y = building.id === 'house' ? 0.2 : building.id === 'workshop' ? -0.24 : 0;
       this.settlement.add(model);
       this.buildingGroups.set(building.id, { level: building.level, model });
     }
+    const stage=this.getForgeRepairStage(),oldForge=this.buildingGroups.get('forge');
+    if(oldForge?.level===stage)return;
+    if(oldForge){disposeBuildingLabels(oldForge.model);disposeBatchedGeometry(oldForge.model);this.settlement.remove(oldForge.model);}
+    const forge=createForge(stage);
+    forge.position.set(FORGE_POSITION.x,terrainHeight(FORGE_POSITION.x,FORGE_POSITION.y),FORGE_POSITION.y);
+    forge.add(buildingLabel('Кузница',stage===0?105:185,'forge'));
+    this.settlement.add(forge);
+    this.buildingGroups.set('forge',{level:stage,model:forge});
   }
 
   destroy(): void {
+    this.returnCamp.dispose();
     disposeBuildingLabels(this.settlement);
     disposeBuildingLabels(this.forestAltar.root);
     disposeSettlementScenery(this.settlement);
@@ -760,6 +778,7 @@ export class WorldPresentation3D {
     this.phaser.cameras.main.setVisible(true);
     for (const visual of this.resources.values()) visual.destroy();
     this.resources.clear();
+    this.resourceLabelLayer.remove();
     for (const actor of this.actors.values()) {
       actor.model.dispose?.();
       if (actor.telegraph) disposeBossTelegraph(actor.telegraph);

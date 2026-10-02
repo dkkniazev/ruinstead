@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { localizeText } from '../../i18n/Localize';
 import { createCreature, createHero, type AnimatedModel } from '../render3d/Models';
 import type { SkinId } from '../cosmetics/SkinEconomy';
 
@@ -42,5 +43,5 @@ export function modelPortrait(id: string, primary: number, accent: number, elite
 }
 export function fillPortrait(image: HTMLImageElement, id: string, primary: number, accent: number, elite = false, radius?: number, skinId?:SkinId): void {
   const isCurrent=()=>image.isConnected&&image.dataset.model===id&&Number(image.dataset.primary)===primary&&Number(image.dataset.accent)===accent&&(image.dataset.elite==='true')===elite&&(Number(image.dataset.radius)||undefined)===radius&&image.dataset.skin===skinId;
-  void modelPortrait(id, primary, accent, elite, radius, skinId).then(src=>{if(isCurrent())image.src=src;}).catch(()=>{if(isCurrent())image.alt='Модель временно недоступна';});
+  void modelPortrait(id, primary, accent, elite, radius, skinId).then(src=>{if(isCurrent())image.src=src;}).catch(()=>{if(isCurrent())image.alt=localizeText('Модель временно недоступна');});
 }

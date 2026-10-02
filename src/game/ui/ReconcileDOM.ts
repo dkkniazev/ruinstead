@@ -1,6 +1,8 @@
+import { localizeDOM } from '../../i18n/Localize';
 /** Preserve live button nodes while combat/production numbers update. */
 export function reconcileDOM(host: HTMLElement, html: string): void {
   const template=document.createElement('template');template.innerHTML=html;
+  localizeDOM(template.content);
   function sync(parent:Node, source:Node):void{
     const incoming=[...source.childNodes];
     for(let i=0;i<incoming.length;i++){

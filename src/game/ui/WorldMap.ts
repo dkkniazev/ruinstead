@@ -1,3 +1,4 @@
+import { localizeText, localizeHTML } from '../../i18n/Localize';
 import { RELEASE_REGIONS, RELEASE_PASSAGES, RELEASE_WORLD_WIDTH, RELEASE_WORLD_HEIGHT, getRegionAt, getPassageGeometry, type RegionPassage } from '../world/ReleaseRegionMap';
 import { icon } from './GameIcons';
 import { REGION_RESOURCE_PROFILES } from '../economy/RegionEconomy';
@@ -21,39 +22,47 @@ export class WorldMap {
   private obscured = false;
   private lastUpdate = -Infinity;
   private filter: 'landmarks' | 'rare' | 'all' = 'rare';
+  private readonly mapSizeObserver = new ResizeObserver(() => this.positionMenu());
+  private readonly positionMenu = (): void => {
+    const rect = this.mini.getBoundingClientRect();
+    if (rect.height > 0) document.documentElement.style.setProperty('--r-map-bottom', `${Math.ceil(rect.bottom)}px`);
+  };
 
   constructor(private readonly isOpen: (passage: RegionPassage) => boolean, private readonly onToggle: (open: boolean) => void) {
     this.mini.className = 'world-minimap'; this.mini.type = 'button'; this.mini.dataset.tutorial = 'map';
-    this.mini.setAttribute('aria-label', 'Открыть карту мира');
-    this.mini.title = 'Карта мира · Tab';
+    this.mini.setAttribute('aria-label', localizeText('Открыть карту мира'));
+    this.mini.title = localizeText('Карта мира · Tab');
     this.miniCanvas.width = 416; this.miniCanvas.height = 304;
-    const heading=document.createElement('div');heading.className='world-minimap-heading';heading.innerHTML=icon('map')+'<b>Окрестности</b><small>Tab</small>';
+    const heading=document.createElement('div');heading.className='world-minimap-heading';heading.innerHTML=localizeHTML(icon('map')+'<b>Окрестности</b><small>Tab</small>');
     this.mini.append(heading);
-    this.caption.textContent = 'Карта · Tab';
+    this.caption.textContent = localizeText('Карта · Tab');
     this.mini.append(this.miniCanvas, this.caption); this.mini.onclick = () => this.toggle(true);
     this.modal.className = 'world-map-modal'; this.modal.hidden = true;
     this.modal.setAttribute('role', 'dialog'); this.modal.setAttribute('aria-modal', 'true');
-    this.modal.setAttribute('aria-label', 'Карта мира');
+    this.modal.setAttribute('aria-label', localizeText('Карта мира'));
     const panel = document.createElement('section'); panel.className = 'world-map-panel';
     const header = document.createElement('header');
-    const title = document.createElement('strong'); title.textContent = 'RUINSTEAD · КАРТА МИРА';
-    this.closeButton.textContent = 'Вернуться в игру · Esc'; this.closeButton.onclick = () => this.toggle(false);
+    const title = document.createElement('strong'); title.textContent = localizeText('RUINSTEAD · КАРТА МИРА');
+    this.closeButton.textContent = localizeText('Вернуться в игру · Esc'); this.closeButton.onclick = () => this.toggle(false);
     header.append(title, this.closeButton);
     const body = document.createElement('div'); body.className = 'world-map-body';
     this.fullCanvas.width = 760; this.fullCanvas.height = 830;
     const info = document.createElement('aside'); info.append(this.location);
     const filters=document.createElement('div');filters.className='world-map-filters';
     for(const [id,label] of [['landmarks','Ориентиры'],['rare','Редкие'],['all','Все']] as const){
-      const button=document.createElement('button');button.textContent=label;button.setAttribute('aria-pressed',String(this.filter===id));
+      const button=document.createElement('button');button.textContent=localizeText(label);button.setAttribute('aria-pressed',String(this.filter===id));
       button.onclick=()=>{this.filter=id;for(const other of filters.children)other.setAttribute('aria-pressed',String(other===button));if(this.snapshot)this.draw(this.fullCanvas,this.snapshot,true);};filters.append(button);
     }info.append(filters);
     const legend=document.createElement('div');legend.className='world-map-legend';
-    legend.innerHTML=[['arrow','Вы здесь'],['quest','Цель задания'],['home','Поселение'],['elite','Главный босс'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join('');info.append(legend);
+    legend.innerHTML=localizeHTML([['arrow','Вы здесь'],['quest','Цель задания'],['home','Поселение'],['elite','Главный босс'],['boss','Босс'],['crystal','Кристаллы'],['fiber','Волокно'],['lock','Закрытый переход']].map(([glyph,label])=>icon(glyph)+'<span>'+label+'</span>').join(''));info.append(legend);
     const regions=document.createElement('ol');regions.className='world-map-regions';
-    regions.innerHTML=RELEASE_REGIONS.map(r=>'<li>'+r.id+'. '+r.name+'</li>').join('');info.append(regions);
-    const hint = document.createElement('small'); hint.textContent = 'Игра приостановлена. Ресурсы отмечены только там, где ещё доступны для добычи.'; info.append(hint);
+    regions.innerHTML=localizeHTML(RELEASE_REGIONS.map(r=>'<li>'+r.id+'. '+r.name+'</li>').join(''));info.append(regions);
+    const hint = document.createElement('small'); hint.textContent = localizeText('Игра приостановлена. Ресурсы отмечены только там, где ещё доступны для добычи.'); info.append(hint);
     body.append(this.fullCanvas, info); panel.append(header, body); this.modal.append(panel);
     document.querySelector('#app')!.append(this.mini, this.modal);
+    this.mapSizeObserver.observe(this.mini);
+    window.addEventListener('resize', this.positionMenu);
+    this.positionMenu();
     window.addEventListener('keydown', this.keydown, true);
   }
 
@@ -80,10 +89,10 @@ export class WorldMap {
     if (time - this.lastUpdate < 200) return;
     this.lastUpdate = time; this.snapshot = getSnapshot();
     const region = getRegionAt(this.snapshot);
-    this.caption.textContent = region ? region.id+' · '+region.name : 'Переход';
+    this.caption.textContent = localizeText(region ? region.id+' · '+region.name : 'Переход');
     const profile = REGION_RESOURCE_PROFILES.find(p => p.region === region?.id);
     const rare = profile ? `\nИзобилие ресурсов\nКристаллы: ${profile.abundance.crystal}/5\nВолокно: ${profile.abundance.fiber}/5` : '';
-    this.location.textContent = `Вы здесь: ${region ? `${region.id}. ${region.name}` : 'между регионами'}${rare}`;
+    this.location.textContent = localizeText(`Вы здесь: ${region ? `${region.id}. ${region.name}` : 'между регионами'}${rare}`);
     this.draw(this.miniCanvas, this.snapshot, false);
   }
 
@@ -126,7 +135,7 @@ export class WorldMap {
       ctx.fillStyle=quest?'#ffe49b':'#9ce1b3';
       ctx.font=`900 ${full?16:14}px system-ui`;
       ctx.textAlign='center';ctx.textBaseline='middle';
-      ctx.fillText(quest?'!':'✦',lx,ly-1);
+      ctx.fillText(localizeText(quest?'!':'✦'),lx,ly-1);
       ctx.restore();
     }
     for (const passage of RELEASE_PASSAGES) {
@@ -197,15 +206,15 @@ export class WorldMap {
     for (const region of RELEASE_REGIONS) {
       const x=px(region.center[0]),y=py(region.center[1]);
       ctx.fillStyle='#22332edb'; ctx.beginPath();ctx.arc(x,y,full?13:11,0,Math.PI*2);ctx.fill();
-      ctx.font=`bold ${full?18:15}px system-ui`;ctx.fillStyle='#fff1c1';ctx.fillText(String(region.id),x,y);
+      ctx.font=`bold ${full?18:15}px system-ui`;ctx.fillStyle='#fff1c1';ctx.fillText(localizeText(String(region.id)),x,y);
     }
     const hx=px(state.home.x),hy=py(state.home.y);ctx.strokeStyle='#fff5d2';ctx.fillStyle='#203634';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(hx-8,hy);ctx.lineTo(hx,hy-8);ctx.lineTo(hx+8,hy);ctx.lineTo(hx+6,hy);ctx.lineTo(hx+6,hy+8);ctx.lineTo(hx-6,hy+8);ctx.lineTo(hx-6,hy);ctx.closePath();ctx.fill();ctx.stroke();
     const x=px(state.x), y=py(state.y);
     ctx.beginPath();ctx.arc(x,y,full?12:11,0,Math.PI*2);ctx.fillStyle='#10232a';ctx.fill();ctx.strokeStyle='#fff1b2';ctx.lineWidth=2;ctx.stroke();
     ctx.save();ctx.translate(x,y);ctx.rotate(Math.PI-state.facing);ctx.beginPath();ctx.moveTo(0,-10);ctx.lineTo(7,7);ctx.lineTo(0,3);ctx.lineTo(-7,7);ctx.closePath();ctx.fillStyle='#fff5c1';ctx.fill();ctx.restore();
-    ctx.font='bold 14px system-ui';ctx.textAlign='left';ctx.fillStyle='#ddd5b9';ctx.fillText('С',10,16);
-    if (!full) { ctx.strokeStyle='#fff1c1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,h-16);ctx.lineTo(14+225*5*scale,h-16);ctx.stroke();ctx.font='12px system-ui';ctx.fillText('5 с',14,h-29); }
+    ctx.font='bold 14px system-ui';ctx.textAlign='left';ctx.fillStyle='#ddd5b9';ctx.fillText(localizeText('С'),10,16);
+    if (!full) { ctx.strokeStyle='#fff1c1';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(14,h-16);ctx.lineTo(14+225*5*scale,h-16);ctx.stroke();ctx.font='12px system-ui';ctx.fillText(localizeText('5 с'),14,h-29); }
   }
 
-  destroy(): void { window.removeEventListener('keydown', this.keydown, true); this.mini.remove(); this.modal.remove(); }
+  destroy(): void { window.removeEventListener('keydown', this.keydown, true); window.removeEventListener('resize',this.positionMenu); this.mapSizeObserver.disconnect(); document.documentElement.style.removeProperty('--r-map-bottom'); this.mini.remove(); this.modal.remove(); }
 }

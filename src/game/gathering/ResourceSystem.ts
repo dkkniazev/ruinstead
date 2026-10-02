@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import { geographyAreaIsClear } from '../world/RegionGeography';
 import { harvestYield, harvestRespawnMs, harvestNodeCount } from '../economy/HarvestBalance';
 import type { NavigationObstacle } from '../world/ObstacleNavigation';
@@ -1065,7 +1066,7 @@ export class ResourceSystem {
           .text(
             x + 13,
             y - 14,
-            `×${amount}`,
+            localizeText(`×${amount}`),
             {
               fontFamily:
                 'system-ui, sans-serif',
@@ -1267,7 +1268,7 @@ export class ResourceSystem {
           .text(
             pickup.sprite.x + 13,
             pickup.sprite.y - 14,
-            '',
+            localizeText(''),
             {
               fontFamily:
                 'system-ui, sans-serif',
@@ -1282,7 +1283,7 @@ export class ResourceSystem {
 
     pickup.label
       .setText(
-        `×${pickup.amount}`,
+        localizeText(`×${pickup.amount}`),
       )
       .setDepth(
         pickup.sprite.y + 121,

@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import { GEOGRAPHY_LANDMARKS } from './RegionGeography';
 import Phaser from 'phaser';
 import {
@@ -215,7 +216,7 @@ function drawWorld(
         region.center[0],
         region.center[1] -
           region.radiusY * 0.72,
-        `${region.id} · ${region.name}`,
+        localizeText(`${region.id} · ${region.name}`),
         {
           fontFamily:
             'system-ui, sans-serif',
@@ -588,7 +589,7 @@ function drawSettlement(
     .text(
       SETTLEMENT_CENTER.x,
       SETTLEMENT_CENTER.y + 240,
-      'Руины поселения',
+      localizeText('Руины поселения'),
       {
         fontFamily:
           'system-ui, sans-serif',

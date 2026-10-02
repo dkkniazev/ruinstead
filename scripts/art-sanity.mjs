@@ -9,11 +9,46 @@ export {SKIN_DEFINITIONS} from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/render3d/MeshBatching.ts';
 export * from './src/game/render3d/Trees.ts';
 export * from './src/game/render3d/NatureForms.ts';
+export {createBuilding,createForge} from './src/game/render3d/Models.ts';
 export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
 export * from './src/game/render3d/HeroOcclusion3D.ts';
-`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
-const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+export * from './src/game/render3d/RenderVisibility.ts';
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'}});
+const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,RenderVisibility,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,createBuilding,createForge,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+for(const aspect of [1280/720,844/390,390/844]){
+  const height=aspect<.85?1200:1080;
+  const camera=new T.OrthographicCamera(-height*aspect/2,height*aspect/2,height/2,-height/2,1,5000);
+  const target=new T.Vector3(6200,250,10400);camera.position.copy(target).add(new T.Vector3(0,1250,1080));camera.lookAt(target);
+  const view=new RenderVisibility();view.update(camera);
+  let previous=0,submitted=0;
+  for(let dx=-1700;dx<=1700;dx+=100)for(let dz=-1700;dz<=1700;dz+=100){
+    previous++;const x=target.x+dx,z=target.z+dz;
+    if(view.includes(x,200,z,60,200))submitted++;
+    for(const altitude of [200,300,400,700]){
+      const projected=new T.Vector3(x,altitude,z).project(camera);
+      if(Math.abs(projected.x)<=1&&Math.abs(projected.y)<=1&&Math.abs(projected.z)<=1)
+        assert(view.includes(x,200,z,60,altitude-200+100),'View bounds must retain visible heads, bodies and elevated health bars');
+    }
+  }
+  assert(submitted<previous*.8,'View bounds must skip a meaningful part of the old square animation area');
+  assert(view.includes(target.x,200,target.z,120,500),'A large boss beside the hero stays visible');
+  assert(!view.includes(target.x+6000,200,target.z,60,200),'Distant models stay outside presentation');
+}
+for(const id of ['storage','sawmill','workshop','house']){
+  const stages=[0,1,8].map(level=>createBuilding(id,level));
+  const heights=stages.map(root=>new T.Box3().setFromObject(root,true).getSize(new T.Vector3()).y);
+  assert(heights[0]<heights[1]*.65,`${id}: ruins cannot already have a restored roof silhouette`);
+  assert(heights[2]>heights[1],`${id}: later upgrades must remain visibly taller`);
+  for(const root of stages)disposeBatchedGeometry(root);
+}
+for(let stage=0;stage<=3;stage++){
+  const forge=createForge(stage);let lights=0,glow=0;
+  forge.traverse(o=>{if(o instanceof T.Light)lights++;if(o instanceof T.Mesh)for(const m of Array.isArray(o.material)?o.material:[o.material])if(m.emissive?.getHex())glow++;});
+  assert.equal(lights,stage===3?1:0,'Forge light appears only after the final repair');
+  assert.equal(glow>0,stage===3,'Unrepaired forge cannot show burning coals');
+  disposeBatchedGeometry(forge);
+}
 const occlusion=new HeroOcclusion3D(),occlusionHero=createHero();
 occlusionHero.root.position.set(123,45,678);occlusionHero.step(.016,140,false,true,2);occlusion.update(occlusionHero.root);
 assert(occlusion.root.children.length>0,'Occlusion overlay follows actual hero meshes');

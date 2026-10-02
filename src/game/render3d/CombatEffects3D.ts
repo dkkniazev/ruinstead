@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import * as T from 'three';
 import type { VisualHit } from '../combat/CombatVisualState';
 
@@ -37,7 +38,7 @@ export class CombatEffects3D {
     const text=Math.round(hit.amount).toLocaleString('ru-RU');
     if(ctx.measureText(text).width>174)ctx.font=`900 ${Math.floor(50*174/ctx.measureText(text).width)}px "Segoe UI",sans-serif`;
     ctx.strokeStyle='#26343e';ctx.lineWidth=8;ctx.strokeText(text,96,39);
-    ctx.fillStyle=hit.effectiveness==='weakness'?'#ffdf75':hit.effectiveness==='resistance'?'#b7ccd2':'#fff5d3';ctx.fillText(text,96,39);label.texture.needsUpdate=true;
+    ctx.fillStyle=hit.effectiveness==='weakness'?'#ffdf75':hit.effectiveness==='resistance'?'#b7ccd2':'#fff5d3';ctx.fillText(localizeText(text),96,39);label.texture.needsUpdate=true;
     Object.assign(label,{born:hit.at,x,y,z});label.sprite.visible=true;
     this.impacts[this.nextLabel]={born:hit.at,x,y:y-30-height*.45,z,
       color:new T.Color(hit.effectiveness==='weakness'?0xffcd62:hit.effectiveness==='resistance'?0x90bbcb:0xffe6b0),size:Math.min(1.65,Math.max(.7,height/105))};

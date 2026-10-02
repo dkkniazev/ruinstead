@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import {
   STAGE_THREE_ENTRY,
@@ -60,9 +61,9 @@ export class StageTwoGateSystem {
           STAGE_TWO_GATE_CENTER.x,
           STAGE_TWO_GATE_CENTER.y -
             95,
-          initiallyUnlocked
+          localizeText(initiallyUnlocked
             ? 'Врата открыты'
-            : 'Солнечные врата',
+            : 'Солнечные врата'),
           {
             fontFamily:
               'system-ui, sans-serif',
@@ -101,7 +102,7 @@ export class StageTwoGateSystem {
     this.blocker?.destroy();
     this.blocker = undefined;
     this.label.setText(
-      'Врата открыты',
+      localizeText('Врата открыты'),
     );
 
     this.scene.cameras.main.flash(

@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import * as THREE from 'three';
 import type { ResourceVisualState } from '../gathering/ResourceSystem';
 import { createResource } from './Models';
@@ -15,25 +16,23 @@ const names: Record<string, [string, string]> = {
 export class ResourceVisual3D {
   readonly root = new THREE.Group();
   private readonly model: THREE.Group;
-  private readonly health: THREE.Mesh;
-  private readonly healthTexture: THREE.CanvasTexture;
   private readonly canvas = document.createElement('canvas');
+  private readonly labelPosition = new THREE.Vector3();
   private readonly chips = new THREE.Group();
   private lastHealth = -1;
+  private lastLabelWidth = 0;
+  private lastLanguage = '';
   private readonly height: number;
 
-  constructor(node: ResourceVisualState, region: number) {
+  constructor(node: ResourceVisualState, region: number, private readonly labelLayer: HTMLElement) {
     this.model = createResource(node.type, region, Math.abs(Math.round(node.x * 7 + node.y * 13)));
     this.root.add(this.model, this.chips);
     this.height = node.type === 'wood' ? 262 : node.type === 'crystal' ? 104 : 82;
-    this.canvas.width = 256; this.canvas.height = 76;
-    this.healthTexture = new THREE.CanvasTexture(this.canvas);
-    this.healthTexture.colorSpace = THREE.SRGBColorSpace;
-    this.health = new THREE.Mesh(new THREE.PlaneGeometry(148, 44),
-      new THREE.MeshBasicMaterial({ map: this.healthTexture, transparent: true, depthTest: false, depthWrite: false }));
-    this.health.renderOrder = 110;
-    this.health.position.y = this.height;
-    this.root.add(this.health);
+    // Render text at the device's resolution, independently of the 3D DPR cap.
+    // Its projected size stays identical to the former 148 × 44 world billboard.
+    this.canvas.setAttribute('aria-hidden', 'true');
+    Object.assign(this.canvas.style, {position: 'absolute', pointerEvents: 'none', display: 'none', margin: '0'});
+    this.labelLayer.appendChild(this.canvas);
     let material = chipMaterials.get(node.type);
     if (!material) {
       material = new THREE.MeshStandardMaterial({ color: node.type === 'wood' ? 0xc19259 : node.type === 'crystal' ? 0x7ee7ed : 0xd1c3a0, roughness: 0.9 });
@@ -50,23 +49,39 @@ export class ResourceVisual3D {
     this.model.visible = node.available || age < 280;
     this.model.rotation.z = Math.sin(age * 0.045) * impact * (node.type === 'wood' ? 0.075 : 0.035);
     this.model.scale.set((1 + impact * 0.06) * collapse, (1 - impact * 0.04) * collapse, collapse);
-    this.health.visible = node.available ? distance < 260 || age < 3500 : age < 400;
-    this.health.quaternion.copy(camera.quaternion);
-    this.health.position.y = this.height + impact * 4;
-    if (node.health !== this.lastHealth) {
-      this.lastHealth = node.health;
-      const context = this.canvas.getContext('2d')!;
-      context.clearRect(0, 0, 256, 76);
-      context.fillStyle = '#172521ee';
-      context.beginPath(); context.roundRect(0, 0, 256, 76, 12); context.fill();
-      context.font = 'bold 22px system-ui'; context.textAlign = 'center'; context.fillStyle = '#fff2d1';
-      const name = names[node.type][getLanguage() === 'en' ? 1 : 0];
-      context.fillText(`${name}  ${node.health} / ${node.maxHealth}`, 128, 28);
-      context.fillStyle = '#48554b'; context.fillRect(12, 43, 232, 20);
-      context.fillStyle = node.health / node.maxHealth > 0.34 ? '#dcb664' : '#ef8754';
-      context.fillRect(12, 43, 232 * node.health / node.maxHealth, 20);
-      context.strokeStyle = '#f4d598'; context.lineWidth = 2; context.strokeRect(12, 43, 232, 20);
-      this.healthTexture.needsUpdate = true;
+    const visible = node.available ? distance < 260 || age < 3500 : age < 400;
+    this.canvas.style.display = visible ? 'block' : 'none';
+    if (visible) {
+      const rect = this.labelLayer.getBoundingClientRect();
+      const cssWidth = this.labelLayer.clientWidth, cssHeight = this.labelLayer.clientHeight;
+      const pixelScale = camera instanceof THREE.OrthographicCamera
+        ? cssHeight * camera.zoom / (camera.top - camera.bottom) : 1;
+      const width = 148 * pixelScale, height = 44 * pixelScale;
+      this.labelPosition.set(node.x, this.root.position.y + this.height + impact * 4, node.y).project(camera);
+      this.canvas.style.left = `${Math.round((this.labelPosition.x + 1) * cssWidth / 2 - width / 2)}px`;
+      this.canvas.style.top = `${Math.round((1 - this.labelPosition.y) * cssHeight / 2 - height / 2)}px`;
+      const language = getLanguage();
+      const resolution = Math.min(3, window.devicePixelRatio || 1) * rect.width / Math.max(1, cssWidth);
+      const backingWidth = Math.ceil(width * resolution);
+      if (visible && (node.health !== this.lastHealth || backingWidth !== this.lastLabelWidth || language !== this.lastLanguage)) {
+        this.lastHealth = node.health;
+        this.lastLabelWidth = backingWidth;
+        this.lastLanguage = language;
+        this.canvas.style.width = `${width}px`; this.canvas.style.height = `${height}px`;
+        this.canvas.width = backingWidth; this.canvas.height = Math.ceil(height * resolution);
+        const context = this.canvas.getContext('2d')!;
+        context.setTransform(this.canvas.width / 256, 0, 0, this.canvas.height / 76, 0, 0);
+        context.clearRect(0, 0, 256, 76);
+        context.fillStyle = '#172521ee';
+        context.beginPath(); context.roundRect(0, 0, 256, 76, 12); context.fill();
+        context.font = '700 28px "Segoe UI", sans-serif'; context.textAlign = 'center'; context.fillStyle = '#fff2d1';
+        const name = names[node.type][language === 'en' ? 1 : 0];
+        context.fillText(localizeText(`${name}  ${node.health} / ${node.maxHealth}`), 128, 31, 232);
+        context.fillStyle = '#48554b'; context.fillRect(12, 43, 232, 20);
+        context.fillStyle = node.health / node.maxHealth > 0.34 ? '#dcb664' : '#ef8754';
+        context.fillRect(12, 43, 232 * node.health / node.maxHealth, 20);
+        context.strokeStyle = '#f4d598'; context.lineWidth = 2; context.strokeRect(12, 43, 232, 20);
+      }
     }
     this.chips.visible = age >= 0 && age < 480 && node.hitCount > 0;
     if (this.chips.visible) {
@@ -81,10 +96,11 @@ export class ResourceVisual3D {
     }
   }
 
+  hideLabel(): void { this.canvas.style.display = 'none'; }
+
   destroy(): void {
     disposeBatchedGeometry(this.model);
-    this.healthTexture.dispose(); this.health.geometry.dispose();
-    (this.health.material as THREE.Material).dispose();
+    this.canvas.remove();
     // The marker belongs to this resource; all model primitive geometry is shared.
     const marker = this.model.children[0] as THREE.Mesh;
     marker.geometry.dispose(); (marker.material as THREE.Material).dispose();

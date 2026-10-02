@@ -1,3 +1,4 @@
+import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
 import { withinInteractionRange, type InteractionCandidate } from './WorldInteractions';
 import type {
@@ -220,9 +221,9 @@ export class ChestSystem {
           .text(
             definition.x,
             definition.y + 42,
-            opened
+            localizeText(opened
               ? 'Сундук пуст'
-              : 'Сундук ресурсов',
+              : 'Сундук ресурсов'),
             {
               fontFamily:
                 'system-ui, sans-serif',
@@ -273,7 +274,7 @@ export class ChestSystem {
     this.openedIds.push(id);
     this.backpack.addBundle(chest.definition.rewards);
     chest.lid.setY(chest.definition.y-34);chest.body.setFillStyle(0x6c6250,1);
-    chest.label.setText('Сундук пуст').setColor('#b8b3a9');
+    chest.label.setText(localizeText('Сундук пуст')).setColor('#b8b3a9');
     this.onChanged();this.onNotice('Сундук открыт: '+formatReward(chest.definition.rewards));
     this.onOpened?.(id,{...chest.definition.rewards});return true;
   }

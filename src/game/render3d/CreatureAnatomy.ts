@@ -64,10 +64,11 @@ const crystal=new T.OctahedronGeometry(1,0);shared.add(crystal);
 
 /** A closed leaf, with inset ear cartilage; no detached cone or floating tip. */
 export function creatureEar(g:T.Object3D,c:number,inset:number,x:number,y:number,z:number,width:number,height:number,side:number,lean=0):void {
-  const shape=new T.Shape();shape.moveTo(-.65,-.45);shape.lineTo(-.7,.1);shape.lineTo(0,1);shape.lineTo(.58,.22);shape.lineTo(.64,-.45);shape.lineTo(0,-.62);shape.closePath();
-  const geo=new T.ExtrudeGeometry(shape,{depth:.18,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.13,bevelThickness:.12});
+  const shape=new T.Shape();shape.moveTo(-.65,-.45);shape.quadraticCurveTo(-.75,.15,0,1);
+  shape.quadraticCurveTo(.65,.25,.64,-.45);shape.quadraticCurveTo(0,-.75,-.65,-.45);shape.closePath();
+  const geo=new T.ExtrudeGeometry(shape,{depth:.18,curveSegments:4,bevelEnabled:true,bevelSegments:1,steps:1,bevelSize:.09,bevelThickness:.1});
   geo.translate(0,0,-.1);const ear=add(g,geo,c,x,y,z,width,height,width*.7);ear.name='creature-ear';ear.rotation.z=side*lean;ear.userData.creatureHead=true;
-  const inner=add(ear,facet,inset,0,.1,.27,.36,.62,.035);inner.castShadow=false;
+  const inner=add(ear,softOrb,inset,0,.1,.27,.36,.62,.035);inner.castShadow=false;
 }
 
 /** Authored silhouettes and species anatomy, using the existing combat joints. */
@@ -97,7 +98,9 @@ export function refineCreatureAnatomy(body:T.Group,shape:CreatureShape,arms:T.Gr
   if(beast){
     headParts(body,()=>{
       if(['boar','ram','jackal','cat','hound'].includes(shape))for(const s of [-1,1]){
-        const pointy=shape==='jackal'||shape==='cat';creatureEar(body,primary,shape==='cat'?0xc9a398:0xb08c78,s*(shape==='ram'?21:15),y+(pointy?25:22),24,pointy?8:10,pointy?13:8,s,pointy?-.12:-.65);
+        const pointy=shape==='jackal'||shape==='cat'||shape==='hound';
+        creatureEar(body,primary,shape==='cat'?0xc9a398:0xb08c78,s*(shape==='ram'?21:15),
+          y+(pointy?25:22),24,pointy?8:10,pointy?shape==='hound'?17:13:8,s,pointy?-.12:-.65);
       }
       if(shape==='boar'){
         const nose=add(body,softOrb,0x9d7162,0,y+1,64,13,7,3);nose.userData.creatureHead=true;

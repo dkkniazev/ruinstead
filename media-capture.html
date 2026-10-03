@@ -64,7 +64,7 @@
       doc.querySelector('.r-backdrop [data-action="close"]')?.click();
       const menu=doc.querySelector('.r-menu-toggle[aria-expanded="true"]');menu?.click();
       const action=label=>[...doc.querySelectorAll('[data-qa-panel] button')].find(b=>b.textContent===label)?.click();
-      const kind=button.dataset.shot;region.value=kind==='lava'?'4':kind==='heights'?'5':kind==='canyon'?'7':'1';
+      const kind=button.dataset.shot;region.value=kind==='lava'?'4':kind==='gather'?'2':kind==='heights'?'5':kind==='canyon'?'7':'1';
       if(kind==='forest'){action('К пачке');action('В бой');}
       else if(kind==='lava')action('Босс 4');
       else if(kind==='home')action('Домой');

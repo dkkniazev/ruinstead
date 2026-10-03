@@ -1,5 +1,6 @@
 import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
+import { SETTLEMENT_BUILDINGS } from '../world/SettlementLayout';
 import type {
   BuildingId,
 } from '../state/GameState';
@@ -79,10 +80,10 @@ const BUILDING_POSITIONS:
     CityBuildingId,
     readonly [number, number]
   > = {
-  storage: [SETTLEMENT_CENTER.x - 210, SETTLEMENT_CENTER.y + 210],
-  sawmill: [SETTLEMENT_CENTER.x - 430, SETTLEMENT_CENTER.y - 40],
-  workshop: [SETTLEMENT_CENTER.x + 430, SETTLEMENT_CENTER.y + 170],
-  house: [SETTLEMENT_CENTER.x - 190, SETTLEMENT_CENTER.y - 360],
+  storage: [SETTLEMENT_CENTER.x + SETTLEMENT_BUILDINGS.storage.x, SETTLEMENT_CENTER.y + SETTLEMENT_BUILDINGS.storage.y],
+  sawmill: [SETTLEMENT_CENTER.x + SETTLEMENT_BUILDINGS.sawmill.x, SETTLEMENT_CENTER.y + SETTLEMENT_BUILDINGS.sawmill.y],
+  workshop: [SETTLEMENT_CENTER.x + SETTLEMENT_BUILDINGS.workshop.x, SETTLEMENT_CENTER.y + SETTLEMENT_BUILDINGS.workshop.y],
+  house: [SETTLEMENT_CENTER.x + SETTLEMENT_BUILDINGS.house.x, SETTLEMENT_CENTER.y + SETTLEMENT_BUILDINGS.house.y],
 };
 
 const BUILDING_COLORS:

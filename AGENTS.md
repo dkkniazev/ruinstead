@@ -1,98 +1,97 @@
 # Repository operating contract
 
-This repository uses Spec-Driven Development (SDD). Specifications describe
-**WHAT** must be true; execution plans describe **HOW** to implement it.
+This repository uses Spec-Driven Development (SDD). Specifications define **WHAT**
+must be true; execution plans define **HOW** to implement it.
 
 ## Every non-trivial task
 
 1. Read this file and [PROJECT_SPEC](docs/specs/PROJECT_SPEC.md).
-2. Inspect the relevant current implementation, tests and configuration before editing.
-3. Read the relevant domain/active feature specs linked by PROJECT_SPEC.
-4. Determine whether intended behavior changes; update its spec in the same task.
-5. Implement within scope, run the relevant gates in [QA_RELEASE](docs/specs/QA_RELEASE.md),
-   and reconcile specs, implementation, tests and status documentation.
+2. Inspect the relevant implementation, tests and configuration before editing.
+3. Read the owning domain and applicable feature specs linked by PROJECT_SPEC.
+4. Automatically determine whether the request changes documented behavior;
+   update the relevant spec in the same task. The user must not have to request
+   spec maintenance or decide which documents need updating.
+5. Implement within scope, run the relevant tests/sanity checks/builds in
+   [QA_RELEASE](docs/specs/QA_RELEASE.md), and reconcile code, specs and documentation.
 
-The agent decides which specs need maintenance; do not ask the user to make
-that administrative decision. Changes to product/gameplay, architecture,
-persistence, economy, progression, platform/monetization, UI/input, content rules
-or release requirements require corresponding spec updates. A fix restoring an
-existing contract, trivial cosmetic edit or implementation-only change does not
-require artificial spec churn. Prefer updating the owning spec to duplicate documents.
+Product/gameplay, architecture, persistence, economy, progression, platform,
+monetization, UI/input, content-rule and release-requirement changes need spec
+maintenance. Fixes restoring an existing contract, trivial cosmetic edits and
+implementation-only changes must not create unnecessary spec churn.
 
-Persist new user decisions in the owning spec; do not leave the final rule only
-in chat. Create a feature spec from [FEATURE_TEMPLATE](docs/specs/FEATURE_TEMPLATE.md)
-for a substantial new contract; omit irrelevant sections. Mark proposals Draft,
-accepted work Approved, completed contracts Implemented, superseded ones Deprecated.
-Do not describe planned work or a fixture result as implemented/live-verified behavior.
+Persist new product/technical decisions in the owning spec during development,
+then implement and validate them; never leave a superseding rule only in chat.
+For a substantial new contract use [FEATURE_TEMPLATE](docs/specs/FEATURE_TEMPLATE.md)
+and omit irrelevant sections. Use Draft / Approved / Implemented / Deprecated
+honestly; planned work and fixture results are not implemented/live-verified behavior.
 
-## Resolving conflicts
+## Conflicts and scope
 
-Within repository sources, use this priority:
+Within repository sources, priority is: current explicit user instruction →
+applicable Approved/Implemented feature spec → PROJECT_SPEC → domain/architecture
+specs → behavioral tests/invariants → implementation → older/general docs.
+Draft proposals, Deprecated specs and completed plans are historical/proposal
+evidence, not active overrides. This order never overrides system/developer rules.
 
-1. Current explicit user instruction.
-2. Active feature specification.
-3. PROJECT_SPEC.
-4. Architecture/domain specifications.
-5. Automated behavioral tests and invariants.
-6. Existing implementation.
-7. Older/general documentation.
+Investigate material conflicts instead of copying an old README; explain the
+conflict and update lower-priority sources when a decision supersedes them.
+Mark insufficient evidence **Unverified**.
 
-Explain a material conflict and update lower-priority sources when an intentional
-decision supersedes them. Investigate unclear evidence rather than copying old
-README rules. Mark insufficient evidence **Unverified**. This ordering does not
-override higher-level system/developer instructions.
-
-## Scope and compatibility
-
-Preserve behavior outside the task. No unrelated refactors, UI redesigns, API
+Preserve behavior outside the task. No unrelated refactors, redesigns, API
 renames or balance changes; supporting refactors must be required by the contract.
-Never silently remove compatibility behavior or weaken tests to get a PASS.
-Consider save migrations, duplicate rewards/double spending, non-negative balances,
-progression gates, platform callbacks, localization, desktop/touch input, and
-visual/interaction alignment where affected. Art changes preserve gameplay rules
-unless explicitly requested; dynamic/localized state must remain dynamic.
+Do not silently remove compatibility behavior or weaken tests to get a PASS.
+Consider migrations, duplicate rewards/double spending, non-negative balances,
+progression gates, platform callbacks, localization, desktop/touch and visual
+interaction alignment where affected. Art preserves mechanics unless explicitly
+changed; dynamic/localized state must remain dynamic.
 
-## Plans and evidence
+## Game development map
 
-For multi-system or multi-stage work, create/update a plan in
-[docs/exec-plans/active](docs/exec-plans/active), with affected modules, milestones,
-risks and validation after each phase. Keep it current; move completed plans to
-[docs/exec-plans/completed](docs/exec-plans/completed). Plans never replace specs.
+For new mechanics, enemies, bosses, interactions or complex content, apply the
+prototype-first workflow and data boundaries in [ARCHITECTURE](docs/specs/ARCHITECTURE.md).
+Before changing environments, characters/enemies/bosses, UI, animation or important
+props, inspect the applicable [visual references](docs/references/visual/README.md)
+and follow the [asset workflow](docs/specs/WORLD_CONTENT.md#asset-workflow).
+References guide style; owning functional specs remain authoritative.
 
-Run meaningful checks for the change; compilation alone is insufficient. Add
-regression coverage for a concrete behavioral risk. Record failures, investigate
-their cause, repair task-caused failures and rerun relevant checks. A subsequent
-PASS does not erase an intermittent failure. Do not broaden testing without a
-remaining risk or required gate. Manual visual/device/live-SDK checks are required
-when fixtures cannot establish the relevant acceptance condition.
+When a mechanic or visual system is difficult to verify with existing tests or
+normal gameplay, consider a reusable isolated developer/test harness instead of
+repeating the full game flow. Reuse existing tooling first; do not add harnesses
+for trivial features. [QA_RELEASE](docs/specs/QA_RELEASE.md#verification-harnesses-and-evidence)
+owns harness isolation, inspectable evidence and the separate automated versus
+human visual/feel acceptance gates.
 
-## Completion
+## Plans and validation
 
-Report behavior and important files/specs changed, exact validation performed and
-results, manual checks performed, and remaining limitations/Unverified items.
-Keep [CURRENT_STATE](docs/CURRENT_STATE.md) and active plans accurate when status
-changes; do not rewrite historical reports as if they were today's verification.
+Large, multi-system or multi-stage tasks need a plan in
+[docs/exec-plans/active](docs/exec-plans/active): affected modules, milestones,
+risks, validation per phase and acceptance. Maintain it during work; move it to
+[docs/exec-plans/completed](docs/exec-plans/completed) when complete. No active plan
+is required when no such work remains. Plans never substitute for feature specs.
+
+Before completion run relevant checks/builds; compilation alone is insufficient.
+Add regression coverage for concrete risks. Record failures, investigate, repair
+task-caused failures and rerun relevant gates. A later PASS does not erase an
+intermittent failure. Use manual visual/device/live-SDK checks when fixtures cannot
+prove acceptance. Report checks not run and why; do not invent verification.
+
+## Documentation maintenance and completion
+
+Update [CURRENT_STATE](docs/CURRENT_STATE.md) only for meaningful changes to actual
+implementation, limitations, blockers or release/validation state, or to correct
+an evidenced inaccurate claim. Do not refresh it for every task, routine repeated
+PASS or trivial edit; record those results in the task report/plan.
+
+[ROADMAP](docs/ROADMAP.md) contains remaining work. When an item is completed,
+remove it from future work or move its evidence to completed plans/history;
+revise dependencies and active references. Keep unfinished acceptance checks
+distinct from functionality already implemented.
+
+Keep README consistent with specs/verified implementation. Update it only when
+product scope, major features/platforms, structure, commands or release status
+materially change; detailed contracts belong in the owning specs, not README.
+
+A completed task must leave implementation, specifications, relevant tests and
+documentation in agreement. Report important behavior/files/specs changed,
+validation/results, manual checks and remaining limitations/Unverified items.
 Do not claim completion while required acceptance work remains.
-
-## README maintenance
-
-README.md is a human-facing project overview.
-
-When a task materially changes:
-- the product description;
-- major implemented features;
-- supported platforms;
-- project structure;
-- development/build commands;
-- release status;
-
-update README.md in the same task.
-
-Do not update README.md for trivial fixes.
-
-README.md must remain consistent with the current project specifications,
-but detailed behavioral contracts belong in docs/specs/ rather than README.md.
-
-When README.md conflicts with current implementation and specifications,
-treat the specifications plus verified implementation as authoritative
-and correct README.md.

@@ -3,10 +3,9 @@ import type { CreatureShape } from './CreatureCatalog';
 
 const iris = new T.SphereGeometry(1, 8, 6);
 const outline = new T.Shape();
-outline.moveTo(-1, 0);
-for (const [x,y] of [[-.65,.52],[0,.7],[.65,.48],[1,0],[.62,-.43],[0,-.58],[-.65,-.4]]) outline.lineTo(x,y);
-outline.closePath();
-const almond = new T.ExtrudeGeometry(outline, {depth:.2,bevelEnabled:false});
+outline.moveTo(-1,0);outline.quadraticCurveTo(-.15,.95,1,.08);
+outline.quadraticCurveTo(.1,-.78,-1,0);outline.closePath();
+const almond = new T.ExtrudeGeometry(outline, {depth:.14,curveSegments:6,bevelEnabled:true,bevelSize:.045,bevelThickness:.035,bevelSegments:1});
 almond.translate(0,0,-.1);
 const geometries = new Set<T.BufferGeometry>([iris,almond]);
 const materials = new Map<string,T.MeshStandardMaterial>();

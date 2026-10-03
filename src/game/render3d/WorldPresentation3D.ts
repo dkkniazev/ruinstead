@@ -18,7 +18,8 @@ import { FORGE_POSITION } from '../settlement/SettlementSystem';
 import { FOREST_HEART } from '../world/ForestZone';
 import { regionNormalizedDistance, RELEASE_PASSAGES, RELEASE_REGIONS, type RegionPassage } from '../world/ReleaseRegionMap';
 import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
-import { createBuilding, createForge, createChest, createCreature, createHero, createSceneryProp, type AnimatedModel } from './Models';
+import { SETTLEMENT_BUILDINGS, SETTLEMENT_WELL } from '../world/SettlementLayout';
+import { createBuilding, createForge, createSettlementWell, createChest, createCreature, createHero, createSceneryProp, type AnimatedModel } from './Models';
 
 import { terrainHeight, passageHeight, TERRAIN_PASSAGES } from '../world/WorldTerrain';
 import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './TerrainMeshes';
@@ -26,6 +27,7 @@ import { createBoundaryGround, createRegionLand, REGION_PALETTES } from './Terra
 import { createBossTelegraph, disposeBossTelegraph, updateBossTelegraph } from './BossTelegraph3D';
 import { HeroOcclusion3D } from './HeroOcclusion3D';
 import { ResourceVisual3D } from './ResourceVisual3D';
+import { layoutResourceLabels,type ResourceLabelCandidate } from './ResourceLabelLayout';
 import { RenderVisibility } from './RenderVisibility';
 import { ReturnCamp3D } from './ReturnCamp3D';
 import {
@@ -111,6 +113,8 @@ export class WorldPresentation3D {
   private readonly actors = new Map<EnemyUnit | BossUnit, Actor>();
   private readonly view = new RenderVisibility();
   private readonly effects = new CombatEffects3D();
+  private footfallTravel=0;
+  private footfallSide=1;
   private readonly orbitingWeapons = new OrbitingWeapons3D();
   private readonly shownHits = new WeakMap<EnemyUnit | BossUnit,number>();
   private readonly resources = new Map<string, ResourceVisual3D>();
@@ -325,7 +329,17 @@ export class WorldPresentation3D {
     this.settlement.traverse(o=>{if(o instanceof THREE.Sprite&&o.userData.buildingLabel){o.scale.set(labelWidth*labelScale,labelWidth/5.125*labelScale,1);}});
     this.updateTerrain(x, z);
     this.updateActors(dt, x, z,time);
-    this.effects.update(time,x,groundHeight,z,this.lastFacing,this.player.visualAttackAt);
+    if(travel>65)this.footfallTravel=0;
+    else if(speed>35&&travel>0){
+      this.footfallTravel+=travel;
+      if(this.footfallTravel>=36){
+        this.footfallTravel%=36;this.footfallSide*=-1;
+        const footX=x+Math.cos(this.lastFacing)*11*this.footfallSide-Math.sin(this.lastFacing)*14;
+        const footZ=z-Math.sin(this.lastFacing)*11*this.footfallSide-Math.cos(this.lastFacing)*14;
+        this.effects.footfall(time,footX,terrainHeight(footX,footZ)+7,footZ,region);
+      }
+    }
+    this.effects.update(time,x,groundHeight,z,this.lastFacing,this.player.visualAttackAt,this.camera);
     this.orbitingWeapons.update(this.getOrbitals(),time,groundHeight);
     this.updateResources(x, z, time);
     if (this.frame++ % 4 === 0) {
@@ -365,6 +379,9 @@ export class WorldPresentation3D {
     for (const [key, chunk] of this.chunks) if (!needed.has(key)) {
       this.scene.remove(chunk);
       chunk.traverse((object) => { if (object instanceof THREE.Mesh && object.geometry !== undefined) {
+        // Shared shrub/leaf surfaces survive the chunk, but per-instance GPU
+        // transforms do not. Removing an instance from the scene is not disposal.
+        if(object instanceof THREE.InstancedMesh)object.dispose();
         // Terrain and foliage geometries are unique; model geometries are shared.
         if (object.userData.uniqueGeometry || object.userData.batchedGeometry) {
           object.geometry.dispose();
@@ -546,6 +563,7 @@ export class WorldPresentation3D {
 
   private updateResources(x: number, z: number, time: number): void {
     const visible = new Set<string>();
+    const labels:ResourceLabelCandidate[]=[];
     for (const node of this.resourceSystem.visualNodes) {
       const distance = Math.hypot(node.x - x, node.y - z);
       if ((!node.available && time - node.hitAt > 500) || distance > 1750) continue;
@@ -560,8 +578,11 @@ export class WorldPresentation3D {
         this.resources.set(node.id,visual);this.scene.add(visual.root);
       }
       visual.root.visible=true;visual.update(node,time,distance,this.camera);
+      if(visual.screenLabel)labels.push(visual.screenLabel);
     }
     for(const [id,visual] of this.resources) if(!visible.has(id)) { visual.destroy();this.resources.delete(id); }
+    const placements=layoutResourceLabels(labels,this.resourceLabelLayer.clientWidth,this.resourceLabelLayer.clientHeight);
+    for(const label of labels)this.resources.get(label.id)!.placeLabel(placements.get(label.id));
   }
 
   private updateChests(x: number, z: number): void {
@@ -704,17 +725,9 @@ export class WorldPresentation3D {
     const darkStone = new THREE.MeshStandardMaterial({ color: 0x827d71, roughness: 1, flatShading: true });
     this.settlement.add(settlementScenery(baseX,baseZ,[...this.city.visualBuildings,{id:'forge',x:FORGE_POSITION.x,y:FORGE_POSITION.y}]));
     // Central well, stone arch, brazier and banners replace the previous flat settlement pads.
-    const well = new THREE.Mesh(new THREE.CylinderGeometry(43, 49, 42, 12, 1, true), darkStone);
-    well.position.set(baseX + 105, terrainHeight(baseX + 105, baseZ + 42) + 24, baseZ + 42);
-    well.castShadow = well.receiveShadow = true;
+    const well=createSettlementWell();
+    well.position.set(baseX+SETTLEMENT_WELL.x,terrainHeight(baseX+SETTLEMENT_WELL.x,baseZ+SETTLEMENT_WELL.y),baseZ+SETTLEMENT_WELL.y);
     this.settlement.add(well);
-    const water = new THREE.Mesh(new THREE.CircleGeometry(40, 16), new THREE.MeshStandardMaterial({ color: 0x468e9a, metalness: 0.3, roughness: 0.28 }));
-    water.rotation.x = -Math.PI / 2;
-    water.position.set(baseX + 105, terrainHeight(baseX + 105, baseZ + 42) + 12, baseZ + 42);
-    this.settlement.add(water);
-    const rim=new THREE.Mesh(new THREE.TorusGeometry(44,8,4,12),stone);rim.rotation.x=Math.PI/2;rim.position.set(baseX+105,terrainHeight(baseX+105,baseZ+42)+45,baseZ+42);rim.castShadow=true;this.settlement.add(rim);
-    for(const side of [-1,1]){const post=new THREE.Mesh(new THREE.BoxGeometry(9,115,9),darkStone);post.position.set(baseX+105+side*48,terrainHeight(baseX+105,baseZ+42)+58,baseZ+42);post.castShadow=true;this.settlement.add(post);}
-    const beam=new THREE.Mesh(new THREE.BoxGeometry(115,10,12),darkStone);beam.position.set(baseX+105,terrainHeight(baseX+105,baseZ+42)+116,baseZ+42);beam.castShadow=true;this.settlement.add(beam);
     for (const side of [-1, 1]) {
       const pillar = new THREE.Mesh(new THREE.CylinderGeometry(13, 17, 63, 6), stone);
       pillar.position.set(baseX + side * 64, terrainHeight(baseX, baseZ - 138) + 33, baseZ - 138);
@@ -743,7 +756,7 @@ export class WorldPresentation3D {
       const names:Record<string,string>={storage:'Склад',sawmill:'Лесопилка',workshop:'Мастерская',house:'Дом'};
       model.add(buildingLabel(names[building.id],building.level>0?190+building.level*6:105,building.id,building.level));
       model.position.set(building.x, terrainHeight(building.x, building.y), building.y);
-      model.rotation.y = building.id === 'house' ? 0.2 : building.id === 'workshop' ? -0.24 : 0;
+      model.rotation.y = SETTLEMENT_BUILDINGS[building.id as keyof typeof SETTLEMENT_BUILDINGS].rotation;
       this.settlement.add(model);
       this.buildingGroups.set(building.id, { level: building.level, model });
     }
@@ -788,6 +801,7 @@ export class WorldPresentation3D {
     }
     this.actors.clear();
     for(const root of [...this.landRegions.values(),...this.chunks.values()])root.traverse(o=>{
+      if(o instanceof THREE.InstancedMesh)o.dispose();
       if(o instanceof THREE.Mesh&&(o.userData.uniqueGeometry||o.userData.batchedGeometry||o.userData.geographyOwned)){o.geometry.dispose();for(const material of Array.isArray(o.material)?o.material:[o.material])if(!material.userData.sharedArtMaterial)material.dispose();}
     });
     this.landRegions.clear();this.chunks.clear();

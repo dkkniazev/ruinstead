@@ -5,6 +5,15 @@ Evidence: [CURRENT_STATE](CURRENT_STATE.md), [investigation](SDD_INVESTIGATION.m
 domain specs and dated QA/art reports. No roadmap implementation in SDD bootstrap.
 Validation commands/scenarios are owned by [QA_RELEASE](specs/QA_RELEASE.md).
 
+## Maintenance
+
+Keep only unresolved implementation, decisions and acceptance work here. Remove
+completed items from future work and preserve evidence in completed plans/history;
+update dependencies and references. A review of an implemented system is a QA
+task, not a claim that the system must be built again. Speculative P2 items require
+a product decision and do not authorize implementation. Routine doc audits do
+not change product status or reopen completed bootstrap work.
+
 ## P0 — correctness and release conditions
 
 ### P0.1 Reproduce and correct spawn initialization failure
@@ -53,11 +62,24 @@ Validation commands/scenarios are owned by [QA_RELEASE](specs/QA_RELEASE.md).
   surfaces/aura exist but geometric coverage is not art acceptance.
 - Systems: render3d terrain/water/scenery, creature/hero models/motion/materials,
   portraits/labels and baked assets.
-- Dependency: stable startup; reference captures and remaining reference names;
+- Current progress: connected trees/acacias, softened brook banks, grouped low
+  understory, worn roads and fitted house bases are implemented locally. Species
+  anatomy/plumage, selected boss mass profiles, contact accents/footfall dust,
+  warning contrast and resource-label separation are also implemented;
+  the Oct3 pass adds cover-directed faces/cloth/chitin/stone forms, explicit
+  species proportions and solid base buildings/closed well/tree clearance.
+  Its [focused plan](exec-plans/active/CREATURE_STYLE_AND_BASE_FIXES.md) records
+  actual collision/legacy-position checks and pending human art approval.
+  [active art review](exec-plans/active/VISUAL_FINISH.md) owns comparison evidence.
+  Remaining work is human visual acceptance of the catalog/world in the reference
+  comparison, full boss/hero motion coverage in gameplay and physical-device QA;
+  these are not claims that the implemented surfaces must be built again.
+- Dependency: stable startup; actual Hero Path RPG and XP Hero gameplay captures;
   [approved feature](specs/features/WORLD_VISUAL_POLISH.md).
 - Acceptance: ordinary/elite silhouette differences, attached faces/weapons/
   stingers through attack recovery, readable paths and correct boundaries/labels
-  pass the named comparisons; remaining gaps explicitly recorded.
+  pass the named comparisons; remaining gaps and human review decision explicitly
+  recorded, separately from automated gates in QA_RELEASE.
 - Validation: bake as needed, art/world/polish/build, gameplay/motion previews,
   all regions/creatures/bosses and phone/weak-PC review.
 
@@ -68,8 +90,9 @@ Validation commands/scenarios are owned by [QA_RELEASE](specs/QA_RELEASE.md).
   fixtures pass but do not measure a weak GPU/CPU with full base scenery.
 - Systems: clock/player/collision vs render culling/batching/labels, debug overlay.
 - Dependency: reproducible affected hardware/build context; no assumed bug mechanism.
-- Acceptance: evidence isolates the cause; targeted correction preserves travel/
-  dash/collision and population, with before/after scenario recorded.
+- Acceptance: evidence identifies the cause or an explicit hardware limitation.
+  If a correction is needed, it preserves travel/dash/collision and population,
+  with the before/after scenario recorded; profiling alone does not assert a code bug.
 - Validation: timing/gameplay/world/polish/art as affected, real base-route profiling.
 
 ### P1.3 Full campaign/rare-resource and mobile UI review

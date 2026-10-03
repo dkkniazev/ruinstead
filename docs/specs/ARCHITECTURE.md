@@ -29,6 +29,10 @@ must release renderer resources and UI/event listeners.
 
 ## Data and module boundaries
 
+`SettlementLayout.ts` shares base coordinates/ground dimensions between
+settlement systems, models, resource clearance, physics and enemy navigation.
+`CreatureScale.ts` contains visual species profiles; it does not own combat stats.
+
 - `src/game/state/GameState.ts`: schema/defaults. WorldScene snapshots progress;
   current actor HP/AI are transient, not independent durable stores.
 - `src/game/world/ReleaseRegionMap.ts`, `src/game/world/ReleaseWorldContent.ts`,
@@ -43,6 +47,51 @@ must release renderer resources and UI/event listeners.
   `src/platform/yandex/YandexCloudSave.ts`: cloud ordering and synchronization.
 - `src/game/audio/GameAudio.ts`: procedural Web Audio cues/music, gesture unlock,
   mute/pause. `src/game/analytics/Analytics.ts`: DOM events, no external collector.
+
+### Content must remain editable as data
+
+For future content work, keep reusable algorithms separate from authored records
+and tuning. Typed TypeScript tables are data in this project; JSON, an editor or
+a new runtime loader is not required. Extend the owning table/configuration
+before adding another species/region-specific branch to a shared system.
+
+| Concern | Existing owner / boundary |
+| --- | --- |
+| Reusable behavior | CombatSystem, EnemySystem, navigation, gathering and progression systems consume definitions; presentation cannot decide damage/rewards |
+| Content identities/configuration | `src/game/world/ReleaseWorldContent.ts`, `src/game/combat/WeaponDefinitions.ts`, quest/skin/premium configs; stable IDs join gameplay, saves and views |
+| World/level data | ReleaseRegionMap, RegionPaths, BossArenas, WorldWatercourses and geography anchors; renderer consumes the same logical layout |
+| Balance | RegionBalance/StageCombatProfile, PlayerLevelBalance/UpgradeBalance, HarvestBalance/RegionEconomy and settlement/premium configs; no duplicate UI or art formulas |
+| Asset metadata | CreatureCatalog, CreatureAssets/NatureAssets, sculpt manifest and pack SOURCE/LICENSE records; scale/rig/material metadata belongs beside the asset mapping |
+
+Do not put independent copies of authoritative coordinates, stats, costs or IDs
+inside UI, preview scenes or rendering code. Harness overrides must be explicit
+fixtures, never another production source of truth. New configurable content
+should be enumerable/validatable, with defaults and compatibility for saved IDs.
+
+Existing exceptions: BossSystem combines definition construction and behavior;
+QuestDirector and CityBuilderSystem contain content/tuning alongside logic;
+RegionGeography embeds authored coefficients in relief functions; creature/scenery
+builders contain procedural art parameters and per-identity geometry. Those are
+current boundaries, not evidence of an external data editor. Isolate new reusable
+records when touching these areas, but do not perform a broad extraction/refactor
+solely to satisfy this invariant. Keep procedural generation algorithms in code;
+their input profiles/anchors should be distinguishable from the algorithms.
+
+## Prototype-first implementation workflow
+
+For a new mechanic, enemy, boss, interaction or complex content feature, normally
+validate the functional contract with simple/provisional presentation first:
+behavior → automated/debug validation → production presentation → integration QA.
+Use the real logical hit/interaction areas and relevant state/reward/save rules
+in the prototype; temporary art is not a reason to defer correctness checks.
+Use the [existing harnesses](QA_RELEASE.md#verification-harnesses-and-evidence)
+when the normal campaign flow makes verification difficult.
+
+Mark provisional presentation in the task plan/owning feature and record which
+production presentation and integration criteria remain. A functioning prototype
+is not final release content. Art-only work on an already validated mechanic
+starts from that existing contract; it does not require replacing finished art
+with placeholders or rebuilding the behavior.
 
 ## Time, input and persistence
 

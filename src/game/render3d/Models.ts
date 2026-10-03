@@ -3,6 +3,7 @@ import { softBox, softOrb, contactShadow } from './ArtMaterials';
 import { batchStaticMeshes } from './MeshBatching';
 import { createLivingTree, createSparseTree } from './Trees';
 import { fracturedRock, naturalSurfaceMaterial } from './NatureForms';
+import { SETTLEMENT_BUILDINGS, SETTLEMENT_FORGE } from '../world/SettlementLayout';
 export { createHero } from './HeroModel';
 export { createCreature } from './CreatureModels';
 import * as THREE from 'three';
@@ -31,6 +32,7 @@ function mat(color: number, metalness = 0, emissive = 0): THREE.MeshStandardMate
   let value = materials.get(key);
   if (!value) {
     value = new THREE.MeshStandardMaterial({ color, metalness, roughness: metalness ? 0.48 : 0.88, emissive, emissiveIntensity: emissive ? 0.35 : 0, flatShading: false });
+    value.userData.sharedArtMaterial = true;
     materials.set(key, value);
   }
   return value;
@@ -359,7 +361,8 @@ export function createSceneryProp(seed: number, region: number): THREE.Group {
 
 function createRuinedBuilding(id: string): THREE.Group {
   const g=new THREE.Group(),forge=id==='forge';
-  const width=forge?110:id==='workshop'?160:142,depth=forge?75:id==='sawmill'?115:140;
+  const site=forge?SETTLEMENT_FORGE:SETTLEMENT_BUILDINGS[id as keyof typeof SETTLEMENT_BUILDINGS];
+  const {width,depth}=site;
   const masonry=0x898373,timber=0x65513c,roof=id==='house'?0x9b6250:id==='workshop'?0x667779:0x778171;
   // Broken courses outline the original footprint; filled rubble makes its
   // existing collision boundary readable without a solid placeholder slab.
@@ -435,15 +438,27 @@ export function createBuilding(id: string, level: number): THREE.Group {
   const g = new THREE.Group();
   const wall = id === 'workshop' ? 0xaaa092 : id === 'house' ? 0xc6a37c : 0xb1936a;
   const roof = id === 'workshop' ? 0x526771 : id === 'house' ? 0x9e5c45 : id==='storage'?0x53786b:0x9b7a50;
-  const width = id === 'workshop' ? 160 : 142;
-  const depth = id === 'sawmill' ? 115 : 140;
+  const {width,depth}=SETTLEMENT_BUILDINGS[id as keyof typeof SETTLEMENT_BUILDINGS];
   const h = 78 + Math.min(level, 8) * 6;
   // Raised stone foundation, solid walls, pitched roof, doors and windows are all world geometry.
+  box(g,0x888779,0,7,0,width+5,14,depth+5);
+  for(const side of [-1,1])for(let n=0;n<5;n++){
+    box(g,n%2?0x9c9987:0x8c8b7c,(n-2)*(width+4)/5,7,side*(depth/2+3),
+      (width+4)/5-2,11,4);
+    box(g,n%2?0x949384:0xa39e8c,side*(width/2+3),7,(n-2)*(depth+4)/5,
+      4,11,(depth+4)/5-2);
+  }
   for (const sideX of [-1, 1]) for (const sideZ of [-1, 1]) {
     ball(g, 0x8a8575, sideX * (width / 2 - 12), 8, sideZ * (depth / 2 - 12), 15, 9, 15);
   }
   box(g, 0x989082, 0, 4, depth / 2 + 17, 49, 8, 35);
   box(g, wall, 0, h * 0.5 + 14, 0, width, h, depth);
+  // Timber courses connect the front to the side walls and ground foundation.
+  for(const side of [-1,1]){
+    box(g,0x71513c,side*(width/2+1),h*.5+14,0,5,h+3,depth+4);
+    box(g,wall,side*(width/2+4),h*.5+14,0,2,h-9,depth-22);
+    box(g,0x674a36,side*(width/2+5),17,0,5,6,depth+5);
+  }
   box(g, 0x614532, 0, 39, depth / 2 + 1, 33, 51, 4);
   box(g, 0xc59a53, 12, 38, depth / 2 + 4, 3, 3, 3);
   for (const side of [-1, 1]) {
@@ -515,6 +530,35 @@ export function createBuilding(id: string, level: number): THREE.Group {
   }
   batchStaticMeshes(g);
   return g;
+}
+
+/** Closed masonry annulus, with an opaque interior from every game camera. */
+export function createSettlementWell(): THREE.Group {
+  const root=new THREE.Group(),stone=mat(0x898373),inner=mat(0x645f54).clone();
+  inner.userData.sharedArtMaterial=false;
+  const outline=new THREE.Shape();outline.absarc(0,0,49,0,Math.PI*2,false);
+  const hole=new THREE.Path();hole.absarc(0,0,35,0,Math.PI*2,true);outline.holes.push(hole);
+  const shell=new THREE.Mesh(new THREE.ExtrudeGeometry(outline,{depth:42,steps:1,curveSegments:6,bevelEnabled:false}),stone);
+  shell.rotation.x=-Math.PI/2;shell.position.y=2;shell.castShadow=shell.receiveShadow=true;root.add(shell);
+  inner.side=THREE.BackSide;
+  const lining=new THREE.Mesh(new THREE.CylinderGeometry(35,33,38,24,1,true),inner);
+  lining.position.y=21;root.add(lining);
+  const water=new THREE.Mesh(new THREE.CircleGeometry(33,24),mat(0x397a86,.22));
+  water.rotation.x=-Math.PI/2;water.position.y=12;water.receiveShadow=true;root.add(water);
+  const rim=new THREE.Mesh(new THREE.TorusGeometry(43,7,6,24),mat(0xa9a18a));
+  rim.rotation.x=Math.PI/2;rim.position.y=44;rim.castShadow=rim.receiveShadow=true;root.add(rim);
+  for(const side of [-1,1])box(root,0x6f5942,side*51,58,0,9,116,9);
+  box(root,0x6f5942,0,116,0,119,10,12);
+  rod(root,0x8d7655,new THREE.Vector3(-48,99,0),new THREE.Vector3(48,99,0),4);
+  rod(root,0xb09a73,new THREE.Vector3(0,99,0),new THREE.Vector3(0,20,0),1.1);
+  const owned=new Set([shell.geometry,lining.geometry,water.geometry,rim.geometry]);
+  root.traverse(o=>{if(o instanceof THREE.Mesh){
+    // Settlement batching disposes its input geometries. Helpers use shared
+    // unit shapes, so copy them before handing ownership to the settlement.
+    if(!owned.has(o.geometry))o.geometry=o.geometry.clone();
+    o.userData.settlementOwned=true;
+  }});
+  return root;
 }
 
 export function createResource(type: string, region: number, seed = 24): THREE.Group {

@@ -84,7 +84,6 @@ function validateDocument(file, text, context) {
 function validateGraph(files, context) {
   const errors = [];
   for (const file of required) if (!context.exists(file)) errors.push(`missing required file ${file}`);
-  if (!files.some((file) => file.startsWith('docs/exec-plans/active/'))) errors.push('missing active execution plan');
   for (const file of files) errors.push(...validateDocument(file, context.read(file), context));
   if (context.exists('docs/specs/FEATURE_TEMPLATE.md')) {
     const present = headings(context.read('docs/specs/FEATURE_TEMPLATE.md'));
@@ -118,7 +117,6 @@ function selfTest() {
   assert.match(check('# Test\n`npm run missing`')[0], /unknown npm script/);
   assert.match(check('No title')[0], /missing document title/);
   assert.ok(validateGraph(['README.md'], context).some((error) => error.includes('missing required file')));
-  assert.ok(validateGraph(['README.md'], context).some((error) => error.includes('missing active execution plan')));
   memory.set('docs/specs/QA_RELEASE.md', '# QA\n');
   assert.ok(validateGraph(['README.md'], context).some((error) => error.includes('missing package inventory row build')));
   assert.ok(validateGraph(['README.md'], { ...context, directScripts: ['missing.mjs'] })
@@ -127,6 +125,16 @@ function selfTest() {
   assert.ok(feature.some((error) => error.includes('valid Status')));
   assert.ok(feature.some((error) => error.includes('Acceptance criteria')));
   assert.ok(feature.some((error) => error.includes('validation')));
+  // Finishing all planned work must not force creation of a dummy active plan.
+  const completedOnly = new Map(required.map((file) => [file, '# Fixture\n']));
+  completedOnly.set('docs/specs/FEATURE_TEMPLATE.md', '# Feature\n' + templateHeadings.map((heading) => `## ${heading}\n`).join('\n'));
+  completedOnly.set('docs/specs/QA_RELEASE.md', '# QA\n| `npm run build` | fixture |\n');
+  completedOnly.set('docs/exec-plans/completed/test.md', '# Completed plan\n');
+  assert.deepEqual(validateGraph([...completedOnly.keys()], {
+    scripts: context.scripts,
+    exists: (file) => completedOnly.has(file),
+    read: (file) => completedOnly.get(file),
+  }), []);
   console.log('SDD validator self-test PASS: links, anchors, paths, scripts, structure and inventory');
 }
 

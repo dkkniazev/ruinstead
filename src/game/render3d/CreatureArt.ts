@@ -204,7 +204,7 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
     if(shape!=='boar'&&shape!=='ram')legs.forEach(l=>{for(let n=0;n<3;n++)add(l,cone,ivory,(n-1)*4,-25,18,1.5,5,2).rotation.x=Math.PI*.5;});
   }
   if(['scorpion','spider','beetle'].includes(shape)){
-    for(let n=0;n<4;n++){
+    for(let n=0;n<(shape==='scorpion'?4:0);n++){
       const shell=add(body,plate,n%2?primary:accent,0,39,-32+n*13,25-n,7,12);shell.rotation.x=.09;
       for(const s of [-1,1])add(body,cone,accent,s*(24-n),32,-30+n*13,3,10,4).rotation.z=-s*.8;
     }

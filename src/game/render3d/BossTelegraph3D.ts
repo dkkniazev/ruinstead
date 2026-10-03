@@ -17,7 +17,7 @@ export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
   }
   geometry.computeVertexNormals();
   const material=new THREE.MeshBasicMaterial({
-    color: 0xff5148, transparent: true, opacity: 0.62, side: THREE.DoubleSide, depthWrite: false,toneMapped:false,
+    color: 0xff5148, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false,toneMapped:false,
     polygonOffset: true, polygonOffsetFactor: -2,
   });
   material.onBeforeCompile=shader=>{
@@ -28,7 +28,13 @@ export function createBossTelegraph(zone: BossDangerZone): THREE.Mesh {
     shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
       float edge=${zone.shape==='circle'?'1.-length(vDangerUv*2.-1.)':'min(min(vDangerUv.x,1.-vDangerUv.x),min(vDangerUv.y,1.-vDangerUv.y))'};
       float rim=1.-smoothstep(.014,.035,edge);
-      diffuseColor.a*=.32+rim*.68;diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.52,.35),rim*.3);
+      // A dark inner separator keeps the red boundary legible on orange lava
+      // and pale sand. All bands stay inside the exact damage geometry.
+      float separator=smoothstep(.028,.038,edge)*(1.-smoothstep(.05,.065,edge));
+      diffuseColor.a*=.28+rim*.72;
+      diffuseColor.a=max(diffuseColor.a,separator*.68);
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.72,.56),rim*.55);
+      diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.22,.035,.04),separator*.9);
       float sweep=${zone.shape==='circle'?'length(vDangerUv*2.-1.)':'vDangerUv.x'};
       float charge=(1.-smoothstep(.015,.045,abs(sweep-dangerProgress)))*.55;
       diffuseColor.rgb=mix(diffuseColor.rgb,vec3(1.,.77,.4),charge);

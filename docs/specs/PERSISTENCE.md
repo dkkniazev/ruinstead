@@ -34,6 +34,12 @@ normalization. Derived contiguous region access uses main-boss/bridge progress.
 Preserve existing migration/default paths; future schema changes must define
 old/missing/invalid input behavior, not simply bump a number or rename a key.
 
+At WorldScene startup, a saved player position inside a solid settlement building
+or well is moved locally to clear ground. Use the actual Phaser body centre and
+clearance, not an assumed sprite offset. Valid clear positions are preserved;
+inventory, progression, schema and identity keys are unchanged. This is a world
+placement correction, not a save reset or a migration to a different map.
+
 ## Cloud resolution and ordering
 
 Yandex identity/data is resolved before world startup when available. Newer
@@ -59,10 +65,11 @@ See [PLATFORM_MONETIZATION](PLATFORM_MONETIZATION.md) for provider behavior.
 
 ## Risks and validation
 
-Client time/state are trusted and SDK calls are unsigned; no backend anti-cheat
-or transactional server store exists. Storage quota/private mode/network failure,
-concurrent tabs, equal timestamps, stale cloud and unavailable authorization need
-explicit handling. Do not describe local+cloud as a distributed atomic transaction.
+Client time/state are trusted; payment receipts are requested unsigned through
+`getPayments({signed:false})`. There is no backend receipt verification or
+transactional server store. Storage quota/private mode/network failure, concurrent
+tabs, equal timestamps, stale cloud and unavailable authorization need explicit
+handling. Do not describe local+cloud as a distributed atomic transaction.
 
 Run `npm run check:release` for source selection, failure/retry, captured snapshots,
 receipt ordering/idempotence and startup fixtures; `npm run check:regressions`

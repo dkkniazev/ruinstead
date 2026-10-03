@@ -56,6 +56,7 @@ function select(mode:string){
   overview=mode==='overview';labels.visible=overview;
   const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();
   closeGround.traverse(o=>{if(o instanceof THREE.Mesh){
+    if(o instanceof THREE.InstancedMesh)o.dispose();
     if(o.userData.uniqueGeometry||o.userData.batchedGeometry)geometries.add(o.geometry);
     for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.sharedArtMaterial)materials.add(m);
   }});

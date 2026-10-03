@@ -73,6 +73,9 @@ Relevant replay, invalid input, duplicate reward and trust boundaries.
 Observable pass/fail statements, tied to requirements. For visuals, name the
 camera/state/pair and reviewable silhouette/attachment/readability outcomes.
 Avoid “looks better”, “works properly” or “improved UX” without a defined scenario.
+Separate automated acceptance from human visual/feel approval using
+[QA_RELEASE](QA_RELEASE.md#acceptance-gates); subjective final approval is not
+implied by a passing fixture.
 
 ## Automated validation
 
@@ -81,6 +84,10 @@ Exact existing commands and meaningful new regression cases; distinguish fixture
 ## Manual validation
 
 Exact scenarios, build/save/device context and evidence required for judgment.
+For relevant visual work, link the applicable reference and asset workflow from
+[WORLD_CONTENT](WORLD_CONTENT.md#asset-workflow), name the existing harness/replay
+state and capture practical evidence. Mark provisional art and pending human
+review explicitly; omit these details for features where they do not apply.
 
 ## Implementation notes
 

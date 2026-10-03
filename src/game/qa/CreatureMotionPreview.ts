@@ -1,5 +1,6 @@
 import * as T from 'three';
 import { createCreature } from '../render3d/CreatureModels';
+import { createHero } from '../render3d/HeroModel';
 import type { AnimatedModel } from '../render3d/Models';
 import type { CreatureCombatPose } from '../render3d/CreatureMotion';
 import { RELEASE_SPECIES, RELEASE_BOSSES } from '../world/ReleaseWorldContent';
@@ -17,6 +18,8 @@ const eliteLabel=document.createElement('label');eliteLabel.textContent='Эли�
 const eliteToggle=document.createElement('input');eliteToggle.type='checkbox';eliteToggle.setAttribute('aria-label','Элитная версия');eliteLabel.append(eliteToggle);document.querySelector('nav')!.append(eliteLabel);
 const compareLabel=document.createElement('label');compareLabel.textContent='Сравнить ';
 const compareToggle=document.createElement('input');compareToggle.type='checkbox';compareToggle.setAttribute('aria-label','Сравнить обычного и элиту');compareLabel.append(compareToggle);document.querySelector('nav')!.append(compareLabel);
+const sizeLabel=document.createElement('label');sizeLabel.textContent='Размеры видов ';
+const sizeToggle=document.createElement('input');sizeToggle.type='checkbox';sizeToggle.setAttribute('aria-label','Сравнить размеры видов');sizeLabel.append(sizeToggle);document.querySelector('nav')!.append(sizeLabel);
 const scrub=document.createElement('input');scrub.type='range';scrub.min='0';scrub.max='100';scrub.value='0';scrub.setAttribute('aria-label','Кадр атаки');
 const scrubLabel=document.createElement('label');scrubLabel.textContent='Кадр атаки ';scrubLabel.append(scrub);document.querySelector('nav')!.append(scrubLabel);
 const renderer=new T.WebGLRenderer({antialias:true});
@@ -32,11 +35,12 @@ const shadow=contactShadow(40);scene.add(shadow);
 const camera=new T.OrthographicCamera(-150,150,150,-150,1,5000);
 const sources=[...RELEASE_SPECIES,...RELEASE_BOSSES];
 for(const source of sources)select.add(new Option(source.name,source.id));
-let model:AnimatedModel|undefined,companion:AnimatedModel|undefined,mode='cycle',clock=0,angle=.52,span=250,targetY=70,token=0;
+let model:AnimatedModel|undefined,companion:AnimatedModel|undefined,additional:AnimatedModel[]=[],sizeNote='',mode='cycle',clock=0,angle=.52,span=250,targetY=70,token=0;
 scrub.addEventListener('input',()=>{mode='scrub';document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed','false'));});
 const frameCamera=()=>{
   const aspect=stage.clientWidth/stage.clientHeight;camera.left=-span*aspect/2;camera.right=span*aspect/2;
-  camera.top=span/2;camera.bottom=-span/2;camera.position.set(Math.sin(angle)*800,targetY+430,Math.cos(angle)*800);camera.lookAt(0,targetY,0);camera.updateProjectionMatrix();
+  const viewAngle=sizeNote?0:angle;
+  camera.top=span/2;camera.bottom=-span/2;camera.position.set(Math.sin(viewAngle)*800,targetY+430,Math.cos(viewAngle)*800);camera.lookAt(0,targetY,0);camera.updateProjectionMatrix();
 };
 const resize=()=>{renderer.setSize(stage.clientWidth,stage.clientHeight);frameCamera();};
 new ResizeObserver(resize).observe(stage);
@@ -45,12 +49,31 @@ async function show(){
   await preloadCreatureSurfaces();if(request!==token)return;
   if(model){scene.remove(model.root);model.dispose?.();}
   if(companion){scene.remove(companion.root);companion.dispose?.();companion=undefined;}
-  compareToggle.disabled='isMain'in source;
+  for(const entry of additional){scene.remove(entry.root);entry.dispose?.();}additional=[];sizeNote='';
+  sizeToggle.disabled='isMain'in source;
+  const sizes=sizeToggle.checked&&!sizeToggle.disabled;
+  compareToggle.disabled='isMain'in source||sizes;
   const compare=compareToggle.checked&&!compareToggle.disabled;
-  eliteToggle.disabled=compare;
-  const stats='isMain'in source?bossDisplayStats(source.id):enemyDisplayStats(source.id,eliteToggle.checked||compare);
+  eliteToggle.disabled=compare||sizes;
+  const isElite=!sizes&&(eliteToggle.checked||compare);
+  const stats='isMain'in source?bossDisplayStats(source.id):enemyDisplayStats(source.id,isElite);
   const palette='primaryColor'in source?source:bossDisplayStats(source.id);
-  model=createCreature(source.id,palette.primaryColor,palette.accentColor,'isMain'in source||eliteToggle.checked||compare,stats.radius);scene.add(model.root);
+  model=createCreature(source.id,palette.primaryColor,palette.accentColor,'isMain'in source||isElite,stats.radius);scene.add(model.root);
+  if(sizes){
+    const hero=createHero();additional.push(hero);scene.add(hero.root);
+    const lineup=[{name:'Герой',model:hero},...RELEASE_SPECIES.filter(s=>s.region===source.region).map(s=>{
+      if(s.id===source.id)return {name:s.name,model:model!};
+      const entry=createCreature(s.id,s.primaryColor,s.accentColor,false,enemyDisplayStats(s.id,false).radius);
+      additional.push(entry);scene.add(entry.root);return {name:s.name,model:entry};
+    })];
+    // One camera and unmodified world scales. All feet share the same ground;
+    // portrait framing may otherwise hide disproportionate species sizes.
+    let x=0;
+    for(const entry of lineup){const bounds=creatureBodyBounds(entry.model.root),width=bounds.getSize(new T.Vector3()).x;
+      entry.model.root.position.x=x-bounds.min.x;x+=width+28;}
+    for(const entry of lineup)entry.model.root.position.x-=(x-28)/2;
+    sizeNote=lineup.map(e=>`${e.name} ${Math.round(creatureBodyBounds(e.model.root).getSize(new T.Vector3()).y)}`).join(' / ');
+  }
   if(compare){
     const ordinary=enemyDisplayStats(source.id,false);
     companion=createCreature(source.id,palette.primaryColor,palette.accentColor,false,ordinary.radius);scene.add(companion.root);
@@ -59,27 +82,24 @@ async function show(){
     const width=Math.max(creatureBodyBounds(model.root).getSize(new T.Vector3()).x,creatureBodyBounds(companion.root).getSize(new T.Vector3()).x);
     model.root.position.x=width*.62;companion.root.position.x=-width*.62;
   }
-  await model.ready;if(request!==token)return;
+  const displayed=[model,...additional,...(companion?[companion]:[])];
+  await Promise.all(displayed.map(m=>m.ready));if(request!==token)return;
   // Frame the entire attack, including native skinned jumps, not only the bind pose.
   const bounds=new T.Box3();
   for(let frame=0;frame<=24;frame++){
     const t=frame/24,pose:CreatureCombatPose=t<.65?{phase:'windup',progress:t/.65,hit:0}:{phase:'strike',progress:(t-.65)/.35,hit:0};
-    model.step(1/30,0,false,true,undefined,undefined,undefined,pose);
-    companion?.step(1/30,0,false,true,undefined,undefined,undefined,pose);
-    bounds.union(creatureBodyBounds(model.root));
-    if(companion)bounds.union(creatureBodyBounds(companion.root));
+    for(const entry of displayed){entry.step(1/30,0,false,true,undefined,undefined,undefined,pose);bounds.union(creatureBodyBounds(entry.root));}
   }
-  for(let frame=0;frame<5;frame++)model.step(.03,0,false,false,undefined,undefined,undefined,{phase:'idle',progress:0,hit:0});
-  bounds.union(creatureBodyBounds(model.root));
-  if(companion)bounds.union(creatureBodyBounds(companion.root));
+  for(const entry of displayed){for(let frame=0;frame<5;frame++)entry.step(.03,0,false,false,undefined,undefined,undefined,{phase:'idle',progress:0,hit:0});bounds.union(creatureBodyBounds(entry.root));}
   const size=bounds.getSize(new T.Vector3());
   targetY=(bounds.min.y+bounds.max.y)*.5;
   span=Math.max(size.y*1.5,Math.max(Math.abs(bounds.min.x),Math.abs(bounds.max.x))*2.1,Math.max(Math.abs(bounds.min.z),Math.abs(bounds.max.z))*1.8,130);clock=0;
-  shadow.visible=!compare;shadow.scale.set(stats.radius*1.4,stats.radius*1.05,1);frameCamera();
+  shadow.visible=!compare&&!sizes;shadow.scale.set(stats.radius*1.4,stats.radius*1.05,1);frameCamera();
 }
 select.addEventListener('change',()=>void show());
 eliteToggle.addEventListener('change',()=>void show());
 compareToggle.addEventListener('change',()=>void show());
+sizeToggle.addEventListener('change',()=>void show());
 document.querySelectorAll<HTMLButtonElement>('[data-mode]').forEach(button=>button.addEventListener('click',()=>{
   mode=button.dataset.mode!;clock=0;
   document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
@@ -101,7 +121,8 @@ renderer.setAnimationLoop(now=>{
   else if(mode==='hit')pose={phase:'idle',progress:0,hit:1};
   model?.step(dt,mode==='move'?140:0,false,pose.phase!=='idle',undefined,undefined,undefined,pose);
   companion?.step(dt,mode==='move'?140:0,false,pose.phase!=='idle',undefined,undefined,undefined,pose);
+  for(const entry of additional)entry.step(dt,mode==='move'?140:0,false,pose.phase!=='idle',undefined,undefined,undefined,pose);
   renderer.render(scene,camera);
-  status.textContent=`${select.selectedOptions[0]?.text}${companion?' · слева обычный / справа элита':''} · ${mode==='move'?'походка':pose.phase==='windup'?'подготовка':pose.phase==='strike'?'удар / отдача':'покой'} · ${Math.round(pose.progress*100)}%`;
+  status.textContent=`${select.selectedOptions[0]?.text}${companion?' · слева обычный / справа элита':''} · ${mode==='move'?'походка':pose.phase==='windup'?'подготовка':pose.phase==='strike'?'удар / отдача':'покой'} · ${Math.round(pose.progress*100)}%${sizeNote?' · рост в мире: '+sizeNote:''}`;
 });
 resize();void show();

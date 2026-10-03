@@ -27,6 +27,14 @@ obstacle footprints govern collisions, while sampled height aligns feet/roads,
 bridges and danger markings. Visual terrain changes must not block intended
 paths or allow bypasses. Boss spawn bodies stay clear of passages/resources.
 
+`SettlementLayout.ts` owns the four base building locations/dimensions, forge
+and well footprint. Renderer, placement, Phaser solids and enemy navigation
+consume those records. Buildings/well block actors; empty awnings are not full
+walls. Ground solids exist through repair stages, while roofs/decorations are
+not additional blockers. Spawn, banking and forge interaction approaches stay
+clear. Starter wood is east of the workshop with canopy clearance; generated
+resource candidates also avoid these ground footprints.
+
 Resource nodes have logical durability/collision and type-specific visual cues;
 decorative vegetation does not silently become a harvest node. Resource layouts
 are seeded/stable across reload; opened chests and progression persist, node
@@ -41,13 +49,32 @@ surfaces. World and portraits share identity/creation; normalized combat body
 radius remains separate from protruding horns, wings, weapons and tails.
 
 Current local baked data in `public/assets/models/creature-sculpt` contains
-299 shared surfaces, 98,201 shared triangles (~1541 KiB); this is a snapshot,
+390 shared surfaces, 183,370 shared triangles (~2876 KiB), baked 2026-10-03; this is a snapshot,
 not a performance target. `src/game/render3d/CreatureMotion.ts` animates articulated
 parts, not a physics ragdoll. Weapon sockets must follow the hand; face, fangs,
 horns and stingers must follow their parent throughout idle/move/attack/recovery.
 `src/game/render3d/CreatureAura.ts` provides subtle animated elite aura/ground effects
 for all 40 elite variants; effects must not inflate HP-label/portrait bounds.
 Elites also use anatomy/armor differences, not aura alone.
+
+Current surfaces include species-specific canine/goat/feline heads and body
+proportions, coherent veteran fur mantles, convex beetle wing cases, painted
+worm/serpent segments, a closed freckled fungus cap and connected harpy/owl
+feather fans. Root colossus, moss ogre, insect, rock and predator bosses have
+independent mass profiles; existing individual equipment remains on other bosses.
+This describes local implementation, not approval of every design or animation.
+
+The user's 2026-10-03 creature reference is the cover goblin preserved in the
+[reference index](../references/visual/README.md): compact coherent volumes,
+fitted expressive eyes/muzzles, broad leaf ears and brown leather/simple steel.
+The shared pipeline applies this language across all catalog families, with
+intentional chitin/stone/metal differences. `CreatureScale.ts` owns presentation
+profiles: short goblin/imp, adult human, low heavy boar, longer predators,
+larger giants and broad winged reptiles. Compare all five regional species
+with the hero using one world-scale camera in the existing motion preview;
+individual portrait fit is insufficient. Elite growth retains gameplay radius
+as an input, plus mature anatomy/equipment; damage/reach/radii are unchanged.
+Existing boss world-scale factors are retained separately from normal profiles.
 
 The active catalog does not use the older Bat/Goat/Owl GLBs. Assets/loaders remain
 for compatibility/rig coverage; do not remove them on the assumption they are
@@ -56,13 +83,87 @@ current active creatures. Hero skins share articulation through
 
 ## Art workflow and constraints
 
-After surface-authoring changes (materials/anatomy/models/catalog/sculpt), run
-`npm run art:bake-creatures`, review generated assets, then `npm run check:art`.
-Bake is a generator, not a test. Stale baked authoring hashes are failures.
 Visibility culling and `src/game/render3d/MeshBatching.ts` reduce render work;
 they must not disable gameplay outside the camera. Resource/building labels
 remain dynamic/localized at the accepted size, with quality fixed independently
 of oversized icons. The approved art backlog is [WORLD_VISUAL_POLISH](features/WORLD_VISUAL_POLISH.md).
+
+`TreeForms.ts` supplies shared closed bark/canopy surfaces; living harvest trees
+use connected foliage and buttressed trunks, with rigid meshes batched together.
+Keep their established height/footprint and fewer than 1500 triangles per living tree.
+Brook banks feather into existing terrain; low grouped pebbles/reeds are decorative,
+stay clear of bridge decks and add no obstacles or harvest targets. Shore layers
+sample the actual Float32 vertex coordinates before computing height; water
+stays in the existing corridor. Bound the complete instanced scenery of each
+brook to fewer than 25000 triangles; no new light, bloom or dense startup sculpt.
+
+`ForestUnderstory.ts` composes low walk-through beds in regions 1/3/5/6:
+at most four beds, four shared shrubs and 64 shared leaf instances per 640-unit
+chunk, below 33 units high and fewer than 6500 triangles. Keep the whole bed
+clear of roads (70 units beyond its footprint), passages, geography and the
+settlement (650 units). Instance buffers are released on chunk removal; shared
+surfaces remain reusable. Sparse acacias use one connected umbrella canopy.
+Road wear is shader colour within existing ribbon geometry; it changes no
+route width or height. Restored houses have continuous stone plinths and fitted
+stone/timber courses inside their established footprints.
+
+`ContactBursts3D.ts` adds short contact flashes/puffs to recorded hits and faint
+distance-driven hero footfall dust. The fixed pools retain 32 hit contacts and
+16 footfalls, at most two added draws, without lights, texture requests, damage
+events or lasting halos. Telegraph contrast bands stay inside the existing
+danger geometry; appearance must never imply a shorter attack range.
+
+## Asset workflow
+
+Before changes to environments, characters, enemies, bosses, UI, animation or
+important props, inspect the applicable [visual reference index](../references/visual/README.md)
+and its actual gameplay material. Record the source/view inspected in the task
+plan or report. Missing reference evidence is Unverified; do not substitute an
+unrelated cover or present a guessed style as an approved decision. References
+guide presentation, while specs retain authority over behavior and constraints.
+UI behavior/readability remains owned by [UI_UX_LOCALIZATION](UI_UX_LOCALIZATION.md).
+
+Use the applicable steps for the actual asset route; do not force a GLB/bitmap
+export workflow onto code-authored surfaces or procedural audio:
+
+1. Establish reference, intended role and functional constraints. For a new
+   content mechanic, use the prototype-first workflow in [ARCHITECTURE](ARCHITECTURE.md).
+2. Author/generate/import with traceable sources. Code-authored surfaces live in
+   render3d; the sculpt generator is `scripts/creature-sculpt-bake.mjs` and its
+   outputs are manifest.json/surfaces.bin. External packs already keep SOURCE.md
+   and LICENSE.txt beside vendored GLBs. For a substantial new generated/external
+   pack, record origin/license or generation recipe, source/output paths and
+   intended active/compatibility/provisional use. Keep required source/recipe
+   recoverable; a machine-specific temporary path alone is insufficient.
+3. Normalize only where needed: finite geometry/outward normals, units/orientation,
+   pivot/ground contact, local textures/materials, rig and bounds. Bitmap cleanup
+   includes transparency, sampling and intended display size. Procedural audio
+   stays in GameAudio; imported sound would need provenance, levels, loop/end
+   review and the existing pause/mute lifecycle. Do not create unused audio files.
+4. Preview through shared production model/UI constructors in the appropriate
+   existing harness. Check scale and anchors, visual collision/hit-area agreement,
+   interaction coordinates and idle/move/wind-up/impact/recovery alignment. Include
+   same-camera ordinary/elite comparisons; portrait auto-framing can conceal size.
+5. Compare silhouette, material separation, composition and motion with the actual
+   reference under representative game lighting/camera. Record concrete gaps and
+   human-review status under [QA_RELEASE](QA_RELEASE.md#acceptance-gates).
+6. Integrate through the existing catalog/loader/renderer; retain IDs, colliders,
+   cooldowns, localization, visibility/batching and cleanup. After creature surface
+   authoring changes (models/anatomy/materials/catalog/sculpt), run
+   `npm run art:bake-creatures`, inspect output, then `npm run check:art`.
+   Bake is a generator, not a test; stale baked hashes are failures. Select other
+   gates from QA_RELEASE instead of treating every asset as a sculpt bake.
+7. Verify in the actual game and affected desktop/touch contexts; produce practical
+   inspectable evidence, including any harness-only overrides. Isolated preview
+   success does not close scene-level/device acceptance or promote placeholders
+   to final content. Link results from the plan; release still uses QA_RELEASE.
+
+Retain existing metadata, licenses and historical observations when replacing an
+asset. Do not infer active use from the presence of a file in public. Trivial
+asset replacements that preserve intended visual behavior need no specification
+churn; update metadata/generated outputs when affected. Changed style, animation,
+readability, anchors or visual interaction semantics update the relevant contract
+automatically under AGENTS, with new decisions persisted instead of chat-only.
 
 ## Validation and limits
 

@@ -10,6 +10,7 @@ import { createCreatureEyes, sharedCreatureFaceGeometry } from './CreatureFaces'
 import { sharedCreatureAnatomyGeometry } from './CreatureAnatomy';
 import { sculptCreatureSurfaces, sharedCreatureSculptGeometry } from './CreatureSculpt';
 import { createEliteAura, creatureBodyBounds } from './CreatureAura';
+import { creaturePresentationScale } from './CreatureScale';
 import type { AnimatedModel } from './Models';
 
 const round = softOrb;
@@ -69,7 +70,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
   const grips:T.Group[]=[],weaponParts:T.Group[]=[];
   body.name='creature-body';
   const dark=0x27343b,ivory=0xe8d6aa,steel=0x8d9fa8,skin=['goblin','ogre','imp','gargoyle'].includes(shape)?primary:0xc6a17b;
-  let floating=false,core=25,scorpionTail:T.Group|undefined;
+  let floating=false,scorpionTail:T.Group|undefined;
   const wing=(side:number,y:number,scale=1,feathers=false):void=>{
     const w=pivot(body,side*14,y,-4);w.scale.set(side*scale,scale,scale);wings.push(w);
     if(!feathers){
@@ -95,7 +96,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
   const tail=(length:number,y:number,thick:number):void=>{for(let i=0;i<6;i++){const p=pivot(body,0,y-i*2,-20-i*length/6);ball(p,i%2?accent:primary,0,0,0,thick*(1-i*.12),thick*(1-i*.12),length/5);segments.push(p);}};
   const humanoid=['goblin','rogue','cultist','knight','smith','ogre','imp','gargoyle','harpy'].includes(shape);
   if(humanoid){
-    const heavy=shape==='ogre'||shape==='smith',wide=heavy?29:18;core=wide;
+    const heavy=shape==='ogre'||shape==='smith',wide=heavy?29:18;
     const legColor=shape==='gargoyle'||shape==='imp'?primary:dark;
     ball(body,primary,0,53,0,wide,26,17);box(body,legColor,0,33,0,wide*1.8,9,27);
     // Masked creatures get their head and eyes below, inside the fitted hood.
@@ -170,8 +171,8 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     }
   }else if(['boar','jackal','cat','hound','salamander','drake','wyvern','dragon','ram'].includes(shape)){
     const reptile=['salamander','drake','wyvern','dragon'].includes(shape),low=shape==='salamander',thin=shape==='jackal'||shape==='cat';
-    core=thin?22:29;const y=low?20:35;
-    ball(body,primary,0,y,0,core,low?13:22,34);
+    const y=low?20:35;
+    ball(body,primary,0,y,0,thin?22:29,low?13:22,34);
     headParts(body,()=>{ball(body,reptile||shape==='hound'?primary:accent,0,y+9,30,thin?17:23,19,21).userData.faceSurface=true;ball(body,primary,0,y+1,shape==='cat'?42:47,thin?10:16,10,shape==='cat'?9:18);eyes(body,y+12,45,thin?8:11,reptile);});
     for(const s of [-1,1]){
       headParts(body,()=>{
@@ -183,10 +184,11 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     }
     if(shape==='boar'||shape==='hound')for(let n=0;n<5;n++)horn(body,accent,0,y+22,-28+n*12,16+n*2);
     else tail(reptile?75:shape==='ram'?18:58,y,low?15:shape==='ram'?6:10);
+    if(shape==='hound')tail(66,y-3,9);
     if(['drake','wyvern','dragon'].includes(shape)){const span=shape==='dragon'?1.65:shape==='wyvern'?1.35:.65;wing(-1,y+20,span);wing(1,y+20,span);}
     if(reptile)for(let n=0;n<5;n++)horn(body,accent,0,y+22,-28+n*12,12);
   }else if(['scorpion','spider','beetle'].includes(shape)){
-    core=28;ball(body,primary,0,26,-14,28,21,32);ball(body,accent,0,24,25,19,14,20);eyes(body,30,41,8);
+    ball(body,primary,0,26,-14,28,21,32);ball(body,accent,0,24,25,19,14,20);eyes(body,30,41,8);
     const count=shape==='spider'?4:3;
     for(const s of [-1,1])for(let n=0;n<count;n++){
       const l=pivot(body,s*18,23,25-n*17);legs.push(l);
@@ -195,7 +197,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     }
     if(shape==='beetle'){for(const s of [-1,1])ball(body,accent,s*13,36,-16,14,13,30);box(body,dark,0,46,-15,3,2,53);}
     // Mandibles start inside the cheek and taper forward/down, never point into it.
-    if(shape!=='spider')for(const s of [-1,1])curvedPart(body,ivory,[[s*11,24,37],[s*15,16,48],[s*7,12,54]],4.5);
+    if(shape!=='spider')for(const s of [-1,1])curvedPart(body,ivory,[[s*11,24,37],[s*15,16,48],[s*7,12,54]],4.5).userData.bugMandible=true;
     if(shape==='scorpion'){
       for(const s of [-1,1]){
         bone(body,primary,[s*17,26,28],[s*34,28,48],6);ball(body,accent,s*34,28,49,9,7,10);
@@ -212,14 +214,13 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
       const socket=pivot(scorpionTail,0,50,15);socket.name='stinger-socket';
     }
   }else if(shape==='serpent'||shape==='worm'){
-    core=23;
     for(let n=0;n<9;n++){const p=pivot(body,Math.sin(n*.62)*19,18+(n===0?18:0),32-n*14);segments.push(p);ball(p,n%2?accent:primary,0,0,0,(shape==='worm'?25:22)*(1-n*.065),18*(1-n*.04),19);if(shape==='serpent')horn(p,accent,0,20,0,14);}
     headParts(body,()=>{
     if(shape==='serpent'){ball(body,primary,0,45,42,22,13,25).userData.faceSurface=true;eyes(body,52,59,12);box(body,0xdd614e,0,40,73,2,1.8,22);for(const s of [-1,1]){bone(body,0xdd614e,[0,40,82],[s*3,40,89],1);horn(body,ivory,s*16,64,33,24,s*.4);}}
     else {ball(body,dark,0,36,49,20,20,6);for(let n=0;n<10;n++){const a=n/10*Math.PI*2;curvedPart(body,ivory,[[Math.cos(a)*17,36+Math.sin(a)*17,51],[Math.cos(a)*12,36+Math.sin(a)*12,57],[Math.cos(a)*7,36+Math.sin(a)*7,58]],3);}}
     });
   }else if(['golem','sand','scrap','treant'].includes(shape)){
-    core=32;const tree=shape==='treant',metal=shape==='scrap';
+    const tree=shape==='treant',metal=shape==='scrap';
     (metal?box:ball)(body,primary,0,60,0,metal?52:31,metal?51:35,metal?32:25);ball(body,accent,0,64,24,10,15,4);ball(body,primary,0,107,0,21,23,18);if(id!=='lava-golem')eyes(body,metal?107:109,metal?22:18,metal?7:9);
     for(const s of [-1,1]){const a=pivot(body,s*39,81,0);arms.push(a);(metal?box:ball)(a,accent,0,-8,0,metal?25:17,metal?26:20,metal?29:17);bone(a,primary,[0,-15,0],[s*7,-44,3],tree?10:13);ball(a,primary,s*7,-46,3,18,17,17);
       const l=pivot(body,s*19,35,0);legs.push(l);bone(l,primary,[0,0,0],[s*4,-25,7],13);ball(l,id==='lava-golem'?primary:accent,s*5,-29,12,17,8,22);
@@ -239,18 +240,18 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
       for(const side of [-1,1])bone(body,accent,[side*5,79,25],[side*18,85,20],2);
     }
   }else if(shape==='mushroom'){
-    core=23;mesh(body,stick,ivory,0,30,0,17,45,17);eyes(body,35,17,7);ball(body,accent,0,63,0,43,21,39);
+    mesh(body,stick,ivory,0,30,0,17,45,17);eyes(body,35,17,7);ball(body,accent,0,63,0,43,21,39);
     for(let n=0;n<7;n++){const a=n*2.4;ball(body,ivory,Math.cos(a)*27,76-(n%2)*6,Math.sin(a)*25,5,2,5);}
     for(const s of [-1,1]){const l=pivot(body,s*12,13,0);legs.push(l);ball(l,primary,0,-6,6,9,7,13);}
   }else if(shape==='slime'){
-    core=26;ball(body,primary,0,22,0,28,24,28);ball(body,accent,0,8,0,33,7,30);eyes(body,29,24,8);ball(body,accent,-10,38,9,7,3,5);
+    ball(body,primary,0,22,0,28,24,28);ball(body,accent,0,8,0,33,7,30);eyes(body,29,24,8);ball(body,accent,-10,38,9,7,3,5);
   }else if(shape==='wisp'||shape==='flame'){
-    floating=true;core=20;mesh(body,spike,accent,0,45,0,16,50,16);
+    floating=true;mesh(body,spike,accent,0,45,0,16,50,16);
     if(shape==='wisp'){const crystal=mesh(body,spike,primary,0,22,0,16,27,16);crystal.rotation.z=Math.PI;const ring=new T.Mesh(new T.TorusGeometry(29,1.6,4,18),material(accent));ring.position.y=32;ring.rotation.x=1.1;body.add(ring);}else ball(body,primary,0,29,0,22,19,21);
     for(let n=0;n<5;n++){const a=n*1.26;const p=pivot(body,Math.cos(a)*29,27+n*5,Math.sin(a)*24);segments.push(p);mesh(p,spike,accent,0,0,0,5,18,5);}
     eyes(body,shape==='flame'?37:43,shape==='flame'?20:10,7);
   }else { // Asset fallbacks are still the same species.
-    core=23;floating=true;ball(body,primary,0,40,0,shape==='bat'?16:23,shape==='bat'?23:29,19);
+    floating=true;ball(body,primary,0,40,0,shape==='bat'?16:23,shape==='bat'?23:29,19);
     headParts(body,()=>{ball(body,primary,0,64,8,22,20,17).userData.faceSurface=true;eyes(body,66,26,shape==='bat'?8:10);});
     wing(-1,48,shape==='bat'?.85:.85,shape==='owl');wing(1,48,.85,shape==='owl');
     headParts(body,()=>{
@@ -260,7 +261,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     for(const s of [-1,1]){const leg=pivot(body,s*10,21,0);legs.push(leg);bone(leg,accent,[0,0,0],[0,-10,4],3);for(let n=0;n<3;n++)bone(leg,ivory,[0,-9,4],[(n-1)*4,-12,10],1.2);}
   }
   finishCreature(id,shape,body,arms,legs,wings,primary,accent,boss,elite);
-  sculptCreatureSurfaces(body,shape,arms,legs,primary,accent,elite,boss);
+  sculptCreatureSurfaces(body,shape,arms,legs,wings,primary,accent,elite,boss,id);
   // Seat eyes on the sculpted skull instead of the old spherical head's surface.
   const skull=body.children.find(o=>o.userData.faceSurface) as T.Mesh|undefined;
   if(skull){
@@ -296,11 +297,13 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
   batchStaticMeshes(body);
   const aura=elite&&!boss?createEliteAura(body,shape,accent):undefined;
   const radius=combatRadius??(boss?55:elite?36:25);
-  const animate=createCreatureMotion(shape,boss,floating,{body,head,jaw,legs,knees,arms,grips,wings,segments,tail:scorpionTail},radius/core);
+  const worldScale=creaturePresentationScale(shape,radius,boss);
+  const animate=createCreatureMotion(shape,boss,floating,{body,head,jaw,legs,knees,arms,grips,wings,segments,tail:scorpionTail},worldScale);
   const base:AnimatedModel={root,step(dt,speed,_dash,attack,_travel,_turning,_attackAt,pose){animate(dt,speed,attack,pose);aura?.step(dt);},
     dispose(){aura?.dispose();body.traverse(o=>{if(o instanceof T.Mesh){if(o.geometry===wingGeometry||o.userData.ownedMaterial)(o.material as T.Material).dispose();if(![round,block,spike,stick,rock,wingGeometry].includes(o.geometry)&&!sharedCreatureGeometry(o.geometry)&&!sharedCreatureFaceGeometry(o.geometry)&&!sharedCreatureAnatomyGeometry(o.geometry)&&!sharedCreatureSculptGeometry(o.geometry)&&!o.userData.sharedEquipmentGeometry)o.geometry.dispose();}});}};
   const model=withCreatureAsset(id,primary,accent,boss,base);
-  model.root.scale.setScalar(radius/core);
+  model.root.scale.setScalar(worldScale);
+  model.root.userData.presentationScale=worldScale;
   if(identity.asset&&elite){const ring=new T.Mesh(new T.TorusGeometry(20,2,4,12),material(0xe8c477));ring.rotation.x=Math.PI/2;ring.position.y=82;model.root.add(ring);const dispose=model.dispose;model.dispose=()=>{ring.geometry.dispose();dispose?.();};}
   model.root.userData.visualIdentity=shape;model.root.userData.combatRadius=radius;
   const measure=():void=>{model.root.userData.visualHeight=creatureBodyBounds(model.root).max.y-model.root.position.y;};measure();void model.ready?.then(measure);

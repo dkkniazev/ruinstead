@@ -3,6 +3,7 @@ import { isPolishPlaytest, polishStateStore, installPolishPlaytest } from '../ga
 import { weaponHitDamage } from '../game/combat/CombatMath';
 import { resolveWorldInteraction, type InteractionCandidate } from '../game/world/WorldInteractions';
 import { ObstacleNavigation } from '../game/world/ObstacleNavigation';
+import { clearSettlementPosition, settlementSolidFootprints } from '../game/world/SettlementLayout';
 import { HUD_WORLD_INTERACT_EVENT, HUD_INTERACTION_STATE_EVENT, HUD_OPEN_FORGE_EVENT } from '../game/ui/HudEvents';
 import { WorldMap, type MapSnapshot } from '../game/ui/WorldMap';
 import { STAGE_ONE_BRIDGE_CENTER } from '../game/world/StageOneProgression';
@@ -496,7 +497,15 @@ export class WorldScene
         this.gameState.player
           .dashLevel,
       );
-    this.onboardingOrigin = new Phaser.Math.Vector2(startX, startY);
+    // A saved image origin can lie inside newly solid masonry. Use the actual
+    // physics centre, including its texture-dependent offset, to find clearance.
+    (this.player.sprite.body as Phaser.Physics.Arcade.Body).updateFromGameObject();
+    const savedBody=this.player.combatPosition;
+    const clearStart=clearSettlementPosition(SETTLEMENT_CENTER,savedBody,24);
+    if(clearStart.x!==savedBody.x||clearStart.y!==savedBody.y){
+      this.player.teleport(startX+clearStart.x-savedBody.x,startY+clearStart.y-savedBody.y);
+    }
+    this.onboardingOrigin = this.player.position;
     this.game.events.on('ruinstead:player:dash', this.handleTutorialDash, this);
     this.game.events.on(HUD_TUTORIAL_ADVANCE_EVENT, this.handleTutorialAdvance, this);
     this.game.events.on(HUD_TUTORIAL_SKIP_EVENT, this.handleTutorialSkip, this);
@@ -594,6 +603,7 @@ export class WorldScene
           )
         : undefined;
     enemyNavigation?.setObstacles([
+      ...settlementSolidFootprints(SETTLEMENT_CENTER),
       ...GEOGRAPHY_LANDMARKS.map(p=>({x:p.x,y:p.y,halfWidth:p.radius,halfHeight:p.radius,circle:true})),
       ...this.resourceSystem
         .navigationObstacles,

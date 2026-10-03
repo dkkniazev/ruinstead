@@ -6,7 +6,10 @@
 in `src/game/ui/HudEvents.ts` and node reconciliation in `ReconcileDOM.ts`.
 `src/game/ui/WorldMap.ts` provides mini/full map; `ModelPortraits.ts` reuses models.
 `src/game/layout/Viewport.ts` calculates desktop/touch layouts. Ordinary panels
-and full map pause gameplay; nonmodal chest/boss bonus offers do not.
+and full map pause gameplay. The post-chest bonus is nonmodal and does not pause;
+boss-reward and other confirmation offers use the modal confirmation container
+and pause through HudScene. These are distinct current flows, not a global
+combat/interaction lock. Closing the modal resumes its UI-owned pause.
 
 Desktop movement is WASD/arrows, dash Space/Shift; touch has a virtual joystick
 and action buttons through `src/game/input/TouchPlayerInput.ts`. E/click uses
@@ -31,6 +34,11 @@ readable during combat, including the nearby action-area health display. Buildin
 models/labels show purpose and repair state. Harvest durability exposes progress.
 Resource/building labels keep the accepted size; improve text sampling/quality
 without scaling icons beyond the objects. Avoid labels obstructing combat silhouettes.
+Resource labels resolve overlap in screen space: the recently harvested node
+has priority, then distance. Preserve its projected label size; move other labels
+by at most two short rows, with a fine leader to the original anchor. Hide lower
+priority labels if no clear position is available. Labels never change harvesting
+availability, collision, durability, interaction priority or resource state.
 
 Current code implements responsive layouts, but latest phone/browser raster
 quality, repeated taps, short landscape heights and browser/Yandex chrome remain
@@ -60,5 +68,6 @@ for action/state contracts; `npm run check:i18n` for catalog coverage;
 `npm run check:release` for platform/UI boundaries; build/typecheck when code changes.
 Manual: desktop and phone landscape with browser chrome; mini-map/menu, potion
 visibility, last weapon in long forge list, single-tap actions, bestiary rewards,
-all panels and nonmodal combat bonuses in both languages. Check new/old saves,
+all panels, nonmodal chest bonuses and modal boss-offer/resume flow in both
+languages. Check new/old saves,
 long English/Russian labels and maximum inventory/currency values.

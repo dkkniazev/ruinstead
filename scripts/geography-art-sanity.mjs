@@ -66,6 +66,16 @@ for(const region of a.RELEASE_REGIONS){
     assert(Math.abs(vertices.getY(i)-a.terrainHeight(x,z)-10)<.01,'Warning follows actual terrain');
   }
   a.disposeBossTelegraph(warning);
+  const dx=Math.cos(.63),dy=Math.sin(.63),length=480,width=90;
+  const line=a.createBossTelegraph({shape:'line',x:region.center[0],y:region.center[1],dx,dy,length,width});
+  const points=line.geometry.attributes.position;
+  for(let n=0;n<points.count;n++){
+    const x=points.getX(n),z=points.getZ(n),rx=x-region.center[0],rz=z-region.center[1];
+    assert(rx*dx+rz*dy>=-.01&&rx*dx+rz*dy<=length+.01,'Straight warning stays inside the damage length');
+    assert(Math.abs(-rx*dy+rz*dx)<=width/2+.01,'Straight warning stays inside the damage width');
+    assert(Math.abs(points.getY(n)-a.terrainHeight(x,z)-10)<.01,'Straight warning follows terrain');
+  }
+  a.disposeBossTelegraph(line);
   const landmarks=a.GEOGRAPHY_LANDMARKS.filter(p=>p.region===region.id);assert(landmarks.length>0,'Region '+region.id+' landmark');
   rows.push({region:region.id,relief:Math.round(relief),slope:slope.toFixed(2),landmarks:landmarks.length});
   for(const site of landmarks){

@@ -5,6 +5,7 @@ import { createResource } from './Models';
 import { terrainHeight } from '../world/WorldTerrain';
 import { getLanguage } from '../../i18n/I18n';
 import { disposeBatchedGeometry } from './MeshBatching';
+import type { ResourceLabelCandidate,ResourceLabelPlacement } from './ResourceLabelLayout';
 
 const chipGeometry = new THREE.BoxGeometry(5, 5, 5);
 const chipMaterials = new Map<string, THREE.MeshStandardMaterial>();
@@ -17,6 +18,8 @@ export class ResourceVisual3D {
   readonly root = new THREE.Group();
   private readonly model: THREE.Group;
   private readonly canvas = document.createElement('canvas');
+  private readonly leader = document.createElement('div');
+  screenLabel?:ResourceLabelCandidate;
   private readonly labelPosition = new THREE.Vector3();
   private readonly chips = new THREE.Group();
   private lastHealth = -1;
@@ -33,6 +36,9 @@ export class ResourceVisual3D {
     this.canvas.setAttribute('aria-hidden', 'true');
     Object.assign(this.canvas.style, {position: 'absolute', pointerEvents: 'none', display: 'none', margin: '0'});
     this.labelLayer.appendChild(this.canvas);
+    Object.assign(this.leader.style,{position:'absolute',width:'1px',background:'#d6c496aa',
+      pointerEvents:'none',display:'none',transformOrigin:'top center'});
+    this.leader.setAttribute('aria-hidden','true');this.labelLayer.appendChild(this.leader);
     let material = chipMaterials.get(node.type);
     if (!material) {
       material = new THREE.MeshStandardMaterial({ color: node.type === 'wood' ? 0xc19259 : node.type === 'crystal' ? 0x7ee7ed : 0xd1c3a0, roughness: 0.9 });
@@ -50,6 +56,7 @@ export class ResourceVisual3D {
     this.model.rotation.z = Math.sin(age * 0.045) * impact * (node.type === 'wood' ? 0.075 : 0.035);
     this.model.scale.set((1 + impact * 0.06) * collapse, (1 - impact * 0.04) * collapse, collapse);
     const visible = node.available ? distance < 260 || age < 3500 : age < 400;
+    this.screenLabel=undefined;this.leader.style.display='none';
     this.canvas.style.display = visible ? 'block' : 'none';
     if (visible) {
       const rect = this.labelLayer.getBoundingClientRect();
@@ -58,8 +65,9 @@ export class ResourceVisual3D {
         ? cssHeight * camera.zoom / (camera.top - camera.bottom) : 1;
       const width = 148 * pixelScale, height = 44 * pixelScale;
       this.labelPosition.set(node.x, this.root.position.y + this.height + impact * 4, node.y).project(camera);
-      this.canvas.style.left = `${Math.round((this.labelPosition.x + 1) * cssWidth / 2 - width / 2)}px`;
-      this.canvas.style.top = `${Math.round((1 - this.labelPosition.y) * cssHeight / 2 - height / 2)}px`;
+      this.screenLabel={id:node.id,left:Math.round((this.labelPosition.x+1)*cssWidth/2-width/2),
+        top:Math.round((1-this.labelPosition.y)*cssHeight/2-height/2),width,height,
+        priority:(age<1200?10000:0)-distance};
       const language = getLanguage();
       const resolution = Math.min(3, window.devicePixelRatio || 1) * rect.width / Math.max(1, cssWidth);
       const backingWidth = Math.ceil(width * resolution);
@@ -96,11 +104,27 @@ export class ResourceVisual3D {
     }
   }
 
-  hideLabel(): void { this.canvas.style.display = 'none'; }
+  placeLabel(placement?:ResourceLabelPlacement):void {
+    const label=this.screenLabel;
+    if(!placement||!label){this.canvas.style.display='none';this.leader.style.display='none';return;}
+    const left=Math.round(placement.left),top=Math.round(placement.top);
+    this.canvas.style.left=`${left}px`;this.canvas.style.top=`${top}px`;
+    const dx=label.left-left,dy=label.top-top;
+    if(Math.abs(dx)+Math.abs(dy)>2){
+      const x=left+label.width/2,y=top+(dy>0?label.height:0);
+      const endX=label.left+label.width/2,endY=label.top+(dy>0?label.height:0);
+      this.leader.style.display='block';this.leader.style.left=`${Math.round(x)}px`;
+      this.leader.style.top=`${Math.round(y)}px`;this.leader.style.height=`${Math.hypot(endX-x,endY-y)}px`;
+      this.leader.style.transform=`rotate(${Math.atan2(x-endX,endY-y)}rad)`;
+    }
+  }
+
+  hideLabel(): void {this.screenLabel=undefined;this.canvas.style.display='none';this.leader.style.display='none';}
 
   destroy(): void {
     disposeBatchedGeometry(this.model);
     this.canvas.remove();
+    this.leader.remove();
     // The marker belongs to this resource; all model primitive geometry is shared.
     const marker = this.model.children[0] as THREE.Mesh;
     marker.geometry.dispose(); (marker.material as THREE.Material).dispose();

@@ -5,6 +5,8 @@
 Approved
 
 Accepted product direction; implementation is in progress, acceptance remains open.
+Automated geometry/rig gates do not establish human visual/feel approval, which
+is Pending human review under [QA_RELEASE](../QA_RELEASE.md#acceptance-gates).
 Sources: prior user requests recorded in [VISUAL_BACKLOG](../../VISUAL_BACKLOG.md),
 [NEXT_WORLD_ART_PASS](../../NEXT_WORLD_ART_PASS.md) and local render modules.
 
@@ -12,9 +14,15 @@ Sources: prior user requests recorded in [VISUAL_BACKLOG](../../VISUAL_BACKLOG.m
 
 User reports visible primitive construction, weak ordinary/elite distinction,
 incorrect weapon/face/stinger articulation, flat sparse terrain and unclear
-mobile labels. Bring gameplay presentation toward the four reference games.
-Hero Path RPG and XP Hero are known; remaining two names are Unverified.
-The cover provides supplementary goblin/environment direction, not the main bar.
+mobile labels. Bring gameplay presentation toward Hero Path RPG and XP Hero.
+On 2026-10-02 the user confirmed these two as the primary references; the other
+previously mentioned games are outside the current comparison scope.
+On 2026-10-03 the user explicitly selected the generated low-poly cover goblin
+as the creature style reference: compact proportions, coherent rounded planes,
+expressive fitted faces and leather/metal equipment. Apply the same visual
+language to the other species; the two games remain the world/gameplay comparators.
+The [reference index](../../references/visual/README.md) records source material;
+the [asset workflow](../WORLD_CONTENT.md#asset-workflow) governs its use.
 
 ## Current and required behavior
 
@@ -28,7 +36,11 @@ player spell system is requested.
 
 ## Non-goals and invariants
 
-No gameplay/economy/population/gate changes, save reset, new magic or publishing.
+No economy/population/gate changes, save reset, new magic or publishing.
+The user now explicitly requires solid base buildings/well and tree/building
+clearance. Preserve spawn, return/deposit and forge access; rescue existing saved
+positions inside the new obstacles. Creature size changes are presentation only:
+keep damage, attack ranges, combat radii and progression unchanged.
 Keep IDs, normalized combat bodies, telegraph range, path/resource collision,
 localized dynamic labels and accepted icon size. Orbiting weapons follow their
 independent gameplay cooldown/impact cycles. Daggers stay perpendicular to the
@@ -41,6 +53,13 @@ strike direction. Staff tilt follows the forward casting motion, not sideways.
   by anatomy/equipment silhouette without depending solely on tint or a tiny ornament.
 - Goblin/organic creatures show connected head/body/limb forms without visible
   accidental gaps or unrelated primitive faces; intentional rock armor remains readable.
+- Species use explicit presentation sizes rather than a universal portrait fit:
+  a goblin is a small humanoid; a boar is low but heavier/wider, canines/felines
+  have long bodies, giants and adult dragons have greater mass. Compare in one
+  world-scale camera, including elite forms, without changing combat radii.
+- Base houses/well block movement over their visible ground solids, keep nearby
+  interactions accessible, and trees/canopies do not intersect building roofs.
+  Well inner walls remain opaque from the game camera.
 - Idle, walking, wind-up, impact and recovery keep blades seated in grips, correct
   striking edge orientation, faces/fangs/horns/stingers attached to their parent.
 - Elite aura is visible but does not obscure attacks, inflate portraits or HP bounds.
@@ -54,7 +73,9 @@ strike direction. Staff tilt follows the forward casting motion, not sideways.
 ## Performance, data and validation
 
 Keep visibility batching/culling and pre-baked surfaces; do not build dense sculpts
-at ordinary startup. Saved state unchanged. After surface changes run
+at ordinary startup. Save schema/inventory/progression remain unchanged; only
+an old player position inside newly solid base masonry is corrected locally.
+After surface changes run
 `npm run art:bake-creatures`, `npm run check:art`, typecheck/build; geography edits
 also check:world/polish. Use [QA_RELEASE](../QA_RELEASE.md) for exact gates.
 Manual: all eight regions, ordinary/elite pairs, 24 bosses and hero weapon motion

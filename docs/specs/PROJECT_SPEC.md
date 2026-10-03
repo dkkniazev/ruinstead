@@ -16,8 +16,9 @@ Runtime: TypeScript/Vite, Phaser, Three.js and DOM UI.
 - Persistent progression through eight distinct connected regions and a recoverable base.
 - Rewarded actions are explicit choices; missing/failed SDK never fakes a reward.
 - Desktop and touch share rules; authorization is not required for local play.
-- Art is judged against the user's game references, including Hero Path RPG and
-  XP Hero. The generated cover is supplementary direction, not the primary reference.
+- Art is judged against Hero Path RPG and XP Hero, confirmed as the two primary
+  gameplay references on 2026-10-02. On 2026-10-03 the user explicitly selected
+  the generated cover goblin as the creature style reference.
 
 ## Platforms and core loops
 
@@ -71,6 +72,12 @@ Active accepted feature: [visual polish](features/WORLD_VISUAL_POLISH.md).
 owns new-feature format, [ROADMAP](../ROADMAP.md) priorities; execution plans own HOW.
 Historical reports are dated evidence, not current overrides.
 
+Each row has one owning domain contract; cross-domain summaries reference that
+owner rather than create another specification. Approved feature requirements
+describe accepted changes and may still await implementation/acceptance. Draft
+features and unstarted plans are proposals. Document/plan maintenance follows
+AGENTS; this source map does not establish another operating contract.
+
 ## Implementation status and limits
 
 Core loops, eight regions, 40 species/24 bosses, inventory/quests/production,
@@ -82,12 +89,12 @@ No player spell system or full ragdoll/cloth simulation exists; motion is proced
 Confirmed limitation: pack generation can throw during module initialization;
 see [next milestone](../exec-plans/active/NEXT_MILESTONE.md). Payments activation
 and live fulfillment are Unverified; DOM analytics has no collector. Fixtures do
-not establish a full fresh-save playthrough or art parity. Two further reference
-game names remain Unverified.
+not establish a full fresh-save playthrough or art parity.
 
 ## Explicit non-goals
 
 Approved visual work adds no spells, rebalance, population reduction, save reset
-or static-art replacement of gameplay. SDD bootstrap changes documentation and
-validation only; no roadmap implementation or publishing. Multiplayer/server
-economy/TV are absent; their future priority is unresolved, not decided here.
+or static-art replacement of gameplay. Multiplayer/server economy/TV are absent;
+their future priority is unresolved, not decided here. One-time task scope belongs
+in its execution plan; the completed bootstrap does not forbid subsequent
+implementation work authorized by the user.

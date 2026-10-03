@@ -15,6 +15,10 @@ for(const [id,identity]of Object.entries(CREATURE_CATALOG))for(const elite of id
 const modifier=new SimplifyModifier(),entries=[],chunks=[];let offset=0,before=0,after=0;
 function append(array){const padding=(4-offset%4)%4;if(padding){chunks.push(Buffer.alloc(padding));offset+=padding;}const start=offset,bytes=Buffer.from(array.buffer,array.byteOffset,array.byteLength);chunks.push(bytes);offset+=bytes.length;return start;}
 for(const [key,source]of authoredCreatureSurfaces()){
+  for(const name of ['position','normal','color']){
+    const attribute=source.getAttribute(name);
+    if(attribute&&Array.from(attribute.array).some(value=>!Number.isFinite(value)))throw Error('Non-finite authored '+name+': '+key);
+  }
   const welded=mergeVertices(source,1e-4),count=welded.getAttribute('position').count;
   // Keep facial cavities / ear rims denser. Normals guide edge collapses, so the
   // continuous outline survives instead of becoming a coarse marching grid.

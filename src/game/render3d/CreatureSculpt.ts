@@ -1,18 +1,28 @@
 import * as T from 'three';
 import { MarchingCubes } from 'three/addons/objects/MarchingCubes.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
+import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import type { CreatureShape } from './CreatureCatalog';
 import { horn } from './CreatureArt';
 
 type Volume = [number,number,number,number,number,number,number?];
 const cache=new Map<string,T.BufferGeometry>();
-export const CREATURE_SCULPT_REVISION='2026-10-02-character-v2';
+export const CREATURE_SCULPT_REVISION='2026-10-03-cover-style-v5';
 const shared=new Set<T.BufferGeometry>();
 const pigments=new Map<string,T.MeshStandardMaterial>();
 // Small pupils, rivets and ear insets do not need the body surface's density.
 const smoothOrb=new T.SphereGeometry(1,8,6);
 const accentSurface=new T.IcosahedronGeometry(1,1);
 const roundedPlate=new RoundedBoxGeometry(1,1,1,1,.16);
+function carvedSlab():T.BufferGeometry {
+  const key='cover-carved-slab',cached=cache.get(key);if(cached)return cached;
+  const points:T.Vector3[]=[];
+  for(let axis=0;axis<3;axis++)for(const x of [-1,1])for(const y of [-1,1])for(const z of [-1,1]){
+    const p=new T.Vector3(x*.63,y*.63,z*.63);p.setComponent(axis,[x,y,z][axis]*.94);points.push(p);
+  }
+  const geometry=new ConvexGeometry(points);geometry.computeVertexNormals();
+  shared.add(geometry);cache.set(key,geometry);return geometry;
+}
 shared.add(smoothOrb);shared.add(accentSurface);shared.add(roundedPlate);
 function pigment(color:number,metal=false,paint=false):T.MeshStandardMaterial {
   const key=[color,metal,paint].join(':');let material=pigments.get(key);
@@ -25,6 +35,86 @@ function add(parent:T.Object3D,geometry:T.BufferGeometry,color:number,x=0,y=0,z=
 const orb=(p:T.Object3D,c:number,x:number,y:number,z:number,sx:number,sy=sx,sz=sx)=>add(p,smoothOrb,c,x,y,z,sx,sy,sz);
 const plate=(p:T.Object3D,c:number,x:number,y:number,z:number,sx:number,sy:number,sz:number)=>add(p,roundedPlate,c,x,y,z,sx,sy,sz,true);
 const smoothMin=(a:number,b:number,k:number):number=>{const h=Math.max(0,k-Math.abs(a-b))/k;return Math.min(a,b)-h*h*k*.25;};
+
+/** A closed asymmetric cap with painted freckles, not beads pasted on a red orb. */
+function fungusCap(elite:boolean,accent:number):T.BufferGeometry {
+  const key='profile-fungus-cap-'+elite+'-'+accent,cached=cache.get(key);if(cached)return cached;
+  const positions:number[]=[],colors:number[]=[],indices:number[]=[],sides=32;
+  const rings=[[-.37,.04],[-.36,.54],[-.28,.88],[-.10,1],[.10,.97],[.35,.86],[.62,.69],[.84,.46],[1,.03]];
+  const top=new T.Color(accent),rim=new T.Color(0x98573f),cream=new T.Color(0xe4d3a2),under=new T.Color(0xb5a079);
+  for(let band=0;band<rings.length;band++)for(let n=0;n<sides;n++){
+    const angle=n/sides*Math.PI*2,[y,r]=rings[band],radius=r*(1+.035*Math.sin(angle*3)+.025*Math.cos(angle*5));
+    const x=Math.cos(angle)*radius,z=Math.sin(angle)*radius*.96;
+    positions.push(x,y+.035*Math.sin(angle*3)*r,z);
+    let color=y<-.15?under.clone().lerp(cream,(y+.37)*2):rim.clone().lerp(top,T.MathUtils.smoothstep(y,-.1,.5));
+    if(y>=0){
+      let spot=0;
+      for(let j=0;j<9;j++){
+        const a=j*2.399,rr=.29+(j%3)*.22,cx=Math.cos(a)*rr,cz=Math.sin(a)*rr;
+        const distance=Math.hypot((x-cx)*1.05,z-cz),width=.10+(j%3)*.022;
+        spot=Math.max(spot,1-T.MathUtils.smoothstep(distance,width*.76,width));
+      }
+      color.lerp(cream,spot*.9);
+    }
+    color.multiplyScalar(.9+y*.1);colors.push(color.r,color.g,color.b);
+    if(band){const a=(band-1)*sides+n,b=(band-1)*sides+(n+1)%sides,c=band*sides+n,d=band*sides+(n+1)%sides;
+      indices.push(a,c,d,a,d,b);}
+  }
+  for(const [band,y]of [[0,rings[0][0]],[rings.length-1,rings[rings.length-1][0]]]){
+    const center=positions.length/3;positions.push(0,y,0);const c=band?top:under;colors.push(c.r,c.g,c.b);
+    for(let n=0;n<sides;n++){const a=band*sides+n,b=band*sides+(n+1)%sides;indices.push(...(band?[center,b,a]:[center,a,b]));}
+  }
+  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+  geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+  geometry.userData.sculptedSurface=true;shared.add(geometry);cache.set(key,geometry);return geometry;
+}
+
+/** One curved feather fan: joined coverts, scalloped primaries and a closed rim. */
+function featherFan(primary:number,accent:number,elite:boolean):T.BufferGeometry {
+  const key='profile-feather-fan-'+primary+'-'+accent+'-'+elite,cached=cache.get(key);if(cached)return cached;
+  const outline=[[0,0],[13,18],[25,26],[45,18],[elite?69:64,5],[63,-5],
+    [58,-13],[53,-8],[50,-20],[44,-14],[41,-26],[35,-20],[31,-30],
+    [25,-23],[19,-31],[14,-25],[8,-30],[3,-16]];
+  const positions:number[]=[],colors:number[]=[],indices:number[]=[],count=outline.length;
+  const base=new T.Color(primary),tip=new T.Color(accent),center=[24,5],layerSize=1+count*2;
+  for(const side of [-1,1]){
+    positions.push(center[0],center[1],-15+side*3.4);
+    const c=base.clone().multiplyScalar(side>0?1:.82);colors.push(c.r,c.g,c.b);
+    for(const t of [.52,1])for(let n=0;n<count;n++){
+      const [ox,oy]=outline[n],x=T.MathUtils.lerp(center[0],ox,t),y=T.MathUtils.lerp(center[1],oy,t);
+      const z=-x*.46+Math.max(0,y)*.08+side*(t<1?3.8:1.2);
+      positions.push(x,y,z);
+      const edge=n>4?(.55+(n%2)*.2)*t:t*.18;
+      const color=base.clone().lerp(tip,edge).multiplyScalar(side>0?1:.82);colors.push(color.r,color.g,color.b);
+    }
+  }
+  const triangle=(a:number,b:number,c:number,back:boolean)=>indices.push(...(back?[a,c,b]:[a,b,c]));
+  for(let side=0;side<2;side++)for(let n=0;n<count;n++){
+    const offset=side*layerSize,a=offset+1+n,b=offset+1+(n+1)%count,c=a+count,d=b+count;
+    triangle(offset,b,a,side===0);triangle(a,b,d,side===0);triangle(a,d,c,side===0);
+  }
+  for(let n=0;n<count;n++){
+    const a=1+count+n,b=1+count+(n+1)%count;indices.push(a,b+layerSize,b,a,a+layerSize,b+layerSize);
+  }
+  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
+  geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));geometry.setIndex(indices);geometry.computeVertexNormals();
+  geometry.userData.sculptedSurface=true;shared.add(geometry);cache.set(key,geometry);return geometry;
+}
+
+function birdPlumage(body:T.Group,wings:T.Group[],shape:CreatureShape,primary:number,accent:number,elite:boolean):void {
+  if(shape!=='owl'&&shape!=='harpy')return;
+  for(const wing of wings){
+    clearRigid(wing);
+    const plumage=add(wing,featherFan(primary,accent,elite),0xffffff);plumage.name='creature-plumage';
+    horn(wing,primary,[[0,0,0],[13,17,-4],[25,24,-10],[45,17,-18],[62,4,-27]],2.3);
+    for(let n=0;n<4;n++)horn(wing,new T.Color(primary).lerp(new T.Color(accent),.3).getHex(),
+      [[17+n*8,9+n*1.4,-8-n*3.4],[22+n*8,-4,-8-n*3.4],[25+n*8,-12+n*1.8,-10-n*3.4]],.6);
+  }
+  const chestY=shape==='owl'?39:54;
+  for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.y===chestY&&part.position.z===17&&Math.abs(part.position.x)<=12)remove(body,part);
+  add(body,sculpt('bird-breast-'+shape+'-'+primary+'-'+accent,
+    [[0,chestY+5,14,shape==='owl'?18:15,14,7],[0,chestY-7,14,shape==='owl'?15:12,9,6]],2.3,24,[],{top:primary,bottom:accent}),0xffffff);
+}
 function distance(x:number,y:number,z:number,v:Volume):number {
   const dx=x-v[0],dy=y-v[1],angle=v[6]??0;
   const px=(angle?dx*Math.cos(angle)+dy*Math.sin(angle):dx)/v[3],py=(angle?-dx*Math.sin(angle)+dy*Math.cos(angle):dy)/v[4],pz=(z-v[2])/v[5];
@@ -38,7 +128,8 @@ function sculpt(key:string,volumes:Volume[],blend=3,resolution=32,cuts:Volume[]=
   const cached=cache.get(key);if(cached)return cached;
   // Facial sockets get the dense grid. Small boots/cuffs need only a smooth
   // contour; allocating the face's density to every limb is wasteful in play.
-  resolution=key.startsWith('goblin-head')?32:Math.max(12,Math.round(resolution*.58));
+  const face=/(?:head|face|surface-(?:rogue|cultist|ogre|smith|imp|harpy|bat|owl)-(?:89|94|64))/.test(key);
+  resolution=key.startsWith('goblin-head')?32:face?24:Math.max(12,Math.round(resolution*.62));
   const bounds=new T.Box3();
   for(const v of volumes){bounds.expandByPoint(new T.Vector3(v[0]-v[3],v[1]-v[4],v[2]-v[5]));bounds.expandByPoint(new T.Vector3(v[0]+v[3],v[1]+v[4],v[2]+v[5]));}
   const extent=bounds.getSize(new T.Vector3());
@@ -70,13 +161,13 @@ function earGeometry():T.BufferGeometry {
   const cached=cache.get('goblin-ear');if(cached)return cached;
   const positions:number[]=[],indices:number[]=[],rows=14,sides=14;
   for(let row=0;row<=rows;row++){
-    const t=row/rows,x=17+25*t,y=96+19*t+2*Math.sin(t*Math.PI),width=(1-t)**.8*(4+4*Math.sin(t*Math.PI)),thick=(1-t)*2.6+.08;
+    const t=row/rows,x=17+25*t,y=96+12*t+2*Math.sin(t*Math.PI),width=(1-t)**.8*(4+4*Math.sin(t*Math.PI)),thick=(1-t)*2.6+.08;
     for(let side=0;side<sides;side++){
       const angle=side/sides*Math.PI*2;positions.push(x,y+Math.cos(angle)*width,-1+Math.sin(angle)*thick);
       if(row<rows){const a=row*sides+side,b=row*sides+(side+1)%sides;indices.push(a,a+sides,b+sides,a,b+sides,b);}
     }
   }
-  for(const row of [0,rows]){const i=positions.length/3;positions.push(17+25*row/rows,96+19*row/rows,-1);for(let n=0;n<sides;n++){const a=row*sides+n,b=row*sides+(n+1)%sides;indices.push(...(row?[i,b,a]:[i,a,b]));}}
+  for(const row of [0,rows]){const i=positions.length/3;positions.push(17+25*row/rows,96+12*row/rows,-1);for(let n=0;n<sides;n++){const a=row*sides+n,b=row*sides+(n+1)%sides;indices.push(...(row?[i,b,a]:[i,a,b]));}}
   const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();shared.add(geometry);cache.set('goblin-ear',geometry);return geometry;
 }
 const goblinEye=(()=>{
@@ -90,8 +181,8 @@ function goblinVestPanel(side:number):T.BufferGeometry {
   const key='goblin-vest-'+side,cached=cache.get(key);if(cached)return cached;
   const outline=new T.Shape();outline.moveTo(16,71);
   outline.quadraticCurveTo(12,76,8,75);outline.quadraticCurveTo(5,69,4,65);
-  outline.quadraticCurveTo(6,54,5,43);outline.lineTo(11,38);
-  outline.quadraticCurveTo(19,40,19,45);outline.quadraticCurveTo(22,53,20,61);
+  outline.quadraticCurveTo(5,54,5,44);outline.lineTo(12,43);
+  outline.quadraticCurveTo(18,43,18,47);outline.quadraticCurveTo(20,54,19,61);
   outline.quadraticCurveTo(16,65,16,71);
   const geometry=new T.ExtrudeGeometry(outline,{depth:1.7,bevelEnabled:true,bevelSize:.7,bevelThickness:.6,bevelSegments:2,curveSegments:7});
   const p=geometry.getAttribute('position');
@@ -196,8 +287,14 @@ function beastLegs(shape:CreatureShape,legs:T.Group[],primary:number,accent:numb
       [splay*.75,-14,1,width*.67,width*.68],[splay,-22,5,width*.5,width*.56],
       [splay,-24,8,width*.5,width*.64]
     ],14),primary);limb.userData.anatomicalLimb=true;
-    const toe=add(leg,sculpt('beast-paw-'+shape+'-'+elite,[[splay,-24,9,low?7:thin?7.5:10,low?4:5.5,11],[splay,-24,15,low?6:thin?6.5:9,low?3.5:4.5,6]],1.5,22),reptile?accent:0x453d34);
-    toe.userData.creatureFoot=true;
+    if(shape==='boar'||shape==='ram'){
+      for(const half of [-1,1]){
+        const hoof=add(leg,roundedPlate,0x3a342c,half*4.1,-24,9,7.6,8,18);hoof.userData.creatureFoot=true;
+      }
+    }else{
+      const toe=add(leg,sculpt('beast-paw-'+shape+'-'+elite,[[splay,-24,9,low?7:thin?7.5:10,low?4:5.5,11],[splay,-24,15,low?6:thin?6.5:9,low?3.5:4.5,6]],1.5,22),reptile?accent:0x453d34);
+      toe.userData.creatureFoot=true;
+    }
     if(reptile)for(const n of [-1,0,1])horn(leg,0xd8ccb0,[[splay+n*4,-24,17],[splay+n*4,-24.5,22],[splay+n*4,-25,24]],1.15);
   }
 }
@@ -236,7 +333,7 @@ function goblin(body:T.Group,arms:T.Group[],legs:T.Group[],primary:number,elite:
   clearRigid(body);
   // Old ears/face are replaced, while the weapon sockets and animated joints survive.
   for(const part of [...body.children])if(part.userData.creatureHead)remove(body,part);
-  const leather=elite?0x514033:0x995c32,steel=elite?0x486b70:0x879f9b,skin=elite?0x64853e:0x86ae43;
+  const leather=elite?0x514033:0x765039,steel=elite?0x486b70:0x879f9b,skin=elite?0x64853e:0x86ae43;
   const mass=elite?1.24:1;
   const chest=sculpt('goblin-torso-'+elite,[[0,57,0,18*mass,20,14],[0,44,1,13*mass,12,12],[0,73,0,11*mass,8,11],[-14*mass,66,-1,9,10,12],[14*mass,66,-1,9,10,12]],4,30);
   add(body,chest,elite?leather:skin);
@@ -257,7 +354,7 @@ function goblin(body:T.Group,arms:T.Group[],legs:T.Group[],primary:number,elite:
   const head=add(body,face,0xffffff);head.userData.creatureHead=true;head.userData.faceSurface=true;
   for(const s of [-1,1]){
     const ear=add(body,earGeometry(),skin,0,0,0,s,1,1);ear.name='creature-ear';ear.userData.creatureHead=true;
-    const inset=orb(body,elite?0x6c6e35:0x5e7736,s*27,104.5,1.3,8,3.3,.45);inset.rotation.z=s*.65;inset.userData.creatureHead=true;
+    const inset=orb(body,elite?0x6c6e35:0x5e7736,s*27,101.5,1.3,8,3.3,.45);inset.rotation.z=s*.43;inset.userData.creatureHead=true;
     const eye=new T.Group();eye.name='creature-eye';eye.userData.creatureHead=true;eye.userData.faceEye=s;eye.userData.fittedSurface=true;eye.position.set(s*8.5,93,20.2);body.add(eye);
     const white=add(eye,goblinEye,0xf4df95,0,0,0,s*6.5,elite?4:4.7,3);white.rotation.z=s*(elite?.16:.04);
     orb(eye,0x513617,-s*.3,-.1,1.35,1.75,2.35,.52);orb(eye,0x201e12,-s*.3,-.1,1.77,.8,1.65,.25);
@@ -298,6 +395,7 @@ function goblin(body:T.Group,arms:T.Group[],legs:T.Group[],primary:number,elite:
     const scar=horn(body,0x425d2c,[[12,101,16],[10,98,19],[8,96,20]],.55);scar.userData.creatureHead=true;
     const crest=add(body,sculpt('goblin-veteran-crest',[[0,111,-4,5,5,13],[0,114,-6,4,6,10]],2,22),0x314433);crest.userData.creatureHead=true;
   }
+  body.scale.set(1.08,.90,1.04);
   body.userData.sculptedCreature='goblin';body.userData.eliteAnatomy=elite;
   void primary;
 }
@@ -319,7 +417,14 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     const torso=body.children.find(o=>o instanceof T.Mesh&&o.position.x===0&&o.position.y===y&&o.position.z===0);
     if(torso)remove(body,torso);
     const belly=new T.Color(primary).lerp(new T.Color(accent),.32).getHex();
-    add(body,sculpt('beast-body-'+shape+'-'+primary+'-'+accent+'-'+elite,[[0,y,-21,r*.82*wider,low?12:20,20],[0,y+3,14,r*wider,low?14:24,27],[0,y-3,-4,r*.8*wider,low?11:17,25],[0,y+8,28,r*.62*wider,low?10:17,17]],4,30,[],{top:primary,bottom:belly}),0xffffff);
+    const canine=shape==='hound'||shape==='jackal',feline=shape==='cat';
+    const volumes:Volume[]=shape==='boar'?[[0,y+2,-22,27*wider,24,28],[0,y+7,7,31*wider,26,30],
+      [0,y-7,-1,25*wider,16,32],[0,y+9,27,22*wider,20,20]]
+      :canine?[[0,y-1,-22,r*.75*wider,17,23],[0,y+7,13,r*.9*wider,23,26],
+      [0,y-4,-4,r*.62*wider,14,29],[0,y+12,29,r*.61*wider,19,18]]
+      :feline?[[0,y,-20,r*.9*wider,16,24],[0,y+3,13,r*wider,20,23],[0,y-4,-2,r*.67*wider,13,30],[0,y+7,29,r*.56*wider,13,16]]
+      :[[0,y,-21,r*.82*wider,low?12:20,20],[0,y+3,14,r*wider,low?14:24,27],[0,y-3,-4,r*.8*wider,low?11:17,25],[0,y+8,28,r*.62*wider,low?10:17,17]];
+    add(body,sculpt('beast-body-'+shape+'-'+primary+'-'+accent+'-'+elite,volumes,4,30,[],{top:primary,bottom:belly}),0xffffff);
     if(!boss)for(const part of [...body.children]){
       if(!(part instanceof T.Mesh)||part.userData.creatureHead||part.geometry.type!=='IcosahedronGeometry')continue;
       if((part.geometry as T.IcosahedronGeometry).parameters.detail===0&&(part.material as T.MeshStandardMaterial).emissive.getHex()===0)remove(body,part);
@@ -328,14 +433,41 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     if(oldHead){
       remove(body,oldHead);
       for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.x===0&&part.position.y===y+1&&[42,47].includes(part.position.z))remove(body,part);
-      const feline=shape==='cat',reptile=reptiles.has(shape),snout=feline?45:reptile?51:shape==='ram'?48:53;
-      const skin=sculpt('beast-face-'+shape+'-'+elite,[[0,y+9,29,(thin?17:23)*wider,19,20],[0,y+2,snout,(thin?10:16)*wider,reptile?8:10,feline?10:16],[0,y+2,37,15*wider,12,17],[-(thin?10:14),y+10,37,8*wider,10,10],[(thin?10:14),y+10,37,8*wider,10,10]],4,34);
-      const head=add(body,skin,reptile||shape==='hound'?primary:accent);head.userData.faceSurface=true;head.userData.creatureHead=true;
-      if(!reptile){const nose=orb(body,0x37372e,0,y+4,snout+(feline?9:14),feline?4.5:6,3,1.5);nose.userData.creatureHead=true;}
+      const feline=shape==='cat',reptile=reptiles.has(shape),canine=shape==='hound'||shape==='jackal';
+      const goat=shape==='ram',snout=feline?45:canine?57:reptile?51:goat?56:53;
+      const volumes:Volume[]=shape==='boar'?[[0,y+10,29,21*wider,19,20],[0,y+1,45,17*wider,13,18],
+        [0,y+1,58,13*wider,8.5,11],[-14,y+6,34,8*wider,10,12],[14,y+6,34,8*wider,10,12]]
+        :[[0,y+9,29,(canine?shape==='jackal'?14:19:goat?17:thin?17:23)*wider,19,20],
+        [0,y+2,snout,(canine?shape==='jackal'?8:11:goat?9:thin?10:16)*wider,reptile?8:canine?7.5:10,feline?10:canine?18:16],
+        [0,y+2,37,(canine?12:15)*wider,12,17],[-(thin?10:14),y+10,37,(canine?6:8)*wider,10,10],[(thin?10:14),y+10,37,(canine?6:8)*wider,10,10]];
+      const faceColor=reptile||shape==='hound'||shape==='boar'||canine?primary:accent;
+      const head=add(body,sculpt('beast-face-'+shape+'-'+primary+'-'+accent+'-'+elite,volumes,4,34,[],
+        {top:faceColor,bottom:new T.Color(faceColor).lerp(new T.Color(0xc3a980),.16).getHex()}),0xffffff);
+      head.userData.faceSurface=true;head.userData.creatureHead=true;
+      if(!reptile&&shape!=='boar'){const nose=orb(body,0x37372e,0,y+4,snout+(feline?9:14),feline?4.5:6,3,1.5);nose.userData.creatureHead=true;}
+      if(goat){const beard=add(body,sculpt('goat-chin-beard',[[0,y-4,49,7,8,6],[0,y-13,50,4,8,4]],1.5,24),0xd7ceb1);beard.userData.creatureHead=true;}
     }
   }else if(['spider','scorpion','beetle'].includes(shape)){
     for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.x===0&&((part.position.y===26&&part.position.z===-14)||(part.position.y===24&&part.position.z===25)))remove(body,part);
-    const shell=add(body,sculpt('bug-body-'+shape+'-'+elite,[[0,26,-22,28*wider,21,25],[0,24,8,23*wider,17,22],[0,24,29,19*wider,14,18]],3.5,34),primary);shell.userData.sculptedSurface=true;
+    const volumes:Volume[]=shape==='beetle'
+      ?[[0,30,-22,30*wider,25,34],[0,23,15,22*wider,15,18],[0,22,33,17*wider,12,15]]
+      :shape==='spider'?[[0,29,-28,28*wider,23,28],[0,22,12,20*wider,13,19],[0,22,31,17*wider,12,17]]
+      :[[0,26,-22,28*wider,21,25],[0,24,8,23*wider,17,22],[0,24,29,19*wider,14,18]];
+    const shell=add(body,sculpt('bug-body-'+shape+'-'+primary+'-'+accent+'-'+elite,volumes,3.5,34,[],
+      {top:primary,bottom:new T.Color(primary).lerp(new T.Color(accent),.22).getHex()}),0xffffff);
+    shell.userData.sculptedSurface=true;shell.userData.faceSurface=true;
+    if(shape==='beetle'){
+      for(const part of [...body.children])if(part instanceof T.Mesh&&(part.userData.bugMandible
+        ||Math.abs(part.position.x)===13&&part.position.y===36
+        ||part.position.x===0&&part.position.y===46&&part.position.z===-15))remove(body,part);
+      // Two convex wing cases meet at a thin seam, distinct from a spider's abdomen.
+      for(const side of [-1,1]){
+        add(body,sculpt('beetle-wingcase-'+side+'-'+elite+'-'+primary+'-'+accent,[[side*13,36,-25,17*wider,21,31],[side*12,35,-8,16*wider,18,22]],2.3,30,[],
+          {top:accent,bottom:primary}),0xffffff);
+        horn(body,primary,[[side*12,23,42],[side*16,22,49],[side*9,22,53]],3);
+      }
+      horn(body,new T.Color(primary).multiplyScalar(.6).getHex(),[[0,51,-47],[0,56,-28],[0,49,0]],.7);
+    }
     insectAppendages(body,shape,legs,primary,accent,elite&&!boss);
   }else{
     // Rebuild the principal soft surfaces from anatomical lobes, retaining each
@@ -347,7 +479,8 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
       const skull=p.x===0&&([89,93,107,64,94,45].includes(p.y))&&!['wisp','flame'].includes(shape);
       if(!torso&&!skull)continue;
       if(part.geometry===roundedPlate||part.geometry.type==='RoundedBoxGeometry')continue;
-      const unit:Volume[]=skull?[[0,.1,0,.93,1,.93],[0,-.48,.22,.78,.5,.77],[0,-.1,.47,.72,.65,.59]]
+      const unit:Volume[]=skull&&shape==='serpent'?[[0,.18,-.2,.94,.82,.8],[0,-.15,.52,.79,.55,.62],[-.5,.24,.18,.32,.5,.48],[.5,.24,.18,.32,.5,.48]]
+        :skull?[[0,.1,0,.93,1,.93],[0,-.48,.22,.78,.5,.77],[0,-.1,.47,.72,.65,.59]]
         :shape==='mushroom'&&p.y===70?[[0,.18,0,1,.9,1],[0,-.12,0,.9,.52,.92]]
         :shape==='slime'?[[0,-.2,0,1,.83,1],[0,.4,-.1,.63,.72,.7],[-.7,-.52,.1,.45,.28,.6],[.7,-.52,.1,.45,.28,.6]]
         :[[0,.32,0,1*wider,.69,.92],[0,-.45,.06,.78*wider,.56,.83],[0,.72,-.05,.6*wider,.37,.66]];
@@ -360,6 +493,10 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     }
   }
   if(shape==='mushroom'){
+    const cap=body.children.find(o=>o instanceof T.Mesh&&o.position.y===70) as T.Mesh|undefined;
+    if(cap){cap.geometry=fungusCap(elite,accent);cap.material=pigment(0xffffff,false,true);cap.rotation.z=elite?-.075:.055;}
+    for(const part of [...body.children])if(part instanceof T.Mesh&&part!==cap&&part.position.y>60
+      &&Math.abs(part.position.x)+Math.abs(part.position.z)>0&&part.scale.y<=2.1)remove(body,part);
     // Gill curves from the earlier short cap stuck out like twigs. The gills
     // now nest against a broad underside instead of floating below the hat.
     for(const part of [...body.children]){
@@ -370,10 +507,21 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     const underside=add(body,sculpt('fungus-underside',[[0,58,0,33,5,30]],1,22),0xc7b58e);
     underside.userData.fungusGill=true;
     for(let n=0;n<12;n++){const a=n/12*Math.PI*2;horn(body,0xa89671,[[Math.cos(a)*13,55,Math.sin(a)*13],[Math.cos(a)*23,55.8,Math.sin(a)*23],[Math.cos(a)*30,58,Math.sin(a)*30]],.5);}
+    for(const side of [-1,1])horn(body,0xd6c598,[[side*7,48,12],[side*14,43,14],[side*18,39,10]],2.2);
   }
-  if(shape==='serpent'||shape==='worm')for(const group of body.children)if(group instanceof T.Group&&!group.userData.faceEye)for(const part of group.children){
-    if(part instanceof T.Mesh&&part.position.length()===0&&!part.userData.sculptedSurface){
-      part.geometry=sculpt('segment-surface-'+shape,[[0,0,-.2,.91,.91,.9],[0,0,.35,.9,.87,.72]],.12,30);part.userData.sculptedSurface=true;
+  if(shape==='serpent'||shape==='worm'){
+    // The old paired beads made a soft-bodied worm look like a stone necklace.
+    // Pigment follows the connected body instead of alternating whole segments.
+    for(const part of [...body.children])if(part.userData.creatureSegment!==undefined
+      &&part instanceof T.Mesh&&Math.abs(part.position.x-Math.sin(part.userData.creatureSegment*.62)*19)>10)remove(body,part);
+    for(const group of body.children)if(group instanceof T.Group&&!group.userData.faceEye)for(const part of group.children){
+      if(part instanceof T.Mesh&&part.position.length()===0&&!part.userData.sculptedSurface){
+        const paint=shape==='worm'?{top:accent,bottom:primary}:{top:primary,bottom:accent};
+        part.geometry=sculpt('segment-surface-'+shape+'-'+primary+'-'+accent,
+          [[0,0,-.24,.94,.91,.88],[0,0,.32,.94,.87,.81]],.16,30,[],paint);
+        part.material=pigment(0xffffff,false,true);
+        part.userData.sculptedSurface=true;
+      }
     }
   }
   if(beasts.has(shape))beastLegs(shape,legs,primary,accent,elite&&!boss);
@@ -400,24 +548,105 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
   body.userData.sculptedCreature=shape;
 }
 
+/** Cover language: fitted expressions, broad connected planes and restrained
+ * small details. Mechanical/stone armour keeps deliberate facets; organic skin
+ * no longer inherits cuboid brows, isolated bristle cones or duplicate noses. */
+function coverStyle(body:T.Group,shape:CreatureShape,primary:number,accent:number,elite:boolean):void {
+  if(['golem','sand','scrap','gargoyle','treant'].includes(shape))body.traverse(o=>{
+    if(o instanceof T.Mesh&&o.geometry.type==='IcosahedronGeometry'
+      &&(o.geometry as T.IcosahedronGeometry).parameters.detail===0
+      &&(o.material as T.MeshStandardMaterial).emissive.getHex()===0)o.geometry=carvedSlab();
+  });
+  if(['ogre','smith','imp','gargoyle','harpy'].includes(shape)){
+    const skin=shape==='gargoyle'?accent:shape==='ogre'||shape==='imp'?primary:0xc6a17b;
+    for(const part of [...body.children])if(part instanceof T.Mesh&&Math.abs(part.position.x)>0
+      &&part.position.y===97&&part.geometry.type==='RoundedBoxGeometry')remove(body,part);
+    for(const eye of body.children.filter(o=>o.userData.faceEye)){
+      const brow=add(eye,sculpt('cover-biped-brow',[[0,4,-.2,5.5,1.8,2.8],[2,3.8,-.6,3.7,1.8,2]],.65,18),skin);
+      brow.rotation.z=Number(eye.userData.faceEye)*.13;
+    }
+  }
+  const beast=beasts.has(shape);
+  if(beast){
+    for(const eye of body.children.filter(o=>o.userData.faceEye)){
+      for(const part of [...eye.children])if(part instanceof T.Mesh&&part.geometry.type==='RoundedBoxGeometry')remove(eye,part);
+      const brow=add(eye,sculpt('cover-beast-brow-'+shape,[[0,3.7,-.1,5.5,1.7,2.1],[2,3.8,-.8,4,2,2]],.8,20),primary);
+      brow.rotation.z=Number(eye.userData.faceEye)*.17;
+    }
+    if(shape==='boar'){
+      // Remove both old snout overlays; the nose is a broad seated pad with
+      // two nostrils, not a dark dog's nose superimposed on pink beads.
+      for(const part of [...body.children])if(part instanceof T.Mesh&&part.userData.creatureHead
+        &&part.position.z>=63&&part.position.y>=34&&part.position.y<=41)remove(body,part);
+      const nose=add(body,sculpt('cover-boar-nose',[[0,36,67,11.5,7.2,3.5],[0,33,65,10,4.5,4]],1.2,26),0xa67f66);
+      nose.userData.creatureHead=true;
+      for(const side of [-1,1])orb(body,0x4b352c,side*4.5,37,70.2,1.7,1.5,.38).userData.creatureHead=true;
+      horn(body,0x574033,[[-8,29,60],[0,28.5,64],[8,29,60]],.45).userData.creatureHead=true;
+    }
+    if(shape==='boar'||shape==='hound'){
+      for(const part of [...body.children])if(part instanceof T.Mesh&&!part.userData.creatureHead&&part.position.x===0
+        &&part.position.y>=56&&part.position.y<=72&&part.position.z<25&&part.geometry.type==='ConeGeometry')remove(body,part);
+      const y=35;
+      add(body,sculpt('cover-bristle-ridge-'+shape+'-'+elite,[
+        [0,y+23,-22,6.5,7,16],[0,y+28,-7,6,8,18],[0,y+26,8,5.2,7,13]
+      ],2.7,24),new T.Color(primary).multiplyScalar(.73).getHex());
+    }
+  }
+  if(shape==='rogue'||shape==='cultist'){
+    for(const part of [...body.children])if(part instanceof T.Mesh&&(part.userData.faceSurface
+      ||part.position.x===0&&part.position.y===84&&part.position.z===18))remove(body,part);
+    const mask=add(body,sculpt('cover-cowl-mask-'+shape,[[0,87,13,14,8,7],[0,82,12,11,6,5]],2,26),0x293039);
+    mask.userData.creatureHead=true;mask.userData.faceSurface=true;
+    horn(body,new T.Color(primary).multiplyScalar(.67).getHex(),[[-11,87,20],[0,85.8,21],[11,87,20]],.6).userData.creatureHead=true;
+  }
+  if(shape==='bat'){
+    for(const part of [...body.children])if(part instanceof T.Mesh&&part.userData.creatureHead&&part.position.y===56&&Math.abs(part.position.x)===8)remove(body,part);
+    const muzzle=add(body,sculpt('cover-bat-muzzle',[[0,59,24,8,6,4],[-6,57,23,6,4.5,4],[6,57,23,6,4.5,4]],1.5,24),accent);
+    muzzle.userData.creatureHead=true;
+  }
+  if(['beetle','scorpion','spider'].includes(shape)){
+    for(const eye of body.children.filter(o=>o.userData.faceEye)){
+      eye.scale.setScalar(1.08);
+      const brow=add(eye,sculpt('cover-chitin-brow',[[0,4,-.5,5,1.5,2]],.4,18),primary);brow.rotation.z=Number(eye.userData.faceEye)*.12;
+    }
+    if(shape==='scorpion'){
+      for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.x===0&&part.position.y>=39&&part.position.y<=43
+        &&part.position.z<12&&part.geometry.type==='RoundedBoxGeometry')remove(body,part);
+      for(let n=0;n<4;n++)add(body,sculpt('cover-scorpion-back-'+n,
+        [[0,40-n*.7,-30+n*12,25-n*1.2,5,9],[0,42-n*.7,-34+n*12,22-n,3,5]],1.3,22),n%2?primary:accent);
+    }
+  }
+  body.userData.creatureStyle='cover-2026-10-03';
+}
+
 /** Family-specific veteran mass, equipment and mature features. No collision edits. */
 function veteran(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],primary:number,accent:number):void {
   const metal=0x82928b,bone=0xe0cda0;
   if(beasts.has(shape)){
     const y=shape==='salamander'?20:35;
+    const fur=reptiles.has(shape)?accent:shape==='ram'?0xc7bea2
+      :new T.Color(primary).lerp(new T.Color(shape==='cat'?0xd4cfb7:accent),.55).getHex();
     for(const s of [-1,1]){
-      const armour=add(body,sculpt('veteran-beast-mantle-'+shape+'-'+s,[[s*24,y+12,3,12,16,26],[s*21,y+16,20,12,15,17]],2,24),reptiles.has(shape)?accent:0x574838);
-      armour.userData.veteranFeature=true;
+      if(reptiles.has(shape)){
+        const armour=add(body,sculpt('veteran-beast-mantle-'+shape+'-'+s,[[s*24,y+12,3,12,16,26],[s*21,y+16,20,12,15,17]],2,24),fur);
+        armour.userData.veteranFeature=true;
+      }
       if(reptiles.has(shape)||shape==='ram')horn(body,bone,[[s*16,y+22,25],[s*23,y+37,19],[s*25,y+44,9]],4).userData.creatureHead=true;
       else if(shape==='boar')horn(body,bone,[[s*12,y-1,57],[s*21,y+7,69],[s*19,y+22,65]],4.5).userData.creatureHead=true;
       else {
-        const ruff=add(body,sculpt('veteran-fur-ruff-'+shape+'-'+s,[[s*19,y+18,13,12,19,16],[s*20,y+7,27,12,14,14]],2.5,24),accent);ruff.userData.veteranFeature=true;
+        const ruff=add(body,sculpt('veteran-fur-ruff-'+shape+'-'+s,[[s*19,y+18,13,9,16,15],[s*20,y+7,27,9,12,12]],3,24),fur);ruff.userData.veteranFeature=true;
         horn(body,0x423c32,[[s*14,y+16,45],[s*12,y+10,49],[s*10,y+5,51]],.6).userData.creatureHead=true;
       }
-      const leg=legs[s<0?0:Math.min(legs.length-1,2)];if(leg)plate(leg,metal,0,-6,6,15,12,5);
+      const leg=legs[s<0?0:Math.min(legs.length-1,2)];
+      if(leg&&reptiles.has(shape))plate(leg,accent,0,-6,6,15,12,5);
     }
     if(reptiles.has(shape)||shape==='boar')for(let n=0;n<3;n++)horn(body,accent,[[0,y+24,-20+n*12],[0,y+38,-24+n*12],[0,y+44,-29+n*12]],4);
-    else add(body,sculpt('veteran-mane-'+shape,[[0,y+24,14,16,15,25],[0,y+21,-11,13,11,20]],2.5,24),accent);
+    if(!reptiles.has(shape)){
+      const mantle=add(body,sculpt('veteran-fur-mantle-'+shape,[
+        [0,y+23,14,23,15,24],[0,y+20,-10,20,12,24],
+        [-21,y+11,2,11,15,26],[21,y+11,2,11,15,26],
+      ],5,30),fur);mantle.userData.veteranFeature=true;
+    }
   }else if(['beetle','spider','scorpion'].includes(shape)){
     for(const s of [-1,1]){
       add(body,sculpt('veteran-bug-carapace-'+s,[[s*19,42,-18,16,12,29],[s*20,38,6,13,11,17]],2,26),accent);
@@ -436,7 +665,10 @@ function veteran(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     for(const part of body.children)if(part instanceof T.Group&&!part.userData.faceEye&&part.children.some(o=>o instanceof T.Mesh)&&part.position.z<25){part.scale.x*=1.2;part.scale.y*=1.2;}
   }else if(shape==='bat'||shape==='owl'||shape==='harpy'){
     for(const s of [-1,1])horn(body,accent,[[s*11,74,7],[s*21,91,-3],[s*17,106,-9]],5).userData.creatureHead=true;
-    add(body,sculpt('veteran-bird-ruff',[[0,52,8,29,14,21]],2,26),accent);
+    const featherColor=new T.Color(primary).lerp(new T.Color(accent),.5).getHex();
+    add(body,sculpt('veteran-bird-ruff-'+shape,shape==='harpy'
+      ?[[0,70,-7,23,10,15],[0,65,11,21,12,5],[-19,69,3,9,10,10],[19,69,3,9,10,10]]
+      :[[0,52,8,29,14,21]],3,26),featherColor);
   }else if(shape==='wisp'||shape==='flame'){
     for(const s of [-1,1])horn(body,accent,[[s*10,29,0],[s*25,57,0],[s*19,78,-3]],6);
   }else if(shape==='rogue'||shape==='cultist'){
@@ -511,9 +743,93 @@ function veteran(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
   body.userData.eliteAnatomy=true;
 }
 
-export function sculptCreatureSurfaces(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],primary:number,accent:number,elite:boolean,boss:boolean):void {
+function bossAnatomy(id:string,body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],primary:number,accent:number):void {
+  const principal=(color:number)=>body.children.find(o=>o instanceof T.Mesh&&o.position.length()===0
+    &&o.geometry.userData.sculptedSurface&&(o.material as T.MeshStandardMaterial).color.getHex()===color) as T.Mesh|undefined;
+  if(shape==='treant'){
+    for(const part of [...body.children])if(part instanceof T.Mesh&&(
+      part.position.x===0&&part.position.z===0&&[60,107].includes(part.position.y)
+      ||part.position.y>=130&&part.scale.x>=18&&part.scale.z>=18))remove(body,part);
+    const bark=sculpt('boss-root-trunk',[[0,64,-3,29,37,23],[0,36,-1,24,22,25],[-18,49,0,13,28,20],[16,72,-2,13,30,19]],4,34,
+      [[-13,61,24,2.7,26,5],[7,57,25,2.3,27,5],[20,80,18,2.2,18,5]],{top:0x7c603e,bottom:0x493b2c});
+    add(body,bark,0xffffff);
+    const face=add(body,sculpt('boss-root-face',[[0,107,0,23,22,18],[0,94,9,19,11,14],[-14,112,10,13,7,12],[14,112,10,13,7,12]],2.5,32,
+      [[-9,108,20,5.5,3.5,4],[9,108,20,5.5,3.5,4],[0,96,22,11,2,4]]),0x745b3c);
+    face.userData.creatureHead=true;face.userData.faceSurface=true;
+    const canopy=add(body,sculpt('boss-root-canopy',[[0,155,-13,34,21,28],[-39,161,-8,33,20,26],[43,170,-12,32,23,27],[2,180,-18,27,18,24]],7,34,[],{top:0x86a857,bottom:0x3d643e}),0xffffff);
+    canopy.userData.creatureHead=true;
+    for(const [i,arm]of arms.entries()){
+      const s=i?1:-1;
+      for(const part of [...arm.children])if(part instanceof T.Mesh&&Math.max(part.scale.x,part.scale.y)>9
+        &&['CylinderGeometry','IcosahedronGeometry'].includes(part.geometry.type))remove(arm,part);
+      add(arm,sweepSurface('profile-colossus-arm-'+s,[
+        [0,14,0,1.5,1.5],[0,7,0,17,16],[s*2,-8,0,16,15],
+        [s*6,-28,3,12,12],[s*7,-47,4,17,16],
+        [s*7,-55,5,13,13],
+      ]),0x645036);
+      for(let n=0;n<3;n++)horn(arm,0x51412d,[[s*(3+n*6),-49,13],[s*(5+n*6),-61,17],[s*(4+n*6),-65,22]],3.8);
+    }
+    for(const [i,leg]of legs.entries()){
+      const s=i?1:-1;
+      add(leg,sculpt('boss-root-foot-'+s,[[0,-13,4,12,20,14],[s*6,-27,12,16,7,21],[s*13,-28,21,12,5,18]],2.5,26),0x5b4731);
+    }
+  }else if(shape==='scorpion'||shape==='spider'){
+    const shell=principal(primary);
+    if(shell){shell.geometry=sculpt('boss-carapace-'+id,shape==='spider'
+      ?[[0,30,-32,35,28,37],[0,24,1,25,18,23],[0,23,30,20,14,18]]
+      :[[0,26,-27,36,22,32],[0,26,5,28,19,24],[0,25,29,21,15,19]],4,34);
+      shell.material=pigment(primary);}
+    // The abdomen carries one broad shield instead of a small crown being the
+    // entire distinction from an ordinary insect.
+    add(body,sculpt('boss-abdomen-shield-'+id,shape==='spider'
+      ?[[0,48,-34,27,14,31],[0,54,-42,19,10,22]]
+      :[[0,44,-24,29,9,28],[0,47,-34,24,8,20]],2.5,28),new T.Color(primary).lerp(new T.Color(accent),.25).getHex());
+  }else if(['golem','sand'].includes(shape)){
+    const torso=body.children.find(o=>o instanceof T.Mesh&&o.position.y===60&&o.position.z===0) as T.Mesh|undefined;
+    const dimensions:Record<string,[number,number,number]>={
+      'prism-golem':[27,38,23],'lava-golem':[36,29,29],'stone-giant':[36,38,23],'canyon-lord':[38,29,28],
+    };
+    const [w,h,d]=dimensions[id]??[30,34,25];
+    if(torso){torso.geometry=sculpt('boss-core-mass-'+id,[[0,.2,0,w/31,h/35,d/25],[0,-.5,.04,w*.73/31,h*.6/35,d*.9/25]],.045,28);
+      torso.userData.sculptedSurface=true;}
+    // Broad shoulder/back ridges make each mass profile readable behind its
+    // original armour and emissive core; the front danger marking stays clear.
+    for(const s of [-1,1]){
+      const mantle=add(body,sculpt('boss-crag-mantle-'+id+'-'+s,[[s*(w-6),85,-7,15,id==='stone-giant'?29:18,20],[s*(w-12),65,-10,13,17,17]],1.7,26),primary);
+      mantle.userData.bossAnatomy=true;
+    }
+  }else if(shape==='ogre'){
+    const torso=body.children.find(o=>o instanceof T.Mesh&&o.position.y===53&&o.position.z===0) as T.Mesh|undefined;
+    if(torso)remove(body,torso);
+    add(body,sculpt('boss-ogre-torso',[[0,58,-1,33,26,22],[0,42,6,31,18,24],[-24,68,-1,15,17,18],[24,68,-1,15,17,18]],4,32),primary);
+    for(const s of [-1,1]){
+      const jaw=add(body,sculpt('boss-ogre-jowl-'+s,[[s*14,79,10,12,9,13],[s*15,88,8,11,9,13]],2.5,26),primary);jaw.userData.creatureHead=true;
+      add(body,sculpt('boss-ogre-moss-'+s,[[s*25,73,-4,15,9,15],[s*32,65,-8,11,12,12]],2,24),0x627a4e);
+    }
+  }else if(['boar','cat','hound','salamander','wyvern','dragon'].includes(shape)){
+    const torso=principal(0xffffff);
+    const low=shape==='salamander',y=low?20:35;
+    const mass:Record<string,[number,number,number]>={
+      'crystal-boar':[35,28,37],'night-stalker':[27,23,42],'obsidian-beast':[35,30,38],
+      'elder-salamander':[36,19,43],'ancient-wyvern':[24,32,40],'fire-dragon':[38,32,44],
+    };
+    const [w,h,d]=mass[id]??[30,24,35];
+    if(torso){torso.geometry=sculpt('boss-beast-body-'+id,[[0,y,-17,w*.84,h*.82,d*.72],[0,y+4,12,w,h,d*.78],[0,y-2,-2,w*.82,h*.7,d*.94]],4.5,34,[],
+      {top:primary,bottom:new T.Color(primary).lerp(new T.Color(accent),.28).getHex()});}
+    if(shape==='cat'||shape==='hound')for(const s of [-1,1]){
+      const cheek=add(body,sculpt('boss-predator-ruff-'+id+'-'+s,[[s*20,y+12,26,13,17,18],[s*16,y+22,16,12,15,16]],2.5,28),accent);
+      cheek.userData.creatureHead=true;
+    }
+  }
+  body.userData.bossAnatomy=id;
+}
+
+export function sculptCreatureSurfaces(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],wings:T.Group[],primary:number,accent:number,elite:boolean,boss:boolean,id:string):void {
   if(shape==='goblin')goblin(body,arms,legs,primary,elite&&!boss);
-  else {organic(body,shape,arms,legs,primary,accent,elite,boss);if(elite&&!boss)veteran(body,shape,arms,legs,primary,accent);}
+  else {organic(body,shape,arms,legs,primary,accent,elite,boss);coverStyle(body,shape,primary,accent,elite);if(elite&&!boss)veteran(body,shape,arms,legs,primary,accent);}
+  if(shape==='goblin')body.userData.creatureStyle='cover-2026-10-03';
+  if(boss)bossAnatomy(id,body,shape,arms,legs,primary,accent);
+  birdPlumage(body,wings,shape,primary,accent,elite);
 }
 
 export function sharedCreatureSculptGeometry(geometry:T.BufferGeometry):boolean{return shared.has(geometry);}

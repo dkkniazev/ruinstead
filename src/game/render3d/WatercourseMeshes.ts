@@ -1,5 +1,5 @@
 import * as T from 'three';
-import { WORLD_WATERCOURSES, BROOK_BRIDGES, type Watercourse, type BrookBridge } from '../world/WorldWatercourses';
+import { WORLD_WATERCOURSES, BROOK_BRIDGES, brookBridgeAt, type Watercourse, type BrookBridge } from '../world/WorldWatercourses';
 import { getRegionDefinition } from '../world/ReleaseRegionMap';
 import { plateauHeight, brookBridgeHeight } from '../world/WorldTerrain';
 import { boundarySurfaceMaterial } from './ArtMaterials';
@@ -43,9 +43,9 @@ function createBrookBridge(bridge: BrookBridge): T.Group {
   source.forEach(material=>material.dispose());return group;
 }
 
-function frame(course: Watercourse, index: number) {
-  const point = course.points[index], a = course.points[Math.max(0, index - 1)];
-  const b = course.points[Math.min(course.points.length - 1, index + 1)];
+function frame(points: Watercourse['points'], index: number) {
+  const point = points[index], a = points[Math.max(0, index - 1)];
+  const b = points[Math.min(points.length - 1, index + 1)];
   const length = Math.hypot(b.x - a.x, b.y - a.y);
   return { point, nx: -(b.y - a.y) / length, nz: (b.x - a.x) / length };
 }
@@ -54,35 +54,62 @@ function frame(course: Watercourse, index: number) {
 export function createWatercourse(course: Watercourse): T.Group {
   const group = new T.Group(), region = getRegionDefinition(course.region);
   group.name = course.id;
-  const positions: number[] = [], colors: number[] = [], sides: number[] = [];
-  const bankPositions: number[] = [], bankColors: number[] = [];
-  const soil = new T.Color(course.region === 1 ? 0xbab38a : 0xb5b7a7);
-  const wet = new T.Color(course.region === 1 ? 0x728c71 : 0x778f91);
+  // Subdivide the existing polyline, without changing its bed or water extent.
+  // Short cross-sections make the banks read as curves at the gameplay camera.
+  const points: Watercourse['points'][number][] = [], distances: number[] = [];
+  let along = 0;
+  for (let i = 1; i < course.points.length; i++) {
+    const a=course.points[i-1],b=course.points[i],length=Math.hypot(b.x-a.x,b.y-a.y),steps=Math.ceil(length/18);
+    for(let j=0;j<steps;j++){
+      const t=j/steps;
+      points.push({x:T.MathUtils.lerp(a.x,b.x,t),y:T.MathUtils.lerp(a.y,b.y,t),
+        width:T.MathUtils.lerp(a.width,b.width,t),level:T.MathUtils.lerp(a.level,b.level,t)});
+      distances.push(along+length*t);
+    }
+    along+=length;
+  }
+  points.push(course.points[course.points.length-1]);distances.push(along);
+  const positions: number[] = [], colors: number[] = [], sides: number[] = [], flows: number[] = [];
+  const bankPositions: number[] = [], bankColors: number[] = [], bankNormals: number[] = [], bankAlphas: number[] = [];
+  const soil = new T.Color(course.region === 1 ? 0xa6a578 : 0xa4aaa2);
+  const wet = new T.Color(course.region === 1 ? 0x657b64 : 0x637e80);
+  const moss = new T.Color(course.region === 1 ? 0x769451 : 0x738781);
   const emit = (index: number, offset: number, water: boolean) => {
-    const { point, nx, nz } = frame(course, index);
-    const x = point.x + nx * point.width * offset, z = point.y + nz * point.width * offset;
+    const { point, nx, nz } = frame(points, index);
+    // Sample the coordinates that the GPU actually receives. Near a polyline
+    // join, rounding after height sampling can select a different nearest span.
+    const x = Math.fround(point.x + nx * point.width * offset), z = Math.fround(point.y + nz * point.width * offset);
     if (water) {
       positions.push(x, point.level + .8, z);
       const edge = Math.abs(offset);
       colors.push(.72 + edge * .38, .86 + edge * .35, .98 + edge * .22);
-      sides.push(offset);
+      sides.push(offset);flows.push(distances[index]);
     } else {
-      bankPositions.push(x, plateauHeight(region, x, z) + 1.8, z);
-      const color = wet.clone().lerp(soil, T.MathUtils.clamp((Math.abs(offset) - 1) / .5, 0, 1));
+      bankPositions.push(x, plateauHeight(region, x, z) + 2.2, z);
+      const edge=Math.abs(offset),variation=Math.sin(x*.021+Math.sin(z*.014))*Math.cos(z*.018)*.12;
+      const color = wet.clone().lerp(soil,T.MathUtils.smoothstep(edge+variation,.97,1.35))
+        .lerp(moss,T.MathUtils.smoothstep(edge+variation,1.35,1.85));
       bankColors.push(color.r, color.g, color.b);
+      bankAlphas.push((1-T.MathUtils.smoothstep(edge+variation,1.4,2.2))*.92);
+      const normal=new T.Vector3(plateauHeight(region,x-3,z)-plateauHeight(region,x+3,z),6,
+        plateauHeight(region,x,z-3)-plateauHeight(region,x,z+3)).normalize();bankNormals.push(normal.x,normal.y,normal.z);
     }
   };
-  for (let i = 1; i < course.points.length; i++) {
+  for (let i = 1; i < points.length; i++) {
     for (const [lo, hi] of [[-1,-.7],[-.7,0],[0,.7],[.7,1]]) {
       for (const [index, offset] of [[i-1,lo],[i-1,hi],[i,hi],[i-1,lo],[i,hi],[i,lo]]) emit(index, offset, true);
     }
-    for (const [lo, hi] of [[-1.48,-.98],[.98,1.48]]) {
-      for (const [index, offset] of [[i-1,lo],[i-1,hi],[i,hi],[i-1,lo],[i,hi],[i,lo]]) emit(index, offset, false);
+    for(const side of [-1,1]){
+      const edges=[.9,1.02,1.17,1.4,1.75,2.3];
+      for(let band=1;band<edges.length;band++){
+        const [lo,hi]=side<0?[-edges[band],-edges[band-1]]:[edges[band-1],edges[band]];
+        for (const [index, offset] of [[i-1,lo],[i-1,hi],[i,hi],[i-1,lo],[i,hi],[i,lo]]) emit(index, offset, false);
+      }
     }
   }
   // Round ends are part of the same shallow basin, rather than squared ribbons.
-  for (const index of [0, course.points.length - 1]) {
-    const { point, nx, nz } = frame(course, index), direction = index === 0 ? -1 : 1;
+  for (const index of [0, points.length - 1]) {
+    const { point, nx, nz } = frame(points, index), direction = index === 0 ? -1 : 1;
     for (let i = 0; i < 16; i++) {
       const a = i / 16 * Math.PI, b = (i + 1) / 16 * Math.PI;
       for (const angle of direction < 0 ? [null,b,a] : [null,a,b]) {
@@ -91,6 +118,7 @@ export function createWatercourse(course: Watercourse): T.Group {
           point.y + (nz * side - nx * forward) * point.width);
         const edge = angle === null ? 0 : 1;
         colors.push(.72 + edge * .38, .86 + edge * .35, .98 + edge * .22); sides.push(side);
+        flows.push(distances[index]+forward*point.width);
       }
     }
   }
@@ -98,29 +126,47 @@ export function createWatercourse(course: Watercourse): T.Group {
   geometry.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
   geometry.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
   geometry.setAttribute('streamSide', new T.Float32BufferAttribute(sides, 1)); geometry.computeVertexNormals();
+  geometry.setAttribute('streamAlong', new T.Float32BufferAttribute(flows, 1));
   const material = boundarySurfaceMaterial(false), compile = material.onBeforeCompile;
+  material.color.setHex(course.region===1?0x438f98:0x4a929d);
+  material.roughness=.5;
   material.side = T.DoubleSide;
   material.onBeforeCompile = (shader, renderer) => {
     compile(shader, renderer);
-    shader.vertexShader = 'attribute float streamSide;varying float vStreamSide;\n' + shader.vertexShader;
-    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvStreamSide=streamSide;');
-    shader.fragmentShader = 'varying float vStreamSide;\n' + shader.fragmentShader;
+    shader.vertexShader = 'attribute float streamSide;attribute float streamAlong;varying float vStreamSide;varying float vStreamAlong;\n' + shader.vertexShader;
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nvStreamSide=streamSide;vStreamAlong=streamAlong;');
+    shader.fragmentShader = 'varying float vStreamSide;varying float vStreamAlong;\n' + shader.fragmentShader;
+    shader.fragmentShader = shader.fragmentShader.replace(/float ripples=pow\([\s\S]*?\*smoothstep\([^;]+;/,
+      `float ripples=pow(.5+.5*sin(vStreamSide*18.+artNoise(vArtPosition.xz*.018)*1.7
+        +sin(vStreamAlong*.006-artTime*.3)*1.2),12.)
+        *smoothstep(.56,.77,artNoise(vec2(vStreamSide*3.,(vStreamAlong-artTime*16.)*.007)));`);
     shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `#include <color_fragment>
       float bankFoam=smoothstep(.74,.97,abs(vStreamSide))*smoothstep(.48,.72,artNoise(vArtPosition.xz*.027));
       diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.57,.8,.72),bankFoam*.5);
     `);
   };
-  material.customProgramCacheKey = () => 'ruin-shallow-brook-1';
+  material.customProgramCacheKey = () => 'ruin-shallow-brook-2';
   const water = new T.Mesh(geometry, material); water.name = 'flowing-water'; water.userData.uniqueGeometry = true;
   water.receiveShadow = true; group.add(water);
   const bankGeometry = new T.BufferGeometry();
   bankGeometry.setAttribute('position', new T.Float32BufferAttribute(bankPositions, 3));
-  bankGeometry.setAttribute('color', new T.Float32BufferAttribute(bankColors, 3)); bankGeometry.computeVertexNormals();
-  const banks = new T.Mesh(bankGeometry, new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}));
+  bankGeometry.setAttribute('color', new T.Float32BufferAttribute(bankColors, 3));
+  bankGeometry.setAttribute('normal', new T.Float32BufferAttribute(bankNormals, 3));
+  bankGeometry.setAttribute('bankAlpha', new T.Float32BufferAttribute(bankAlphas, 1));
+  const bankMaterial=new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide,
+    transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
+  bankMaterial.onBeforeCompile=shader=>{
+    shader.vertexShader='attribute float bankAlpha;varying float vBankAlpha;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvBankAlpha=bankAlpha;');
+    shader.fragmentShader='varying float vBankAlpha;\n'+shader.fragmentShader;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=vBankAlpha;');
+  };
+  bankMaterial.customProgramCacheKey=()=> 'ruin-soft-brook-bank';
+  const banks = new T.Mesh(bankGeometry,bankMaterial);banks.renderOrder=2;
   banks.name = 'wet-banks'; banks.receiveShadow = true; banks.userData.uniqueGeometry = true; group.add(banks);
 
   const rockGeometry = fracturedRock(course.region + 201, course.region === 1 ? 0x9faaa1 : 0xa9b2ad).clone();
-  const stones = new T.InstancedMesh(rockGeometry, naturalSurfaceMaterial, course.points.length * 2);
+  const stones = new T.InstancedMesh(rockGeometry, naturalSurfaceMaterial, course.points.length * 6);
   const reedPositions: number[] = [], reedColors: number[] = [];
   const root = new T.Color(0x58705c), tip = new T.Color(course.region === 1 ? 0x9eb67b : 0xa9b8a0);
   for (let blade = 0; blade < 4; blade++) {
@@ -131,20 +177,27 @@ export function createWatercourse(course: Watercourse): T.Group {
   const reedGeometry = new T.BufferGeometry();
   reedGeometry.setAttribute('position',new T.Float32BufferAttribute(reedPositions,3));
   reedGeometry.setAttribute('color',new T.Float32BufferAttribute(reedColors,3)); reedGeometry.computeVertexNormals();
-  const reeds = new T.InstancedMesh(reedGeometry, new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}), course.points.length);
+  const reeds = new T.InstancedMesh(reedGeometry, new T.MeshStandardMaterial({vertexColors:true,roughness:1,side:T.DoubleSide}), course.points.length*4);
   const transform = new T.Object3D(); let stoneCount = 0, reedCount = 0;
   for (let i = 2; i < course.points.length - 2; i += 3) {
-    const { point, nx, nz } = frame(course, i);
-    for (const side of i%2===0?[-1,1]:[1]) {
+    const { point, nx, nz } = frame(course.points, i);
+    for (const side of i%2===0?[-1,1]:[i%4===1?-1:1]) {
       const spread=1.17+.27*(.5+.5*Math.sin(i*7.1));
       const x = point.x + nx * point.width * spread * side, z = point.y + nz * point.width * spread * side;
-      transform.position.set(x, plateauHeight(region,x,z)-1, z); transform.rotation.set(.07*i,i*2.399,.04*i);
-      // Pebbles remain below ankle height and are deliberately walk-through.
-      transform.scale.set(8 + i%7, 4 + i%3, 7 + i%5); transform.updateMatrix(); stones.setMatrixAt(stoneCount++,transform.matrix);
-      if ((i + 1) % 6 === 0) {
-        const rx=x+nx*8*side,rz=z+nz*8*side;
+      if(brookBridgeAt(x,z))continue;
+      // Small grouped stones frame the bend without inventing collidable boulders.
+      for(let pebble=0;pebble<3;pebble++){
+        const angle=i*2.399+pebble*2.1,px=x+Math.cos(angle)*pebble*11,pz=z+Math.sin(angle)*pebble*11;
+        if(brookBridgeAt(px,pz))continue;
+        transform.position.set(px,plateauHeight(region,px,pz)-1,pz);transform.rotation.set(0,angle,0);
+        const scale=pebble===0?1:.6;transform.scale.set((9+i%5)*scale,(4+i%3)*scale,(8+i%4)*scale);
+        transform.updateMatrix();stones.setMatrixAt(stoneCount++,transform.matrix);
+      }
+      if ((i + 1) % 6 === 0) for(let tuft=0;tuft<4;tuft++){
+        const angle=i*1.3+tuft*2.399,rx=x+nx*16*side+Math.cos(angle)*tuft*10,rz=z+nz*16*side+Math.sin(angle)*tuft*10;
+        if(brookBridgeAt(rx,rz))continue;
         transform.position.set(rx, plateauHeight(region,rx,rz), rz);
-        transform.rotation.set(0,i*2.399,0); transform.scale.setScalar(.72+i%5*.08); transform.updateMatrix(); reeds.setMatrixAt(reedCount++,transform.matrix);
+        transform.rotation.set(0,angle,0); transform.scale.setScalar(.68+tuft*.08); transform.updateMatrix(); reeds.setMatrixAt(reedCount++,transform.matrix);
       }
     }
   }

@@ -6,6 +6,7 @@ import { SETTLEMENT_CENTER } from '../world/WorldPrototype';
 import { geographyAreaIsClear } from '../world/RegionGeography';
 import { sampleWatercourse } from '../world/WorldWatercourses';
 import { fernGeometry, fracturedRock, naturalSurfaceMaterial } from './NatureForms';
+import { createForestUnderstory } from './ForestUnderstory';
 
 export function artRandom(x:number,y:number,seed=0):number {
   const n=Math.sin(x*127.1+y*311.7+seed*74.7)*43758.5453;return n-Math.floor(n);
@@ -42,9 +43,11 @@ export function distanceToRoad(region:RegionDefinition,x:number,z:number):number
 
 /** Feathered dirt routes connect the actual region crossings. */
 export function createRegionRoads(region:RegionDefinition):T.Group {
-  const group=new T.Group(),positions:number[]=[],colors:number[]=[],alphas:number[]=[];
+  const group=new T.Group(),positions:number[]=[],colors:number[]=[],alphas:number[]=[],wearCoordinates:number[]=[];
   const shade=new T.Color(region.id===3?0x8b8594:region.id===4||region.id===8?0x78645d:region.id===5?0xc9ba86:region.id===7?0xd3ab76:0xd4bb82);
-  for(const points of roadLines(region))for(let i=1;i<points.length;i++){
+  for(const points of roadLines(region)){
+    const runs=[0];for(let i=1;i<points.length;i++)runs.push(runs[i-1]+points[i].distanceTo(points[i-1]));
+    for(let i=1;i<points.length;i++){
     const edge=(index:number,offset:number)=>{
       const p=points[index],before=points[Math.max(0,index-1)],after=points[Math.min(points.length-1,index+1)];
       const normal=new T.Vector2(-(after.y-before.y),after.x-before.x).normalize();
@@ -62,20 +65,31 @@ export function createRegionRoads(region:RegionDefinition):T.Group {
         const tint=shade.clone().multiplyScalar(.93+artRandom(Math.floor(p.x/75),Math.floor(p.y/75))*.09);
         colors.push(tint.r,tint.g,tint.b);
         alphas.push((n===0||n===3?alphaLo:alphaHi)*(region.id===1?T.MathUtils.clamp((town-190)/120,0,1):1));
+        wearCoordinates.push((n===0||n===3?lo:hi)/60,runs[n<2?i-1:i]);
       }
     }
+  }
   }
   const geometry=new T.BufferGeometry();
   geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));
   geometry.setAttribute('color',new T.Float32BufferAttribute(colors,3));
   geometry.setAttribute('roadAlpha',new T.Float32BufferAttribute(alphas,1));geometry.computeVertexNormals();
+  geometry.setAttribute('roadWear',new T.Float32BufferAttribute(wearCoordinates,2));
   const material=new T.MeshStandardMaterial({vertexColors:true,roughness:1,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1});
   material.onBeforeCompile=shader=>{
-    shader.vertexShader='attribute float roadAlpha;varying float vRoadAlpha;\n'+shader.vertexShader;
-    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvRoadAlpha=roadAlpha;');
-    shader.fragmentShader='varying float vRoadAlpha;\n'+shader.fragmentShader;
-    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\ndiffuseColor.a*=vRoadAlpha;');
+    shader.vertexShader='attribute float roadAlpha;attribute vec2 roadWear;varying float vRoadAlpha;varying vec2 vRoadWear;\n'+shader.vertexShader;
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvRoadAlpha=roadAlpha;vRoadWear=roadWear;');
+    shader.fragmentShader='varying float vRoadAlpha;varying vec2 vRoadWear;\n'+shader.fragmentShader;
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>',`#include <color_fragment>
+      float across=abs(vRoadWear.x),run=vRoadWear.y;
+      float worn=1.-smoothstep(.12,.67,across);
+      float wornPatch=.5+.5*sin(run*.012+sin(run*.027)*1.3+vRoadWear.x*2.4);
+      float rut=(1.-smoothstep(.025,.105,abs(across-.43)))*smoothstep(.22,.67,wornPatch);
+      diffuseColor.rgb*=.89+worn*.13+wornPatch*.045-rut*.07;
+      diffuseColor.a*=vRoadAlpha;
+    `);
   };
+  material.customProgramCacheKey=()=> 'worn-region-road';
   const path=new T.Mesh(geometry,material);path.receiveShadow=true;path.renderOrder=1;path.userData.uniqueGeometry=true;group.add(path);
   return group;
 }
@@ -136,5 +150,6 @@ export function createGroundCover(cx:number,cz:number,size:number,region:RegionD
     transform.scale.setScalar(.8+artRandom(x,z)*.7);transform.updateMatrix();ferns.setMatrixAt(fernCount++,transform.matrix);
   }
   ferns.count=fernCount;ferns.receiveShadow=true;ferns.userData.uniqueGeometry=true;group.add(ferns);
+  group.add(createForestUnderstory(anchors,region,{x:cx,z:cz,size},(x,z)=>distanceToRoad(region,x,z)));
   return group;
 }

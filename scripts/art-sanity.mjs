@@ -9,13 +9,94 @@ export {SKIN_DEFINITIONS} from './src/game/cosmetics/SkinEconomy.ts';
 export * from './src/game/render3d/MeshBatching.ts';
 export * from './src/game/render3d/Trees.ts';
 export * from './src/game/render3d/NatureForms.ts';
-export {createBuilding,createForge} from './src/game/render3d/Models.ts';
+export * from './src/game/render3d/TreeForms.ts';
+export {createGroundCover,distanceToRoad} from './src/game/render3d/BiomeScenery.ts';
+export {createWatercourse} from './src/game/render3d/WatercourseMeshes.ts';
+export {WORLD_WATERCOURSES,brookBridgeAt,sampleWatercourse} from './src/game/world/WorldWatercourses.ts';
+export {getRegionDefinition} from './src/game/world/ReleaseRegionMap.ts';
+export {plateauHeight} from './src/game/world/WorldTerrain.ts';
+export {terrainHeight,passageAt} from './src/game/world/WorldTerrain.ts';
+export {createBuilding,createForge,createSettlementWell,createResource} from './src/game/render3d/Models.ts';
+export {disposeSettlementScenery} from './src/game/render3d/SettlementScenery.ts';
+export * from './src/game/world/SettlementLayout.ts';
+export {buildResourceNodeDefinitions} from './src/game/gathering/ResourceSystem.ts';
+export {SETTLEMENT_CENTER} from './src/game/world/WorldPrototype.ts';
 export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
 export * from './src/game/render3d/HeroOcclusion3D.ts';
 export * from './src/game/render3d/RenderVisibility.ts';
-`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'}});
-const {T,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,RenderVisibility,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,createBuilding,createForge,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+export * from './src/game/render3d/ResourceLabelLayout.ts';
+export * from './src/game/render3d/ContactBursts3D.ts';
+`,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'},
+plugins:[{name:'art-math-phaser',setup(b){
+  b.onResolve({filter:/^phaser$/},()=>({path:'phaser',namespace:'stub'}));
+  b.onLoad({filter:/.*/,namespace:'stub'},()=>({contents:'export default {Math:{Vector2:class{constructor(x=0,y=0){this.x=x;this.y=y;}},Distance:{Between:(a,b,c,d)=>Math.hypot(c-a,d-b)}}};'}));
+}}]});
+const {T,ContactBursts3D,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,RenderVisibility,layoutResourceLabels,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,naturalSurfaceMaterial,treeBark,treeCanopy,createWatercourse,WORLD_WATERCOURSES,brookBridgeAt,sampleWatercourse,getRegionDefinition,plateauHeight,terrainHeight,passageAt,createGroundCover,distanceToRoad,createBuilding,createForge,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const bursts=new ContactBursts3D(),burstCamera=new T.PerspectiveCamera();
+const {createSettlementWell,disposeSettlementScenery,createResource,SETTLEMENT_BUILDINGS,SETTLEMENT_CENTER,buildResourceNodeDefinitions}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const well=createSettlementWell(),wellRay=new T.Raycaster();
+const checkWell=()=>{
+  well.updateMatrixWorld(true);
+  for(let n=0;n<24;n++){
+    const a=n*Math.PI/12;
+    wellRay.set(new T.Vector3(0,22,0),new T.Vector3(Math.cos(a),0,Math.sin(a)));
+    const hit=wellRay.intersectObject(well,true)[0];
+    assert(hit&&hit.distance>=32&&hit.distance<=50,'Well has an opaque inner wall at every camera azimuth');
+  }
+  wellRay.set(new T.Vector3(0,70,0),new T.Vector3(0,-1,0));
+  assert(wellRay.intersectObject(well,true).some(h=>Math.abs(h.point.y-12)<.01),'Water hides terrain inside the well');
+};
+checkWell();
+const ownershipHero=createHero();let sharedShapesDisposed=0;
+const sharedShapes=new Set();ownershipHero.root.traverse(o=>{if(o instanceof T.Mesh)sharedShapes.add(o.geometry);});
+for(const geometry of sharedShapes)geometry.addEventListener('dispose',()=>sharedShapesDisposed++);
+batchStaticMeshes(well);checkWell();disposeSettlementScenery(well);
+assert.equal(sharedShapesDisposed,0,'Well batching/disposal cannot destroy shared actor unit shapes');ownershipHero.dispose?.();
+const starterTree=buildResourceNodeDefinitions().find(n=>n.id==='starter-wood');
+const tree=createResource('wood',1,Math.abs(Math.round(starterTree.x*7+starterTree.y*13)));
+tree.position.set(starterTree.x-SETTLEMENT_CENTER.x,0,starterTree.y-SETTLEMENT_CENTER.y);
+const treeBounds=new T.Box3().setFromObject(tree);
+for(const level of [0,1,8]){
+  const workshop=createBuilding('workshop',level),site=SETTLEMENT_BUILDINGS.workshop;
+  workshop.position.set(site.x,0,site.y);workshop.rotation.y=site.rotation;
+  assert(!treeBounds.intersectsBox(new T.Box3().setFromObject(workshop)),'Starter tree clears workshop, roof and bench at every building stage');
+  disposeBatchedGeometry(workshop);
+}
+disposeBatchedGeometry(tree);
+burstCamera.rotation.set(-.6,.3,0);
+for(let i=0;i<200;i++)bursts.hit(1000,100+i,90,400,1,new T.Color(0xffddaa));
+for(let i=0;i<100;i++)bursts.footfall(1000,100+i,90,400,new T.Color(0xd8cf9f));
+bursts.update(1070,burstCamera);
+assert.equal(bursts.root.children.length,2,'Contact accents remain two draw calls under dense combat');
+const burstMatrix=new T.Matrix4(),burstPosition=new T.Vector3(),burstRotation=new T.Quaternion(),burstScale=new T.Vector3();
+for(const mesh of bursts.root.children){
+  assert(mesh.count<=112,'Contact and footfall pools stay bounded after repeated hits');
+  for(let i=0;i<mesh.count;i++){
+    mesh.getMatrixAt(i,burstMatrix);burstMatrix.decompose(burstPosition,burstRotation,burstScale);
+    assert(Math.abs(burstRotation.dot(burstCamera.quaternion))>.99999,'Contact accents face the current game camera');
+    assert(burstPosition.y>=90,'Contact puffs stay on or above the struck body');
+  }
+}
+assert.equal(bursts.root.children[0].count,32,'Walking does not replace real hit flashes with foot dust');
+bursts.update(1390,burstCamera);
+for(const mesh of bursts.root.children)assert.equal(mesh.count,0,'Contact accents expire without a lasting halo');
+let releasedBursts=0;for(const mesh of bursts.root.children)mesh.geometry.addEventListener('dispose',()=>releasedBursts++);
+bursts.dispose();assert.equal(releasedBursts,2,'Effect geometry is released with the world');
+for(const [width,height]of [[1280,720],[844,390],[390,844]]){
+  const labels=Array.from({length:8},(_,n)=>({id:'node-'+n,left:width*.5-49+(n%3)*17,
+    top:height*.46+(n%2)*5,width:98,height:30,priority:n===6?10000:-n}));
+  const placements=layoutResourceLabels(labels,width,height);
+  assert(placements.has('node-6'),'Active harvest label remains visible in a crowded cluster');
+  assert.deepEqual(placements.get('node-6'),{left:labels[6].left,top:labels[6].top},'Active label stays seated over the harvested node');
+  assert.deepEqual([...layoutResourceLabels([...labels].reverse(),width,height)], [...placements],'Layout does not depend on resource iteration order');
+  const placed=labels.filter(l=>placements.has(l.id)).map(l=>({...l,...placements.get(l.id)}));
+  assert(placed.length>=2,'Adjacent tree and stone labels remain readable together');
+  for(const a of placed){
+    assert(a.left>=0&&a.top>=0&&a.left+a.width<=width&&a.top+a.height<=height,'Visible label stays inside the viewport');
+    for(const b of placed)if(a.id!==b.id)assert(!(a.left<b.left+b.width&&a.left+a.width>b.left&&a.top<b.top+b.height&&a.top+a.height>b.top),'Resource labels cannot overlap');
+  }
+}
 for(const aspect of [1280/720,844/390,390/844]){
   const height=aspect<.85?1200:1080;
   const camera=new T.OrthographicCamera(-height*aspect/2,height*aspect/2,height/2,-height/2,1,5000);
@@ -171,11 +252,12 @@ const textured=new T.Mesh(new T.BoxGeometry(),new T.MeshStandardMaterial({map:ne
 group.add(textured,textured.clone());batchStaticMeshes(group);
 assert(group.children.includes(textured)&&textured.geometry.hasAttribute('uv'),'Textured meshes retain UVs and stay outside colour batching');
 disposeBatchedGeometry(group);
-for(const seed of [0,1,2,3,4,5,6,7])for(const geometry of [foliageCrown(seed,0x579452),foliageCrown(seed,0x579452,true),fracturedRock(seed,0x838b7d)]){
+for(let seed=0;seed<12;seed++)for(const geometry of [foliageCrown(seed,0x579452),foliageCrown(seed,0x579452,true),fracturedRock(seed,0x838b7d),treeCanopy(seed,0x579452),treeCanopy(seed,0x579452,true),treeBark(seed,0x795638),treeBark(seed,0x795638,true)]){
   const p=geometry.attributes.position,n=geometry.attributes.normal;
   let volume=0,upperNormal=0,upperCount=0;
-  for(let i=0;i<p.count;i+=3){
-    const a=new T.Vector3().fromBufferAttribute(p,i),b=new T.Vector3().fromBufferAttribute(p,i+1),c=new T.Vector3().fromBufferAttribute(p,i+2);
+  const count=geometry.index?.count??p.count,index=i=>geometry.index?.getX(i)??i;
+  for(let i=0;i<count;i+=3){
+    const a=new T.Vector3().fromBufferAttribute(p,index(i)),b=new T.Vector3().fromBufferAttribute(p,index(i+1)),c=new T.Vector3().fromBufferAttribute(p,index(i+2));
     volume+=a.dot(b.cross(c))/6;
   }
   for(let i=0;i<p.count;i++)if(p.getY(i)>.4){upperNormal+=n.getY(i);upperCount++;}
@@ -183,11 +265,49 @@ for(const seed of [0,1,2,3,4,5,6,7])for(const geometry of [foliageCrown(seed,0x5
   assert(upperNormal/upperCount>.3,'Canopy/rock tops must receive the light from above');
   assert([...p.array,...n.array].every(Number.isFinite));
 }
-for(const region of [1,3,5,6])for(const seed of [0,1,11,101]){
+for(const region of [1,3,5,6])for(const seed of [0,1,2,3,4,5,6,7,8,9,10,11,101]){
   const tree=createLivingTree(seed,region),box=new T.Box3().setFromObject(tree);
   assert(box.min.y>-6&&box.max.y>180&&box.max.y<260);assert(tree.children.length<=2,'Rigid canopy must be batched');
+  assert(box.max.x-box.min.x<190&&box.max.z-box.min.z<190,'Tree foliage stays inside the established harvest silhouette');
   let triangles=0;tree.traverse(o=>{if(o instanceof T.Mesh)triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3;});
   assert(triangles<1500,'Authored crowns must stay cheaper than the old subdivided spheres');disposeBatchedGeometry(tree);
+}
+for(const course of WORLD_WATERCOURSES){
+  const brook=createWatercourse(course),region=getRegionDefinition(course.region);
+  const banks=brook.getObjectByName('wet-banks'),water=brook.getObjectByName('flowing-water');
+  const p=banks.geometry.attributes.position,alpha=banks.geometry.attributes.bankAlpha,n=banks.geometry.attributes.normal;
+  assert.equal(alpha.count,p.count);assert.equal(n.count,p.count);
+  assert([...p.array,...alpha.array,...n.array].every(Number.isFinite),'Shore overlays have finite positions/normals/alpha');
+  assert(Math.min(...alpha.array)===0&&Math.max(...alpha.array)>.8,'Bank must feather completely into the land');
+  let maxHeightError=0;
+  for(let i=0;i<p.count;i++){
+    maxHeightError=Math.max(maxHeightError,Math.abs(p.getY(i)-plateauHeight(region,p.getX(i),p.getZ(i))-2.2));
+    assert(n.getY(i)>0,'Banks face the sky');assert(alpha.getX(i)>=0&&alpha.getX(i)<=1);
+  }
+  assert(maxHeightError<.001,`Bank layers follow existing terrain within Float32 height precision: ${maxHeightError}`);
+  console.log(`${course.id}: maximum bank height error ${maxHeightError.toFixed(5)} world units`);
+  for(const normal of water.geometry.attributes.normal.array)assert(Number.isFinite(normal));
+  const w=water.geometry.attributes.position;
+  for(let i=0;i<w.count;i++){
+    assert(water.geometry.attributes.normal.getY(i)>.9,'Water has upward-facing normals');
+    const sample=sampleWatercourse(course.region,w.getX(i),w.getZ(i));
+    assert(sample&&sample.distance<sample.width+1,'Rendered brook stays within the existing water corridor');
+  }
+  assert.equal(water.geometry.attributes.streamAlong.count,water.geometry.attributes.position.count);
+  let triangles=0;const matrix=new T.Matrix4(),position=new T.Vector3();
+  brook.traverse(mesh=>{
+    if(!(mesh instanceof T.Mesh))return;
+    triangles+=(mesh.geometry.index?.count??mesh.geometry.attributes.position.count)/3*(mesh instanceof T.InstancedMesh?mesh.count:1);
+    if(mesh instanceof T.InstancedMesh){
+      assert(mesh.count<=mesh.instanceMatrix.count,'Shore cluster instances stay within allocation');
+      for(let i=0;i<mesh.count;i++){
+        mesh.getMatrixAt(i,matrix);position.setFromMatrixPosition(matrix);
+        assert(!brookBridgeAt(position.x,position.z),'Shore decoration must not occupy bridge decks');
+      }
+    }
+    mesh.geometry.dispose();if(mesh.material!==naturalSurfaceMaterial)(Array.isArray(mesh.material)?mesh.material:[mesh.material]).forEach(m=>m.dispose());
+  });
+  assert(triangles<25000,'Each complete brook keeps a bounded instanced scenery budget');
 }
 for(const region of [2,4,7,8])for(const seed of [0,1,11,101]){
   const tree=createSparseTree(seed,region),box=new T.Box3().setFromObject(tree,true);
@@ -198,6 +318,44 @@ for(const region of [2,4,7,8])for(const seed of [0,1,11,101]){
   disposeBatchedGeometry(tree);
 }
 const hit=recordVisualHit(recordVisualHit(undefined,10,42,'neutral'),10,19,'neutral');assert.equal(hit.amount,61);
+let bedCount=0;
+for(const id of [1,3,5,6]){
+  const region=getRegionDefinition(id),tx=Math.floor(region.center[0]/640),tz=Math.floor(region.center[1]/640);
+  for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++){
+    const cover=createGroundCover((tx+dx)*640,(tz+dz)*640,640,region);
+    const beds=cover.getObjectByName('understory-ground'),shrubs=cover.getObjectByName('understory-shrubs'),leaves=cover.getObjectByName('understory-leaves');
+    if(!beds)continue;
+    let triangles=0;const p=beds.geometry.attributes.position,alpha=beds.geometry.attributes.bedAlpha;
+    bedCount+=p.count/300;
+    for(let n=0;n<p.count;n++){
+      const x=p.getX(n),y=p.getY(n),z=p.getZ(n);
+      assert([x,y,z].every(Number.isFinite),'Understory ground vertices remain finite');
+      assert(Math.abs(y-terrainHeight(x,z)-1.7)<.001,'Plant beds follow the actual sampled ground');
+      assert(distanceToRoad(region,x,z)>70&&!passageAt(x,z,30),'Understory beds preserve clear roads and crossings');
+      assert(alpha.getX(n)>=0&&alpha.getX(n)<=.321,'Bed pigment remains a soft overlay');
+    }
+    assert(p.count===0||Array.from(alpha.array).some(a=>a===0),'Understory edges fade fully into terrain');
+    for(const object of [shrubs,leaves]){
+      assert(object.count<=(object===shrubs?4:64),'Chunk foliage count is bounded');
+      const matrix=new T.Matrix4(),position=new T.Vector3(),scale=new T.Vector3(),q=new T.Quaternion();
+      for(let n=0;n<object.count;n++){
+        object.getMatrixAt(n,matrix);matrix.decompose(position,q,scale);
+        object.geometry.computeBoundingBox();
+        const top=object.geometry.boundingBox.max.y*scale.y+position.y-terrainHeight(position.x,position.z);
+        assert(top<33,'Decorative foliage stays low enough to walk through');
+        assert(distanceToRoad(region,position.x,position.z)>70,'Leaves and shrubs never fill the path');
+      }
+    }
+    const owned=new Set();cover.traverse(o=>{if(o instanceof T.Mesh){
+      triangles+=(o.geometry.index?.count??o.geometry.attributes.position.count)/3*(o instanceof T.InstancedMesh?o.count:1);
+      if(o instanceof T.InstancedMesh)o.dispose();
+      if(o.userData.uniqueGeometry)o.geometry.dispose();
+      for(const m of Array.isArray(o.material)?o.material:[o.material])if(!m.userData.sharedArtMaterial)owned.add(m);
+    }});owned.forEach(m=>m.dispose());
+    assert(triangles<6500,'Complete ground cover stays below 6500 triangles per 640-unit chunk');
+  }
+}
+assert(bedCount>20,'Forest fixtures must include real planted beds, not only empty cover');
 assert.equal(recordVisualHit(hit,11,7,'neutral').amount,7);
 assert(WEAPON_ATTACK_ANIMATION_MS.smash>=750&&WEAPON_ATTACK_ANIMATION_MS['wide-slash']>=620&&WEAPON_ATTACK_ANIMATION_MS.thrust>=500,'Heavy and thrust animations must remain readable instead of snapping instantly');
-console.log('Art sanity: PASS — corrected 180° weapon roll, slower readable thrust/slash/cleave/smash/dual-slash poses, rapid swing restarts, four independent 3D orbitals, equipment cleanup, finite transforms, cloth/limb bounds, independent skin tint, batch bounds/colours, 16 tree silhouettes, aggregated hit numbers.');
+console.log('Art sanity: PASS — weapon poses/orbits, equipment cleanup, cloth/limb bounds, skin tint, batching, closed tree surfaces/52 living + 16 sparse harvest silhouettes, feathered brook banks/bridge clearance, 100 understory chunks/budgets, resource-label overlap/active harvest priority, aggregated hit numbers.');

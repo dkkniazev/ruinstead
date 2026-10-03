@@ -1,5 +1,6 @@
 import { localizeText } from '../../i18n/Localize';
 import { geographyAreaIsClear } from '../world/RegionGeography';
+import { settlementAreaIsClear } from '../world/SettlementLayout';
 import { harvestYield, harvestRespawnMs, harvestNodeCount } from '../economy/HarvestBalance';
 import type { NavigationObstacle } from '../world/ObstacleNavigation';
 import Phaser from 'phaser';
@@ -129,7 +130,7 @@ export function buildResourceNodeDefinitions(seed=RESOURCE_LAYOUT_SEED):
   // Starter gatherables are deliberately visible within a short walk of spawn.
   const home = SETTLEMENT_CENTER;
   result.push(
-    { id: 'starter-wood', type: 'wood', x: home.x + 540, y: home.y + 230, durability: 3, dropCount: 5, respawnMs: 45_000 },
+    { id: 'starter-wood', type: 'wood', x: home.x + 675, y: home.y + 265, durability: 3, dropCount: 5, respawnMs: 45_000 },
     { id: 'starter-stone', type: 'stone', x: home.x - 545, y: home.y + 235, durability: 4, dropCount: 4, respawnMs: 60_000 },
     { id: 'starter-metal', type: 'metal', x: home.x + 340, y: home.y + 460, durability: 5, dropCount: 3, respawnMs: 90_000 },
   );
@@ -302,6 +303,7 @@ export function buildResourceNodeDefinitions(seed=RESOURCE_LAYOUT_SEED):
             ) {
               continue;
             }
+            if(!settlementAreaIsClear(home,{x,y},type==='wood'?130:footprint+30))continue;
             if (
               profile.region === 1 &&
               !forestLandmarkAreaIsClear(

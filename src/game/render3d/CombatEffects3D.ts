@@ -1,6 +1,7 @@
 import { localizeText } from '../../i18n/Localize';
 import * as T from 'three';
 import type { VisualHit } from '../combat/CombatVisualState';
+import { ContactBursts3D } from './ContactBursts3D';
 
 type HitLabel={sprite:T.Sprite;texture:T.CanvasTexture;canvas:HTMLCanvasElement;born:number;x:number;y:number;z:number};
 type Impact={born:number;x:number;y:number;z:number;color:T.Color;size:number};
@@ -18,10 +19,16 @@ export class CombatEffects3D {
   private readonly sparkMaterial=new T.MeshBasicMaterial({color:0xffffff,toneMapped:false});
   private readonly sparks=new T.InstancedMesh(this.sparkGeometry,this.sparkMaterial,32*7);
   private readonly transform=new T.Object3D();
+  private readonly contacts=new ContactBursts3D();
+  private readonly dustColors=[0xd8cf9f,0xd8cf9f,0xd3ad7f,0x999caa,0x8d7769,0xd8cf9f,0xb2aaa1,0xd3ad7f,0x8d7769].map(c=>new T.Color(c));
 
   constructor(){
-    this.slash.rotation.x=-Math.PI/2;this.root.add(this.slash,this.sparks);
+    this.slash.rotation.x=-Math.PI/2;this.root.add(this.slash,this.sparks,this.contacts.root);
     this.sparks.instanceMatrix.setUsage(T.DynamicDrawUsage);this.sparks.frustumCulled=false;this.sparks.count=0;
+  }
+
+  footfall(at:number,x:number,y:number,z:number,region:number):void {
+    this.contacts.footfall(at,x,y,z,this.dustColors[region]??this.dustColors[0]);
   }
 
   hit(x:number,y:number,z:number,hit:VisualHit,height=90):void {
@@ -42,10 +49,13 @@ export class CombatEffects3D {
     Object.assign(label,{born:hit.at,x,y,z});label.sprite.visible=true;
     this.impacts[this.nextLabel]={born:hit.at,x,y:y-30-height*.45,z,
       color:new T.Color(hit.effectiveness==='weakness'?0xffcd62:hit.effectiveness==='resistance'?0x90bbcb:0xffe6b0),size:Math.min(1.65,Math.max(.7,height/105))};
+    const impact=this.impacts[this.nextLabel];
+    this.contacts.hit(hit.at,impact.x,impact.y,impact.z,impact.size,impact.color);
     this.nextLabel=(this.nextLabel+1)%32;
   }
 
-  update(now:number,x:number,y:number,z:number,facing:number,attackAt:number):void {
+  update(now:number,x:number,y:number,z:number,facing:number,attackAt:number,camera:T.Camera):void {
+    this.contacts.update(now,camera);
     if(attackAt>this.lastSwing){
       this.lastSwing=attackAt;
       this.slash.position.set(x,y+44,z);this.slash.rotation.set(-Math.PI/2,0,-facing-Math.PI*.9);
@@ -84,5 +94,6 @@ export class CombatEffects3D {
     this.labels.forEach(label=>{label.texture.dispose();label.sprite.material.dispose();});
     this.slash.geometry.dispose();this.slashMaterial.dispose();this.root.removeFromParent();
     this.sparks.dispose();this.sparkGeometry.dispose();this.sparkMaterial.dispose();
+    this.contacts.dispose();
   }
 }

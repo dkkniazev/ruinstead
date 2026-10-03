@@ -10,6 +10,66 @@ intermittent failure even after a subsequent PASS. New failing cases must not be
 removed or accepted by weakening assertions. [CURRENT_STATE](../CURRENT_STATE.md)
 records the bootstrap results and open spawn-import failure.
 
+## Acceptance gates
+
+Report **AUTOMATED ACCEPTANCE** separately from **HUMAN VISUAL/FEEL ACCEPTANCE**.
+Automated gates verify only their exercised invariants: finite geometry, attached
+rigs, bounded effects, state transitions, damage/range alignment, localization,
+build/package structure and similar measurable properties. Compilation alone is
+not proof of visual or interactive correctness; a passing art assertion cannot
+objectively prove attractive, polished, fun, coherent or reference-quality art.
+
+Translate subjective goals into concrete review scenarios where practical:
+same-scale ordinary/elite silhouette distinction, blade/face/stinger attachment
+over attack phases, visible danger boundaries, readable paths and original-size
+labels, HUD clearance and responsive controls. Agent inspection can identify and
+repair specific defects and supply comparisons. Final subjective approval remains
+human review: record reviewer/decision/date, or **Pending human review**. Do not
+infer that approval from a green test, an agent's claim or a user's unrelated reply.
+Required device/live-platform checks remain separate evidence, even after human
+style approval. Completion/status must reflect any outstanding required gate.
+
+## Verification harnesses and evidence
+
+If existing tests or normal gameplay make a mechanic/visual system difficult to
+inspect, assess whether an existing harness can cover it. Extend a reusable
+isolated scenario only when it resolves a concrete verification gap; create a new
+harness only when reuse is insufficient. Trivial features do not need sandbox
+infrastructure. Use shared production logic/model/UI constructors so a preview
+does not silently become a second implementation.
+
+| Existing tool | Inspectable scope / limits |
+| --- | --- |
+| `creature-preview.html` / `src/game/qa/CreaturePreview.ts` | Catalog and portraits; automatic framing is not a same-scale elite comparison |
+| `motion-preview.html` / `src/game/qa/CreatureMotionPreview.ts` | Creature/boss phases, scrubbing, rotation, same-scale ordinary/elite pair and regional species/hero lineup; individual portraits still auto-frame |
+| `world-preview.html` / `src/game/qa/WorldPreview.ts` | Landforms/resources/scenery; final camera/combat integration still needs game review |
+| `ui-preview.html` / `src/game/qa/UIPreview.ts` | Deterministic large inventory/panel states and mock prices, no saves/real SDK |
+| `qa-viewports.html` / `src/game/qa/ViewportPreview.ts` | Rendered iframe sizes/scenarios; does not reproduce physical browser chrome/touch/GPU |
+| `/?playtest=polish` / `src/game/qa/PolishPlaytest.ts` | Isolated in-memory new/preparation/economy/media states, settlement-legacy inside-building load, regions/bosses/resources and base-solid movement diagnostics; random spawns are not fully deterministic |
+| `media-capture.html` | Actual gameplay capture/recording from the isolated media state; fixture overrides must be disclosed |
+| `release-assets-preview.html` / `src/game/qa/ReleaseAssets.ts` | Separate promotional asset renders; these are not gameplay proof |
+| Node sanity scripts | Seeded pack, save/provider, timing, interaction, rig and other fixtures; consult exact command coverage below |
+
+Tooling must stay isolated from production behavior: DEV entry/flag guards,
+non-saving fixture stores, explicit mocks/overrides and no mutation of a real
+user save or cloud data. Existing preview HTML files are not normal Vite build
+entries; playtest/provider/debug activation is guarded by DEV at its runtime
+entry. Future tooling must verify that production cannot activate it through
+query parameters and that packaging excludes test entries/fixture assets unless
+an intended production diagnostic is explicitly specified. This is a required
+review, not a claim that every future artifact is already exclusion-tested.
+
+For visually or interactively correct work, produce inspectable evidence when
+practical: screenshots/short recordings, reproducible preview states, debug
+output or meaningful assertions. Record revision/candidate, scenario/seed/save,
+camera/attack phase, language, viewport/input/browser/device, relevant overrides,
+expected/observed result and failed cases. Link evidence from the execution plan
+or task report, not duplicated in every spec. Large captures can live in ignored
+`yandex-output/`; record reproducible state and source context in the plan so an
+ephemeral local image is not the sole specification or acceptance record.
+Do not label a protection-enabled preview, mock SDK or viewport iframe as normal
+combat, live monetization or physical-device verification.
+
 ## Package command inventory
 
 Run from repository root with Node ≥20.19 and installed lockfile dependencies.
@@ -49,6 +109,11 @@ The package composition is explicit, so individual failures can be reproduced:
 | Platform/persistence/startup | `node scripts/platform-release-sanity.mjs`; `node scripts/purchase-persistence-sanity.mjs`; `node scripts/startup-sanity.mjs` |
 | Campaign | `node scripts/campaign-sanity.mjs` |
 | I18n | `node scripts/i18n-sanity.mjs` |
+
+The docs gate permits a graph containing only completed plans when no planned
+work remains; its self-test covers this lifecycle. It still rejects missing
+required documents, broken references, unknown commands and invalid feature status.
+Passing this gate alone does not establish that prose matches implementation.
 
 Other tools are deliberately distinguished from required sanity gates:
 

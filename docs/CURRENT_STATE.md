@@ -1,11 +1,13 @@
-# Current state · 2026-10-02 SDD bootstrap
+# Current state · 2026-10-02
 
 ## Scope and release phase
 
-Snapshot of root working tree at HEAD `35f546e` with pre-existing local visual
-changes. It is not a snapshot of only main, the nested gitlink or the live draft.
+Baseline below was inspected at HEAD `35f546e` with pre-existing local visual
+changes during SDD bootstrap. Later local deltas are recorded separately below;
+this is not a snapshot of only main, the nested gitlink or the live draft.
 Sources: [investigation](SDD_INVESTIGATION.md), [project contract](specs/PROJECT_SPEC.md),
-code/scripts/config and dated reports. SDD changes documentation/validation only.
+code/scripts/config and dated reports. Bootstrap changed documentation/validation
+only; subsequent visual work does change rendering.
 
 [RELEASE_READINESS](RELEASE_READINESS.md) records draft 619868 and later archive
 13658626 on October 2. Earlier 13645716/“not uploaded” entries are chronological.
@@ -63,8 +65,8 @@ or platform compliance verdict is made by repository inspection.
   earlier orbital update. These are documented implementation boundaries, not new fixes.
 - Optional visual report generator contains old GLB assertions; new art gate is canonical.
 - Nested `ruinstead` is a separate gitlink; purpose **Unverified**, root build ignores it.
-- Full list of four reference games is incomplete: Hero Path RPG/XP Hero known,
-  other two **Unverified**. Full art parity has not been accepted.
+- User confirmed Hero Path RPG and XP Hero as the two primary gameplay references
+  on 2026-10-02; the other games are outside current scope. Full art parity remains open.
 
 ## Bootstrap validation evidence
 
@@ -84,3 +86,69 @@ No new ZIP, upload, commit or console mutation in bootstrap. No browser/phone/
 live ad/payment test was performed here. Runtime hash comparison and documentation
 gate evidence are recorded in the completed plan. Required manual scenarios live
 in [QA_RELEASE](specs/QA_RELEASE.md); priorities in [ROADMAP](ROADMAP.md).
+
+## Local visual delta after SDD audit · 2026-10-02
+
+At HEAD `bf8f222` plus local changes, living trees now use connected clustered
+canopies, shared curved/tapered bark and root flares; sparse-tree branches use
+the same bark forms. Brook banks use denser cross-sections, terrain normals and
+feathered wet-soil/moss transitions, with grouped small shore details and local
+flow direction. Gameplay geography/colliders/population, saves and label size
+are unchanged. No creature bake or console upload was needed/performed.
+
+Actual no-save browser review covered harvest trees in regions 1–8, both brooks
+and bridge approaches, plus the close harvest preview. This is scoped visual
+progress, not reference parity or release approval. Phone/weak-PC acceptance
+remains Unverified; the browser viewport override timed out during attempted
+844×390 review. Existing startup-risk and platform conditions above remain open.
+Per-pass checks, intermediate failures and remaining art gaps are recorded in
+[the scenery plan](exec-plans/completed/FOREST_SCENERY_POLISH.md).
+
+## Local gameplay art continuation · 2026-10-02
+
+Low understory beds, a connected acacia canopy, worn dirt routes and continuous
+stone/timber house bases now supplement the preceding tree/brook pass. Canine,
+feline and goat anatomy, veteran fur, beetle shells, fungus caps, worm/serpent
+skins and bird plumage are refined; selected bosses have distinct mass profiles.
+The creature bake at that pass had 354 shared surfaces / 120,874 triangles / 1902 KiB;
+the maximum complete model is 11,203 triangles. Contact accents/footfall dust
+use fixed GPU pools, and boss warnings have stronger contrast inside their
+unchanged danger geometry. Resource labels resolve overlap while keeping their
+original size, sharp DPR-aware text and active harvest priority.
+
+Browser review covered all eight regions, all ordinary/elite and boss gallery
+designs, representative motion/contact attachments, harvesting, a lava-golem
+fight, bridges/landmarks and a rendered 844×390 touch-layout iframe. Reference
+review used actual gameplay media from the official Hero Path RPG and XP Hero
+store pages; neither native app was played. These results do not establish full
+reference parity, all boss fights, real phone rendering or weak-PC performance.
+The viewport-override failure was worked around with the existing iframe harness;
+physical-device acceptance remains Unverified. Scope/results/intermediate art
+failures and remaining work: [active visual plan](exec-plans/active/VISUAL_FINISH.md).
+No upload, commit or gameplay/population/save changes in this continuation.
+
+## Creature style, scale and solid base · 2026-10-03
+
+The user's latest direction explicitly selects the generated low-poly cover
+goblin as the creature style reference. Hero Path RPG/XP Hero remain world and
+gameplay comparators. Coherent sculpted faces, fitted clothing, rounded/chamfered
+family surfaces and explicit species size profiles now cover the 64 creature
+identities. Goblin is compact; boar is heavier/longer, stone bodies taller and
+slimes/insects lower. Combat radii, damage/rewards and populations are unchanged.
+Current bake: 390 shared surfaces / 183,370 shared triangles / 2876 KiB; maximum
+whole model 12,631 triangles (limit 13,000). Elite anatomy/equipment/aura remains.
+
+Four buildings, forge and well now have shared ground footprints used by
+collision/navigation/placement. Starter wood moved clear of the workshop with
+unchanged identity/yield; well has a closed stone interior and opaque water.
+Old positions inside newly solid masonry move locally to clear ground using the
+synchronized Phaser body centre; valid positions and save schema remain intact.
+
+Actual no-save browser checks stopped walking at all six solids, opened forge
+by E outside it, recovered a legacy position from the workshop and checked the
+tree/well through the game camera. Common-scale lineups in all eight regions
+and representative ordinary/elite motion were inspected. Affected automated
+gates pass; results and failures are in [the focused plan](exec-plans/active/CREATURE_STYLE_AND_BASE_FIXES.md).
+Human approval of creature style, full reference parity and latest physical
+phone/weak-PC QA remain open. The known intermittent startup risk above is not
+closed by a subsequent passing release check. No upload/commit/publication.

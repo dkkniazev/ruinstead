@@ -12,6 +12,7 @@ import {
   type RegionDefinition,
 } from './ReleaseRegionMap';
 import { FOREST_HEART } from './ForestZone';
+import { settlementSolidFootprints } from './SettlementLayout';
 
 export const WORLD_WIDTH =
   RELEASE_WORLD_WIDTH;
@@ -610,6 +611,13 @@ function createPrototypeObstacles(scene: Phaser.Scene): Phaser.Physics.Arcade.St
   // The forest altar is a real landmark, so its visible stone footprint also
   // participates in gameplay collision instead of letting actors walk through it.
   const obstacles=scene.physics.add.staticGroup();
+  for(const site of settlementSolidFootprints(SETTLEMENT_CENTER)){
+    const solid=scene.add.rectangle(site.x,site.y,site.halfWidth*2,site.halfHeight*2,0,0).setVisible(false);
+    obstacles.add(solid);
+    const body=solid.body as Phaser.Physics.Arcade.StaticBody;
+    if(site.circle)body.setCircle(site.halfWidth);
+    body.updateFromGameObject();
+  }
   for(const site of GEOGRAPHY_LANDMARKS){
     const rock=scene.add.circle(site.x,site.y,site.radius,0,0).setVisible(false);obstacles.add(rock);
     const body=rock.body as Phaser.Physics.Arcade.StaticBody;body.setCircle(site.radius);body.updateFromGameObject();

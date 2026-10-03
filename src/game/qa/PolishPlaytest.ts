@@ -4,7 +4,8 @@ import { createDefaultGameState, type GameState } from '../state/GameState';
 import type { EnemySystem } from '../enemies/EnemySystem';
 import type { PlayerController } from '../player/PlayerController';
 import { getPassageMidpoint, pointInRegion, RELEASE_PASSAGES, RELEASE_REGIONS } from '../world/ReleaseRegionMap';
-import { RETURN_POINT } from '../world/WorldPrototype';
+import { RETURN_POINT, SETTLEMENT_CENTER } from '../world/WorldPrototype';
+import { SETTLEMENT_BUILDINGS, SETTLEMENT_WELL, settlementSolidFootprints } from '../world/SettlementLayout';
 import { BOSS_ARENAS } from '../bosses/BossArenas';
 import { FORGE_POSITION } from '../settlement/SettlementSystem';
 import type { CombatSystem } from '../combat/CombatSystem';
@@ -72,6 +73,10 @@ export function polishStateStore() {
     };
     state.world.bossRespawnAt={};
   }
+  if(new URLSearchParams(location.search).get('scenario')==='settlement-legacy'){
+    state.world.playerPosition={x:SETTLEMENT_CENTER.x+SETTLEMENT_BUILDINGS.workshop.x,
+      y:SETTLEMENT_CENTER.y+SETTLEMENT_BUILDINGS.workshop.y};
+  }
   return {load:()=>state,save:(value:GameState)=>value};
 }
 export function installPolishPlaytest(player: PlayerController, enemies: EnemySystem,combat:CombatSystem,bosses:BossSystem,presentation?:WorldPresentation3D,resources?:ResourceSystem,chests?:ChestSystem): ()=>void {
@@ -105,6 +110,15 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
     const region=RELEASE_REGIONS[Number(select.value)-1],boss=bosses.visualUnits.find(b=>b.definition.region===region.id&&b.definition.isMain);
     if(boss){const dx=region.center[0]-boss.spawn.x,dy=region.center[1]-boss.spawn.y,d=Math.max(1,Math.hypot(dx,dy));player.teleport(boss.spawn.x+dx/d*270,boss.spawn.y+dy/d*270);}
   });
+  const bossSelect=document.createElement('select');bossSelect.setAttribute('aria-label','Босс проверки');
+  for(const boss of bosses.visualUnits)bossSelect.add(new Option(boss.definition.region+'. '+boss.definition.name,boss.definition.id));
+  controls.append(bossSelect);
+  button('К выбранному боссу',()=>{
+    const boss=bosses.visualUnits.find(b=>b.definition.id===bossSelect.value);if(!boss)return;
+    const region=RELEASE_REGIONS[boss.definition.region-1];
+    const dx=region.center[0]-boss.spawn.x,dy=region.center[1]-boss.spawn.y,d=Math.max(1,Math.hypot(dx,dy));
+    player.teleport(boss.spawn.x+dx/d*270,boss.spawn.y+dy/d*270);
+  });
   button('К переходу',()=>{const region=Number(select.value),passage=RELEASE_PASSAGES.find(p=>p.a===region||p.b===region)!;const point=getPassageMidpoint(passage);player.teleport(point.x,point.y);});
   button('К ручью',()=>{
     const bridge=BROOK_BRIDGES.find(p=>p.region===Number(select.value));
@@ -114,6 +128,16 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   button('Громила',()=>{const p=BOSS_ARENAS['moss-ogre'];player.teleport(p.x,p.y+260);});
   button('Босс 4',()=>{const p=BOSS_ARENAS['lava-golem'];player.teleport(p.x,p.y+110);});
   button('Кузница',()=>player.teleport(FORGE_POSITION.x,FORGE_POSITION.y+90));
+  const solidSelect=document.createElement('select');solidSelect.setAttribute('aria-label','Объект базы');
+  for(const [id,label]of [['storage','Склад'],['sawmill','Лесопилка'],['workshop','Мастерская'],['house','Дом'],['forge','Кузница'],['well','Колодец']])solidSelect.add(new Option(label,id));
+  controls.append(solidSelect);
+  button('За объектом',()=>{
+    const ids=['storage','sawmill','workshop','house','forge','well'];
+    const site=settlementSolidFootprints(SETTLEMENT_CENTER)[ids.indexOf(solidSelect.value)];
+    const origin=player.position,body=player.combatPosition;
+    player.teleport(site.x+origin.x-body.x,site.y-site.halfHeight-60+origin.y-body.y);
+  });
+  button('К колодцу',()=>player.teleport(SETTLEMENT_CENTER.x+SETTLEMENT_WELL.x-110,SETTLEMENT_CENTER.y+SETTLEMENT_WELL.y+100));
   button('Ранить',()=>combat.damagePlayer(100));
   button('Смертельный урон',()=>combat.damagePlayer(combat.state.maxHealth*2));
   const nodeType=document.createElement('select');nodeType.setAttribute('aria-label','Ресурс проверки');
@@ -162,6 +186,7 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   player.sprite.scene.events.on('update',sampleFrame);
   button('Ходьба ↓ · 3 с',()=>{
     if(walkTest)return;
+    walkResult='';
     walkTest={started:performance.now(),lastX:player.sprite.x,lastY:player.sprite.y,distance:0,blockedFrames:0,frames:0};
     window.dispatchEvent(new KeyboardEvent('keydown',{keyCode:40,which:40,bubbles:true}));
     releaseTimers.set(40,setTimeout(()=>{
@@ -190,9 +215,13 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
       min=Math.min(min,gap);if(gap < -1)overlaps++;
     }
     const boss=bosses.visualUnits.find(b=>b.definition.id==='lava-golem');
+    const selectedBoss=bosses.visualUnits.find(b=>b.definition.id===bossSelect.value);
     const counts=[...groups.values()];output.textContent=`Проверка без сохранения · ${groups.size} пачек · ${Math.min(...counts)}–${Math.max(...counts)} мобов · элит: ${enemies.visualUnits.filter(e=>e.rank==='elite').length} · пересечений: ${overlaps} · зазор: ${min.toFixed(1)} · выбранная пачка: ${pack.filter(e=>e.alive).length}/${pack.length} · ${enemies.isPlayerThreatened()?'бой':'покой'} · Босс 4 HP: ${((boss?.visualHealthRatio??1)*100).toFixed(1)}%`;
     const node=resources?.visualNodes.find(n=>n.id===trackedNode);
     output.textContent+=` · Позиция: ${player.position.x.toFixed(0)},${player.position.y.toFixed(0)} · HP: ${combat.state.health}/${combat.state.maxHealth}`;
+    const physical=player.combatPosition;
+    output.textContent+=` · Тело: ${physical.x.toFixed(0)},${physical.y.toFixed(0)}`;
+    if(selectedBoss)output.textContent+=` · ${selectedBoss.definition.name}: ${selectedBoss.alive?'жив':'побеждён'} ${Math.round(selectedBoss.visualHealthRatio*100)}%`;
     output.textContent+=` · шаг: ${(sampleDelta/Math.max(1,sampleFrames)).toFixed(1)}/${(sampleRaw/Math.max(1,sampleFrames)).toFixed(1)} мс · время: ${(sampleDelta/Math.max(1,sampleRaw)*100).toFixed(0)}%${walkResult}`;
     sampleDelta=sampleRaw=sampleFrames=0;
     if(node)output.textContent+=` · ${node.type}: ${node.health}/${node.maxHealth} · ударов: ${node.hitCount}`;

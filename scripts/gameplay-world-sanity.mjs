@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
 import {build} from 'esbuild';
 const output=await build({stdin:{contents:`
 export * from './src/game/combat/OrbitalAttack.ts';
@@ -10,6 +11,7 @@ export * from './src/game/world/WalkableWorld.ts';
 export * from './src/game/world/ReleaseRegionMap.ts';
 export * from './src/game/enemies/AttackWindup.ts';
 export * from './src/game/world/ObstacleNavigation.ts';
+export * from './src/game/world/SettlementLayout.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false});
 const api=await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
 const {OrbitalAttack,WEAPON_DEFINITIONS,resolveWorldInteraction,createDefaultWeaponInventory,normalizeWeaponLoadoutForPlayerLevel,equipWeaponInSlot,getSkinEffects,WalkableWorld,RELEASE_REGIONS,RELEASE_PASSAGES,getPassageMidpoint,AttackWindup,ObstacleNavigation}=api;
@@ -83,6 +85,38 @@ let cursor=from;
 for(const point of route){assert(navigation.lineClear(cursor,point,18),'Every return-to-home route segment is obstacle-clear');cursor=point;}
 assert(Math.hypot(cursor.x-homePoint.x,cursor.y-homePoint.y)<1,'Return route terminates at the requested home point');
 const windup=new AttackWindup();
+const {settlementSolidFootprints,clearSettlementPosition,settlementAreaIsClear}=api;
+const settlement={x:routeCenter.x,y:routeCenter.y+380},solids=settlementSolidFootprints(settlement);
+navigation.setObstacles(solids);
+assert.equal(solids.length,6,'Four buildings, forge and well have shared ground footprints');
+const spawn={x:settlement.x,y:settlement.y+190},deposit={x:settlement.x-150,y:settlement.y+90},forgeFront={x:settlement.x+240,y:settlement.y+90};
+for(const p of [spawn,deposit,forgeFront])assert(settlementAreaIsClear(settlement,p,24),'Spawn, banking and forge approach remain clear');
+for(const solid of solids){
+  const rescued=clearSettlementPosition(settlement,solid,24);
+  assert(settlementAreaIsClear(settlement,rescued,24),'A legacy position inside any solid moves to clear ground');
+  assert(Math.hypot(rescued.x-solid.x,rescued.y-solid.y)<180,'Legacy correction is local, not a reset to spawn');
+  assert.equal(navigation.lineClear({x:solid.x,y:solid.y-solid.halfHeight-50},{x:solid.x,y:solid.y+solid.halfHeight+50},18),false,'Navigation recognises every settlement collider');
+}
+assert.deepEqual(clearSettlementPosition(settlement,spawn,24),spawn,'A valid saved position is preserved');
+// Phaser does not synchronize a new setOffset until updateFromGameObject.
+// Exercise its real Body so a legacy rescue cannot use a stale sprite centre.
+const Body=createRequire(import.meta.url)('../node_modules/phaser/src/physics/arcade/Body.js');
+for(const [width,height]of [[82,110],[80,112]]){
+  const site=solids[2],sprite={x:site.x,y:site.y,angle:0,scaleX:1,scaleY:1,
+    displayWidth:width,displayHeight:height,displayOriginX:width/2,displayOriginY:height/2,
+    setPosition(x,y){this.x=x;this.y=y;},getTopLeft(out){return out.set(this.x-width/2,this.y-height/2);}};
+  const body=new Body({defaults:{},bounds:{x:0,y:0,width:16000,height:18000}},sprite);
+  body.setSize(32,33).setOffset(24,70);body.updateFromGameObject();
+  const before={x:body.center.x,y:body.center.y},safe=clearSettlementPosition(settlement,before,24);
+  body.reset(sprite.x+safe.x-before.x,sprite.y+safe.y-before.y);body.updateFromGameObject();
+  assert(settlementAreaIsClear(settlement,body.center,24),'Legacy rescue uses the current texture offset before the first physics step');
+  assert(Math.hypot(body.center.x-before.x,body.center.y-before.y)<180,'Body correction remains local');
+}
+for(const target of [deposit,forgeFront]){
+  const path=navigation.route(spawn,target,18);assert(path.length>0,'Base services are reachable around the solid buildings');
+  let cursor=spawn;for(const p of path){assert(navigation.lineClear(cursor,p,18),'Service route never crosses a building or well');cursor=p;}
+  assert(Math.hypot(cursor.x-target.x,cursor.y-target.y)<1,'Service route reaches its target');
+}
 assert.equal(windup.update(0,true,10,0,300,800),false,'Entering attack range starts wind-up without damage');
 assert(windup.active&&windup.impactAt===300);
 assert.equal(windup.update(150,false,20,0,300,800),false,'Leaving reach during wind-up dodges the hit');

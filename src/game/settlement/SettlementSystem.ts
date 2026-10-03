@@ -1,5 +1,6 @@
 import { localizeText } from '../../i18n/Localize';
 import Phaser from 'phaser';
+import { SETTLEMENT_FORGE } from '../world/SettlementLayout';
 import type {
   ResourceCounts,
 } from '../gathering/ResourceTypes';
@@ -9,8 +10,8 @@ import {
 
 export const FORGE_POSITION =
   new Phaser.Math.Vector2(
-    SETTLEMENT_CENTER.x + 240,
-    SETTLEMENT_CENTER.y - 80,
+    SETTLEMENT_CENTER.x + SETTLEMENT_FORGE.x,
+    SETTLEMENT_CENTER.y + SETTLEMENT_FORGE.y,
   );
 export const FORGE_INTERACTION_RADIUS = 145;
 export const FORGE_MAX_REPAIR_STAGE = 3;

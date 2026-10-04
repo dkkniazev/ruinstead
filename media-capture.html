@@ -24,7 +24,8 @@
     <button id="left">Влево</button><button id="right">Вправо</button>
     <button id="halt">Стоп движения</button><button id="potion">Зелье</button>
     <button id="show">Показать игровой кадр</button>
-    <button id="record">Записать 22 с · MP4</button><button id="stop" disabled>Остановить запись</button>
+    <label><input id="tour" type="checkbox" checked> Поход: база → добыча → бой → босс</label>
+    <button id="record">Записать 25 с · MP4</button><button id="stop" disabled>Остановить запись</button>
     <span id="status" role="status">Тестовый профиль середины игры. Обычная экипировка, настоящий бой, без бессмертия и сохранений.</span>
   </header>
   <div id="stage"><iframe id="game" title="Настоящая игра Ruinstead"></iframe></div>
@@ -33,7 +34,8 @@
     if (!import.meta.env.DEV) throw new Error('Только локальная съёмка');
     const frame = document.querySelector('#game'), device = document.querySelector('#device');
     const status = document.querySelector('#status'), recordButton = document.querySelector('#record'), stopButton = document.querySelector('#stop');
-    const keys = new Map(), chunks = []; let recorder, stopTimer, startedAt = 0;
+    const keys = new Map(), chunks = [], tourTimers = []; let recorder, stopTimer, startedAt = 0;
+    const finishTour = () => {for(const timer of tourTimers)clearTimeout(timer);tourTimers.length=0;release();};
     const focusGame = () => {frame.focus();frame.contentWindow.focus();};
     const key = (type, code) => frame.contentWindow.dispatchEvent(new KeyboardEvent(type,{keyCode:code,which:code,bubbles:true}));
     const release = () => { for(const [code,timer] of keys){clearTimeout(timer);key('keyup',code);}keys.clear();
@@ -79,16 +81,26 @@
       if(!mime){status.textContent='MP4 не поддержан этим браузером. Запись не начата.';return;}
       chunks.length=0;const stream=canvas.captureStream(30);recorder=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:7000000});
       recorder.ondataavailable=e=>{if(e.data.size)chunks.push(e.data);};
-      recorder.onstop=()=>{clearTimeout(stopTimer);for(const track of stream.getTracks())track.stop();
+      recorder.onstop=()=>{clearTimeout(stopTimer);finishTour();for(const track of stream.getTracks())track.stop();
         const blob=new Blob(chunks,{type:'video/mp4'}),url=URL.createObjectURL(blob);document.querySelector('#video').src=url;
         const reader=new FileReader();reader.onload=()=>{document.querySelector('#download').href=reader.result;document.querySelector('#result').hidden=false;status.textContent='MP4 готов · '+((performance.now()-startedAt)/1000).toFixed(1)+' с · '+(blob.size/1048576).toFixed(2)+' МБ · '+canvas.width+'×'+canvas.height+' · реальный 3D canvas, без DOM-интерфейса';};reader.readAsDataURL(blob);
         recordButton.disabled=false;stopButton.disabled=true;};
       startedAt=performance.now();recorder.start(1000);recordButton.disabled=true;stopButton.disabled=false;
       focusGame();
-      status.textContent='Идёт запись настоящего 3D canvas · максимум 22 секунды';stopTimer=setTimeout(()=>recorder.state!=='inactive'&&recorder.stop(),22000);
+      if(document.querySelector('#tour').checked){
+        // Cuts visit the existing isolated media fixture. Combat, harvesting,
+        // damage and animation continue through the ordinary game systems.
+        const shot=kind=>document.querySelector(`[data-shot="${kind}"]`).click();
+        shot('home');
+        tourTimers.push(setTimeout(()=>move(40,0,1),800));
+        tourTimers.push(setTimeout(()=>shot('gather'),6000));
+        tourTimers.push(setTimeout(()=>shot('forest'),12000));
+        tourTimers.push(setTimeout(()=>shot('lava'),18000));
+      }
+      status.textContent='Идёт запись настоящего 3D canvas · максимум 25 секунд';stopTimer=setTimeout(()=>recorder.state!=='inactive'&&recorder.stop(),25000);
     };
     stopButton.onclick=()=>{if(recorder?.state!=='inactive')recorder.stop();};
-    window.addEventListener('pagehide',()=>{release();clearTimeout(stopTimer);if(recorder?.state==='recording')recorder.stop();});
+    window.addEventListener('pagehide',()=>{finishTour();clearTimeout(stopTimer);if(recorder?.state==='recording')recorder.stop();});
     load();
   </script>
 </body>

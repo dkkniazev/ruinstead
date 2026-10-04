@@ -6,7 +6,7 @@ rejected, replacement accepted for the October 4 release; device acceptance pend
 generated low-poly cover goblin, logical species sizes, removal of a tree/roof
 intersection, solid base buildings and a closed well interior. The original pass
 was local; October 4 Git/draft authorization is owned by
-[RELEASE_DRAFT_REFRESH](RELEASE_DRAFT_REFRESH.md).
+[RELEASE_DRAFT_REFRESH](../completed/RELEASE_DRAFT_REFRESH.md).
 Owning contract: [WORLD_VISUAL_POLISH](../../specs/features/WORLD_VISUAL_POLISH.md).
 The user subsequently rejected the current goblin for visible geometric assembly.
 The completed implementation/check steps below do not satisfy art acceptance;

@@ -46,7 +46,7 @@ does not silently become a second implementation.
 | `ui-preview.html` / `src/game/qa/UIPreview.ts` | Deterministic large inventory/panel states and mock prices, no saves/real SDK |
 | `qa-viewports.html` / `src/game/qa/ViewportPreview.ts` | Rendered iframe sizes/scenarios; does not reproduce physical browser chrome/touch/GPU |
 | `/?playtest=polish` / `src/game/qa/PolishPlaytest.ts` | Isolated in-memory new/preparation/economy/media states, settlement-legacy inside-building load, regions/bosses/resources and base-solid movement diagnostics; species and ordinary/elite selection visits existing live units without spawning replacements or changing their stats; random spawns are not fully deterministic |
-| `media-capture.html` | Actual gameplay capture/recording from the isolated media state; fixture overrides must be disclosed |
+| `media-capture.html` | Actual 3D gameplay canvas capture from the isolated media state; 25-second MP4 with optional timed cuts through settlement, crystal harvesting, ordinary combat and a boss; input/combat stay ordinary, no invulnerability; recording omits DOM HUD and fixture overrides must be disclosed |
 | `release-assets-preview.html` / `src/game/qa/ReleaseAssets.ts` | Separate promotional asset renders; these are not gameplay proof |
 | Node sanity scripts | Seeded pack, save/provider, timing, interaction, rig and other fixtures; consult exact command coverage below |
 

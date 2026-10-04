@@ -263,6 +263,11 @@ uncompressed; bundle `index-CYHY40v-.js`; SHA256
 `b164a4d8063e7c1174b8605bd9289c4c60909d33386ed1b73518d59f19d30d31`.
 
 Console delivery and Git evidence are owned by
-[RELEASE_DRAFT_REFRESH](exec-plans/active/RELEASE_DRAFT_REFRESH.md).
-The existing October 1 gameplay MP4 is retained for the user's manual upload;
-it predates these model changes. The console reports a video-conversion timeout.
+[RELEASE_DRAFT_REFRESH](exec-plans/completed/RELEASE_DRAFT_REFRESH.md).
+Archive 13720751 has completed all three console stages, Ready, final timestamp
+18:22:35 04/10/2026; candidate code is pushed to origin/main (`dfae1a8`). The user
+confirms the current 3D picture after browser graphics troubleshooting; no renderer
+changes were required. New local gameplay MP4 is 23.34 s / 1280×720 / 16,912,909 bytes,
+reviewed through the end: settlement, region 2, forest fight and lava boss. It uses
+the ordinary-damage mid-game media fixture and records only the 3D canvas, without
+DOM HUD/audio. The user will upload it manually; console conversion timeout remains.

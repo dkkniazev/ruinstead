@@ -13,7 +13,7 @@ and rejected creature appearance/scale and the nonsolid base. The focused
 creature reference and explicitly authorized settlement collision changes.
 On 2026-10-04 the user accepts this visual version for release and supersedes
 the local-only rule with explicit Git push and Yandex draft upload authorization.
-[RELEASE_DRAFT_REFRESH](RELEASE_DRAFT_REFRESH.md) owns that delivery. This plan
+[RELEASE_DRAFT_REFRESH](../completed/RELEASE_DRAFT_REFRESH.md) records that delivery. This plan
 retains unfinished reference/device/composition work; no further redesign is
 part of the accepted release refresh.
 

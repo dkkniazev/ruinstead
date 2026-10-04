@@ -3,6 +3,7 @@ import type { SkinId } from '../cosmetics/SkinEconomy';
 import { softBox, softOrb } from './ArtMaterials';
 import { batchStaticMeshes, disposeBatchedGeometry } from './MeshBatching';
 import { HERO_SKIN_STYLES } from './HeroSkinStyles';
+import { armorPlate, heroHelmet, heroShoulder } from './HeroArmorForms';
 
 type Materials=Record<'blue'|'cloth'|'steel'|'edge'|'gold'|'leather'|'dark'|'skin',T.MeshStandardMaterial>;
 type Rig={body:T.Group;arms:T.Group[];elbows:T.Group[];knees:T.Group[]};
@@ -67,7 +68,7 @@ export function createSkinOutfit(id:SkinId,rig:Rig,materials:Materials):{step:(t
     }
     jewel(body,0,122,18,4);
   }else{
-    orb(body,'edge',0,112,-3,19,15,17);orb(body,'steel',0,115,-2,18,13,16);
+    armorPlate(body,heroHelmet,materials.edge,materials.steel,0,109,-3,19,18,17);
     for(const side of [-1,1])box(body,'steel',side*14,100,7,7,22,14).rotation.z=-side*.12;
     box(body,'gold',0,115,14,31,4,5);
     if(style.head==='visor'||style.head==='mask'){
@@ -127,7 +128,7 @@ export function createSkinOutfit(id:SkinId,rig:Rig,materials:Materials):{step:(t
       for(let n=0;n<2;n++)box(shoulder,n?'steel':'edge',side*(n*5),2+n*5,0,27-n*4,13,28-n*3).rotation.z=-side*.2;
       jewel(shoulder,side*5,5,16,3);
     }else{
-      orb(shoulder,'edge',side*2,0,0,15,10,15);orb(shoulder,'steel',side*4,3,0,14,9,14);
+      armorPlate(shoulder,heroShoulder,materials.edge,materials.steel,side*3,0,0,15,13,15);
       box(shoulder,'gold',side*4,4,11,18,4,5).rotation.z=-side*.18;
       if(style.shoulders==='spikes')for(let n=0;n<3;n++){
         const spike=part(shoulder,wedge,materials.gold,side*(n*5-1),13,n===1?-6:3,3.5,14,3.5);spike.rotation.z=-side*.4;

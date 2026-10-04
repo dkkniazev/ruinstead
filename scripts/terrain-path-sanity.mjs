@@ -17,8 +17,55 @@ function weights(x,z,[a,b,c]){
   return [u,v,1-u-v];
 }
 const rows=[],waterRows=[];
+const bankChunks=new Map(),bankCoverage={river:0,lava:0};
+const bankRay=new api.T.Raycaster();
 for(const region of api.RELEASE_REGIONS){
   const land=api.createRegionLand(region),cells=new Map();
+  const cliff=land.children.find(o=>o.userData.regionCliff);
+  assert(cliff,'Region '+region.id+' has a continuous cliff skirt');
+  const cliffVertices=cliff.geometry.attributes.position,cliffEdges=new Map();
+  const hiddenFloor=Math.min(...api.RELEASE_REGIONS.map(r=>r.elevation))-165;
+  for(let i=0;i<cliffVertices.count;i+=3){
+    const points=[0,1,2].map(n=>new api.T.Vector3().fromBufferAttribute(cliffVertices,i+n));
+    assert(points.every(p=>p.toArray().every(Number.isFinite)),'Cliff vertices are finite');
+    assert(new api.T.Vector3().subVectors(points[1],points[0]).cross(new api.T.Vector3().subVectors(points[2],points[0])).length()>1e-3,'Cliff face has area');
+    for(let n=0;n<3;n++){
+      const a=points[n],b=points[(n+1)%3],key=[a,b].map(p=>p.toArray().map(v=>v.toFixed(2)).join(',')).sort().join('/');
+      const e=cliffEdges.get(key)??{a,b,count:0};e.count++;cliffEdges.set(key,e);
+    }
+  }
+  let topEdges=0,bottomEdges=0;
+  for(const e of cliffEdges.values()){
+    assert(e.count<=2,'Cliff panels overlap');
+    if(e.count===2)continue;
+    if([e.a,e.b].every(p=>p.y<hiddenFloor)){bottomEdges++;continue;}
+    assert([e.a,e.b].every(p=>api.distanceToRegionBoundary(region,p.x,p.z)<.02&&Math.abs(p.y-api.plateauHeight(region,p.x,p.z))<.02),'Open cliff seam above the hidden floor');
+    topEdges++;
+  }
+  assert(topEdges>30&&bottomEdges===topEdges,'Cliff skirt has only its plateau rim and hidden lower boundary open');
+  for(let edge=0;edge<region.outline.length;edge++){
+    const a=region.outline[edge],b=region.outline[(edge+1)%region.outline.length];
+    const normal=new api.T.Vector2(-(b[1]-a[1]),b[0]-a[0]).normalize();
+    const cx=(a[0]+b[0])/2,cz=(a[1]+b[1])/2;
+    if(api.pointInRegion(region,cx+normal.x*10,cz+normal.y*10))normal.negate();
+    for(const inset of [12,24,40]){
+      const x=cx+normal.x*inset,z=cz+normal.y*inset,sample=api.sampleBoundaryTerrain(x,z);
+      if(sample.kind!=='river'&&sample.kind!=='lava')continue;
+      // Inspect stable liquid/plateau banks, leaving actual mountain/liquid
+      // junctions outside this ray case. A 32-unit cell straddles the cliff.
+      const neighbours=[[-32,-32],[-32,32],[32,-32],[32,32]].map(([dx,dz])=>api.sampleBoundaryTerrain(x+dx,z+dz));
+      if(neighbours.some(p=>p.kind!=='land'&&(p.kind!==sample.kind||Math.abs(p.height-sample.height)>.01)))continue;
+      const tx=Math.floor(x/640),tz=Math.floor(z/640),key=tx+':'+tz;
+      let chunk=bankChunks.get(key);
+      if(!chunk){chunk=api.createBoundaryGround((tx+.5)*640,(tz+.5)*640,640);bankChunks.set(key,chunk);}
+      chunk.updateMatrixWorld(true);bankRay.set(new api.T.Vector3(x,5000,z),new api.T.Vector3(0,-1,0));
+      const hit=bankRay.intersectObject(chunk,true)[0];
+      assert(hit,'Missing rendered liquid bank');
+      assert.equal(hit.object.userData.boundaryKind,sample.kind,'Rock underlay is exposed at a liquid/plateau bank');
+      assert(Math.abs(hit.point.y-sample.height)<.02,'Liquid bank rises toward the high plateau underlay');
+      bankCoverage[sample.kind]++;
+    }
+  }
   for(const mesh of land.children.filter(o=>o.userData.regionSurface)){
     const p=mesh.geometry.attributes.position;
     for(let i=0;i<p.count;i+=3){
@@ -89,5 +136,8 @@ for(const region of api.RELEASE_REGIONS){
 }
 console.table(rows);
 console.table(waterRows);
+assert(bankCoverage.river>15&&bankCoverage.lava>15,'Missing river/lava plateau bank ray coverage');
+for(const chunk of bankChunks.values())chunk.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});
+console.log('Cliff/banks: PASS — shared skirt edges, hidden lower boundary and '+bankCoverage.river+' river / '+bankCoverage.lava+' lava bank rays without exposed underlay teeth.');
 assert(rows.every(r=>Number(r.buried)<.5),'A path sinks into the actual rendered terrain');
 console.log('Terrain paths: PASS — paths stay above rendered hills; downhill brooks have visible shallow beds, warnings stay above water, and bridge feet match actual planks and landings.');

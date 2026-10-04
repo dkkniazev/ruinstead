@@ -41,11 +41,11 @@ does not silently become a second implementation.
 | Existing tool | Inspectable scope / limits |
 | --- | --- |
 | `creature-preview.html` / `src/game/qa/CreaturePreview.ts` | Catalog and portraits; automatic framing is not a same-scale elite comparison |
-| `motion-preview.html` / `src/game/qa/CreatureMotionPreview.ts` | Creature/boss phases, scrubbing, rotation, same-scale ordinary/elite pair and regional species/hero lineup; individual portraits still auto-frame |
+| `motion-preview.html` / `src/game/qa/CreatureMotionPreview.ts` | Creature/boss phases, scrubbing, rotation, same-scale ordinary/elite pair and regional species/hero lineup; face close-up follows an available animated head anchor; selectable hero weapons/outfits use the production model and bounded timed sampling, without gameplay/save callbacks; individual portraits still auto-frame |
 | `world-preview.html` / `src/game/qa/WorldPreview.ts` | Landforms/resources/scenery; final camera/combat integration still needs game review |
 | `ui-preview.html` / `src/game/qa/UIPreview.ts` | Deterministic large inventory/panel states and mock prices, no saves/real SDK |
 | `qa-viewports.html` / `src/game/qa/ViewportPreview.ts` | Rendered iframe sizes/scenarios; does not reproduce physical browser chrome/touch/GPU |
-| `/?playtest=polish` / `src/game/qa/PolishPlaytest.ts` | Isolated in-memory new/preparation/economy/media states, settlement-legacy inside-building load, regions/bosses/resources and base-solid movement diagnostics; random spawns are not fully deterministic |
+| `/?playtest=polish` / `src/game/qa/PolishPlaytest.ts` | Isolated in-memory new/preparation/economy/media states, settlement-legacy inside-building load, regions/bosses/resources and base-solid movement diagnostics; species and ordinary/elite selection visits existing live units without spawning replacements or changing their stats; random spawns are not fully deterministic |
 | `media-capture.html` | Actual gameplay capture/recording from the isolated media state; fixture overrides must be disclosed |
 | `release-assets-preview.html` / `src/game/qa/ReleaseAssets.ts` | Separate promotional asset renders; these are not gameplay proof |
 | Node sanity scripts | Seeded pack, save/provider, timing, interaction, rig and other fixtures; consult exact command coverage below |
@@ -81,11 +81,11 @@ Run from repository root with Node ≥20.19 and installed lockfile dependencies.
 | `npm run check:docs` | Canonical documentation structure, links, paths, npm commands, package/direct-script inventory | Not a semantic proof of prose/code agreement; historical reports excluded |
 | `npm run check:i18n` | Collect source strings, English coverage/template/prompt assertions | Writes source catalog; no linguistic/device QA |
 | `npm run balance` | Cost/formula diagnostics, late-region damage scenarios | Not whole-campaign difficulty/retention; current DPS focus regions 5/6 |
-| `npm run check:world` | Polygons/passages/unlocks/migrations; terrain roads, water beds, warnings and bridge foot heights | No full human route/device rendering |
+| `npm run check:world` | Polygons/passages/unlocks/migrations; terrain roads, water beds, warnings, bridge foot heights, shared cliff skirts and liquid-bank rays without exposed underlay | No full human route/device rendering |
 | `npm run check:gameplay` | Damage/regen/potions, rare costs, boss danger geometry; real Phaser clock at simulated 15/20/30/60/120 FPS/start-refocus | Not actual hardware performance |
 | `npm run check:polish` | 24 fixed-seed pack layouts/body separation; seven viewports × three DPR calculations | Does not cover every random layout, screenshot aesthetics or physical touch |
 | `npm run check:regressions` | HP skin toggle, weightless coins/death, upgrade caps, copy reroll/trading; loadout/orbital impact, resolver, navigation/wind-up/skins | Fixture paths, not complete playthrough |
-| `npm run check:art` | Catalog/models, geography, rig/weapon/face transforms, baked authoring hash/budget, elite aura/silhouette components | No art-parity judgment or GPU benchmark |
+| `npm run check:art` | Catalog/models, geography, rig/weapon/face transforms, baked authoring hash/budget, closed surfaces/wings, actual eye-bearing skin triangles/apertures and insect/wisp/flame/mammal-boss whole-model face visibility, weights/material/skeleton disposal, hero armor/support soles/clock sampling, elite aura/silhouette components | No art-parity judgment or GPU benchmark; no independent eye meshes is not by itself an attachment test |
 | `npm run art:bake-creatures` | Generates baked sculpt surfaces/manifests | Mutation, not validation; review assets and follow with art gate |
 | `npm run check:release` | Production provider/SDK callback/lifecycle fixtures, cloud resolution/order, purchase save-before-consume/idempotence, startup ready, i18n | Live SDK/account/activation not tested; imports real random spawn builder |
 | `npm run check:campaign` | 23 quest gates, optional independence, once-only rewards, mandatory acquisition/cost paths | Not physical combat skill, movement or complete browser campaign |

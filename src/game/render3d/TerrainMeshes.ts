@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { groundMaterial, boundarySurfaceMaterial, rockFaceMaterial } from './ArtMaterials';
 import { REGION_GEOGRAPHY } from '../world/RegionGeography';
 import { createRegionRoads } from './BiomeScenery';
-import { pointInRegion, type RegionDefinition } from '../world/ReleaseRegionMap';
+import { pointInRegion, RELEASE_REGIONS, type RegionDefinition } from '../world/ReleaseRegionMap';
 import { plateauHeight, sampleBoundaryTerrain } from '../world/WorldTerrain';
 import { createRegionWatercourses } from './WatercourseMeshes';
 
@@ -18,6 +18,8 @@ function hash(x: number, y: number): number {
   const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return n - Math.floor(n);
 }
+
+const hiddenValleyFloor=Math.min(...RELEASE_REGIONS.map(r=>r.elevation))-180;
 
 function mesh(positions: number[], colors: number[], shadows = false): THREE.Mesh {
   const geometry = new THREE.BufferGeometry();
@@ -115,14 +117,18 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
   // Every panel shares both its side vertices and its stratum edges. Independent
   // bevels previously left open seams through which the river was visible.
   const levels=[0,.035,.22,.56,.82,1];
+  // The nearby boundary sample can switch between lava, passage and mountain
+  // floors. Ending each small panel there exposed a saw-tooth lower silhouette.
+  // A common hidden datum closes the skirt below every authored valley floor.
+  const bottom=hiddenValleyFloor;
+  const rockMass=(x:number,z:number)=>.5+Math.sin(x*.003+Math.cos(z*.002)*.8)*.28+Math.cos(z*.004+x*.001)*.22;
   const rings=rim.map((p,index)=>{
     const previous=rim[(index+rim.length-1)%rim.length],next=rim[(index+1)%rim.length];
     const normal=new THREE.Vector2(-(next.y-previous.y),next.x-previous.x).normalize();
     if(pointInRegion(region,p.x+normal.x*10,p.y+normal.y*10))normal.negate();
     const top=plateauHeight(region,p.x,p.y);
-    const bottom=Math.min(region.elevation-115,sampleBoundaryTerrain(p.x+normal.x*140,p.y+normal.y*140).height-12);
     return levels.map((t,band)=>{
-      const bevel=band===0?0:band===levels.length-1?12:7+hash(p.x+band*41,p.y)*16;
+      const bevel=[0,9,18,22,16,12][band]*(.76+rockMass(p.x+band*23,p.y)*.48);
       return [p.x+normal.x*bevel,top+(bottom-top)*t,p.y+normal.y*bevel];
     });
   });
@@ -130,11 +136,11 @@ export function createRegionLand(region: RegionDefinition): THREE.Group {
     const a=rings[index],b=rings[(index+1)%rings.length];
     for(let band=0;band<levels.length-1;band++) {
       const vertices=[a[band],b[band],b[band+1],a[band+1]];
-      const shade=(band===0?palette[0]:stone).clone().multiplyScalar(.9+hash(index,0)*.13-band*.035);
+      const shade=(band===0?palette[0]:stone).clone().multiplyScalar(.92+rockMass(rim[index].x,rim[index].y)*.08-band*.025);
       for(const j of [0,2,1,0,3,2]) {cliffPositions.push(...vertices[j]);cliffColors.push(shade.r,shade.g,shade.b);}
     }
   }
-  const cliff=mesh(cliffPositions,cliffColors,true);(cliff.material as THREE.Material).dispose();cliff.material=rockFaceMaterial();group.add(cliff);
+  const cliff=mesh(cliffPositions,cliffColors,true);(cliff.material as THREE.Material).dispose();cliff.material=rockFaceMaterial();cliff.userData.regionCliff=true;group.add(cliff);
   return group;
 }
 
@@ -146,10 +152,17 @@ export function createBoundaryGround(cx: number, cz: number, size: number, segme
   const positions:number[][]=[[],[],[]],colors:number[][]=[[],[],[]];
   for(let triangle=0;triangle<source.index!.count;triangle+=3){
     const indices=[0,1,2].map(n=>source.index!.getX(triangle+n));
-    const kind=indices.every(i=>samples[i].kind==='river')?1:indices.every(i=>samples[i].kind==='lava')?2:0;
+    // A liquid triangle can extend beneath a plateau, where its cliff hides
+    // it. The old all-liquid rule left mixed bank cells as sloping rock teeth:
+    // the high plateau's underlay was above the adjacent water/lava level.
+    const liquid=(name:'river'|'lava')=>indices.some(i=>samples[i].kind===name)
+      &&indices.every(i=>samples[i].kind===name||samples[i].kind==='land');
+    const kind=liquid('river')?1:liquid('lava')?2:0;
+    const liquidHeight=kind>0?Math.min(...indices.filter(i=>samples[i].kind===(kind===1?'river':'lava')).map(i=>samples[i].height)):0;
     for(const i of indices){
       const x=cx+vertices.getX(i),z=cz+vertices.getZ(i),sample=samples[i];
-      positions[kind].push(x,sample.height,z);
+      const height=kind>0?liquidHeight:sample.height;
+      positions[kind].push(x,height,z);
       const palette=REGION_GEOGRAPHY[sample.region.id-1];
       const color=kind>0?new THREE.Color(0xffffff):new THREE.Color(sample.kind==='river'?0x30969f:sample.kind==='lava'?0xc65333
         :sample.kind==='cut'?palette.soil:palette.rock);
@@ -164,6 +177,7 @@ export function createBoundaryGround(cx: number, cz: number, size: number, segme
     if(!positions[kind].length)continue;
     const surface=mesh(positions[kind],colors[kind],kind===0);
     (surface.material as THREE.Material).dispose();surface.material=kind>0?boundarySurfaceMaterial(kind===2):rockFaceMaterial();
+    surface.userData.boundaryKind=kind===0?'rock':kind===1?'river':'lava';
     group.add(surface);
   }
   return group;

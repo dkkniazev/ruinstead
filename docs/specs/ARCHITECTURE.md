@@ -32,6 +32,32 @@ must release renderer resources and UI/event listeners.
 `SettlementLayout.ts` shares base coordinates/ground dimensions between
 settlement systems, models, resource clearance, physics and enemy navigation.
 `CreatureScale.ts` contains visual species profiles; it does not own combat stats.
+`GoblinSkin.ts` binds shared goblin/humanoid surfaces to eight per-instance bones
+carried by the existing motion anchors; it owns skeleton/material setup and
+skeleton cleanup, while CreatureModels releases the owned material. This local
+render route does not introduce a body-physics simulator or move Phaser actors.
+`MammalForms.ts` keeps new mammal art profiles separate from the skin binding
+algorithm in `MammalSkin.ts`. That module reuses existing jaw/head/leg/tail
+motion anchors and owns per-instance bones, skeleton/material and cleanup;
+shared baked geometry/weights remain reusable. It does not own combat physics.
+`HumanoidForms.ts` and `ReptileForms.ts` likewise own authored art proportions,
+not gameplay stats. `ReptileSkin.ts`, `BirdSkin.ts` and `SmallCreatureSkin.ts`
+bind their respective connected surfaces to the existing head/jaw/limb/segment
+anchors. Each binder owns its per-instance skeleton/material; CreatureModels
+coordinates cleanup, preserving shared baked geometry and weights. Closed wings,
+weapons, horns, fangs and boss identity ornaments retain their attachment frames.
+`SurfaceFace.ts` owns cloned materials for fitted face pigment, replacing any
+previous owned material. The projection frame is captured before articulation;
+face uniforms share one shader program, avoiding species-dependent cache aliases.
+It never creates independent white/pupil meshes. `CreatureSculpt.ts` owns baked
+surface authoring/bounds; bake and sanity checks hash all contributing art-profile
+modules so stale generated assets cannot silently satisfy the gate.
+`HeroArmorForms.ts` owns shared closed armor geometry and its material groups;
+HeroModel/HeroSkinModel own instance palette materials. Shared plates are not
+disposed with an actor. Hero ankle support is render kinematics inside the
+production pose, not a new movement/terrain authority. DEV-only
+`src/game/qa/HeroPreviewPose.ts` samples that production clock in bounded steps,
+so the motion preview does not introduce an independent hero rig or timing rule.
 
 - `src/game/state/GameState.ts`: schema/defaults. WorldScene snapshots progress;
   current actor HP/AI are transient, not independent durable stores.

@@ -1,10 +1,20 @@
 # Creature style, species scale and solid settlement
 
-Implemented and locally checked; human visual/device acceptance pending ·
-2026-10-03. User requests local creature redesign using the
+Base/scale corrections implemented and locally checked; original creature art
+rejected, replacement accepted for the October 4 release; device acceptance pending ·
+2026-10-03–04. User requests local creature redesign using the
 generated low-poly cover goblin, logical species sizes, removal of a tree/roof
-intersection, solid base buildings and a closed well interior. No commit/upload.
+intersection, solid base buildings and a closed well interior. The original pass
+was local; October 4 Git/draft authorization is owned by
+[RELEASE_DRAFT_REFRESH](RELEASE_DRAFT_REFRESH.md).
 Owning contract: [WORLD_VISUAL_POLISH](../../specs/features/WORLD_VISUAL_POLISH.md).
+The user subsequently rejected the current goblin for visible geometric assembly.
+The completed implementation/check steps below do not satisfy art acceptance;
+replacement work is recorded in [VISUAL_FINISH](VISUAL_FINISH.md). On Oct3 the user
+accepted the corrected connected goblin as a working baseline; the Oct4 rollout
+now implements the remaining family surfaces/faces. This supersedes the rejected
+art below, without closing new-family/reference/device acceptance. Base/scale
+validation below remains evidence for those unchanged systems.
 
 ## Milestones
 

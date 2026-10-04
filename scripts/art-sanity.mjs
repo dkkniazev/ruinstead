@@ -3,6 +3,8 @@ import {build} from 'esbuild';
 const result=await build({stdin:{contents:`
 export * as T from 'three';
 export * from './src/game/render3d/HeroModel.ts';
+export * from './src/game/render3d/HeroArmorForms.ts';
+export {sampleHeroAttack} from './src/game/qa/HeroPreviewPose.ts';
 export * from './src/game/render3d/WeaponAnimation.ts';
 export * from './src/game/render3d/HeroSkinStyles.ts';
 export {SKIN_DEFINITIONS} from './src/game/cosmetics/SkinEconomy.ts';
@@ -35,6 +37,24 @@ plugins:[{name:'art-math-phaser',setup(b){
 const {T,ContactBursts3D,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,RenderVisibility,layoutResourceLabels,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,naturalSurfaceMaterial,treeBark,treeCanopy,createWatercourse,WORLD_WATERCOURSES,brookBridgeAt,sampleWatercourse,getRegionDefinition,plateauHeight,terrainHeight,passageAt,createGroundCover,distanceToRoad,createBuilding,createForge,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const bursts=new ContactBursts3D(),burstCamera=new T.PerspectiveCamera();
 const {createSettlementWell,disposeSettlementScenery,createResource,SETTLEMENT_BUILDINGS,SETTLEMENT_CENTER,buildResourceNodeDefinitions}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const {heroHelmet,heroShoulder,heroBreastplate,sampleHeroAttack}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+let armorDisposed=0;
+for(const geometry of [heroHelmet,heroShoulder,heroBreastplate]){
+  geometry.addEventListener('dispose',()=>armorDisposed++);
+  const p=geometry.attributes.position,index=geometry.index,edges=new Map(),key=i=>[p.getX(i),p.getY(i),p.getZ(i)].map(v=>Math.round(v*1e5)).join(',');
+  let volume=0;
+  for(let i=0;i<index.count;i+=3){
+    const ids=[index.getX(i),index.getX(i+1),index.getX(i+2)],keys=ids.map(key);
+    if(new Set(keys).size!==3)continue;
+    const vertices=ids.map(n=>new T.Vector3().fromBufferAttribute(p,n));volume+=vertices[0].dot(vertices[1].clone().cross(vertices[2]))/6;
+    for(let j=0;j<3;j++){const edge=[keys[j],keys[(j+1)%3]].sort().join('|');edges.set(edge,(edges.get(edge)??0)+1);}
+  }
+  assert([...edges.values()].every(n=>n===2),'Hero armor has one closed shared boundary, including the material rim');
+  assert(volume>0,'Hero armor winding points outward');
+  assert.equal(geometry.groups.length,2,'One contiguous draw group per armor material');
+  assert.equal(geometry.groups.reduce((n,g)=>n+g.count,0),index.count,'Material groups cover the whole plate exactly');
+  assert(index.count/3<400,'A formed plate stays cheaper than stacked subdivided ellipsoids');
+}
 const well=createSettlementWell(),wellRay=new T.Raycaster();
 const checkWell=()=>{
   well.updateMatrixWorld(true);
@@ -152,7 +172,7 @@ for(const weapon of ['axe','sword','hammer','spear','daggers']){
   hero.root.traverse(o=>{for(const v of [...o.position,...o.scale])assert(Number.isFinite(v));if(o instanceof T.Mesh)for(const v of o.geometry.attributes.position.array)assert(Number.isFinite(v));});
 }
 hero.setTint(0xff3311);
-let unaffected=false;other.root.traverse(o=>{if(o instanceof T.Mesh&&o.material.color.getHex()===0x355f78)unaffected=true;});
+let unaffected=false;other.root.traverse(o=>{if(o instanceof T.Mesh&&(Array.isArray(o.material)?o.material:[o.material]).some(m=>m.color.getHex()===0x355f78))unaffected=true;});
 assert(unaffected,'Tint must not mutate another hero or a cached portrait');
 hero.dispose();other.dispose();
 
@@ -179,6 +199,39 @@ assert.equal(liveGeometries,0,'Repeated skin changes release the previous outfit
 assert(!dressed.root.children.some(o=>o.name.startsWith('outfit-')));
 assert.deepEqual(new T.Box3().setFromObject(neutral.root),neutralBounds,'Changing a skin must not mutate another hero');
 dressed.dispose();neutral.dispose();
+assert.equal(armorDisposed,0,'Hero disposal and skin changes preserve the shared armor surfaces');
+for(const speed of [0,140,225]){
+  const walker=createHero();walker.root.position.set(160,73,-120);walker.root.rotation.y=.63;
+  let plantedSamples=0,liftedSamples=0,maxSwingFloor=-Infinity,minSwingFloor=Infinity;
+  for(let n=0;n<180;n++){
+    walker.step(1/60,speed,false,n>=40&&n<80,speed/60,.12,1000);walker.root.updateMatrixWorld(true);
+    for(let i=0;i<2;i++){
+      const thigh=walker.root.getObjectByName(`hero-thigh-${i}`),boot=walker.root.getObjectByName(`hero-boot-${i}`);
+      const floor=new T.Box3().setFromObject(boot).min.y;
+      assert(floor>=74-1e-4,'Swing toes cannot penetrate the translated terrain plane');
+      if(!speed||thigh.rotation.x>.12){assert(Math.abs(floor-74)<1e-4,'Support boot remains on the translated terrain plane through gait/attack');plantedSamples++;}
+      else{maxSwingFloor=Math.max(maxSwingFloor,floor);minSwingFloor=Math.min(minSwingFloor,floor);if(floor>76)liftedSamples++;}
+    }
+  }
+  assert(plantedSamples>60,'Support-sole test exercises full stance phases');
+  if(speed)assert(liftedSamples>20,`Swing feet retain visible lift: speed ${speed}, samples ${liftedSamples}, floor ${minSwingFloor}..${maxSwingFloor}`);
+  walker.dispose();
+}
+
+for(const weapon of ['axe','sword','hammer','spear','daggers']){
+  const sampled=createHero(),timed=createHero();sampled.setWeapon(weapon);timed.setWeapon(weapon);
+  sampleHeroAttack(sampled,weapon,.55);
+  const duration=WEAPON_ATTACK_ANIMATION_MS[{axe:'wide-slash',sword:'slash',hammer:'smash',spear:'thrust',daggers:'dual-slash'}[weapon]]/1000;
+  timed.step(0,0,false,false,0,0);timed.step(0,0,false,true,0,0);
+  let remaining=duration*.55;while(remaining>1e-8){const dt=Math.min(1/60,remaining);timed.step(dt,0,false,false,0,0);remaining-=dt;}
+  sampled.root.updateMatrixWorld(true);timed.root.updateMatrixWorld(true);
+  const a=sampled.root.getObjectByName('primary-grip'),b=timed.root.getObjectByName('primary-grip');
+  assert(a.matrixWorld.elements.every((v,i)=>Math.abs(v-b.matrixWorld.elements[i])<1e-7),weapon+' preview samples the real timed model pose');
+  // A single large step is clamped internally and must not masquerade as 55%.
+  const capped=createHero();capped.setWeapon(weapon);capped.step(0,0,false,true,0,0);capped.step(duration*.55,0,false,false,0,0);capped.root.updateMatrixWorld(true);
+  assert(a.getWorldQuaternion(new T.Quaternion()).angleTo(capped.root.getObjectByName('primary-grip').getWorldQuaternion(new T.Quaternion()))>.01,weapon+' late preview advances through the capped clock');
+  sampled.dispose();timed.dispose();capped.dispose();
+}
 
 // Idle grips point generally forward and every held weapon is rolled -90° around
 // its own length (180° from the previous upside-down +90° roll).

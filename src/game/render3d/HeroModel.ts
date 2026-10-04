@@ -12,6 +12,7 @@ import { createWeaponModel, type WeaponModel } from './WeaponModel';
 import type { SkinId } from '../cosmetics/SkinEconomy';
 import { HERO_SKIN_STYLES } from './HeroSkinStyles';
 import { createSkinOutfit } from './HeroSkinModel';
+import { armorPlate, heroHelmet, heroShoulder, heroBreastplate } from './HeroArmorForms';
 
 const limb = new T.CapsuleGeometry(1, 1, 3, 8);
 const torso = new T.CylinderGeometry(.82, 1, 1, 8);
@@ -42,16 +43,14 @@ export function createHero(): AnimatedModel {
   // Tapered armour, overlapping plates and rounded seams make a single silhouette.
   const chest=new T.Group(),helmet=new T.Group();body.add(chest,helmet);
   make(body,torso,'blue',0,66,0,22,38,14);
-  ball(chest,'edge',0,71,9,19,20,9);
-  ball(chest,'steel',0,73,12,17,17,7);
+  armorPlate(chest,heroBreastplate,surfaces.edge,surfaces.steel,0,71,9,19,20,11);
   box(chest,'gold',0,69,19,4,26,2);
   box(body,'leather',0,47,0,39,8,29);
   box(body,'gold',0,47,16,10,9,3);
   box(body,'cloth',0,36,0,33,18,25);
   for(const side of [-1,1])box(body,'blue',side*14,37,8,12,20,20).rotation.z=side*.12;
   ball(body,'skin',0,100,2,15,18,14);
-  ball(helmet,'edge',0,110,-2,18,16,17);
-  ball(helmet,'steel',0,113,-2,17.5,14,16.5);
+  armorPlate(helmet,heroHelmet,surfaces.edge,surfaces.steel,0,108,-2,18,18,17);
   box(helmet,'edge',0,109,15,31,5,5);
   for(const side of [-1,1]){
     box(helmet,'steel',side*13,99,8,7,19,12).rotation.z=-side*.13;
@@ -60,21 +59,22 @@ export function createHero(): AnimatedModel {
   }
   box(helmet,'gold',0,118,2,4,12,27);
 
-  const legs: T.Group[] = [], knees: T.Group[] = [], arms:T.Group[] = [], elbows:T.Group[] = [], shoulders:T.Group[]=[];
+  const legs: T.Group[] = [], knees: T.Group[] = [], ankles:T.Group[]=[], arms:T.Group[] = [], elbows:T.Group[] = [], shoulders:T.Group[]=[];
   for(const side of [-1,1]){
     const leg=joint(body,side*10,42,0),knee=joint(leg,0,-19,0);
     legs.push(leg);knees.push(knee);
+    leg.name=`hero-thigh-${legs.length-1}`;
     make(leg,limb,'cloth',0,-9,0,6.5,6,7);
     ball(leg,'steel',0,-17,5,7,6,5);
     make(knee,limb,'leather',0,-8,0,6,5.5,6.5);
     box(knee,'edge',0,-6,5,10,14,5);
-    box(knee,'leather',0,-17,5,14,10,23);
-    box(knee,'gold',0,-12,5,14,3,19);
+    const ankle=joint(knee,0,-17,5);ankle.name=`hero-ankle-${ankles.length}`;ankles.push(ankle);
+    box(ankle,'leather',0,0,0,14,10,23).name=`hero-boot-${ankles.length-1}`;
+    box(ankle,'gold',0,5,0,14,3,19);
     const arm=joint(body,side*22,81,0),elbow=joint(arm,side*2,-21,0);
     arms.push(arm);elbows.push(elbow);
     const shoulder=new T.Group();arm.add(shoulder);shoulders.push(shoulder);
-    ball(shoulder,'edge',side*2,-1,0,14,11,14);
-    ball(shoulder,'steel',side*2,1,1,13,9,13);
+    armorPlate(shoulder,heroShoulder,surfaces.edge,surfaces.steel,side*2,-1,0,14,13,14);
     box(shoulder,'gold',side*3,5,7,14,3,13);
     make(arm,limb,'blue',0,-12,0,6,5.5,6);
     ball(elbow,'edge',0,0,0,7);
@@ -124,6 +124,7 @@ export function createHero(): AnimatedModel {
   };
   setWeapon('axe');
   let phase=0,clock=0,lean=0,leanVelocity=0,turn=0,attackTime=1,attackSerial=0,wasAttacking=false,lastAttackAt=-Infinity;
+  const rootFrame=new T.Quaternion(),footFrame=new T.Quaternion(),sole=new T.Vector3(),rootPosition=new T.Vector3();
   return {root,setWeapon,setSkin,setTint(tint){surfaces.blue.color.setHex(tint??0x355f78);},dispose(){outfit?.dispose();Object.values(surfaces).forEach(material=>material.dispose());capeGeo.dispose();capeMat.dispose();held?.dispose();second?.dispose();},
     step(seconds,speed,dash=false,attack=false,travel=0,turning=0,attackAt?:number){
       const dt=Math.min(seconds,.05),motion=Math.min(1.4,speed/225);
@@ -151,6 +152,7 @@ export function createHero(): AnimatedModel {
       body.position.y=Math.abs(Math.sin(phase))*motion*2.3+Math.sin(clock*2.6)*.4;
       for(let i=0;i<2;i++){
         const stride=Math.sin(phase+i*Math.PI);
+        legs[i].position.y=42;ankles[i].quaternion.identity();
         legs[i].rotation.x=stride*motion*.57;
         knees[i].rotation.x=Math.max(0,-stride)*motion*.65;
         arms[i].rotation.set(-stride*motion*.42-.12,0,(i?1:-1)*.15);
@@ -244,6 +246,18 @@ export function createHero(): AnimatedModel {
         offYaw-arms[0].rotation.y,
         offRoll-arms[0].rotation.z,
       );
+      // Keep the support sole on the neutral terrain plane while the torso bobs,
+      // leans and twists. Swing feet retain their lift; this is rig kinematics.
+      root.getWorldQuaternion(rootFrame);root.getWorldPosition(rootPosition);
+      for(let i=0;i<2;i++){
+        const stride=Math.sin(phase+i*Math.PI),plant=motion<.02?1:T.MathUtils.smoothstep(stride,-.15,.15);
+        knees[i].getWorldQuaternion(footFrame).invert().multiply(rootFrame);
+        ankles[i].quaternion.slerp(footFrame,plant);ankles[i].updateWorldMatrix(true,false);
+        let floor=Infinity;
+        for(const x of [-7,7])for(const z of [-11.5,11.5])floor=Math.min(floor,sole.set(x,-5,z).applyMatrix4(ankles[i].matrixWorld).y);
+        const lift=(1-plant)*Math.max(0,-stride)*motion*7;
+        legs[i].position.y+=(rootPosition.y+1+lift-floor)/body.matrixWorld.elements[5];
+      }
       const vertices=capeGeo.attributes.position;
       for(let i=0;i<vertices.count;i++){
         const x=capeRest[i*3],y=capeRest[i*3+1],t=(27-y)/54;

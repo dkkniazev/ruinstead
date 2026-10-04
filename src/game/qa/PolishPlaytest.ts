@@ -94,9 +94,25 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   const output=document.createElement('div');output.setAttribute('role','status');
   const initial=enemies.visualUnits.find(e=>e.definition.region===1&&e.rank==='normal')!;
   let pack=enemies.visualUnits.filter(e=>e.groupId===initial.groupId);
-  const choose=()=>{const region=Number(select.value),first=enemies.visualUnits.find(e=>e.definition.region===region&&e.rank==='normal'&&e.definition.id==='goblin')??enemies.visualUnits.find(e=>e.definition.region===region&&e.rank==='normal');if(!first)return;pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);};
+  const speciesSelect=document.createElement('select');speciesSelect.setAttribute('aria-label','Вид моба проверки');
+  const rankSelect=document.createElement('select');rankSelect.setAttribute('aria-label','Ранг моба проверки');
+  rankSelect.add(new Option('Обычный','normal'));rankSelect.add(new Option('Элита','elite'));
+  const refreshSpecies=()=>{
+    const previous=speciesSelect.value,seen=new Set<string>();speciesSelect.replaceChildren();
+    for(const unit of enemies.visualUnits){
+      if(unit.definition.region!==Number(select.value)||seen.has(unit.definition.id))continue;
+      seen.add(unit.definition.id);speciesSelect.add(new Option(unit.definition.name,unit.definition.id));
+    }
+    if(seen.has(previous))speciesSelect.value=previous;
+  };
+  refreshSpecies();select.onchange=refreshSpecies;
+  const choose=()=>{
+    const candidates=enemies.visualUnits.filter(e=>e.definition.region===Number(select.value)&&e.definition.id===speciesSelect.value&&e.rank===rankSelect.value);
+    const first=candidates.find(e=>e.alive)??candidates[0];if(!first)return;
+    pack=enemies.visualUnits.filter(e=>e.groupId===first.groupId);player.teleport(first.spawn.x,first.spawn.y+480);
+  };
   const button=(label:string,action:()=>void)=>{const b=document.createElement('button');b.textContent=label;b.onclick=action;controls.append(b);};
-  controls.append(select);button('К пачке',choose);button('В бой',()=>{player.teleport(pack[0].spawn.x,pack[0].spawn.y+90);});button('Домой',()=>player.teleport(RETURN_POINT.x,RETURN_POINT.y));controls.append(output);document.body.append(panel);
+  controls.append(select,speciesSelect,rankSelect);button('К пачке',choose);button('В бой',()=>{player.teleport(pack[0].spawn.x,pack[0].spawn.y+90);});button('Домой',()=>player.teleport(RETURN_POINT.x,RETURN_POINT.y));controls.append(output);document.body.append(panel);
   button('К ориентиру',()=>{
     const region=RELEASE_REGIONS[Number(select.value)-1],site=GEOGRAPHY_LANDMARKS.find(p=>p.region===region.id&&p.kind!=='pool')??GEOGRAPHY_LANDMARKS.find(p=>p.region===region.id);
     if(!site)return;

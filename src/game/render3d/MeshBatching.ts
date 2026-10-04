@@ -48,6 +48,8 @@ export function batchStaticMeshes(root:T.Object3D):void {
     const merged=new T.Mesh(geometry,material);
     merged.castShadow=meshes.some(mesh=>mesh.castShadow);merged.receiveShadow=meshes.some(mesh=>mesh.receiveShadow);
     merged.userData.batchedGeometry=true;
+    // Preserve inspectable provenance when boss ornaments join one rigid draw.
+    merged.userData.bossOrnamentCount=meshes.reduce((n,mesh)=>n+(mesh.userData.bossOrnamentCount??(mesh.userData.bossOrnament?1:0)),0);
     merged.userData.ownedMaterial=meshes.some(mesh=>mesh.userData.ownedMaterial);
     for(const mesh of meshes){
       root.remove(mesh);

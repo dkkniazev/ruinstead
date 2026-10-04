@@ -27,6 +27,16 @@ obstacle footprints govern collisions, while sampled height aligns feet/roads,
 bridges and danger markings. Visual terrain changes must not block intended
 paths or allow bypasses. Boss spawn bodies stay clear of passages/resources.
 
+Region cliff skirts meet the unchanged plateau rim and extend below the lowest
+authored valley/water floor. Adjacent panels share their band vertices; broad
+rock bevels and colour variation follow position rather than a separate random
+value at each small panel. Their hidden lower edge must not emerge as repeated
+teeth beside bridges or waterways. This is presentation geometry, not a new
+height/walkability sampler or collider.
+Mixed liquid/plateau bank cells continue the flat liquid beneath the opaque
+skirt, rather than exposing upward-sloping underlay triangles in the channel.
+Solid mountain/cut underlay retains its existing heights.
+
 `SettlementLayout.ts` owns the four base building locations/dimensions, forge
 and well footprint. Renderer, placement, Phaser solids and enemy navigation
 consume those records. Buildings/well block actors; empty awnings are not full
@@ -49,13 +59,76 @@ surfaces. World and portraits share identity/creation; normalized combat body
 radius remains separate from protruding horns, wings, weapons and tails.
 
 Current local baked data in `public/assets/models/creature-sculpt` contains
-390 shared surfaces, 183,370 shared triangles (~2876 KiB), baked 2026-10-03; this is a snapshot,
+217 shared surfaces, 220,540 shared triangles (~3292 KiB), revision
+`2026-10-04-creature-skin-v23`; this is a snapshot,
 not a performance target. `src/game/render3d/CreatureMotion.ts` animates articulated
 parts, not a physics ragdoll. Weapon sockets must follow the hand; face, fangs,
 horns and stingers must follow their parent throughout idle/move/attack/recovery.
 `src/game/render3d/CreatureAura.ts` provides subtle animated elite aura/ground effects
 for all 40 elite variants; effects must not inflate HP-label/portrait bounds.
 Elites also use anatomy/armor differences, not aura alone.
+
+The earlier segmented goblin was rejected by the user. Its local replacement
+uses one connected baked head/ear/body/limb mesh, with `GoblinSkin.ts` binding it
+to eight bones carried by the existing pose anchors. Skeleton and material are
+owned per instance; geometry and weights are shared. Small leather-edge/cuff
+thickness is baked into the same skin. Fitted costume shading and seam details
+use the bind frame, so garment edges follow deformation; skin/leather/metal
+have distinct roughness. Eye whites/irises are shaded on the orbital regions of
+that same deforming skin, with no separate eye plates or pupil meshes. Surface
+preload requests both the manifest and binary with the current sculpt revision
+in their cache keys to avoid loading an older pair after an update.
+The user accepted the goblin as the working creature baseline on 2026-10-03
+and directed work toward the remaining mobs. Its narrower, higher eye apertures
+leave a nasal bridge and stay above the nose tip. This is scoped creature approval,
+not full visual/reference or release acceptance.
+
+`MammalForms.ts` owns authored boar/jackal/cat/hound/ram proportions;
+`MammalSkin.ts` carries one connected head/ears/body/legs/tail surface through the
+existing head, jaw, four leg and tail anchors. Eyes, nose and coat markings belong
+to that deforming surface; tusks/horns/whiskers remain attached head details.
+Elite mammals have heavier shoulder/neck/jowl volumes, contrasting mantles and
+larger keratin features, retaining the shared aura. Matching bosses retain their
+identity ornaments and original world scale.
+`HumanoidForms.ts` authors humanoid mass/face profiles; the eight-anchor skin
+binder also covers rogues, cultists, knights, ogres, smiths, imps, gargoyles and
+harpies; harpy wings/talons retain their separate motion anchors.
+Fitted garments/plate relief and face colour stay in the skin; intentional
+weapons, shields and boss ornaments follow their existing attachment joints.
+`ReptileForms`/`ReptileSkin` provide connected head/jaw/body/leg/tail skins with
+closed curved wing membranes. Bat/owl skins and connected soft/segmented skins
+reuse existing motion anchors through `BirdSkin.ts` and `SmallCreatureSkin.ts`.
+`SurfaceFace.ts` projects remaining fitted face pigment in an immutable authored
+frame. Its center and perimeter are fitted to the exposed head surface, including
+the entire aperture; it must not project a second pair onto a nearby abdomen.
+Stone/sand/scrap giants retain deliberate material facets and articulated plates,
+but use a coherent skull/orbit/nose with unobscured painted eyes. Their broad
+brows belong to the head surface, not separate blocks concealing the face.
+These are render-only routes: no combat radius, attack, spawn or save changes.
+Ogre/imp/harpy/smith/gargoyle expressions use fitted brow, nostril and lip pigment;
+masked rogues/cultists have fitted brows inside the hood aperture and restrained
+hood/cuff seams. Each humanoid kind owns its material regions: goblin metal
+shoulder/vest masks must not produce metallic spots on another kind's cloth/skin.
+the smith's beard/chin mass belongs to the connected skin. Insect boss body
+replacement targets the actual face-bearing shell, preserving dorsal plates
+without turning a plate into a second body over the eyes. Mandibles/fangs keep
+the eye aperture clear. Whole-model visibility checks complement face attachment
+checks: attached eyes can still be concealed by unrelated geometry. Adult dragon/
+wyvern bosses retain their authored horns rather than an intersecting extra pair.
+Elite gargoyles/imps have a broad chest and cranial crest; elite harpies have a
+taller plume crown and contrasting shoulder mantle. Reptile elites have taller
+joined dorsal sails and heavy jowls; elite serpents have a broad joined neck
+frill. These silhouettes complement world-scale growth and the existing aura,
+rather than relying on one small extra ornament. Dark spiders and beetles use
+contrasting painted irises, so their faces remain readable without floating eye
+plates. Gargoyle eyes remain uncovered by the knight visor's pigment. Wisps use
+one closed faceted crystal core, with face pigment on that surface; rings stay
+below the aperture and satellites behind it. Flame satellites also stay behind
+the face. Elite giant decorations must not cross the eye openings.
+Sculpt bounds reserve the marching-grid boundary cells on every axis, so long
+mouths/tails are not clipped by a nominally sufficient bounding box. Baked surfaces
+must have no open boundary; closed wing membranes also retain outward winding.
+New-family human art approval and latest device acceptance remain open.
 
 Current surfaces include species-specific canine/goat/feline heads and body
 proportions, coherent veteran fur mantles, convex beetle wing cases, painted
@@ -67,8 +140,9 @@ This describes local implementation, not approval of every design or animation.
 The user's 2026-10-03 creature reference is the cover goblin preserved in the
 [reference index](../references/visual/README.md): compact coherent volumes,
 fitted expressive eyes/muzzles, broad leaf ears and brown leather/simple steel.
-The shared pipeline applies this language across all catalog families, with
-intentional chitin/stone/metal differences. `CreatureScale.ts` owns presentation
+The authored families are intended to follow this language, with intentional
+chitin/stone/metal differences; full visual acceptance remains open.
+`CreatureScale.ts` owns presentation
 profiles: short goblin/imp, adult human, low heavy boar, longer predators,
 larger giants and broad winged reptiles. Compare all five regional species
 with the hero using one world-scale camera in the existing motion preview;
@@ -80,6 +154,13 @@ The active catalog does not use the older Bat/Goat/Owl GLBs. Assets/loaders rema
 for compatibility/rig coverage; do not remove them on the assumption they are
 current active creatures. Hero skins share articulation through
 `src/game/render3d/HeroSkinModel.ts`; orbiting weapons mirror gameplay cycles.
+`HeroArmorForms.ts` supplies shared closed helmet/shoulder/breastplate surfaces.
+Metal and darker rims meet along the same geometry rather than intersecting
+stacked ellipsoids; per-hero palette materials still follow skin selection.
+These forms preserve the existing hero rig/grips and all gameplay skin bonuses.
+Hero ankle pivots keep support soles on the existing neutral terrain plane while
+the torso leans/bobs; swing feet retain their lift. This is presentation kinematics,
+not body physics, per-foot terrain navigation or a change to movement speed.
 
 ## Art workflow and constraints
 

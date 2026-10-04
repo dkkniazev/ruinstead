@@ -1,6 +1,6 @@
 # Roadmap reconstructed from current implementation
 
-Status 2026-10-02. This is future work, not a list of functions already implemented.
+Status 2026-10-04. This is future work, not a list of functions already implemented.
 Evidence: [CURRENT_STATE](CURRENT_STATE.md), [investigation](SDD_INVESTIGATION.md),
 domain specs and dated QA/art reports. No roadmap implementation in SDD bootstrap.
 Validation commands/scenarios are owned by [QA_RELEASE](specs/QA_RELEASE.md).
@@ -32,7 +32,7 @@ not change product status or reopen completed bootstrap work.
 
 - Goal: identified candidate survives authorized draft reload/offline/focus and
   old/new saves without duplicate/lost durable rewards.
-- Why: fixtures exist; current working tree is not the last uploaded archive,
+- Why: fixtures exist and the October 4 candidate is saved in draft 619868;
   full current-candidate platform/multi-device behavior remains Unverified.
 - Systems: packaging, GameStateStore/cloud, main lifecycle, ads/UI, release records.
 - Dependency: P0.1 fixed; candidate/hash built; authorized console/device access.
@@ -69,11 +69,26 @@ not change product status or reopen completed bootstrap work.
   the Oct3 pass adds cover-directed faces/cloth/chitin/stone forms, explicit
   species proportions and solid base buildings/closed well/tree clearance.
   Its [focused plan](exec-plans/active/CREATURE_STYLE_AND_BASE_FIXES.md) records
-  actual collision/legacy-position checks and pending human art approval.
+  actual collision/legacy-position checks and the superseded art rejection.
   [active art review](exec-plans/active/VISUAL_FINISH.md) owns comparison evidence.
-  Remaining work is human visual acceptance of the catalog/world in the reference
-  comparison, full boss/hero motion coverage in gameplay and physical-device QA;
-  these are not claims that the implemented surfaces must be built again.
+  After rejecting the segmented goblin, the user accepted the corrected connected
+  goblin as a working baseline and directed the remaining creature rollout.
+  Connected mammal/humanoid/reptile/bird/soft skins and fitted insect/giant faces
+  now run locally across the catalog. Gallery review covers 40 ordinary/elite
+  pairs and 24 boss designs; all 40 pairs and all 24 bosses were additionally
+  inspected in isolated wind-up/impact/recovery. Five hero weapons and representative outfits were
+  reviewed through the production timed pose; armor seams/support soles were
+  corrected. All eight regions have latest-bake scene review, with shell/face
+  repairs rechecked in actual combat. Cliff/water underlay teeth are corrected;
+  regular grid steps near mountain ramps still need composition work.
+  On October 4 the user accepted the current catalog/world art for this release;
+  additional reference-quality work remains a follow-up, not a current-release
+  human approval blocker. Remaining acceptance includes
+  full scene/fight motion, the other outfit combinations and
+  physical-device QA. The
+  [active plan](exec-plans/active/VISUAL_FINISH.md) records the user's choice of
+  no paid generation and the local mesh route. Catalog/world reference
+  acceptance remains separate from automated geometry coverage.
 - Dependency: stable startup; actual Hero Path RPG and XP Hero gameplay captures;
   [approved feature](specs/features/WORLD_VISUAL_POLISH.md).
 - Acceptance: ordinary/elite silhouette differences, attached faces/weapons/

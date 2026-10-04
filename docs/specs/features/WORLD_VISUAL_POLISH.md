@@ -5,10 +5,19 @@
 Approved
 
 Accepted product direction; implementation is in progress, acceptance remains open.
-Automated geometry/rig gates do not establish human visual/feel approval, which
-is Pending human review under [QA_RELEASE](../QA_RELEASE.md#acceptance-gates).
+Automated geometry/rig gates do not establish human visual/feel approval under
+[QA_RELEASE](../QA_RELEASE.md#acceptance-gates). On 2026-10-03 the user rejected
+the segmented goblin as an assembly of geometric parts. A subsequent local
+connected-mesh/skinned ordinary/elite prototype is implemented and checked.
+The user accepted the corrected goblin as the working baseline on 2026-10-03
+and requested the remaining mobs. This does not approve other designs. World and device
+acceptance remains open; earlier rejection is not resolved by geometry gates.
 Sources: prior user requests recorded in [VISUAL_BACKLOG](../../VISUAL_BACKLOG.md),
 [NEXT_WORLD_ART_PASS](../../NEXT_WORLD_ART_PASS.md) and local render modules.
+On 2026-10-04 the user accepts the current visual version for the release
+candidate and authorizes Git/Yandex draft upload. This is scoped release-art
+acceptance; it does not establish reference parity or complete remaining device
+and normal-play checks. Further art work stays on the roadmap.
 
 ## Problem and goal
 

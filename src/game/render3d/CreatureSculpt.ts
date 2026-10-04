@@ -4,10 +4,18 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
 import type { CreatureShape } from './CreatureCatalog';
 import { horn } from './CreatureArt';
+import { MAMMAL_FORMS, isMammalShape, type MammalShape } from './MammalForms';
+import { HUMANOID_FORMS, isHumanoidShape, type HumanoidShape } from './HumanoidForms';
+import { REPTILE_FORMS, isReptileShape, type ReptileShape } from './ReptileForms';
+import { paintSurfaceFace } from './SurfaceFace';
 
 type Volume = [number,number,number,number,number,number,number?];
 const cache=new Map<string,T.BufferGeometry>();
-export const CREATURE_SCULPT_REVISION='2026-10-03-cover-style-v5';
+export const CREATURE_SCULPT_REVISION='2026-10-04-creature-skin-v23';
+// Keep the painted aperture and its sculpted orbit in the same anatomical frame.
+// The nasal tip sits below it; the narrow bridge separates the inner eye corners.
+export const GOBLIN_FACE={eyeX:9.7,eyeY:95.2,eyeWidth:4.35,eyeHeight:2.85,eyeSlope:.10,
+  nose:[0,85.8,20.5,6.1,5.1,6.5] as Volume};
 const shared=new Set<T.BufferGeometry>();
 const pigments=new Map<string,T.MeshStandardMaterial>();
 // Small pupils, rivets and ear insets do not need the body surface's density.
@@ -110,6 +118,7 @@ function birdPlumage(body:T.Group,wings:T.Group[],shape:CreatureShape,primary:nu
     for(let n=0;n<4;n++)horn(wing,new T.Color(primary).lerp(new T.Color(accent),.3).getHex(),
       [[17+n*8,9+n*1.4,-8-n*3.4],[22+n*8,-4,-8-n*3.4],[25+n*8,-12+n*1.8,-10-n*3.4]],.6);
   }
+  if(body.getObjectByName('bird-continuous-surface')||body.getObjectByName('humanoid-continuous-surface'))return;
   const chestY=shape==='owl'?39:54;
   for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.y===chestY&&part.position.z===17&&Math.abs(part.position.x)<=12)remove(body,part);
   add(body,sculpt('bird-breast-'+shape+'-'+primary+'-'+accent,
@@ -124,16 +133,23 @@ function distance(x:number,y:number,z:number,v:Volume):number {
 /** A single blended, closed surface. The defining volumes are never rendered.
  * Geometry is cached by anatomy, independently of mob count and palette.
  * Marching normals preserve rounded cheek/shoulder transitions under grazing light. */
-function sculpt(key:string,volumes:Volume[],blend=3,resolution=32,cuts:Volume[]=[],paint?:{top:number;bottom:number}):T.BufferGeometry {
+function sculpt(key:string,volumes:Volume[],blend=3,resolution=32,cuts:Volume[]=[],paint?:{top:number;bottom:number},finish?:(geometry:T.BufferGeometry)=>void):T.BufferGeometry {
   const cached=cache.get(key);if(cached)return cached;
   // Facial sockets get the dense grid. Small boots/cuffs need only a smooth
   // contour; allocating the face's density to every limb is wasteful in play.
   const face=/(?:head|face|surface-(?:rogue|cultist|ogre|smith|imp|harpy|bat|owl)-(?:89|94|64))/.test(key);
-  resolution=key.startsWith('goblin-head')?32:face?24:Math.max(12,Math.round(resolution*.62));
+  resolution=/^(goblin|mammal|humanoid)-continuous-body/.test(key)?48:key.startsWith('goblin-head')?32:face?24:Math.max(12,Math.round(resolution*.62));
   const bounds=new T.Box3();
   for(const v of volumes){bounds.expandByPoint(new T.Vector3(v[0]-v[3],v[1]-v[4],v[2]-v[5]));bounds.expandByPoint(new T.Vector3(v[0]+v[3],v[1]+v[4],v[2]+v[5]));}
   const extent=bounds.getSize(new T.Vector3());
-  bounds.expandByScalar(blend+Math.min(3,Math.max(extent.x,extent.y,extent.z)*.15));const size=bounds.getSize(new T.Vector3()),center=bounds.getCenter(new T.Vector3());
+  // MarchingCubes omits the outer two grid samples. Reserve their space on
+  // every axis: a fixed margin clipped long muzzles and scorpion faces open.
+  for(let axis=0;axis<3;axis++){
+    const margin=Math.max(blend+3,blend+(extent.getComponent(axis)+2*blend)*2.1/(resolution-4.2));
+    bounds.min.setComponent(axis,bounds.min.getComponent(axis)-margin);
+    bounds.max.setComponent(axis,bounds.max.getComponent(axis)+margin);
+  }
+  const size=bounds.getSize(new T.Vector3()),center=bounds.getCenter(new T.Vector3());
   const temporaryMaterial=new T.MeshBasicMaterial(),march=new MarchingCubes(resolution,temporaryMaterial,false,false,Math.max(2000,resolution*resolution*10));march.isolation=0;
   for(let iz=0;iz<resolution;iz++)for(let iy=0;iy<resolution;iy++)for(let ix=0;ix<resolution;ix++){
     const x=bounds.min.x+ix/resolution*size.x,y=bounds.min.y+iy/resolution*size.y,z=bounds.min.z+iz/resolution*size.z;
@@ -152,47 +168,9 @@ function sculpt(key:string,volumes:Volume[],blend=3,resolution=32,cuts:Volume[]=
     }
     geometry.setAttribute('color',new T.BufferAttribute(colors,3));
   }
+  finish?.(geometry);
   geometry.computeBoundingBox();geometry.computeBoundingSphere();geometry.userData.sculptedSurface=true;
   march.geometry.dispose();temporaryMaterial.dispose();cache.set(key,geometry);shared.add(geometry);return geometry;
-}
-
-/** Closed swept leaf: curved rim and shallow concave ear bowl, no polygon wedges. */
-function earGeometry():T.BufferGeometry {
-  const cached=cache.get('goblin-ear');if(cached)return cached;
-  const positions:number[]=[],indices:number[]=[],rows=14,sides=14;
-  for(let row=0;row<=rows;row++){
-    const t=row/rows,x=17+25*t,y=96+12*t+2*Math.sin(t*Math.PI),width=(1-t)**.8*(4+4*Math.sin(t*Math.PI)),thick=(1-t)*2.6+.08;
-    for(let side=0;side<sides;side++){
-      const angle=side/sides*Math.PI*2;positions.push(x,y+Math.cos(angle)*width,-1+Math.sin(angle)*thick);
-      if(row<rows){const a=row*sides+side,b=row*sides+(side+1)%sides;indices.push(a,a+sides,b+sides,a,b+sides,b);}
-    }
-  }
-  for(const row of [0,rows]){const i=positions.length/3;positions.push(17+25*row/rows,96+12*row/rows,-1);for(let n=0;n<sides;n++){const a=row*sides+n,b=row*sides+(n+1)%sides;indices.push(...(row?[i,b,a]:[i,a,b]));}}
-  const geometry=new T.BufferGeometry();geometry.setAttribute('position',new T.Float32BufferAttribute(positions,3));geometry.setIndex(indices);geometry.computeVertexNormals();shared.add(geometry);cache.set('goblin-ear',geometry);return geometry;
-}
-const goblinEye=(()=>{
-  const outline=new T.Shape();outline.moveTo(-1,0);outline.quadraticCurveTo(-.3,.95,1,.13);outline.quadraticCurveTo(.4,-.85,-1,0);
-  const geometry=new T.ExtrudeGeometry(outline,{depth:.22,steps:1,curveSegments:9,bevelEnabled:true,bevelThickness:.09,bevelSize:.06,bevelSegments:2});shared.add(geometry);return geometry;
-})();
-
-/** A fitted piece of leather, with a neckline, armhole and split hem. The
- * back of the panel follows the chest rather than sitting on it as a block. */
-function goblinVestPanel(side:number):T.BufferGeometry {
-  const key='goblin-vest-'+side,cached=cache.get(key);if(cached)return cached;
-  const outline=new T.Shape();outline.moveTo(16,71);
-  outline.quadraticCurveTo(12,76,8,75);outline.quadraticCurveTo(5,69,4,65);
-  outline.quadraticCurveTo(5,54,5,44);outline.lineTo(12,43);
-  outline.quadraticCurveTo(18,43,18,47);outline.quadraticCurveTo(20,54,19,61);
-  outline.quadraticCurveTo(16,65,16,71);
-  const geometry=new T.ExtrudeGeometry(outline,{depth:1.7,bevelEnabled:true,bevelSize:.7,bevelThickness:.6,bevelSegments:2,curveSegments:7});
-  const p=geometry.getAttribute('position');
-  for(let i=0;i<p.count;i++){
-    const x=p.getX(i),y=p.getY(i),depth=13.8*Math.sqrt(Math.max(.08,1-(x/25)**2));
-    p.setXYZ(i,x*side,y,p.getZ(i)+depth+(y>66?-1.2:0));
-  }
-  // Mirroring positions changes winding. Keep the leather lit from its outer face.
-  if(side<0){for(const name of ['position','uv']){const a=geometry.getAttribute(name);for(let i=0;i<a.count;i+=3)for(let j=0;j<a.itemSize;j++){const v=a.getComponent(i+1,j);a.setComponent(i+1,j,a.getComponent(i+2,j));a.setComponent(i+2,j,v);}}}
-  geometry.computeVertexNormals();geometry.computeBoundingBox();shared.add(geometry);cache.set(key,geometry);return geometry;
 }
 
 type SweepSection=[number,number,number,number,number];
@@ -329,79 +307,301 @@ function remove(parent:T.Object3D,part:T.Object3D):void {
 }
 function clearRigid(parent:T.Object3D):void {for(const part of [...parent.children])if(part instanceof T.Mesh||part.userData.faceEye)remove(parent,part);}
 
-function goblin(body:T.Group,arms:T.Group[],legs:T.Group[],primary:number,elite:boolean):void {
+/** One watertight humanoid surface. Skin, clothing and boots share the same
+ * deformation; there are no independently rotating shoulder/hip intersections. */
+function continuousGoblin(body:T.Group,arms:T.Group[],legs:T.Group[],elite:boolean):void {
   clearRigid(body);
-  // Old ears/face are replaced, while the weapon sockets and animated joints survive.
   for(const part of [...body.children])if(part.userData.creatureHead)remove(body,part);
-  const leather=elite?0x514033:0x765039,steel=elite?0x486b70:0x879f9b,skin=elite?0x64853e:0x86ae43;
-  const mass=elite?1.24:1;
-  const chest=sculpt('goblin-torso-'+elite,[[0,57,0,18*mass,20,14],[0,44,1,13*mass,12,12],[0,73,0,11*mass,8,11],[-14*mass,66,-1,9,10,12],[14*mass,66,-1,9,10,12]],4,30);
-  add(body,chest,elite?leather:skin);
-  if(!elite){
-    add(body,sculpt('goblin-vest-back',[[0,56,-12,17,19,3.5],[0,68,-9,16,9,4]],2,22),leather);
-    for(const side of [-1,1]){
-      add(body,goblinVestPanel(side),leather);
-      horn(body,0xd4a464,[[side*8,73,13],[side*4.9,65,15.5],[side*6,53,15.8],[side*5,43,15.7]],.65);
-      for(const y of [49,58,66])orb(body,0xe1b66a,side*9,y,15.5,1.15,.95,.6);
-    }
+  for(const arm of arms)clearRigid(arm);
+  for(const leg of legs){clearRigid(leg);const knee=leg.getObjectByName('creature-knee');if(knee)clearRigid(knee);}
+  const mass=elite?1.16:1;
+  const volumes:Volume[]=[
+    [0,56,0,16*mass,20,11.5],[0,39,1,14*mass,12,11],
+    [0,73,0,10*mass,9,8],[0,80,0,8,9,8],
+    [0,95,1,19*(elite?1.07:1),16,14],[0,84,7,14.5,9,11],
+    [-11,86,11,8,6.8,8],[11,86,11,8,6.8,8],
+    GOBLIN_FACE.nose,[0,92.3,14.4,3.1,5,4],[0,80.5,14,10.5,4.5,7],
+    [-GOBLIN_FACE.eyeX,GOBLIN_FACE.eyeY,12.5,6.1,4.3,4.7],
+    [GOBLIN_FACE.eyeX,GOBLIN_FACE.eyeY,12.5,6.1,4.3,4.7],
+    [-9.7,99.2,14,6.3,2.2,3.6,-.15],[9.7,99.2,14,6.3,2.2,3.6,.15]
+  ];
+  for(const side of [-1,1])volumes.push(
+    [side*18,66,0,9*mass,10,8.2],
+    [side*24,57,1,7.6*mass,10.5,7],
+    [side*26.5,46,2,6.7*mass,9,6.4],
+    [side*27,39.5,3,6.5*mass,6.2,6],
+    [side*23.6,39,7,3,3.8,3],
+    [side*10,29,0,8.1*mass,11,7.6],
+    [side*10,15,2,6.6*mass,9,6.3],
+    [side*10,6,7,8.2*mass,5.5,12],
+    [side*20,96,0,6.5,5,4],
+    [side*25,99,0,7.1,7.2,3.2,side*.38],
+    [side*30,104,0,5.1,5.2,2.8,side*.48],
+    [side*34,109,0,3.3,2.8,2,side*.55]
+  );
+  const geometry=sculpt('goblin-continuous-body-'+elite,volumes,3.4,48,
+    [],undefined,g=>{
+      // Leather has thickness in the same continuous skin, not separate slabs.
+      // Bake these small offsets once; runtime instances reuse the finished mesh.
+      const positions=g.getAttribute('position'),normals=g.getAttribute('normal');
+      for(let i=0;i<positions.count;i++){
+        const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i),ax=Math.abs(x);
+        const opening=4.8+Math.max(0,y-61)*.52;
+        const vest=T.MathUtils.smoothstep(y,39,42)*(1-T.MathUtils.smoothstep(y,71,74))
+          *(1-T.MathUtils.smoothstep(ax,18.1*mass,19.3*mass))
+          *(z<0?1:T.MathUtils.smoothstep(ax-opening,-.6,.8));
+        const lapel=vest*T.MathUtils.smoothstep(z,6,10)*Math.exp(-Math.pow((ax-opening-1)/1.1,2));
+        const cuff=T.MathUtils.smoothstep(ax,21*mass,23*mass)*T.MathUtils.smoothstep(y,42.5,43.5)
+          *(1-T.MathUtils.smoothstep(y,48.5,49.5));
+        const bootLip=(1-T.MathUtils.smoothstep(ax,18*mass,20*mass))*Math.exp(-Math.pow((y-18)/1.2,2));
+        const thickness=.42*vest+.7*lapel+.65*cuff+.45*bootLip;
+        positions.setXYZ(i,x+normals.getX(i)*thickness,y+normals.getY(i)*thickness,z+normals.getZ(i)*thickness);
+      }
+    });
+  const surface=add(body,geometry,0xffffff);surface.name='goblin-continuous-surface';
+  surface.userData.faceSurface=true;surface.userData.continuousSkin=true;
+  for(const side of [-1,1]){
+    // Orbital volumes and eye colours belong to the skin itself. Rigid white /
+    // pupil layers ahead of the old skull depth visibly floated in profile.
+    horn(body,0xe7dbab,[[side*5.7,80.5,20.4],[side*6,83.2,22],[side*5.4,elite?88:85.8,21.5]],elite?1.9:1.25).userData.creatureHead=true;
+    horn(body,0x30431d,[[side*14.3,100.1,15.5],[side*9.7,99,18.1],[side*5.1,98.1,17.7]],1.15).userData.creatureHead=true;
+    orb(body,0x3f5229,side*2.8,84.5,26,.8,.5,.35).userData.creatureHead=true;
   }
-  const browY=elite?97:98,face=sculpt('goblin-head-'+elite,[
-    [0,96,-1,20*(elite?1.1:1),17,16],[0,83,5,15.5*(elite?1.16:1),10,14],
-    [-12,87,10,9,7.5,10],[12,87,10,9,7.5,10],[0,88,20,6.6,4.6,6.8],
-    [0,81,16,10.5,4.8,5],[-9,browY,17,8,2.4,3.2,-.25],[9,browY,17,8,2.4,3.2,.25],
-    [-20,96,-1,6,5,5],[20,96,-1,6,5,5]
-  ],3.2,42,[[-8.5,93,20,7.2,5,4.8],[8.5,93,20,7.2,5,4.8],[0,82.8,21,8,1.05,2.7]],{top:skin,bottom:elite?0x506b31:0x688936});
-  const head=add(body,face,0xffffff);head.userData.creatureHead=true;head.userData.faceSurface=true;
-  for(const s of [-1,1]){
-    const ear=add(body,earGeometry(),skin,0,0,0,s,1,1);ear.name='creature-ear';ear.userData.creatureHead=true;
-    const inset=orb(body,elite?0x6c6e35:0x5e7736,s*27,101.5,1.3,8,3.3,.45);inset.rotation.z=s*.43;inset.userData.creatureHead=true;
-    const eye=new T.Group();eye.name='creature-eye';eye.userData.creatureHead=true;eye.userData.faceEye=s;eye.userData.fittedSurface=true;eye.position.set(s*8.5,93,20.2);body.add(eye);
-    const white=add(eye,goblinEye,0xf4df95,0,0,0,s*6.5,elite?4:4.7,3);white.rotation.z=s*(elite?.16:.04);
-    orb(eye,0x513617,-s*.3,-.1,1.35,1.75,2.35,.52);orb(eye,0x201e12,-s*.3,-.1,1.77,.8,1.65,.25);
-    orb(eye,0xfff8dc,-s*.3-.55,.9,2.02,.5,.65,.18);
-    horn(body,0xf0e3b2,[[s*5.9,80.7,20],[s*6.1,84,22],[s*5.5,elite?89:86,21.5]],elite?2.25:1.4).userData.creatureHead=true;
-    orb(body,0x3b5027,s*3.3,87,25.8,1.15,.65,.3).userData.creatureHead=true;
-    const arm=arms[s===-1?0:1];clearRigid(arm);
-    // Shoulder, bicep, forearm and fist form one continuous skin surface.
-    add(arm,sculpt('goblin-arm-'+s+'-'+elite,[[0,-3,0,9.2*mass,10,8.5],[s*1.5,-13,1,8*mass,10,7.5],[s*3.5,-24,2.2,6.8*mass,8,6.5],[s*4,-31,3,6.7,6.2,6.7],[s*1,-29.5,7.5,3.6,4.2,3.5]],3,26),skin);
-    const shoulderColor=!elite&&s<0?leather:steel;
-    const pauldron=add(arm,sculpt('goblin-pauldron-'+elite,[[0,4,-1,elite?13:10,6,10],[0,0,-3,elite?12:9,6,8]],2,22),shoulderColor);pauldron.material=pigment(shoulderColor,shoulderColor===steel);
-    const cuff=add(arm,sculpt('goblin-cuff-'+s,[[s*3,-23,2,7.3,5,7.2]],.5,18),leather);
-    cuff.userData.forearmArmor=true;
-    for(let n=0;n<3;n++)orb(arm,0xbbae72,s*3+(n-1)*4,-23,8.8,1.1);
-    const leg=legs[s===-1?0:1],knee=leg.getObjectByName('creature-knee')!;clearRigid(leg);clearRigid(knee);
-    add(leg,sculpt('goblin-thigh',[[0,-6,0,7.7,10,7.3],[0,-12,1,6.8,5,6.5]],2,20),0x454635);
-    add(knee,sculpt('goblin-boot',[[0,-6,1.5,6.4,9,6.5],[0,-15,5,8.5,6.5,11.5],[0,-17,10,8.2,4.7,9]],2.1,24),0x69482f);
-    plate(knee,0x9d784a,0,-6,7.5,10,2.3,1.4);
-    if(elite){
-      // Veteran equipment changes the entire outline, not a small gem.
-      plate(arm,steel,0,-4,2,23,6,22).rotation.z=s*.12;
-      for(const dz of [-5,4])horn(arm,0xd8cca2,[[s*6,2,dz],[s*8,11,dz],[s*10,17,dz-1]],3);
-      plate(knee,steel,0,-8,7,10,13,3);
-    }
-  }
-  for(const s of [-1,1]){
-    horn(body,0x48652c,[[s*15,99.7,17],[s*9,elite?97.9:99,20.1],[s*3.7,98,18.6]],elite?1.25:.8).userData.creatureHead=true;
-    horn(body,0x4a642b,[[s*13,83.2,18.2],[s*8,81.5,22],[s*3,81.8,22]],.48).userData.creatureHead=true;
-  }
-  // A belt wraps the waist; the crossed harness sits on the chest surface.
-  const belt=add(body,sculpt('goblin-belt',[[0,36,0,18,4,14.5]],.5,22),0x3c3429);
-  belt.userData.costume=true;
-  if(elite)for(const s of [-1,1])horn(body,0x493623,[[s*15,73,9],[s*11,63,15],[s*6,49,15],[s*8,39,13]],2.2);
-  plate(body,0xb5a06a,0,37,14.8,8,6,2.2);plate(body,0x423727,0,37,16.2,4,3,1);
+  horn(body,0x3c5027,[[-6,82.3,21.4],[0,81.7,22],[6,82.3,21.4]],.48).userData.creatureHead=true;
+  plate(body,0xba9653,0,36.5,13,7,5.5,1.6);
+  plate(body,0x3b2d1d,0,36.5,14.1,3.6,2.5,.7);
   if(elite){
-    add(body,sculpt('goblin-breastplate',[[0,66,12,16,10,5],[0,53,15,12,9,4]],2,26),steel);
-    horn(body,0xb4a370,[[-11,66,17],[0,59,20],[11,66,17]],1.2);
-    const scar=horn(body,0x425d2c,[[12,101,16],[10,98,19],[8,96,20]],.55);scar.userData.creatureHead=true;
-    const crest=add(body,sculpt('goblin-veteran-crest',[[0,111,-4,5,5,13],[0,114,-6,4,6,10]],2,22),0x314433);crest.userData.creatureHead=true;
+    // Adult outline comes from the heavier anatomy, armor and longer tusks.
+    // A little crown-shaped lump weakened that silhouette instead of aging it.
+    for(const [i,arm]of arms.entries()){
+      const side=i?1:-1;
+      add(arm,sculpt('goblin-mesh-pauldron',[[0,2,0,12,6,10],[0,-2,-3,11,6,8]],2,24),0x647870,0,0,0,1,1,1,true);
+      horn(arm,0xc8b988,[[side*5,3,-3],[side*8,11,-3],[side*10,15,-4]],2.1);
+    }
+    horn(body,0x425c29,[[11,101,14],[9,98,18],[7,96,18.5]],.45).userData.creatureHead=true;
   }
-  body.scale.set(1.08,.90,1.04);
+  body.scale.set(1.04,.9,1.04);
   body.userData.sculptedCreature='goblin';body.userData.eliteAnatomy=elite;
-  void primary;
 }
 
 const beasts=new Set<CreatureShape>(['boar','cat','jackal','hound','ram','salamander','drake','wyvern','dragon']);
 const reptiles=new Set<CreatureShape>(['salamander','drake','wyvern','dragon','serpent']);
+function continuousHumanoid(body:T.Group,shape:HumanoidShape,arms:T.Group[],legs:T.Group[],elite:boolean,boss:boolean,primary:number,accent:number):void {
+  const f=HUMANOID_FORMS[shape],heavy=f.width>20,mass=elite&&!boss?1.14:1,hood=shape==='rogue'||shape==='cultist';
+  for(const part of [...body.children])if((part instanceof T.Mesh||part.userData.faceEye)&&!part.userData.bossOrnament&&!part.userData.creatureShield)remove(body,part);
+  arms.forEach(clearRigid);for(const leg of legs){clearRigid(leg);const knee=leg.getObjectByName('creature-knee');if(knee)clearRigid(knee);}
+  const volumes:Volume[]=[
+    [0,57,0,f.width*mass,22,heavy?19:13],[0,39,1,f.width*.87*mass,12,heavy?18:12],
+    [0,73,0,(heavy?15:10)*mass,10,10],[0,81,1,heavy?12:8,9,9],
+    [0,f.headY,1,f.headX*mass,f.headHeight,hood?18:16],
+    [0,f.headY-10,8,f.headX*.78*mass,8,11],
+  ];
+  if(!hood&&shape!=='knight')volumes.push([0,f.eyeY-8,f.faceZ+3,heavy?7:4.2,3.5,4],
+    [-f.eyeX,f.eyeY,f.faceZ-3,heavy?7:5,4.3,4],[f.eyeX,f.eyeY,f.faceZ-3,heavy?7:5,4.3,4]);
+  if(hood){volumes.push([0,elite&&shape==='cultist'?111:105,-4,f.headX*.73,13,14],
+    [0,88,12,12,10,8]);}
+  // The smith's beard/chin is part of the same head skin, rather than a rigid
+  // apron-shaped face piece left behind when the head turns or attacks.
+  if(shape==='smith')volumes.push([0,82,10,13,10,10],[0,76,11,8,7,7]);
+  if(shape==='cultist')volumes.push([0,28,-2,17*mass,15,13],[0,50,-7,19*mass,19,12]);
+  if(shape==='harpy')volumes.push([0,110,-5,17,9,15],[-14,102,-5,8,16,12],[14,102,-5,8,16,12],
+    [0,121,-8,6,10,7],[-10,116,-7,6,9,8],[10,116,-7,6,9,8]);
+  for(const [i,arm]of arms.entries()){
+    const side=i?1:-1,x=arm.position.x;
+    volumes.push([x,67,0,(heavy?13:9)*mass,11,heavy?12:9],
+      [x+side*2,56,1,(heavy?10:7)*mass,11,heavy?10:7],
+      [x+side*3,45,2,(heavy?9:6)*mass,9,heavy?8:6],
+      [x+side*4,40,3,(heavy?9:6)*mass,6,heavy?8:6],
+      [x-side*1,40,8,heavy?4:2.8,4,3]);
+  }
+  for(const leg of legs){const x=leg.position.x;
+    volumes.push([x,29,1,heavy?10:8,11,heavy?9:7],
+      [x,15,2,heavy?8.5:6.5,9,heavy?8:6.5],[x,6,7,heavy?12:8,5.5,heavy?14:11]);}
+  if(elite&&!boss){volumes.push([-f.width,68,-1,12,10,11],[f.width,68,-1,12,10,11]);
+    if(shape==='cultist')volumes.push([0,122,-6,7,13,9]);
+    if(shape==='imp'||shape==='gargoyle'){
+      volumes.push([0,62,12,17,17,7],[0,78,-9,17,16,12],[0,113,-4,9,12,9],
+        [-12,112,-3,7,9,7],[12,112,-3,7,9,7]);
+    }
+    if(shape==='harpy')volumes.push([0,128,-10,10,15,9],[-14,118,-9,8,14,8],[14,118,-9,8,14,8],
+      [0,71,-10,23,15,13],[-18,80,-4,12,13,10],[18,80,-4,12,13,10]);
+    if(shape==='knight')volumes.push([0,67,14,20,17,7],[0,113,-4,8,16,13]);
+  }
+  if(shape==='knight'){
+    // Plate relief is welded into the deformable surface; flexible joints stay
+    // narrower, so armour reads as fitted equipment instead of a smooth suit.
+    volumes.push([0,63,12,17*mass,14,6],[0,49,11,15*mass,7,5],[0,106,-1,4,13,17]);
+    for(const [i,arm]of arms.entries()){const s=i?1:-1,x=arm.position.x;
+      volumes.push([x,72,0,12*mass,7,12],[x+s*3,47,3,8*mass,7,8]);}
+    for(const leg of legs)volumes.push([leg.position.x,20,7,7*mass,10,5]);
+  }
+  if(shape==='rogue'&&elite&&!boss)volumes.push([0,61,12,19,16,5],[-18,66,-9,11,13,7],[18,66,-9,11,13,7]);
+  if(shape==='ogre')for(const side of [-1,1])volumes.push([side*26,98,0,10,6,4],[side*33,103,0,5,4,3]);
+  const surface=add(body,sculpt('humanoid-continuous-body-'+shape+'-'+elite+'-'+boss,volumes,3.2,48),primary);
+  surface.name='humanoid-continuous-surface';surface.userData.continuousSkin=true;
+  surface.userData.humanoid={shape,primary,accent,mass,heavy};
+  if(shape==='ogre'&&!boss||shape==='imp')for(const s of [-1,1])horn(body,0xe1d3ae,
+    [[s*(heavy?8:5),f.eyeY-13,f.faceZ+3],[s*(heavy?10:6),f.eyeY-9,f.faceZ+6],[s*(heavy?9:5),f.eyeY-5,f.faceZ+5]],heavy?2.4:1.4).userData.creatureHead=true;
+  if(shape==='imp'||shape==='gargoyle'||shape==='knight')for(const s of [-1,1])horn(body,shape==='gargoyle'?primary:accent,
+    [[s*13,f.headY+13,-1],[s*23,f.headY+(elite?31:26),-8],[s*18,f.headY+(elite?36:29),-14]],elite?3.8:2.8).userData.creatureHead=true;
+  if(shape==='harpy')for(const leg of legs){const knee=leg.getObjectByName('creature-knee');if(knee)for(const toe of [-1,0,1])horn(knee,0xbda985,[[toe*4,-17,14],[toe*4,-19,20],[toe*4,-20,24]],1.2);}
+  const frame=new T.Group();frame.name='humanoid-head-frame';frame.userData.creatureHead=true;body.add(frame);
+  body.userData.sculptedCreature=shape;body.userData.creatureStyle='cover-2026-10-03';body.userData.eliteAnatomy=elite&&!boss;
+}
+/** Connected mammal anatomy: shoulder/neck/skull/muzzle, ears and four legs.
+ * The volumes only author the shared baked surface; the runtime sees one skin. */
+function continuousMammal(body:T.Group,shape:MammalShape,legs:T.Group[],elite:boolean,boss:boolean,primary:number,accent:number):void {
+  const f=MAMMAL_FORMS[shape],veteran=elite&&!boss,mass=boss?1.22:veteran?1.17:1;
+  for(const part of [...body.children])if((part instanceof T.Mesh||part.userData.faceEye)&&!part.userData.bossOrnament)remove(body,part);
+  legs.forEach(clearRigid);
+  const tail=body.children.filter((o):o is T.Group=>o instanceof T.Group&&o.position.z<-15&&o.position.x===0&&o.position.y>15);
+  tail.forEach(clearRigid);
+  const volumes:Volume[]=[
+    [0,35,-21,f.width*.86*mass,19*mass,f.depth],
+    [0,39,12,f.chest*mass,(f.back-39)*mass,29],
+    [0,31,-1,f.width*.75*mass,15,f.depth],
+    [0,44,28,f.skull*.9*mass,19*mass,19],
+    [0,46,32,f.skull*mass,18*mass,20],
+    [0,36,shape==='cat'?43:49,f.muzzle*mass,shape==='boar'?11:8,shape==='cat'?12:19],
+    [0,36,f.snout,f.muzzle*.85*mass,shape==='boar'?8:6,shape==='cat'?9:11],
+  ];
+  if(shape!=='boar')volumes.push([0,37,f.snout+9,shape==='cat'?3.8:5.2,shape==='cat'?3:4.5,3.4]);
+  for(const side of [-1,1]){
+    volumes.push([side*f.eyeX, f.eyeY-1,f.eyeZ,6.2*mass,6.5,8],
+      [side*(f.skull-4),59,25,6,5,5],
+      [side*(f.skull-2),62+f.ear*.25,24,5.3,f.ear*.6,3.2,side*-.18],
+      [side*(f.skull-2),64+f.ear*.65,23,3.3,f.ear*.45,2.5,side*-.12]);
+  }
+  for(const leg of legs){
+    const x=leg.position.x,z=leg.position.z,fore=z>0,width=(shape==='jackal'?6:shape==='cat'?7:9)*mass;
+    volumes.push([x,30,z,width*1.35,12,width*1.4],
+      [x,20,z+(fore?-1:2),width*.84,12,width*.8],
+      [x,9,z+4,width*.68,8,width*.68],
+      [x,5,z+10,width*1.1,4.5,11.5]);
+  }
+  for(const group of tail){const i=tail.indexOf(group),r=(shape==='ram'?6:shape==='hound'?9:10)*(1-i*.12);
+    volumes.push([0,group.position.y,group.position.z,r,r,shape==='ram'?4:12]);}
+  if(shape==='boar'||shape==='hound')volumes.push([0,f.back-1,-16,7*mass,8,24],[0,f.back+3,2,6*mass,8,17]);
+  if(veteran||boss)volumes.push([0,51,14,f.chest*mass,18,26],
+    [-f.skull*.8,48,24,10*mass,15,17],[f.skull*.8,48,24,10*mass,15,17]);
+  if((veteran||boss)&&['jackal','cat','hound'].includes(shape))for(const side of [-1,1])
+    volumes.push([side*f.skull*.95,42,32,11*mass,15,13],
+      [side*(f.skull+3),39,22,6,10,13]);
+  if(shape==='ram')volumes.push([0,27,49,5.5,11,5]);
+  // Lips are shaded on the jaw skin. A narrow Boolean crease made internal
+  // islands after simplification, while a deep cut punctured the nasal pad.
+  const cuts:Volume[]=[];
+  if(f.hoof)cuts.push(...legs.map(leg=>[leg.position.x,3,leg.position.z+17,.8,3.5,7] as Volume));
+  const surface=add(body,sculpt('mammal-continuous-body-'+shape+'-'+veteran+'-'+boss,volumes,3,48,cuts),primary);
+  surface.name='mammal-continuous-surface';surface.userData.continuousSkin=true;
+  surface.userData.mammal={shape,primary,accent,veteran,boss};
+  // Intentional keratin belongs on the moving head. Flesh/ears stay in the skin.
+  if(shape==='boar'&&!boss)for(const s of [-1,1])horn(body,0xe2d1a1,
+    [[s*13*mass,32,56],[s*(veteran||boss?26:23)*mass,40,66],[s*23*mass,veteran||boss?63:53,61]],veteran||boss?4.7:3.5).userData.creatureHead=true;
+  if(shape==='ram')for(const s of [-1,1])horn(body,0xd9cba6,
+    [[s*15,60,25],[s*27*mass,67,15],[s*33*mass,57,10],[s*30*mass,44,20],[s*22*mass,46,31]],veteran||boss?6:4.5).userData.creatureHead=true;
+  if(shape==='cat')for(const s of [-1,1])for(const row of [-1,1])horn(body,0xbdb8a4,
+    [[s*8,35+row*1.5,51],[s*16,36+row*2.2,50],[s*23,37+row*3,46]],.25).userData.creatureHead=true;
+  if(veteran&&['jackal','cat','hound'].includes(shape))for(const s of [-1,1])horn(body,0xded2af,
+    [[s*f.muzzle*.85,34,f.snout-4],[s*f.muzzle,31,f.snout+2],[s*f.muzzle*.85,27,f.snout+1]],1.5).userData.creatureHead=true;
+  // Keep a visible attachment pivot even when every fleshy head part is skinned.
+  const frame=new T.Group();frame.name='mammal-head-frame';frame.userData.creatureHead=true;body.add(frame);
+  body.userData.sculptedCreature=shape;body.userData.creatureStyle='cover-2026-10-03';body.userData.eliteAnatomy=veteran;
+}
+/** Closed curved membrane with a scalloped trailing edge and painted shading. */
+function reptileMembrane(primary:number,accent:number):T.BufferGeometry{
+  const key='profile-reptile-wing-'+primary+'-'+accent,cached=cache.get(key);if(cached)return cached;
+  const outline=[[0,0],[24,24],[62,4],[52,-3],[43,-9],[34,-19],[27,-13],[18,-26],[10,-21],[4,-13],[0,-6]];
+  const curve=new T.CatmullRomCurve3(outline.map(([x,y])=>new T.Vector3(x,y,0)),true,'centripetal');
+  const edge=curve.getPoints(66).slice(0,-1),count=edge.length,layer=1+count*2,positions:number[]=[],colors:number[]=[],indices:number[]=[];
+  const rootColor=new T.Color(primary).multiplyScalar(.8),tipColor=new T.Color(accent),center=new T.Vector3(23,1,0);
+  for(const side of [1,-1]){
+    positions.push(23,1,-11+side*2);colors.push(rootColor.r,rootColor.g,rootColor.b);
+    for(const t of [.55,1])for(const point of edge){
+      const p=center.clone().lerp(point,t),z=-p.x*.47+Math.max(p.y,0)*.08+side*(t<1?2: .35);
+      positions.push(p.x,p.y,z);const c=rootColor.clone().lerp(tipColor,T.MathUtils.smoothstep(p.x,10,64)*.6).multiplyScalar(side>0?1:.88);colors.push(c.r,c.g,c.b);
+    }
+  }
+  for(let side=0;side<2;side++)for(let n=0;n<count;n++){
+    const off=side*layer,a=off+1+n,b=off+1+(n+1)%count,c=a+count,d=b+count;
+    indices.push(...(side?[off,a,b,a,c,d,a,d,b]:[off,b,a,a,d,c,a,b,d]));
+  }
+  for(let n=0;n<count;n++){const a=1+count+n,b=1+count+(n+1)%count;indices.push(a,a+layer,b+layer,a,b+layer,b);}
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(positions,3));g.setAttribute('color',new T.Float32BufferAttribute(colors,3));g.setIndex(indices);g.computeVertexNormals();shared.add(g);cache.set(key,g);return g;
+}
+function reptileWings(wings:T.Group[],primary:number,accent:number):void{
+  for(const wing of wings){
+    clearRigid(wing);add(wing,reptileMembrane(primary,accent),0xffffff);
+    add(wing,sweepSurface('profile-reptile-wing-arm',[[0,0,0,3.4,3.4],[12,17,-6,3.3,3.3],[24,24,-10,3,3],[43,18,-20,2.2,2.2],[62,4,-29,.8,.8]],20),primary);
+    for(const [n,end]of [[34,-19],[18,-26]].entries())add(wing,sweepSurface('profile-reptile-wing-finger-'+n,[[24,24,-10,2.2,2.2],[(24+end[0])*.5,5,-17,1.7,1.7],[end[0],end[1],-end[0]*.47, .65,.65]],14),primary);
+  }
+}
+function continuousReptile(body:T.Group,shape:ReptileShape,legs:T.Group[],wings:T.Group[],elite:boolean,boss:boolean,primary:number,accent:number):void{
+  const f=REPTILE_FORMS[shape],low=shape==='salamander',mass=boss?1.2:elite?1.16:1,y=f.y;
+  for(const part of [...body.children])if((part instanceof T.Mesh||part.userData.faceEye)&&!part.userData.bossOrnament)remove(body,part);
+  legs.forEach(clearRigid);
+  const tail=body.children.filter((o):o is T.Group=>o instanceof T.Group&&o.position.x===0&&o.position.z<=-20&&o.position.y>0);
+  tail.forEach(clearRigid);
+  const volumes:Volume[]=[
+    [0,y,-20,f.width*.83*mass,low?13:21,31],[0,y+4,9,f.width*mass,low?16:25,30],
+    [0,y+7,27,f.skull*.85*mass,low?12:18,20],[0,y+10,33,f.skull*mass,low?13:18,20],
+    [0,y+3,47,f.skull*.75*mass,9,22],[0,y+4,f.snout,f.skull*.62*mass,7,13],
+    [0,y-5,52,f.skull*.68*mass,5,18],
+  ];
+  for(const s of [-1,1])volumes.push([s*f.eyeX,f.eyeY-1,f.eyeZ,7*mass,6,7],
+    [s*(f.skull-3),y+16,24,6*mass,7,9]);
+  for(const leg of legs){const x=leg.position.x,z=leg.position.z,s=Math.sign(x),w=f.legWidth*mass;
+    volumes.push([x,y-4,z,w*1.4,low?8:14,w*1.45],
+      [x+s*(low?5:0),low?12:20,z+3,w,low?7:12,w],
+      [x+s*(low?11:0),5,z+8,w*1.2,4.5,12]);
+    for(const toe of [-1,0,1])volumes.push([x+s*(low?11:0)+toe*4,4,z+17,3.4,3,5.5]);
+  }
+  for(const [i,t]of tail.entries()){const r=(low?15:10)*mass*(1-i*.12);volumes.push([0,t.position.y,t.position.z,r,r,15]);}
+  for(let n=0;n<6;n++){
+    const z=-27+n*11,top=f.back+(boss?5:elite?6:0);
+    volumes.push([0,top-4,z,4.7*mass,elite&&!boss?12:8,7],[0,top+(elite&&!boss?6:3),z-2,2.7*mass,elite&&!boss?9:6,4]);
+  }
+  if(elite||boss)volumes.push([-f.skull*.85,y+10,25,10*mass,13,14],[f.skull*.85,y+10,25,10*mass,13,14]);
+  // A wide open cavity leaves upper/lower lips and cheek walls connected. A
+  // solid muzzle folded by a jaw bone turned its front triangles inside out.
+  const mouth:Volume[]=[[0,y-1,61,f.skull*.54*mass,3.1,23]];
+  const surface=add(body,sculpt('reptile-continuous-body-'+shape+'-'+elite+'-'+boss,volumes,3.5,48,mouth),primary);
+  surface.name='reptile-continuous-surface';surface.userData.continuousSkin=true;surface.userData.reptile={shape,primary,accent,mass};
+  // Adult winged bosses already have long authored horns on this head joint.
+  // A second generic pair intersects their roots and leaves pale slivers.
+  if(!(boss&&(shape==='dragon'||shape==='wyvern')))for(const s of [-1,1])horn(body,0xd7c79b,[[s*(f.skull-4),y+20,26],[s*(f.skull+5),y+(elite||boss?35:29),17],[s*(f.skull+9),y+(elite||boss?39:32),10]],elite||boss?4:2.8).userData.creatureHead=true;
+  const frame=new T.Group();frame.name='reptile-head-frame';frame.userData.creatureHead=true;body.add(frame);
+  body.userData.sculptedCreature=shape;body.userData.creatureStyle='cover-2026-10-03';body.userData.eliteAnatomy=elite&&!boss;
+  reptileWings(wings,primary,accent);
+}
+function continuousBird(body:T.Group,shape:'bat'|'owl',legs:T.Group[],wings:T.Group[],elite:boolean,boss:boolean,primary:number,accent:number):void{
+  const owl=shape==='owl',mass=elite&&!boss?1.16:1;
+  for(const part of [...body.children])if((part instanceof T.Mesh||part.userData.faceEye)&&!part.userData.bossOrnament)remove(body,part);
+  legs.forEach(clearRigid);
+  const volumes:Volume[]=[[0,40,-2,(owl?23:17)*mass,25,17],[0,53,3,17*mass,16,15],
+    [0,65,8,(owl?24:20)*mass,18,18],[0,56,20,12,8,10]];
+  for(const side of [-1,1]){
+    if(!owl)volumes.push([side*14,81,3,7,15,4],[side*17,91,2,4,10,3]);
+    else volumes.push([side*20,79,1,6,10,5],[side*23,85,0,3,7,3]);
+    volumes.push([side*10,19,1,5,10,5],[side*10,11,7,7,3.5,8]);
+  }
+  if(elite&&!boss){
+    for(const side of [-1,1])volumes.push([side*21,57,-5,11,15,13],[side*18,74,-3,9,10,10]);
+    volumes.push([0,83,-4,7,12,6],[-12,82,-4,5,11,5],[12,82,-4,5,11,5]);
+  }
+  const surface=add(body,sculpt('bird-continuous-body-'+shape+'-'+elite,volumes,3,44,[],{top:primary,bottom:accent}),0xffffff);
+  surface.name='bird-continuous-surface';surface.userData.continuousSkin=true;
+  paintSurfaceFace(surface,{x:owl?10:8.5,y:66,z:12,width:owl?5.7:4.2,height:owl?6.4:3.2,kind:owl?'owl':'flesh',accent,veteran:elite&&!boss});
+  if(owl)horn(body,0xb59a53,[[0,60,27],[0,54,34],[0,49,31]],4).userData.creatureHead=true;
+  else{
+    const nose=add(body,sculpt('bat-nose-pad',[[0,59,28,4,3,3]],.8,20),accent);nose.userData.creatureHead=true;
+    for(const s of [-1,1])horn(body,0xdacda3,[[s*5,55,28],[s*6,51,30],[s*5,49,29]],1.2).userData.creatureHead=true;
+    reptileWings(wings,primary,accent);
+  }
+  for(const leg of legs)for(const toe of [-1,0,1])horn(leg,0xb9a274,[[toe*3,-10,8],[toe*3,-11,13],[toe*3,-12,15]],.9);
+  const frame=new T.Group();frame.userData.creatureHead=true;body.add(frame);
+  body.userData.sculptedCreature=shape;body.userData.creatureStyle='cover-2026-10-03';body.userData.eliteAnatomy=elite&&!boss;
+}
 function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],primary:number,accent:number,elite:boolean,boss:boolean):void {
   const wider=elite&&!boss?1.25:1;
   if(shape==='flame'){
@@ -464,11 +664,20 @@ function organic(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
       for(const side of [-1,1]){
         add(body,sculpt('beetle-wingcase-'+side+'-'+elite+'-'+primary+'-'+accent,[[side*13,36,-25,17*wider,21,31],[side*12,35,-8,16*wider,18,22]],2.3,30,[],
           {top:accent,bottom:primary}),0xffffff);
-        horn(body,primary,[[side*12,23,42],[side*16,22,49],[side*9,22,53]],3);
+        horn(body,primary,[[side*14,20,40],[side*18,18,49],[side*9,18,55]],2.8);
       }
       horn(body,new T.Color(primary).multiplyScalar(.6).getHex(),[[0,51,-47],[0,56,-28],[0,49,0]],.7);
     }
     insectAppendages(body,shape,legs,primary,accent,elite&&!boss);
+  }else if(shape==='wisp'){
+    // Two overlapping crystal/cone bodies hid the eyes from the game camera.
+    // Keep one deliberate faceted crystal; rings and satellites stay below or
+    // behind the face instead of acting as a second skull in front of it.
+    for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.x===0&&part.position.z===0
+      &&[22,45].includes(part.position.y)&&part.geometry.type!=='TorusGeometry')remove(body,part);
+    let crystal=cache.get('profile-wisp-core');
+    if(!crystal){crystal=new T.OctahedronGeometry(1,0);shared.add(crystal);cache.set('profile-wisp-core',crystal);}
+    const surface=add(body,crystal,primary,0,40,0,20,38,18);surface.userData.faceSurface=true;
   }else{
     // Rebuild the principal soft surfaces from anatomical lobes, retaining each
     // family's authored horns, clothing, scales, wings and skeleton.
@@ -651,12 +860,12 @@ function veteran(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     for(const s of [-1,1]){
       add(body,sculpt('veteran-bug-carapace-'+s,[[s*19,42,-18,16,12,29],[s*20,38,6,13,11,17]],2,26),accent);
       for(let n=0;n<3;n++)horn(body,bone,[[s*25,37,-26+n*18],[s*38,46,-29+n*18],[s*43,50,-34+n*18]],4);
-      horn(body,bone,[[s*12,29,38],[s*20,21,52],[s*13,14,63]],5);
+      horn(body,bone,[[s*17,20,38],[s*25,14,52],[s*17,11,63]],5);
     }
   }else if(shape==='mushroom'){
     const cap=body.children.find(o=>o instanceof T.Mesh&&o.position.y===70);if(cap)cap.scale.multiply(new T.Vector3(1.12,1.3,1.12));
     for(const s of [-1,1])add(body,sculpt('veteran-fungus-'+s,[[s*25,38,-3,17,9,15],[s*29,55,-8,16,10,15]],2,24),accent);
-    add(body,sculpt('veteran-fungus-beard',[[0,25,17,14,12,5],[0,15,15,9,7,5]],1.7,22),0xc8b985);
+    add(body,sculpt('veteran-fungus-beard',[[0,19,17,14,10,5],[0,10,15,9,7,5]],1.7,22),0xc8b985);
   }else if(shape==='slime'){
     for(const s of [-1,1])add(body,sculpt('veteran-slime-lobe-'+s,[[s*20,22,0,16,21,22]],2,24),primary);
     for(let n=0;n<3;n++)horn(body,accent,[[(n-1)*13,42,-3],[(n-1)*16,57,-5],[(n-1)*17,61,-9]],4);
@@ -722,7 +931,6 @@ function veteran(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],
     }else{
       for(const s of [-1,1]){
         const crag=add(body,sculpt('veteran-stone-crest-'+s,[[s*13,124,-3,12,14,11],[s*18,136,-5,8,12,8]],1.5,22),primary);crag.userData.creatureHead=true;
-        horn(body,0x383d36,[[s*9,124,15],[s*6,116,20],[s*9,108,21]],.8).userData.creatureHead=true;
       }
       add(body,sculpt('veteran-giant-core-guard',[[0,77,23,26,12,7],[0,53,24,22,9,7]],2,24),primary);
       for(const s of [-1,1])horn(body,accent,[[s*4,77,29],[s*13,85,27],[s*19,91,22]],1.7);
@@ -774,7 +982,10 @@ function bossAnatomy(id:string,body:T.Group,shape:CreatureShape,arms:T.Group[],l
       add(leg,sculpt('boss-root-foot-'+s,[[0,-13,4,12,20,14],[s*6,-27,12,16,7,21],[s*13,-28,21,12,5,18]],2.5,26),0x5b4731);
     }
   }else if(shape==='scorpion'||shape==='spider'){
-    const shell=principal(primary);
+    // The vertex-painted body is white, while its dorsal plates use primary.
+    // Selecting by material colour replaced a back plate with a second entire
+    // carapace, hiding the fitted eyes on the original face underneath it.
+    const shell=body.children.find(o=>o instanceof T.Mesh&&o.userData.faceSurface) as T.Mesh|undefined;
     if(shell){shell.geometry=sculpt('boss-carapace-'+id,shape==='spider'
       ?[[0,30,-32,35,28,37],[0,24,1,25,18,23],[0,23,30,20,14,18]]
       :[[0,26,-27,36,22,32],[0,26,5,28,19,24],[0,25,29,21,15,19]],4,34);
@@ -824,12 +1035,101 @@ function bossAnatomy(id:string,body:T.Group,shape:CreatureShape,arms:T.Group[],l
   body.userData.bossAnatomy=id;
 }
 
+/** Seat remaining face pigment on the actual existing front-facing surface. */
+function fittedGiantSkull(body:T.Group,shape:CreatureShape,primary:number,id:string):void{
+  if(!['golem','sand','scrap'].includes(shape)||id==='lava-golem')return;
+  const skull=body.children.find(o=>o instanceof T.Mesh&&o.position.x===0&&o.position.y===107&&o.position.z===0) as T.Mesh|undefined;
+  if(!skull)return;
+  // Keep intentional crags / boss fittings; replace the old forehead blocks and
+  // protruding nose that hid the fitted eyes under an unrelated angular mask.
+  for(const part of [...body.children])if(part instanceof T.Mesh&&part!==skull&&part.userData.creatureHead&&!part.userData.bossOrnament
+    &&Math.abs(part.position.x)<=16&&part.position.y>=92&&part.position.y<=124&&part.position.z>8)remove(body,part);
+  skull.geometry=sculpt('fitted-giant-skull-'+shape,[[0,110,0,21,23,19],[0,97,8,18,11,14],
+    [-9,114,14,8,5,7],[9,114,14,8,5,7],
+    [-10,119,15,11,3,5,-.12],[10,119,15,11,3,5,.12],[0,103,21,5,5,6]],2.4,38);
+  skull.position.set(0,0,0);skull.scale.set(1,1,1);skull.material=pigment(primary);skull.userData.faceSurface=true;skull.userData.creatureHead=true;
+  for(const eye of body.children.filter(o=>o.userData.faceEye))eye.position.y=114;
+}
+const fittedFaceDepths=new WeakMap<T.BufferGeometry,Map<string,number>>();
+function remainingSurfaceFace(body:T.Group,shape:CreatureShape,accent:number):void{
+  const eyes=body.children.filter(o=>o.userData.faceEye);if(eyes.length!==2)return;
+  const eye=eyes[0],y=shape==='spider'||shape==='beetle'?27:eye.position.y,x=Math.abs(eye.position.x);
+  let surface=body.children.find(o=>o instanceof T.Mesh&&o.userData.faceSurface) as T.Mesh|undefined;
+  if(!surface)surface=body.children.find(o=>o instanceof T.Mesh&&o.position.x===0&&o.position.z===0&&o.position.y===(shape==='mushroom'?30:shape==='slime'?22:shape==='wisp'?45:107)) as T.Mesh|undefined;
+  if(!surface)return;
+  const bug=['scorpion','beetle','spider'].includes(shape),soft=['slime','mushroom'].includes(shape),stone=['golem','sand','scrap','treant','wisp','flame'].includes(shape);
+  const width=bug?4.3:soft?3.2:stone?4:4.5,height=bug?3.8:soft?4.1:stone?2.5:3;
+  surface.updateMatrix();const shell=new T.Mesh(surface.geometry);shell.matrix.copy(surface.matrix);shell.matrixAutoUpdate=false;shell.updateMatrixWorld(true);
+  let depths=fittedFaceDepths.get(surface.geometry);if(!depths){depths=new Map();fittedFaceDepths.set(surface.geometry,depths);}
+  const key=[x,y,width,height,...surface.matrix.elements].join(','),ray=new T.Raycaster(),direction=new T.Vector3(0,0,-1);
+  let depth=depths.get(key);
+  if(depth===undefined){
+    // Fit the entire aperture, not just its centre. A centre-only depth clipped
+    // whites/pupils into jagged triangles on rounded heads. Shared geometry
+    // caches these probes once, rather than raycasting for every spawned mob.
+    depth=Infinity;
+    for(let n=0;n<9;n++){
+      const dx=n?Math.cos((n-1)*Math.PI/4)*width:0,dy=n?Math.sin((n-1)*Math.PI/4)*height:0;
+      ray.set(new T.Vector3(x+dx,y+dy-dx*.1,150),direction);
+      const hit=ray.intersectObject(shell,false)[0];if(hit)depth=Math.min(depth,hit.point.z-2);
+    }
+    depths.set(key,depth);
+  }
+  (shell.material as T.Material).dispose();if(!Number.isFinite(depth))return;
+  paintSurfaceFace(surface,{x,y,z:depth,width,height,kind:bug?'bug':soft?'soft':stone?'stone':shape==='serpent'?'reptile':'flesh',accent,veteran:!!body.userData.eliteAnatomy,lightEyes:shape==='spider'||shape==='beetle'});
+  eyes.forEach(o=>remove(body,o));
+}
+function smallContinuousSurface(body:T.Group,shape:CreatureShape,legs:T.Group[],primary:number,accent:number,elite:boolean,boss:boolean):void{
+  const mass=elite&&!boss?1.17:1;
+  if(shape==='slime'){
+    for(const part of [...body.children])if(part instanceof T.Mesh&&!part.userData.bossOrnament)remove(body,part);
+    const volumes:Volume[]=[[0,18,0,28*mass,18,28],[0,30,-3,20*mass,19,22],[-19*mass,7,3,15,6,21],[19*mass,7,3,14,6,21]];
+    if(elite&&!boss)volumes.push([0,47,-5,10,11,10],[-19,29,-8,14,17,17],[19,29,-8,14,17,17]);
+    const surface=add(body,sculpt('continuous-slime-'+elite,volumes,4,38,[],{top:primary,bottom:accent}),0xffffff);
+    surface.name='small-creature-continuous-surface';surface.userData.faceSurface=true;
+    // The body already squashes/breathes through its established animation.
+    surface.material=new T.MeshStandardMaterial({color:0xffffff,vertexColors:true,roughness:.5});surface.userData.ownedMaterial=true;
+  }else if(shape==='mushroom'){
+    for(const part of [...body.children])if(part instanceof T.Mesh&&part.position.y===30&&part.position.z===0)remove(body,part);
+    legs.forEach(clearRigid);
+    const volumes:Volume[]=[[0,32,0,17*mass,22,16],[0,19,1,19*mass,12,17],[0,47,0,12*mass,12,12]];
+    for(const leg of legs)volumes.push([leg.position.x,11,2,8,10,8],[leg.position.x,5,8,9,4.5,12]);
+    const surface=add(body,sculpt('continuous-fungus-stem-'+elite,volumes,3,40,[],{top:0xdacda6,bottom:0xa59671}),0xffffff);
+    surface.name='small-creature-continuous-surface';surface.userData.faceSurface=true;
+  }else if(shape==='serpent'||shape==='worm'){
+    const segments=body.children.filter((o):o is T.Group=>o instanceof T.Group&&!o.userData.faceEye&&o.position.z<=32&&o.position.x!==0);
+    // The first segment has x=0; the explicit original sequence starts at z=32.
+    const first=body.children.find((o):o is T.Group=>o instanceof T.Group&&o.position.z===32&&o.position.y===36);if(first)segments.unshift(first);
+    if(segments.length!==9)throw Error('Missing original serpent/worm segment anchors');
+    for(const group of segments)clearRigid(group);
+    for(const part of [...body.children])if(part instanceof T.Mesh&&!part.userData.bossOrnament&&part.userData.creatureSegment===undefined&&!part.userData.creatureHead)remove(body,part);
+    if(shape==='serpent')for(const part of [...body.children])if(part instanceof T.Mesh&&part.userData.faceSurface)remove(body,part);
+    const volumes:Volume[]=segments.map((s,n)=>[s.position.x,s.position.y,s.position.z,(shape==='worm'?25:22)*mass*(1-n*.065),18*mass*(1-n*.04),20]);
+    if(shape==='serpent'){
+      volumes.push([0,44,42,22*mass,14,24],[0,41,60,16*mass,8,16]);
+      if(elite&&!boss)volumes.push([-23,38,21,14,23,16],[23,38,21,14,23,16],
+        [0,45,10,12,22,19],[0,39,-5,8,19,12]);
+    }
+    else volumes.push([0,36,39,25*mass,21*mass,22]);
+    const cuts:Volume[]=shape==='worm'?[[0,36,59,17,17,16]]:[];
+    const surface=add(body,sculpt('continuous-segment-body-'+shape+'-'+elite+'-'+boss+'-'+primary+'-'+accent,volumes,4,48,cuts,{top:primary,bottom:accent}),0xffffff);
+    surface.name='small-creature-continuous-surface';surface.userData.segmentSkin=true;surface.userData.faceSurface=true;
+  }
+}
 export function sculptCreatureSurfaces(body:T.Group,shape:CreatureShape,arms:T.Group[],legs:T.Group[],wings:T.Group[],primary:number,accent:number,elite:boolean,boss:boolean,id:string):void {
-  if(shape==='goblin')goblin(body,arms,legs,primary,elite&&!boss);
+  if(shape==='goblin')continuousGoblin(body,arms,legs,elite&&!boss);
+  else if(isMammalShape(shape))continuousMammal(body,shape,legs,elite,boss,primary,accent);
+  else if(isHumanoidShape(shape))continuousHumanoid(body,shape,arms,legs,elite,boss,primary,accent);
+  else if(isReptileShape(shape))continuousReptile(body,shape,legs,wings,elite,boss,primary,accent);
+  else if(shape==='bat'||shape==='owl')continuousBird(body,shape,legs,wings,elite,boss,primary,accent);
   else {organic(body,shape,arms,legs,primary,accent,elite,boss);coverStyle(body,shape,primary,accent,elite);if(elite&&!boss)veteran(body,shape,arms,legs,primary,accent);}
   if(shape==='goblin')body.userData.creatureStyle='cover-2026-10-03';
-  if(boss)bossAnatomy(id,body,shape,arms,legs,primary,accent);
+  if(boss&&!isMammalShape(shape)&&!isHumanoidShape(shape)&&!isReptileShape(shape))bossAnatomy(id,body,shape,arms,legs,primary,accent);
   birdPlumage(body,wings,shape,primary,accent,elite);
+  if(shape==='imp'||shape==='gargoyle')reptileWings(wings,primary,accent);
+  smallContinuousSurface(body,shape,legs,primary,accent,elite,boss);
+  fittedGiantSkull(body,shape,primary,id);
+  remainingSurfaceFace(body,shape,accent);
 }
 
 export function sharedCreatureSculptGeometry(geometry:T.BufferGeometry):boolean{return shared.has(geometry);}
@@ -854,9 +1154,10 @@ export function installCreatureSurfaces(manifest:SculptManifest,buffer:ArrayBuff
 let loaded:Promise<void>|undefined;
 /** Ship simplified authored meshes; do not tessellate dense sculpt fields on a phone. */
 export function preloadCreatureSurfaces():Promise<void> {
+  const revision=encodeURIComponent(CREATURE_SCULPT_REVISION);
   return loaded??=Promise.all([
-    fetch(`${import.meta.env.BASE_URL}assets/models/creature-sculpt/manifest.json`).then(r=>{if(!r.ok)throw Error('Creature sculpt manifest unavailable');return r.json() as Promise<SculptManifest>;}),
-    fetch(`${import.meta.env.BASE_URL}assets/models/creature-sculpt/surfaces.bin`).then(r=>{if(!r.ok)throw Error('Creature sculpt meshes unavailable');return r.arrayBuffer();})
+    fetch(`${import.meta.env.BASE_URL}assets/models/creature-sculpt/manifest.json?v=${revision}`).then(r=>{if(!r.ok)throw Error('Creature sculpt manifest unavailable');return r.json() as Promise<SculptManifest>;}),
+    fetch(`${import.meta.env.BASE_URL}assets/models/creature-sculpt/surfaces.bin?v=${revision}`).then(r=>{if(!r.ok)throw Error('Creature sculpt meshes unavailable');return r.arrayBuffer();})
   ]).then(([manifest,buffer])=>installCreatureSurfaces(manifest,buffer)).catch(error=>{
     // Authoring fallback keeps the world playable if a local asset is missing.
     console.warn('Creature sculpt asset fallback',error);

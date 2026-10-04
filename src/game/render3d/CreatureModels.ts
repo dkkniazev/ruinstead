@@ -11,6 +11,11 @@ import { sharedCreatureAnatomyGeometry } from './CreatureAnatomy';
 import { sculptCreatureSurfaces, sharedCreatureSculptGeometry } from './CreatureSculpt';
 import { createEliteAura, creatureBodyBounds } from './CreatureAura';
 import { creaturePresentationScale } from './CreatureScale';
+import { bindGoblinSkin } from './GoblinSkin';
+import { bindMammalSkin } from './MammalSkin';
+import { bindReptileSkin } from './ReptileSkin';
+import { bindBirdSkin } from './BirdSkin';
+import { bindSmallCreatureSkin } from './SmallCreatureSkin';
 import type { AnimatedModel } from './Models';
 
 const round = softOrb;
@@ -197,7 +202,7 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     }
     if(shape==='beetle'){for(const s of [-1,1])ball(body,accent,s*13,36,-16,14,13,30);box(body,dark,0,46,-15,3,2,53);}
     // Mandibles start inside the cheek and taper forward/down, never point into it.
-    if(shape!=='spider')for(const s of [-1,1])curvedPart(body,ivory,[[s*11,24,37],[s*15,16,48],[s*7,12,54]],4.5).userData.bugMandible=true;
+    if(shape!=='spider')for(const s of [-1,1])curvedPart(body,ivory,[[s*15,21,37],[s*19,14,48],[s*9,11,56]],4.5).userData.bugMandible=true;
     if(shape==='scorpion'){
       for(const s of [-1,1]){
         bone(body,primary,[s*17,26,28],[s*34,28,48],6);ball(body,accent,s*34,28,49,9,7,10);
@@ -247,8 +252,9 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
     ball(body,primary,0,22,0,28,24,28);ball(body,accent,0,8,0,33,7,30);eyes(body,29,24,8);ball(body,accent,-10,38,9,7,3,5);
   }else if(shape==='wisp'||shape==='flame'){
     floating=true;mesh(body,spike,accent,0,45,0,16,50,16);
-    if(shape==='wisp'){const crystal=mesh(body,spike,primary,0,22,0,16,27,16);crystal.rotation.z=Math.PI;const ring=new T.Mesh(new T.TorusGeometry(29,1.6,4,18),material(accent));ring.position.y=32;ring.rotation.x=1.1;body.add(ring);}else ball(body,primary,0,29,0,22,19,21);
-    for(let n=0;n<5;n++){const a=n*1.26;const p=pivot(body,Math.cos(a)*29,27+n*5,Math.sin(a)*24);segments.push(p);mesh(p,spike,accent,0,0,0,5,18,5);}
+    if(shape==='wisp'){const crystal=mesh(body,spike,primary,0,22,0,16,27,16);crystal.rotation.z=Math.PI;const ring=new T.Mesh(new T.TorusGeometry(29,1.6,4,18),material(accent));ring.position.y=22;ring.rotation.x=Math.PI/2;body.add(ring);}else ball(body,primary,0,29,0,22,19,21);
+    // Satellites fan around the rear hemisphere, keeping the painted face clear.
+    for(let n=0;n<5;n++){const a=-Math.PI*n/4;const p=pivot(body,Math.cos(a)*29,27+n*5,Math.sin(a)*24);segments.push(p);mesh(p,spike,accent,0,0,0,5,18,5);}
     eyes(body,shape==='flame'?37:43,shape==='flame'?20:10,7);
   }else { // Asset fallbacks are still the same species.
     floating=true;ball(body,primary,0,40,0,shape==='bat'?16:23,shape==='bat'?23:29,19);
@@ -276,13 +282,22 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
   }
   // Shield fittings follow the forearm along with the plate, including boss trim.
   for(const part of [...body.children])if(part.userData.creatureShield){part.position.sub(arms[0].position);arms[0].add(part);}
+  for(const part of [...body.children])if(part.userData.creatureShoulder!==undefined){
+    const arm=arms[part.userData.creatureShoulder];part.position.sub(arm.position);arm.add(part);
+  }
   // Rig all scale plates to their body segment, including the boss armour.
   for(const part of [...body.children])if(part.userData.creatureSegment!==undefined){const segment=segments[part.userData.creatureSegment];part.position.sub(segment.position);segment.add(part);}
   // Keep shin armour and claws with the knee, including details authored afterwards.
   legs.forEach((leg,i)=>{const knee=knees[i];if(knee)for(const part of [...leg.children])if(part instanceof T.Mesh&&part.position.y<-12){part.position.sub(knee.position);knee.add(part);}});
   const head=articulateHead(body,shape,segments);
   let jaw:T.Group|undefined;
-  if(head&&['boar','jackal','cat','hound','salamander','drake','wyvern','dragon'].includes(shape)){
+  if(head&&body.getObjectByName('mammal-continuous-surface')){
+    jaw=pivot(head,0,35-head.position.y,38-head.position.z);jaw.name='creature-jaw';
+  }else if(head&&body.getObjectByName('reptile-continuous-surface')){
+    const y=shape==='salamander'?20:35;
+    jaw=pivot(head,0,y-3-head.position.y,38-head.position.z);jaw.name='creature-jaw';
+    for(const side of [-1,1])for(let n=0;n<2;n++)curvedPart(jaw,ivory,[[side*12,1,9+n*9],[side*13,6,10+n*9],[side*12,7,10+n*9]],1.6);
+  }else if(head&&['boar','jackal','cat','hound','salamander','drake','wyvern','dragon'].includes(shape)){
     const low=shape==='salamander',cat=shape==='cat',y=low?20:35;
     jaw=pivot(head,0,y-3-head.position.y,38-head.position.z);jaw.name='creature-jaw';
     // Remove the former single pale jaw slab; the hinged jaw has an inner mouth.
@@ -294,13 +309,14 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
       mesh(head,spike,ivory,side*10,y-2-head.position.y,57-head.position.z,2.3,8,2.3).rotation.z=Math.PI;
     }
   }
+  const disposeSkin=bindMammalSkin(body,head,jaw,legs,segments)??bindReptileSkin(body,head,jaw,legs,segments)??bindBirdSkin(body,head,legs)??bindSmallCreatureSkin(body,legs,segments)??bindGoblinSkin(body,head,arms,legs,knees);
   batchStaticMeshes(body);
   const aura=elite&&!boss?createEliteAura(body,shape,accent):undefined;
   const radius=combatRadius??(boss?55:elite?36:25);
   const worldScale=creaturePresentationScale(shape,radius,boss);
   const animate=createCreatureMotion(shape,boss,floating,{body,head,jaw,legs,knees,arms,grips,wings,segments,tail:scorpionTail},worldScale);
   const base:AnimatedModel={root,step(dt,speed,_dash,attack,_travel,_turning,_attackAt,pose){animate(dt,speed,attack,pose);aura?.step(dt);},
-    dispose(){aura?.dispose();body.traverse(o=>{if(o instanceof T.Mesh){if(o.geometry===wingGeometry||o.userData.ownedMaterial)(o.material as T.Material).dispose();if(![round,block,spike,stick,rock,wingGeometry].includes(o.geometry)&&!sharedCreatureGeometry(o.geometry)&&!sharedCreatureFaceGeometry(o.geometry)&&!sharedCreatureAnatomyGeometry(o.geometry)&&!sharedCreatureSculptGeometry(o.geometry)&&!o.userData.sharedEquipmentGeometry)o.geometry.dispose();}});}};
+    dispose(){aura?.dispose();disposeSkin?.();body.traverse(o=>{if(o instanceof T.Mesh){if(o.geometry===wingGeometry||o.userData.ownedMaterial)(o.material as T.Material).dispose();if(![round,block,spike,stick,rock,wingGeometry].includes(o.geometry)&&!sharedCreatureGeometry(o.geometry)&&!sharedCreatureFaceGeometry(o.geometry)&&!sharedCreatureAnatomyGeometry(o.geometry)&&!sharedCreatureSculptGeometry(o.geometry)&&!o.userData.sharedEquipmentGeometry)o.geometry.dispose();}});}};
   const model=withCreatureAsset(id,primary,accent,boss,base);
   model.root.scale.setScalar(worldScale);
   model.root.userData.presentationScale=worldScale;

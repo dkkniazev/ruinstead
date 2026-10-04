@@ -5,7 +5,10 @@ const floor=new T.PlaneGeometry(1,1);
 /** Presentation bounds exclude particles/glow, so elite HP bars and portraits
  * follow the actual model instead of a large invisible effects envelope. */
 export function creatureBodyBounds(root:T.Object3D):T.Box3 {
-  root.updateWorldMatrix(true,true);const bounds=new T.Box3();
+  // SkinnedMesh updates its attached bind inverse in updateMatrixWorld, not
+  // updateWorldMatrix. Synchronize ancestors, then invoke that override before
+  // measuring; otherwise a newly translated/scaled skin is transformed twice.
+  root.updateWorldMatrix(true,false);root.updateMatrixWorld(true);const bounds=new T.Box3();
   root.traverse(part=>{
     if(!(part instanceof T.Mesh)||part.userData.visualEffect)return;
     if(part instanceof T.SkinnedMesh){part.computeBoundingBox();bounds.union(part.boundingBox!.clone().applyMatrix4(part.matrixWorld));}

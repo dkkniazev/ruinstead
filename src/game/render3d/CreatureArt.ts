@@ -210,7 +210,9 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
     }
     if(shape==='spider'){
       gem(body,accent,0,46,-15,9,2,12);
-      for(const s of [-1,1]){gem(body,0xe0b078,s*6,33,42,2.4);gem(body,0xe0b078,s*14,30,39,1.8);if(id!=='venom-matriarch')horn(body,ivory,[[s*10,25,40],[s*13,13,49],[s*6,12,54]],3.5);}
+      // The fitted skin owns the eyes; old front gems overlapped the new iris
+      // and read as extra, detached white eyes during the wind-up.
+      for(const s of [-1,1])if(id!=='venom-matriarch')horn(body,ivory,[[s*14,19,40],[s*18,12,50],[s*9,10,56]],3.5);
     }
   }
   if(shape==='mushroom'){
@@ -249,7 +251,10 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
   }
   if(shape==='wisp'||shape==='flame'){
     const c=id==='gale-spirit'?ivory:id==='crystal-wisp'?0xadded1:id==='dusk-wisp'?0xb1a0d2:0xeab57b;
-    if(shape==='wisp'){ring(body,c,25,1.4,0,34,0,.65,.3);for(let n=0;n<3;n++)gem(body,c,Math.cos(n*2.1)*24,44+n*4,Math.sin(n*2.1)*24,4,9,4);}
+    if(shape==='wisp'){
+      ring(body,c,25,1.4,0,34,0,Math.PI/2);
+      for(let n=0;n<3;n++){const a=-n*Math.PI/2;gem(body,c,Math.cos(a)*24,44+n*4,Math.sin(a)*24,4,9,4);}
+    }
     else for(let n=0;n<5;n++){const a=n/5*Math.PI*2;add(body,plate,0x52484a,Math.cos(a)*20,18,Math.sin(a)*20,9,9,9);}
   }
   // Veteran anatomy and equipment are authored per family in CreatureSculpt.
@@ -259,10 +264,15 @@ export function finishCreature(id:string,shape:CreatureShape,body:T.Group,arms:T
 
 /** Every boss has an explicit design rather than a scaled ordinary creature. */
 function finishBoss(id:string,b:T.Group,arms:T.Group[],wings:T.Group[]):void {
+  const before=new Set(b.children);
   const crest=(c:number,y:number,spread:number,count:number,h:number)=>{for(let n=0;n<count;n++)feather(b,c,(n-(count-1)/2)*spread,y+Math.abs(n-(count-1)/2)*2,-5,h,(n-(count-1)/2)*-.16);};
   switch(id){
     case 'moss-ogre':
-      b.scale.set(1.15,1,1.1);for(let n=0;n<5;n++)add(b,plate,0x6c885c,-26+n*3,80+n*2,-8+n*5,13,8,11);
+      b.scale.set(1.15,1,1.1);
+      for(let n=0;n<5;n++){
+        const moss=add(b,plate,0x6c885c,-36+n%2*4,76+n%3*2,-6+n*3,9,6,8);
+        moss.userData.creatureShoulder=0;
+      }
       headParts(b,()=>{for(const s of [-1,1])horn(b,ivory,[[s*12,81,22],[s*17,89,25],[s*15,96,23]],3);});break;
     case 'crystal-boar':
       for(let n=0;n<5;n++)for(const s of [-1,1]){const g=gem(b,0x91cbd0,s*(9+n%2*6),58,-28+n*13,8,18+n%3*5,8);g.rotation.z=s*.3;}
@@ -287,12 +297,13 @@ function finishBoss(id:string,b:T.Group,arms:T.Group[],wings:T.Group[]):void {
       headParts(b,()=>{for(const s of [-1,1])horn(b,ivory,[[s*8,34,47],[s*12,24,55],[s*9,18,54]],3);});break;
     case 'venom-matriarch':
       b.scale.set(1.06,1.14,1.25);for(const s of [-1,1])for(let n=0;n<3;n++)gem(b,0xb3c47a,s*(7+n*6),45,-17-n*9,5,5,7);
-      horn(b,ivory,[[-12,20,41],[-21,7,54],[-10,6,61]],5);horn(b,ivory,[[12,20,41],[21,7,54],[10,6,61]],5);break;
+      for(const s of [-1,1])horn(b,ivory,[[s*16,17,40],[s*23,7,54],[s*12,6,63]],5);break;
     case 'pass-warden':
       b.scale.set(1.18,1.05,1.1);for(const s of [-1,1]){add(b,plate,0x77838f,s*29,77,1,22,15,19);horn(b,ivory,[[s*15,109,0],[s*30,120,-4],[s*39,112,-5]],5);}
       box(b,0x536272,-31,41,17,34,53,8).userData.creatureShield=true;box(b,ivory,-31,41,22,4,40,2).userData.creatureShield=true;break;
     case 'cinder-smith':
-      b.scale.set(1.18,1.08,1.1);box(b,dark,0,91,18,39,7,8);for(const s of [-1,1])ring(b,gold,6,2,s*11,91,23);
+      // The connected face paints fitted goggles in its head's bind frame.
+      b.scale.set(1.18,1.08,1.1);
       add(b,apron,0x8b6047,0,0,0,1);
       for(const s of [-1,1])horn(b,leather,[[s*9,68,16],[s*14,75,6],[s*13,71,-10]],2.5);
       for(let n=0;n<3;n++){box(b,dark,-10+n*10,28,23,6,12,2);box(b,steel,-10+n*10,31,25,3,10,2);}
@@ -357,6 +368,7 @@ function finishBoss(id:string,b:T.Group,arms:T.Group[],wings:T.Group[]):void {
     default:throw new Error('Unspecified boss art: '+id);
   }
   b.userData.bossDesign=id;
+  for(const part of b.children)if(!before.has(part))part.userData.bossOrnament=true;
 }
 
 export function sharedCreatureGeometry(geometry:T.BufferGeometry):boolean{return shared.has(geometry);}

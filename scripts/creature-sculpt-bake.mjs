@@ -37,7 +37,7 @@ for(const [key,source]of authoredCreatureSurfaces()){
 }
 const directory=path.resolve('public/assets/models/creature-sculpt');await fs.mkdir(directory,{recursive:true});
 await fs.writeFile(path.join(directory,'surfaces.bin'),Buffer.concat(chunks));
-const authoringFiles=['CreatureSculpt.ts','CreatureCatalog.ts','CreatureArt.ts','CreatureAnatomy.ts','CreatureModels.ts'];
+const authoringFiles=['CreatureSculpt.ts','CreatureCatalog.ts','CreatureArt.ts','CreatureAnatomy.ts','CreatureModels.ts','MammalForms.ts','HumanoidForms.ts','ReptileForms.ts'];
 const hash=createHash('sha256');for(const source of authoringFiles)hash.update(await fs.readFile(path.join('src/game/render3d',source)));
 await fs.writeFile(path.join(directory,'manifest.json'),JSON.stringify({revision:CREATURE_SCULPT_REVISION,authoringHash:hash.digest('hex'),entries}));
 console.log(`Creature sculpt bake: ${entries.length} shared surfaces, ${before} → ${after} triangles, ${(offset/1024).toFixed(0)} KiB. No gameplay data changed.`);

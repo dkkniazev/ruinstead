@@ -19,4 +19,9 @@ export class RenderVisibility {
     this.bounds.radius = Math.hypot(radius, height / 2) + margin;
     return this.frustum.intersectsSphere(this.bounds);
   }
+
+  includesSphere(sphere:THREE.Sphere,margin=220):boolean {
+    this.bounds.copy(sphere);this.bounds.radius+=margin;
+    return this.frustum.intersectsSphere(this.bounds);
+  }
 }

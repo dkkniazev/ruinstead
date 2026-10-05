@@ -27,24 +27,62 @@ do not govern production. World and portraits share creature creation/catalogs.
 Baked surfaces avoid dense sculpt construction at ordinary startup. Teardown
 must release renderer resources and UI/event listeners.
 
+Repeated procedural creatures borrow a reference-counted authored template in
+`CreatureModels.ts`/`CreatureInstances.ts`: geometry and bind data are reusable,
+while every instance has its own bones, animation clock, mutable costume/face/aura
+materials and disposal. Removing one actor must not release another actor's
+geometry or change its pose. The final instance releases owned template batches;
+global baked surfaces remain shared. Legacy asynchronous asset routes are retained.
+`StaticTransforms.ts` caches only rigid final world transforms. Actors, changing
+labels and lights remain dynamic; rebuilt scenery is cached after placement.
+Terrain chunk membership changes on cell transitions, while conservative camera
+visibility is evaluated each presented frame, retaining nearby shadow casters.
+`SceneryChunkCache.ts` retains up to 121 recently used chunks after an update,
+with the unchanged 7×7 active neighborhood. Inactive cached chunks cannot draw
+or cast shadows; eviction and scene teardown release owned geometry/instance
+buffers exactly once. Shared nature surfaces/materials survive eviction.
+Resource label viewport measurements are shared from resize rather than read
+after each label writes DOM styles. Density changes refresh labels even if CSS
+dimensions stay unchanged. Icon size and native-DPR text remain unchanged.
+
+`HeroOcclusion3D` preserves the hidden-hero stencil effect with two instanced
+passes per shared rigid geometry. Each instance follows the current visible
+hero part's world transform, including equipment/outfit changes and cape geometry
+updates; reflected transforms retain individual meshes. Overlay instance buffers
+are owned, while source hero geometry is borrowed and must never be disposed by
+the overlay. Skins/transparent parts retain the existing eligibility rules.
+The overlay follows the hero's coordinate frame to retain depth precision far
+from the world origin; its visible-pixel mask allows a four-unit depth-buffer
+rounding margin before the hidden fill, without moving the source geometry.
+
+Rigid settlement/building transforms are cached after placement or a level/stage
+rebuild; camp flame/ring/light animation and labels remain live. Building label
+scale uses the same viewport formula, updated on resize or model replacement
+instead of traversing the settlement every frame. Deposit-label state and text
+localization remain dynamic.
+Building replacement/teardown explicitly releases owned roof instance buffers
+once through `InstanceResources.ts`; their shared source geometry/materials
+remain available to other buildings/actors.
+
 ## Data and module boundaries
 
 `SettlementLayout.ts` shares base coordinates/ground dimensions between
 settlement systems, models, resource clearance, physics and enemy navigation.
 `CreatureScale.ts` contains visual species profiles; it does not own combat stats.
-`GoblinSkin.ts` binds shared goblin/humanoid surfaces to eight per-instance bones
-carried by the existing motion anchors; it owns skeleton/material setup and
-skeleton cleanup, while CreatureModels releases the owned material. This local
+`GoblinSkin.ts` binds shared goblin/humanoid surfaces to eight bones carried by
+the existing motion anchors; it owns authored skeleton/material setup and
+skeleton cleanup. CreatureModels/CreatureInstances own template and cloned-instance
+lifetimes respectively. This local
 render route does not introduce a body-physics simulator or move Phaser actors.
 `MammalForms.ts` keeps new mammal art profiles separate from the skin binding
 algorithm in `MammalSkin.ts`. That module reuses existing jaw/head/leg/tail
-motion anchors and owns per-instance bones, skeleton/material and cleanup;
+motion anchors and owns authored bones, skeleton/material and cleanup;
 shared baked geometry/weights remain reusable. It does not own combat physics.
 `HumanoidForms.ts` and `ReptileForms.ts` likewise own authored art proportions,
 not gameplay stats. `ReptileSkin.ts`, `BirdSkin.ts` and `SmallCreatureSkin.ts`
 bind their respective connected surfaces to the existing head/jaw/limb/segment
-anchors. Each binder owns its per-instance skeleton/material; CreatureModels
-coordinates cleanup, preserving shared baked geometry and weights. Closed wings,
+anchors. Each binder establishes skeleton/material data; the factory coordinates
+template/instance cleanup, preserving shared baked geometry and weights. Closed wings,
 weapons, horns, fangs and boss identity ornaments retain their attachment frames.
 `SurfaceFace.ts` owns cloned materials for fitted face pigment, replacing any
 previous owned material. The projection frame is captured before articulation;

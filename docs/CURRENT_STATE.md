@@ -1,4 +1,4 @@
-# Current state · 2026-10-04
+# Current state · 2026-10-05
 
 ## Scope and release phase
 
@@ -271,3 +271,73 @@ changes were required. New local gameplay MP4 is 23.34 s / 1280×720 / 16,912,90
 reviewed through the end: settlement, region 2, forest fight and lava boss. It uses
 the ordinary-damage mid-game media fixture and records only the 3D canvas, without
 DOM HUD/audio. The user will upload it manually; console conversion timeout remains.
+
+### Local render performance work · 2026-10-04
+
+Following delivery, the user reports severe lag on a powerful PC in Yandex
+Browser, both draft and localhost. Local rendering now shares immutable creature
+templates with separate per-unit bones/materials/clocks; caches rigid transforms
+and label viewport measurements; hides offscreen chunk shadow submission; and
+retains bounded recently visited terrain (121 resident after updates, unchanged
+49 active). Geometry/style, population, simulation, damage and saves are unchanged.
+Current bake geometry is unchanged; its authoring hash reflects the factory update.
+
+Controlled 24-unit CPU assembly medians improve by 7.7–11× against `5e93477`;
+this is not an FPS claim. A local home/brook revisit builds no new terrain and
+records a 2.6 ms peak versus the first visit's 27.8 ms. Eight-region views,
+896×414 through 4K resize and base walking were checked with existing no-save
+tooling. Hardware IAB Radeon RX 9070 XT profiling runs about 160–166 FPS warm.
+The user's matched screenshots establish that Yandex Browser uses ANGLE Microsoft
+Basic Render Driver (software, 6 FPS / 157.7 ms at 2560×1288), while Edge uses
+Radeon RX 9070 XT (165 FPS / 6.1 ms at 2552×1261). The follow-up report
+confirms `HARDWARE_GL` is still blocklisted after applying `--ignore-gpu-blocklist`;
+the user's screenshot remains about 7 FPS. That attempted browser remedy failed.
+The October 5 report supplied for the before-game startup comparison also retains
+software rendering with the override removed; its tab history was not observed
+by the agent. The user's `about-gpu-2026-10-05T03-20-52-225Z.txt` confirms the
+separate user-data-directory diagnostic now uses RX 9070 XT / hardware WebGL,
+with `Software Rendering: No`, no HARDWARE_GL blocklist row and zero GPU-process
+crashes. The same installed browser and drivers can therefore render on hardware;
+the original failure is associated with the existing browser configuration/local
+state, but its exact cause is Unverified. The subsequent user game screenshot
+shows 166 FPS / 6.1 ms, CPU 3D 2.3 ms and hardware RX 9070 XT at 2560×1312;
+the prior severe steady-state slowdown is absent in this local clean-window
+scenario. Its unrestarted peak remains 1786.1 ms, so startup/transition stalls
+are not eliminated by this screenshot. On October 5 the user reported smooth
+Yandex gameplay on a weaker work PC and explicitly stopped the original-browser
+investigation; its cause remains Unverified. Draft performance and broader
+device/route acceptance remain pending. The user ran the local
+helper; no original browser data or settings were changed by the agent.
+Local read-only diagnostics report both AMD adapters healthy and drivers dated
+2026-08-17; the clean-window report verifies hardware WebGL on this combination,
+not all-game/device acceptance.
+An ignored local launcher reuses the verified isolated directory for later
+launches; it neither imports original saves nor proves the main profile repaired.
+The number of other affected players is unknown, as are latest physical-phone
+performance and elimination of first-visit shader/terrain hitches. Relevant
+docs/art/gameplay/regression/world/polish/release checks and the final production
+build pass; the large-JS-chunk warning remains. The
+[performance plan](exec-plans/completed/RENDER_PERFORMANCE.md) owns gates/measurements.
+These changes are local; the Yandex draft is still archive 13720751. No new Git
+push, upload, moderation or publication has occurred in this optimization pass.
+
+### Further local render optimization · 2026-10-05
+
+Hero occlusion now groups rigid parts by shared geometry: the default axe hero
+uses 20 overlay draw calls instead of 100. A controlled GPU comparison against
+`5e93477` covers 60 identical scenes (three outfits, five weapons, clear/occluded,
+near/large coordinates): all preserve triangle counts and reduce draws by at
+least 80. At 480×360, no case changes more than 29 pixels above the comparison
+threshold. An initial depth artifact was detected and corrected; this is reduced
+submission cost, not a measured universal FPS gain.
+
+Rigid base buildings now cache world transforms; label scale retains its formula
+and refreshes on resize/replacement. Camp animation and dynamic/localized labels
+remain live. Replaced/removed buildings release their owned roof instance buffers
+without disposing shared geometry/materials. Added regressions cover transforms,
+outfit/weapon changes, visibility and idempotent resource release. Relevant
+art/gameplay/timing/regression/world/polish/docs gates and the final production
+build PASS (`index-ChT9waGd.js`). Gameplay, population and saves are unchanged.
+First-visit shader/terrain hitches and broader physical-device acceptance remain
+open. Android development is the user's next direction; no Android runtime,
+engine choice or packaging implementation is claimed.

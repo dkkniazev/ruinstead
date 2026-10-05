@@ -27,6 +27,9 @@ export * from './src/game/render3d/OrbitingWeapons3D.ts';
 export * from './src/game/combat/CombatVisualState.ts';
 export * from './src/game/render3d/HeroOcclusion3D.ts';
 export * from './src/game/render3d/RenderVisibility.ts';
+export * from './src/game/render3d/StaticTransforms.ts';
+export * from './src/game/render3d/SceneryChunkCache.ts';
+export * from './src/game/render3d/InstanceResources.ts';
 export * from './src/game/render3d/ResourceLabelLayout.ts';
 export * from './src/game/render3d/ContactBursts3D.ts';
 `,resolveDir:process.cwd(),loader:'ts'},bundle:true,platform:'node',format:'esm',write:false,define:{'import.meta.env.BASE_URL':'"/"'},
@@ -36,6 +39,55 @@ plugins:[{name:'art-math-phaser',setup(b){
 }}]});
 const {T,ContactBursts3D,createHero,HERO_SKIN_STYLES,SKIN_DEFINITIONS,OrbitingWeapons3D,HeroOcclusion3D,RenderVisibility,layoutResourceLabels,batchStaticMeshes,disposeBatchedGeometry,createLivingTree,createSparseTree,foliageCrown,fracturedRock,naturalSurfaceMaterial,treeBark,treeCanopy,createWatercourse,WORLD_WATERCOURSES,brookBridgeAt,sampleWatercourse,getRegionDefinition,plateauHeight,terrainHeight,passageAt,createGroundCover,distanceToRoad,createBuilding,createForge,recordVisualHit,WEAPON_ATTACK_ANIMATION_MS}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const bursts=new ContactBursts3D(),burstCamera=new T.PerspectiveCamera();
+const {freezeStaticTransforms}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const {disposeInstanceBuffers}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const replacedBuilding=createBuilding('workshop',2),buildingInstances=[];
+replacedBuilding.traverse(object=>{if(object instanceof T.InstancedMesh)buildingInstances.push(object);});
+assert.equal(buildingInstances.length,2,'Restored building has two instanced roof slopes');
+let releasedRoofBuffers=0,releasedRoofGeometry=0,releasedRoofMaterials=0;
+for(const mesh of buildingInstances){mesh.addEventListener('dispose',()=>releasedRoofBuffers++);mesh.geometry.addEventListener('dispose',()=>releasedRoofGeometry++);mesh.material.addEventListener('dispose',()=>releasedRoofMaterials++);}
+disposeInstanceBuffers(replacedBuilding);disposeInstanceBuffers(replacedBuilding);
+assert.equal(releasedRoofBuffers,2,'Replacing a building releases each roof instance buffer once');
+assert.equal(releasedRoofGeometry,0,'Releasing instance buffers preserves borrowed primitive geometry');
+assert.equal(releasedRoofMaterials,0,'Releasing instance buffers preserves shared materials');
+disposeBatchedGeometry(replacedBuilding);
+const rigidScene=new T.Scene(),rigidRoot=new T.Group(),rigidMesh=new T.Mesh(new T.BoxGeometry(4,8,6)),liveLabel=new T.Sprite();
+rigidRoot.position.set(120,35,-70);rigidMesh.position.set(3,7,9);rigidRoot.add(rigidMesh,liveLabel);rigidScene.add(rigidRoot);
+freezeStaticTransforms(rigidRoot);const frozen=rigidMesh.matrixWorld.toArray();
+rigidScene.updateMatrixWorld(true);assert.deepEqual(rigidMesh.matrixWorld.toArray(),frozen,'Rigid world transforms survive scene updates');
+liveLabel.scale.set(5,3,1);rigidScene.updateMatrixWorld(true);assert.equal(liveLabel.matrixWorld.elements[0],5,'Dynamic labels keep updating under cached scenery');
+const liveChild=new T.Group(),liveFlame=new T.Mesh(new T.BoxGeometry(1,2,1));
+liveChild.add(liveFlame);rigidRoot.add(liveChild);liveChild.position.x=12;liveFlame.scale.y=1.7;
+rigidScene.updateMatrixWorld(true);
+assert.equal(liveFlame.matrixWorld.elements[13],35,'Animated children added after caching retain their parent placement');
+assert.equal(liveFlame.matrixWorld.elements[5],1.7,'Camp animation remains live beneath cached settlement transforms');
+liveChild.position.x=19;rigidScene.updateMatrixWorld(true);assert.equal(liveFlame.matrixWorld.elements[12],139,'Dynamic child movement is not frozen with its parent');
+liveChild.removeFromParent();liveFlame.geometry.dispose();
+rigidRoot.visible=false;rigidScene.updateMatrixWorld(true);rigidRoot.visible=true;rigidScene.updateMatrixWorld(true);
+assert.deepEqual(rigidMesh.matrixWorld.toArray(),frozen,'Visibility toggles cannot relocate frozen scenery');
+rigidMesh.geometry.dispose();rigidMesh.material.dispose();liveLabel.material.dispose();
+const {SceneryChunkCache}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
+const cachedScene=new T.Scene(),chunkRoots=[],chunkDisposals=new Map();
+const recentChunks=new SceneryChunkCache((x,z)=>{
+  const root=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(4,8,6),new T.MeshStandardMaterial());
+  root.position.set(x*640,0,z*640);root.add(mesh);cachedScene.add(root);freezeStaticTransforms(root);chunkRoots.push(root);
+  mesh.geometry.addEventListener('dispose',()=>chunkDisposals.set(root,(chunkDisposals.get(root)??0)+1));return root;
+},root=>root.traverse(o=>{if(o instanceof T.Mesh){o.geometry.dispose();o.material.dispose();}}),18,1);
+const allInView={includesSphere:()=>true};
+recentChunks.update(0,0,allInView);assert.equal(recentChunks.builtCount,9);
+const originChunk=chunkRoots.find(root=>root.position.x===0&&root.position.z===0);
+recentChunks.update(0,0,allInView);recentChunks.update(1,0,allInView);recentChunks.update(0,0,allInView);
+assert.equal(recentChunks.builtCount,12,'A nearby round trip reuses authored terrain instead of rebuilding it');
+assert(originChunk.visible&&!chunkDisposals.has(originChunk),'Revisiting cached terrain preserves its live GPU geometry');
+recentChunks.update(100,0,allInView);
+assert.equal(recentChunks.size,18,'Terrain residency stays bounded after a distant teleport');
+assert.equal(cachedScene.children.filter(root=>root.visible).length,9,'Only the active neighborhood can render or cast shadows');
+assert(!originChunk.visible,'Cached far-away scenery remains hidden even if the view predicate accepts it');
+recentChunks.update(200,0,allInView);assert.equal(chunkDisposals.get(originChunk),1,'Oldest terrain releases its owned geometry on eviction');
+recentChunks.clear();recentChunks.clear();
+assert.equal(cachedScene.children.length,0,'Scene teardown detaches every resident chunk');
+assert.equal(chunkDisposals.size,chunkRoots.length,'Every authored chunk is released on eviction or teardown');
+assert([...chunkDisposals.values()].every(n=>n===1),'Eviction and repeated teardown cannot double-dispose terrain');
 const {createSettlementWell,disposeSettlementScenery,createResource,SETTLEMENT_BUILDINGS,SETTLEMENT_CENTER,buildResourceNodeDefinitions}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 const {heroHelmet,heroShoulder,heroBreastplate,sampleHeroAttack}=await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 let armorDisposed=0;
@@ -135,6 +187,9 @@ for(const aspect of [1280/720,844/390,390/844]){
   assert(submitted<previous*.8,'View bounds must skip a meaningful part of the old square animation area');
   assert(view.includes(target.x,200,target.z,120,500),'A large boss beside the hero stays visible');
   assert(!view.includes(target.x+6000,200,target.z,60,200),'Distant models stay outside presentation');
+  const chunk=new T.Sphere(new T.Vector3(target.x,200,target.z),500);
+  assert(view.includesSphere(chunk),'Visible chunk stays submitted');
+  chunk.center.x+=6000;assert(!view.includesSphere(chunk),'Offscreen chunk stops shadow submissions');
 }
 for(const id of ['storage','sawmill','workshop','house']){
   const stages=[0,1,8].map(level=>createBuilding(id,level));
@@ -153,16 +208,48 @@ for(let stage=0;stage<=3;stage++){
 const occlusion=new HeroOcclusion3D(),occlusionHero=createHero();
 occlusionHero.root.position.set(123,45,678);occlusionHero.step(.016,140,false,true,2);occlusion.update(occlusionHero.root);
 assert(occlusion.root.children.length>0,'Occlusion overlay follows actual hero meshes');
-const originalMeshes=[];occlusionHero.root.traverse(o=>{if(o instanceof T.Mesh)originalMeshes.push(o);});
-for(const mesh of occlusion.root.children){
-  assert(originalMeshes.some(o=>o.geometry===mesh.geometry&&o.matrixWorld.equals(mesh.matrix)),'Overlay follows animated geometry/world transform');
-  assert.equal(mesh.material.depthWrite,false,'Overlay must not obstruct the world');
+const assertOverlay=()=>{
+  const originalMeshes=[];
+  occlusionHero.root.traverseVisible(o=>{
+    if(!(o instanceof T.Mesh)||o instanceof T.InstancedMesh||o instanceof T.SkinnedMesh)return;
+    const materials=Array.isArray(o.material)?o.material:[o.material];
+    if(materials.every(m=>!m.transparent&&(m instanceof T.MeshStandardMaterial||m instanceof T.MeshBasicMaterial)))originalMeshes.push(o);
+  });
+  occlusion.root.updateWorldMatrix(true,true);let instances=0;
+  const matrix=new T.Matrix4(),matches=(a,b)=>a.elements.every((value,i)=>Math.abs(value-b.elements[i])<.001);
+  for(const mesh of occlusion.root.children){
+    assert.equal(mesh.material.depthWrite,false,'Overlay must not obstruct the world');
+    const count=mesh instanceof T.InstancedMesh?mesh.count:1;instances+=count;
+    for(let i=0;i<count;i++){
+      if(mesh instanceof T.InstancedMesh)mesh.getMatrixAt(i,matrix).premultiply(mesh.matrixWorld);
+      else matrix.copy(mesh.matrixWorld);
+      assert(originalMeshes.some(o=>o.geometry===mesh.geometry&&matches(o.matrixWorld,matrix)),'Every overlay instance follows live visible geometry/world transform');
+    }
+  }
+  assert.equal(instances,originalMeshes.length*2,'Exactly one mask and fill instance per eligible hero part');
+};
+assertOverlay();
+assert.equal(occlusion.root.children.length,20,'The default axe hero uses two passes for ten shared geometries, not 100 individual draws');
+occlusion.root.position.set(-40,12,90);occlusion.root.rotation.y=.3;
+occlusionHero.step(.025,225,true,true,5,.2);occlusion.update(occlusionHero.root);assertOverlay();
+for(const skin of [null,...Object.keys(HERO_SKIN_STYLES)])for(const weapon of ['axe','sword','hammer','spear','daggers']){
+  occlusionHero.setSkin(skin);occlusionHero.setWeapon(weapon);occlusionHero.step(.025,225,false,true,5,.2);
+  occlusion.update(occlusionHero.root);assertOverlay();
 }
+const reflected=new T.Mesh(new T.BoxGeometry(),new T.MeshStandardMaterial());reflected.scale.x=-1;occlusionHero.root.add(reflected);
+occlusion.update(occlusionHero.root);assertOverlay();
+assert.equal(occlusion.root.children.filter(o=>!(o instanceof T.InstancedMesh)).length,2,'Reflected transforms keep the ordinary mesh path');
+reflected.visible=false;occlusion.update(occlusionHero.root);assertOverlay();
+assert(occlusion.root.children.every(o=>o instanceof T.InstancedMesh),'Hidden parts do not retain fallback draws');
+reflected.removeFromParent();reflected.geometry.dispose();reflected.material.dispose();
 occlusionHero.setWeapon('spear');occlusionHero.setSkin('moss-guard');occlusion.update(occlusionHero.root);
 const hidden=occlusion.root.children.find(o=>o.material.colorWrite);
 assert.equal(hidden.material.depthFunc,T.GreaterDepth);assert.equal(hidden.material.stencilFunc,T.NotEqualStencilFunc,'Visible hero pixels are excluded');
 let releasedBorrowedGeometry=0;hidden.geometry.addEventListener('dispose',()=>releasedBorrowedGeometry++);
-occlusion.dispose();assert.equal(releasedBorrowedGeometry,0,'Overlay must not dispose geometry owned by the hero');
+let releasedInstances=0;for(const mesh of occlusion.root.children)mesh.addEventListener('dispose',()=>releasedInstances++);
+const instanceBuffers=occlusion.root.children.length;
+occlusion.dispose();occlusion.dispose();assert.equal(releasedInstances,instanceBuffers,'Owned instance resources are released once');
+assert.equal(releasedBorrowedGeometry,0,'Overlay must not dispose geometry owned by the hero');
 occlusionHero.dispose();
 const hero=createHero(),other=createHero();
 for(const weapon of ['axe','sword','hammer','spear','daggers']){

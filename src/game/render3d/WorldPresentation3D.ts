@@ -30,6 +30,9 @@ import { ResourceVisual3D } from './ResourceVisual3D';
 import { layoutResourceLabels,type ResourceLabelCandidate } from './ResourceLabelLayout';
 import { RenderVisibility } from './RenderVisibility';
 import { ReturnCamp3D } from './ReturnCamp3D';
+import { freezeStaticTransforms } from './StaticTransforms';
+import { SceneryChunkCache } from './SceneryChunkCache';
+import { disposeInstanceBuffers } from './InstanceResources';
 import {
   weaponAttackAnimationMs,
 } from './WeaponAnimation';
@@ -98,9 +101,16 @@ function createForestAltar(): {root:THREE.Group; beacon:THREE.Mesh; rune:THREE.M
 
 
 export class WorldPresentation3D {
-  get renderStats(): {calls:number;triangles:number;frames:number} {
-    return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,frames:this.renderer.info.render.frame};
+  get renderStats() {
+    return {calls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,frames:this.renderer.info.render.frame,
+      ...this.profile,actors:this.actors.size,chunks:this.chunks.activeCount,residentChunks:this.chunks.size,builtChunks:this.chunks.builtCount,
+      gpu:this.gpu,pixels:`${this.renderer.domElement.width}×${this.renderer.domElement.height}`};
   }
+  private readonly profile={terrainMs:0,actorsMs:0,resourcesMs:0,renderMs:0,totalMs:0,peakMs:0};
+  resetRenderProfile():void {
+    if(import.meta.env.DEV)for(const key of Object.keys(this.profile) as Array<keyof typeof this.profile>)this.profile[key]=0;
+  }
+  private readonly gpu:string;
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.OrthographicCamera(-640, 640, 360, -360, 1, 5000);
@@ -109,7 +119,9 @@ export class WorldPresentation3D {
   private readonly sun = new THREE.DirectionalLight(0xffe6bd, 2.4);
   private readonly sunTarget = new THREE.Object3D();
   private readonly landRegions = new Map<number, THREE.Group>();
-  private readonly chunks = new Map<string, THREE.Group>();
+  private readonly chunks = new SceneryChunkCache((cx,cz)=>{
+    const chunk=this.createChunk(cx,cz);this.scene.add(chunk);freezeStaticTransforms(chunk);return chunk;
+  },chunk=>this.disposeTerrainChunk(chunk));
   private readonly actors = new Map<EnemyUnit | BossUnit, Actor>();
   private readonly view = new RenderVisibility();
   private readonly effects = new CombatEffects3D();
@@ -137,6 +149,7 @@ export class WorldPresentation3D {
   private lastRectHeight = 0;
   private readonly resourceLabelLayer = document.createElement('div');
   private resizeObserver?: ResizeObserver;
+  private labelViewport={width:0,height:0,resolution:1};
 
   constructor(
     private readonly phaser: Phaser.Scene,
@@ -154,6 +167,8 @@ export class WorldPresentation3D {
     private readonly hasCarriedLoot:()=>boolean = ()=>false,
   ) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, stencil:true, powerPreference: 'high-performance' });
+    const gl=this.renderer.getContext(),debug=import.meta.env.DEV?gl.getExtension('WEBGL_debug_renderer_info'):null;
+    this.gpu=debug?String(gl.getParameter(debug.UNMASKED_RENDERER_WEBGL)):'';
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -202,6 +217,7 @@ export class WorldPresentation3D {
       const land = createRegionLand(region);
       this.landRegions.set(region.id, land);
       this.scene.add(land);
+      freezeStaticTransforms(land);
     }
     this.lastHeroX = player.sprite.x;
     this.lastHeroY = player.sprite.y;
@@ -235,9 +251,13 @@ export class WorldPresentation3D {
     canvas.style.width = `${rect.width}px`;
     canvas.style.height = `${rect.height}px`;
     Object.assign(this.resourceLabelLayer.style, {left: canvas.style.left, top: canvas.style.top, width: canvas.style.width, height: canvas.style.height});
-    if (Math.abs(rect.width - this.lastRectWidth) < 1 && Math.abs(rect.height - this.lastRectHeight) < 1) return;
+    const resolution=Math.min(3,window.devicePixelRatio||1);
+    if (Math.abs(rect.width - this.lastRectWidth) < 1 && Math.abs(rect.height - this.lastRectHeight) < 1&&resolution===this.labelViewport.resolution) return;
     this.lastRectWidth = rect.width;
     this.lastRectHeight = rect.height;
+    this.labelViewport={width:Math.round(rect.width),height:Math.round(rect.height),resolution};
+    const renderRatio=Math.min(window.devicePixelRatio||1,1.5);
+    if(this.renderer.getPixelRatio()!==renderRatio)this.renderer.setPixelRatio(renderRatio);
     this.renderer.setSize(Math.max(1, rect.width), Math.max(1, rect.height), false);
     const aspect = Math.max(0.2, rect.width / Math.max(1, rect.height));
     const height = aspect < 0.85 ? 1200 : 1080;
@@ -246,12 +266,14 @@ export class WorldPresentation3D {
     this.camera.top = height / 2;
     this.camera.bottom = -height / 2;
     this.camera.updateProjectionMatrix();
+    this.scaleBuildingLabels(this.settlement);
     // A canvas resize clears its buffer even while a menu pauses the scene.
     this.heroOcclusion.update(this.hero.root);
     this.renderer.render(this.scene, this.camera);
   };
 
   update(time: number, delta: number): void {
+    const started=import.meta.env.DEV?performance.now():0;
     updateArtMaterials(time);
     const dt = Math.min(0.05, Math.max(0, delta / 1000));
     const x = this.player.sprite.x;
@@ -324,11 +346,11 @@ export class WorldPresentation3D {
     for (const region of RELEASE_REGIONS) {
       this.landRegions.get(region.id)!.visible = Math.hypot(x-region.center[0], z-region.center[1]) < Math.hypot(region.radiusX,region.radiusY)+2100;
     }
-    const labelScale=(this.camera.top-this.camera.bottom)/Math.max(1,this.lastRectHeight);
-    const labelWidth=this.lastRectHeight<600?145:164;
-    this.settlement.traverse(o=>{if(o instanceof THREE.Sprite&&o.userData.buildingLabel){o.scale.set(labelWidth*labelScale,labelWidth/5.125*labelScale,1);}});
+    const terrainStarted=import.meta.env.DEV?performance.now():0;
     this.updateTerrain(x, z);
+    const actorsStarted=import.meta.env.DEV?performance.now():0;
     this.updateActors(dt, x, z,time);
+    const actorsEnded=import.meta.env.DEV?performance.now():0;
     if(travel>65)this.footfallTravel=0;
     else if(speed>35&&travel>0){
       this.footfallTravel+=travel;
@@ -341,14 +363,15 @@ export class WorldPresentation3D {
     }
     this.effects.update(time,x,groundHeight,z,this.lastFacing,this.player.visualAttackAt,this.camera);
     this.orbitingWeapons.update(this.getOrbitals(),time,groundHeight);
+    const resourcesStarted=import.meta.env.DEV?performance.now():0;
     this.updateResources(x, z, time);
+    const resourcesEnded=import.meta.env.DEV?performance.now():0;
     if (this.frame++ % 4 === 0) {
       this.updateChests(x, z);
       this.updateBuildings();
     }
     this.updatePickups(x, z, time);
     this.heroOcclusion.update(this.hero.root);
-    if (this.frame % 10 === 0) this.resize();
     const altarDistance=Math.hypot(x-FOREST_HEART.x,z-FOREST_HEART.y);
     this.forestAltar.root.visible=altarDistance<2800;
     const altarQuest=this.getActiveQuestId()==='reach-forest-heart';
@@ -358,38 +381,33 @@ export class WorldPresentation3D {
       this.forestAltar.beacon.scale.x=this.forestAltar.beacon.scale.z=1+Math.sin(time*.004)*.12;
       (this.forestAltar.beacon.material as THREE.MeshBasicMaterial).opacity=.1+(.5+.5*Math.sin(time*.003))*0.09;
     }
+    const renderStarted=import.meta.env.DEV?performance.now():0;
     this.renderer.render(this.scene, this.camera);
+    if(import.meta.env.DEV){
+      const ended=performance.now(),p=this.profile;
+      p.terrainMs+=(actorsStarted-terrainStarted-p.terrainMs)*.05;
+      p.actorsMs+=(actorsEnded-actorsStarted-p.actorsMs)*.05;
+      p.resourcesMs+=(resourcesEnded-resourcesStarted-p.resourcesMs)*.05;
+      p.renderMs+=(ended-renderStarted-p.renderMs)*.05;
+      p.totalMs+=(ended-started-p.totalMs)*.05;p.peakMs=Math.max(ended-started,p.peakMs);
+    }
   }
 
   private updateTerrain(x: number, z: number): void {
-    const tx = Math.floor(x / TILE);
-    const tz = Math.floor(z / TILE);
-    const needed = new Set<string>();
-    for (let dz = -3; dz <= 3; dz++) for (let dx = -3; dx <= 3; dx++) {
-      const cx = tx + dx;
-      const cz = tz + dz;
-      const key = `${cx}:${cz}`;
-      needed.add(key);
-      if (!this.chunks.has(key)) {
-        const chunk = this.createChunk(cx, cz);
-        this.chunks.set(key, chunk);
-        this.scene.add(chunk);
+    this.chunks.update(Math.floor(x/TILE),Math.floor(z/TILE),this.view);
+  }
+
+  private disposeTerrainChunk(chunk:THREE.Group):void {
+    chunk.traverse(object=>{
+      if(!(object instanceof THREE.Mesh))return;
+      // Instance buffers are owned, while shrub/leaf source surfaces may be shared.
+      if(object instanceof THREE.InstancedMesh)object.dispose();
+      if(object.userData.uniqueGeometry||object.userData.batchedGeometry){
+        object.geometry.dispose();
+        for(const material of Array.isArray(object.material)?object.material:[object.material])
+          if(!material.userData.sharedArtMaterial)material.dispose();
       }
-    }
-    for (const [key, chunk] of this.chunks) if (!needed.has(key)) {
-      this.scene.remove(chunk);
-      chunk.traverse((object) => { if (object instanceof THREE.Mesh && object.geometry !== undefined) {
-        // Shared shrub/leaf surfaces survive the chunk, but per-instance GPU
-        // transforms do not. Removing an instance from the scene is not disposal.
-        if(object instanceof THREE.InstancedMesh)object.dispose();
-        // Terrain and foliage geometries are unique; model geometries are shared.
-        if (object.userData.uniqueGeometry || object.userData.batchedGeometry) {
-          object.geometry.dispose();
-          if (object.material instanceof THREE.Material && !object.material.userData.sharedArtMaterial) object.material.dispose();
-        }
-      } });
-      this.chunks.delete(key);
-    }
+    });
   }
 
   private createChunk(cx: number, cz: number): THREE.Group {
@@ -577,11 +595,11 @@ export class WorldPresentation3D {
         visual = new ResourceVisual3D(node, islandAt(node.x,node.y).region, this.resourceLabelLayer);
         this.resources.set(node.id,visual);this.scene.add(visual.root);
       }
-      visual.root.visible=true;visual.update(node,time,distance,this.camera);
+      visual.root.visible=true;visual.update(node,time,distance,this.camera,this.labelViewport);
       if(visual.screenLabel)labels.push(visual.screenLabel);
     }
     for(const [id,visual] of this.resources) if(!visible.has(id)) { visual.destroy();this.resources.delete(id); }
-    const placements=layoutResourceLabels(labels,this.resourceLabelLayer.clientWidth,this.resourceLabelLayer.clientHeight);
+    const placements=layoutResourceLabels(labels,this.labelViewport.width,this.labelViewport.height);
     for(const label of labels)this.resources.get(label.id)!.placeLabel(placements.get(label.id));
   }
 
@@ -745,28 +763,43 @@ export class WorldPresentation3D {
     batchStaticMeshes(this.settlement);
     this.settlement.traverse(o=>{if(o instanceof THREE.Mesh&&!o.userData.settlementOwned)o.userData.settlementOwned=true;});
     this.updateBuildings();
+    // The animated camp is attached afterwards and keeps its live transforms.
+    freezeStaticTransforms(this.settlement);
+  }
+
+  private scaleBuildingLabels(root:THREE.Object3D):void {
+    const scale=(this.camera.top-this.camera.bottom)/Math.max(1,this.lastRectHeight);
+    const width=this.lastRectHeight<600?145:164;
+    root.traverse(object=>{
+      if(object instanceof THREE.Sprite&&object.userData.buildingLabel)
+        object.scale.set(width*scale,width/5.125*scale,1);
+    });
   }
 
   private updateBuildings(): void {
     for (const building of this.city.visualBuildings) {
       const old = this.buildingGroups.get(building.id);
       if (old?.level === building.level) continue;
-      if (old) { disposeBuildingLabels(old.model);disposeBatchedGeometry(old.model);old.model.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();}); this.settlement.remove(old.model); }
+      if (old) { disposeBuildingLabels(old.model);disposeInstanceBuffers(old.model);disposeBatchedGeometry(old.model);old.model.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();}); this.settlement.remove(old.model); }
       const model = createBuilding(building.id, building.level);
       const names:Record<string,string>={storage:'Склад',sawmill:'Лесопилка',workshop:'Мастерская',house:'Дом'};
       model.add(buildingLabel(names[building.id],building.level>0?190+building.level*6:105,building.id,building.level));
       model.position.set(building.x, terrainHeight(building.x, building.y), building.y);
       model.rotation.y = SETTLEMENT_BUILDINGS[building.id as keyof typeof SETTLEMENT_BUILDINGS].rotation;
       this.settlement.add(model);
+      freezeStaticTransforms(model);
+      this.scaleBuildingLabels(model);
       this.buildingGroups.set(building.id, { level: building.level, model });
     }
     const stage=this.getForgeRepairStage(),oldForge=this.buildingGroups.get('forge');
     if(oldForge?.level===stage)return;
-    if(oldForge){disposeBuildingLabels(oldForge.model);disposeBatchedGeometry(oldForge.model);this.settlement.remove(oldForge.model);}
+    if(oldForge){disposeBuildingLabels(oldForge.model);disposeInstanceBuffers(oldForge.model);disposeBatchedGeometry(oldForge.model);this.settlement.remove(oldForge.model);}
     const forge=createForge(stage);
     forge.position.set(FORGE_POSITION.x,terrainHeight(FORGE_POSITION.x,FORGE_POSITION.y),FORGE_POSITION.y);
     forge.add(buildingLabel('Кузница',stage===0?105:185,'forge'));
     this.settlement.add(forge);
+    freezeStaticTransforms(forge);
+    this.scaleBuildingLabels(forge);
     this.buildingGroups.set('forge',{level:stage,model:forge});
   }
 
@@ -785,6 +818,7 @@ export class WorldPresentation3D {
     for(const material of altarMaterials)material.dispose();
     this.scene.remove(this.forestAltar.root);
     for(const building of this.buildingGroups.values())disposeBatchedGeometry(building.model);
+    disposeInstanceBuffers(this.settlement);
     this.settlement.traverse(o=>{if(o instanceof THREE.Mesh&&o.userData.buildingOwned)o.geometry.dispose();});
     this.resizeObserver?.disconnect();
     window.removeEventListener('resize', this.resize);
@@ -800,7 +834,7 @@ export class WorldPresentation3D {
       actor.health.traverse(o=>{if(o instanceof THREE.Mesh){o.geometry.dispose();(o.material as THREE.Material).dispose();}});
     }
     this.actors.clear();
-    for(const root of [...this.landRegions.values(),...this.chunks.values()])root.traverse(o=>{
+    for(const root of this.landRegions.values())root.traverse(o=>{
       if(o instanceof THREE.InstancedMesh)o.dispose();
       if(o instanceof THREE.Mesh&&(o.userData.uniqueGeometry||o.userData.batchedGeometry||o.userData.geographyOwned)){o.geometry.dispose();for(const material of Array.isArray(o.material)?o.material:[o.material])if(!material.userData.sharedArtMaterial)material.dispose();}
     });

@@ -190,6 +190,7 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
   };
   frameControl.onclick=()=>{limitedFrames=!limitedFrames;frameControl.textContent=limitedFrames?'Кадры: 30 FPS':'Кадры: обычные';configureFrames();};
   controls.append(frameControl);
+  if(presentation)button('Сброс замеров',()=>presentation.resetRenderProfile());
   const sampleFrame=(_time:number,delta:number)=>{
     sampleDelta+=delta;sampleRaw+=loop.rawDelta;sampleFrames++;
     if(walkTest){
@@ -245,6 +246,7 @@ export function installPolishPlaytest(player: PlayerController, enemies: EnemySy
       const stats=presentation.renderStats,now=performance.now(),fps=(stats.frames-lastFrames)*1000/Math.max(1,now-lastFrameTime);
       lastFrames=stats.frames;lastFrameTime=now;
       output.textContent+=` · FPS: ${fps.toFixed(0)} · draw: ${stats.calls} · треуг.: ${Math.round(stats.triangles/1000)}k`;
+      output.textContent+=` · CPU 3D: ${stats.totalMs.toFixed(1)} мс (terrain ${stats.terrainMs.toFixed(1)}, actors ${stats.actorsMs.toFixed(1)}, labels ${stats.resourcesMs.toFixed(1)}, render ${stats.renderMs.toFixed(1)}), peak ${stats.peakMs.toFixed(1)} · модели ${stats.actors}, чанки ${stats.chunks}/${stats.residentChunks}, собрано ${stats.builtChunks} · буфер ${stats.pixels} · GPU: ${stats.gpu}`;
     }
     const orbitals=combat.visualOrbitals;
     if(orbitals.length)output.textContent+=` · Орбиты: ${orbitals.map(o=>`${WEAPON_DEFINITIONS[o.weaponId].name} ${Number.isFinite(o.attackAt)?(o.attackAt/1000).toFixed(1)+'с':'ожидает'}`).join(', ')}`;

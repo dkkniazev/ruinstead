@@ -47,7 +47,7 @@ export class ResourceVisual3D {
     for (let i = 0; i < 8; i++) this.chips.add(new THREE.Mesh(chipGeometry, material));
   }
 
-  update(node: ResourceVisualState, time: number, distance: number, camera: THREE.Camera): void {
+  update(node: ResourceVisualState, time: number, distance: number, camera: THREE.Camera,viewport?:{width:number;height:number;resolution:number}): void {
     this.root.position.set(node.x, terrainHeight(node.x, node.y), node.y);
     const age = time - node.hitAt;
     const impact = Math.max(0, 1 - age / 300);
@@ -59,8 +59,7 @@ export class ResourceVisual3D {
     this.screenLabel=undefined;this.leader.style.display='none';
     this.canvas.style.display = visible ? 'block' : 'none';
     if (visible) {
-      const rect = this.labelLayer.getBoundingClientRect();
-      const cssWidth = this.labelLayer.clientWidth, cssHeight = this.labelLayer.clientHeight;
+      const cssWidth=viewport?.width??this.labelLayer.clientWidth,cssHeight=viewport?.height??this.labelLayer.clientHeight;
       const pixelScale = camera instanceof THREE.OrthographicCamera
         ? cssHeight * camera.zoom / (camera.top - camera.bottom) : 1;
       const width = 148 * pixelScale, height = 44 * pixelScale;
@@ -69,7 +68,7 @@ export class ResourceVisual3D {
         top:Math.round((1-this.labelPosition.y)*cssHeight/2-height/2),width,height,
         priority:(age<1200?10000:0)-distance};
       const language = getLanguage();
-      const resolution = Math.min(3, window.devicePixelRatio || 1) * rect.width / Math.max(1, cssWidth);
+      const resolution = viewport?.resolution??Math.min(3, window.devicePixelRatio || 1) * this.labelLayer.getBoundingClientRect().width / Math.max(1, cssWidth);
       const backingWidth = Math.ceil(width * resolution);
       if (visible && (node.health !== this.lastHealth || backingWidth !== this.lastLabelWidth || language !== this.lastLanguage)) {
         this.lastHealth = node.health;

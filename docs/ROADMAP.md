@@ -1,6 +1,6 @@
 # Roadmap reconstructed from current implementation
 
-Status 2026-10-04. This is future work, not a list of functions already implemented.
+Status 2026-10-05. This is future work, not a list of functions already implemented.
 Evidence: [CURRENT_STATE](CURRENT_STATE.md), [investigation](SDD_INVESTIGATION.md),
 domain specs and dated QA/art reports. No roadmap implementation in SDD bootstrap.
 Validation commands/scenarios are owned by [QA_RELEASE](specs/QA_RELEASE.md).
@@ -98,17 +98,33 @@ not change product status or reopen completed bootstrap work.
 - Validation: bake as needed, art/world/polish/build, gameplay/motion previews,
   all regions/creatures/bosses and phone/weak-PC review.
 
-### P1.2 Verify weak-PC base movement and performance without population changes
+### P1.2 Review first-visit hitches and broader device performance
 
 - Goal: identify whether remaining slow movement is frame cost, clock/input or collision.
-- Why: user reports weakness limited to low-end PCs; strong PC/phone work. Timing
-  fixtures pass but do not measure a weak GPU/CPU with full base scenery.
+- Why: earlier slow movement was reported only on weak PCs; on October 4 the
+  user reports severe lag on a powerful PC in Yandex Browser, both draft and local.
+  The user's screenshots now identify software Microsoft Basic Render Driver in
+  Yandex (6 FPS), versus hardware Radeon RX 9070 XT in Edge (165 FPS), at nearly
+  identical resolution. A separate clean user-data directory now restores
+  RX 9070 XT / hardware WebGL in the same Yandex installation; the user's local
+  game screenshot now shows 166 FPS at 2560×1312. Timing fixtures pass. Remaining
+  work is actual draft/travel/first-visit and broader device performance. On
+  October 5 the user reported smooth Yandex gameplay on a weaker work PC and
+  explicitly removed the original-configuration investigation from scope.
+  That configuration's cause remains Unverified; no repair is claimed.
 - Systems: clock/player/collision vs render culling/batching/labels, debug overlay.
 - Dependency: reproducible affected hardware/build context; no assumed bug mechanism.
 - Acceptance: evidence identifies the cause or an explicit hardware limitation.
   If a correction is needed, it preserves travel/dash/collision and population,
   with the before/after scenario recorded; profiling alone does not assert a code bug.
 - Validation: timing/gameplay/world/polish/art as affected, real base-route profiling.
+  Local template sharing, rigid transforms, resize-shared labels and a bounded
+  recent-terrain cache are implemented. Hero occlusion draw grouping, static
+  settlement transforms, resize/rebuild label scaling and roof-buffer cleanup
+  are also implemented. Remaining work is first-visit stalls and broader
+  device/route acceptance. Browser acceleration settings have not been changed
+  by the agent. [Completed local pass](exec-plans/completed/RENDER_PERFORMANCE.md)
+  records measurements and their limits.
 
 ### P1.3 Full campaign/rare-resource and mobile UI review
 
@@ -147,3 +163,16 @@ not change product status or reopen completed bootstrap work.
 - Acceptance: documented scope/trust/data/consent or asset provenance and measurable
   validation scenario before implementation; not relabeled as already connected.
 - Validation: lifecycle/release fixtures and actual sound/collector inspection if approved.
+
+### P2.3 Plan the Android version after local optimization
+
+- Goal: define an Android delivery path for the existing game and a concrete
+  device/visual target. The user selected this as the next development direction
+  on October 5, after the bounded local optimization pass.
+- Systems: runtime/renderer, platform services, touch UI, saves, build/distribution.
+- Dependency: decide whether to package the existing web runtime or migrate;
+  document SDK/ads/purchase and save boundaries before implementation.
+- Acceptance: approved platform/architecture feature and execution plan with a
+  small device-tested prototype. No engine migration or Android build exists yet.
+- Validation: current regression baseline plus Android lifecycle/input/performance
+  and packaging checks appropriate to the chosen approach.

@@ -17,6 +17,10 @@ import { bindReptileSkin } from './ReptileSkin';
 import { bindBirdSkin } from './BirdSkin';
 import { bindSmallCreatureSkin } from './SmallCreatureSkin';
 import type { AnimatedModel } from './Models';
+import { instantiateCreature,type CreatureInstanceRig } from './CreatureInstances';
+
+const instanceRigs=new WeakMap<T.Group,CreatureInstanceRig>();
+const templates=new Map<string,{model:AnimatedModel;profile:CreatureInstanceRig;users:number}>();
 
 const round = softOrb;
 const block = softBox;
@@ -62,7 +66,7 @@ for(let n=2;n<8;n++)for(const i of [1,n,(n+1)%8])wingVertices.push(...wingOutlin
 wingGeometry.setAttribute('position',new T.Float32BufferAttribute(wingVertices,3));wingGeometry.computeVertexNormals();
 
 /** Articulated species silhouettes; the visual core uses the existing combat radius. */
-export function createCreature(id:string,primary:number,accent:number,elite=false,combatRadius?:number):AnimatedModel {
+function authorCreature(id:string,primary:number,accent:number,elite=false,combatRadius?:number):AnimatedModel {
   const identity=creatureIdentity(id),shape=identity.shape,boss=!!identity.boss;
   [primary,accent]=CREATURE_PALETTES[id]??[primary,accent];
   const eyes=(g:T.Object3D,y:number,z:number,spread=8,_reptile=false,_goblin=false)=>createCreatureEyes(g,shape,primary,accent,y,z,spread);
@@ -323,5 +327,22 @@ export function createCreature(id:string,primary:number,accent:number,elite=fals
   if(identity.asset&&elite){const ring=new T.Mesh(new T.TorusGeometry(20,2,4,12),material(0xe8c477));ring.rotation.x=Math.PI/2;ring.position.y=82;model.root.add(ring);const dispose=model.dispose;model.dispose=()=>{ring.geometry.dispose();dispose?.();};}
   model.root.userData.visualIdentity=shape;model.root.userData.combatRadius=radius;
   const measure=():void=>{model.root.userData.visualHeight=creatureBodyBounds(model.root).max.y-model.root.position.y;};measure();void model.ready?.then(measure);
+  instanceRigs.set(model.root,{rig:{body,head,jaw,legs,knees,arms,grips,wings,segments,tail:scorpionTail},shape,boss,floating,worldScale});
   return model;
+}
+
+/** Author/batch/bind a species once while its instances are alive. Repeated pack
+ * members clone the same surfaces with independent bones/materials/animation. */
+export function createCreature(id:string,primary:number,accent:number,elite=false,combatRadius?:number):AnimatedModel {
+  if(creatureIdentity(id).asset)return authorCreature(id,primary,accent,elite,combatRadius);
+  const key=[id,primary,accent,elite,combatRadius??'default'].join(':');
+  let template=templates.get(key);
+  if(!template){
+    const model=authorCreature(id,primary,accent,elite,combatRadius);
+    template={model,profile:instanceRigs.get(model.root)!,users:0};templates.set(key,template);
+  }
+  const held=template;held.users++;
+  return instantiateCreature(held.model,held.profile,()=>{
+    if(--held.users===0){templates.delete(key);held.model.dispose?.();}
+  });
 }

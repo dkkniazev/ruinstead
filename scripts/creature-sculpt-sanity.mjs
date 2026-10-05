@@ -8,6 +8,32 @@ const manifest=JSON.parse(fs.readFileSync('public/assets/models/creature-sculpt/
 const hash=createHash('sha256');for(const file of ['CreatureSculpt.ts','CreatureCatalog.ts','CreatureArt.ts','CreatureAnatomy.ts','CreatureModels.ts','MammalForms.ts','HumanoidForms.ts','ReptileForms.ts'])hash.update(fs.readFileSync('src/game/render3d/'+file));
 assert.equal(manifest.authoringHash,hash.digest('hex'),'Authored geometry changed; run npm run art:bake-creatures');
 installCreatureSurfaces(manifest,bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength));
+// Pack clones must share heavy geometry, but never share an animated skeleton,
+// mutable face/aura material, or release geometry still used by another unit.
+for(const id of ['goblin','boar','cave-bat','sun-scorpion','magma-hound','lava-elemental']){
+  const a=createCreature(id,0x728065,0xbca97c,true,25),b=createCreature(id,0x728065,0xbca97c,true,25);
+  const am=[],bm=[];a.root.traverse(o=>{if(o instanceof T.Mesh)am.push(o);});b.root.traverse(o=>{if(o instanceof T.Mesh)bm.push(o);});
+  assert.equal(am.length,bm.length,id+' cloned topology');
+  am.forEach((mesh,i)=>{
+    assert.equal(mesh.geometry,bm[i].geometry,id+' immutable geometry is reused');
+    if(mesh.userData.ownedMaterial||mesh.userData.visualEffect)assert.notEqual(mesh.material,bm[i].material,id+' mutable instance material');
+    if(mesh instanceof T.SkinnedMesh){
+      assert.notEqual(mesh.skeleton,bm[i].skeleton,id+' independent skeleton');
+      mesh.skeleton.bones.forEach((bone,n)=>assert.notEqual(bone,bm[i].skeleton.bones[n],id+' independent bones'));
+    }
+  });
+  b.root.updateMatrixWorld(true);const rest=[];b.root.traverse(o=>rest.push(o.matrixWorld.toArray()));
+  a.step(.03,150,false,true,undefined,undefined,undefined,{phase:'strike',progress:.4,hit:0});a.root.updateMatrixWorld(true);
+  b.root.updateMatrixWorld(true);let at=0;b.root.traverse(o=>assert.deepEqual(o.matrixWorld.toArray(),rest[at++],id+' another actor cannot change this pose'));
+  const ownedIndex=am.findIndex(m=>m.userData.ownedMaterial),batch=am.find(m=>m.userData.batchedGeometry);
+  let otherDisposed=false,geometryDisposed=false;
+  if(ownedIndex>=0)bm[ownedIndex].material.addEventListener('dispose',()=>{otherDisposed=true;});
+  batch?.geometry.addEventListener('dispose',()=>{geometryDisposed=true;});
+  a.dispose();a.dispose();assert(!otherDisposed&&!geometryDisposed,id+' one actor cannot dispose another actor/template');
+  b.step(.016,100,false,true);b.root.updateMatrixWorld(true);
+  b.dispose();assert(ownedIndex<0||otherDisposed,id+' releases instance material');
+  assert(!batch||geometryDisposed,id+' releases owned template batch after final instance');
+}
 // Long surfaces once reached MarchingCubes' omitted boundary samples and lost
 // the front of their muzzle/shell. Check the actual baked triangle boundary.
 for(const [key,geometry]of authoredCreatureSurfaces()){
